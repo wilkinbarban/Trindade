@@ -1,0 +1,16 @@
+{
+  "name": "trindade-masas",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "clean": "rm -rf packages/*/dist packages/*/node_modules node_modules"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}

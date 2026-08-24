@@ -1,0 +1,38 @@
+# SDD local artifacts
+.atl/
+
+# Local recovery and diagnostic artifacts
+.git-index-safety/
+cmdline.txt
+get_tools.py
+
+# Dependencies
+node_modules/
+
+# Build
+dist/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# SQLite
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# Logs
+*.log
+
+# Test artifacts
+test-results/
