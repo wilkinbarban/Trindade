@@ -12,6 +12,7 @@ export async function dashboardRoutes(fastify: FastifyInstance) {
     async (_request: FastifyRequest, reply: FastifyReply) => {
       const db = fastify.db;
       const today = getSaoPauloDateString();
+      const tomorrow = getSaoPauloDateString(new Date(Date.now() + 24 * 60 * 60 * 1000));
 
       const reportsToday = db
         .prepare(
@@ -36,7 +37,7 @@ export async function dashboardRoutes(fastify: FastifyInstance) {
            FROM loading_schedules
            WHERE schedule_date = ? AND is_active = 1`
         )
-        .get(today) as CountRow;
+        .get(tomorrow) as CountRow;
 
       const activeUsers = db
         .prepare(

@@ -85,4 +85,30 @@ describe('Dashboard Routes', () => {
 
     assert.strictEqual(response.statusCode, 401);
   });
+
+  it('GET /api/dashboard/summary counts only tomorrow schedules in São Paulo', async (t) => {
+    t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-08-24T02:30:00.000Z') });
+    t.after(() => t.mock.timers.reset());
+
+    db.prepare(
+      `INSERT INTO loading_schedules (schedule_date, time_slot, driver_type, is_active)
+       VALUES (?, '04:00', 'fletero', 1), (?, '04:30', 'fletero', 1), (?, '05:00', 'fletero', 1)`
+    ).run('2026-08-23', '2026-08-23', '2026-08-24');
+
+    const loginRes = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: fixtures.admin,
+    });
+    const { token } = JSON.parse(loginRes.body);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/dashboard/summary',
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    assert.strictEqual(response.statusCode, 200);
+    assert.strictEqual(JSON.parse(response.body).schedulesTomorrow, 1);
+  });
 });
