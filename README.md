@@ -64,6 +64,23 @@ pending), `incompatible` (failed integrity or missing tables), and `newer` (writ
 build this one does not know: never downgrade it). Unexpected extra tables are reported
 without changing the verdict, because they cannot break the application.
 
+Migrating or adopting an existing database is a deliberate, operator-invoked write and is
+never part of startup:
+
+```bash
+make db-migrate                                       # local database
+DATABASE_PATH=/path/to/trindade.db make db-migrate    # explicit target
+docker exec trindade-api-1 node dist/db/migrate.js    # the running container, after the image ships dist
+```
+
+The migration command reports the before state read-only, refuses a `newer` or
+`incompatible` database without ever opening it for writing, and only then opens an
+`unversioned` database read-write. The one migration that predates versioning is the legacy
+`report_temperatures` rebuild, which is idempotent: it no-ops once `reading_index` exists and
+then the revision is stamped. Because it writes, run it only after the recovery-gate
+evidence recorded above (snapshot, isolated restore, approval) against the exact target you
+authorized — it is a change to an existing production database, not an inspection.
+
 ## Recovery and stage-one verification
 
 Stage one does **not** authorize production mutation or deployment. Before any later upgrade:

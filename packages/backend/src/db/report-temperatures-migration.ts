@@ -1,11 +1,16 @@
 import type Database from 'better-sqlite3';
 
-export function migrateLegacyReportTemperatures(db: Database.Database): void {
+/**
+ * Rebuild the legacy `report_temperatures` table into the `reading_index` shape, once.
+ * Returns true only when a rebuild ran; a database that is missing the table or that
+ * already carries `reading_index` is left untouched and returns false.
+ */
+export function migrateLegacyReportTemperatures(db: Database.Database): boolean {
   const reportTemperatures = db
     .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'report_temperatures'")
     .get() as { sql: string } | undefined;
 
-  if (!reportTemperatures || reportTemperatures.sql.includes('reading_index')) return;
+  if (!reportTemperatures || reportTemperatures.sql.includes('reading_index')) return false;
 
   db.pragma('foreign_keys = OFF');
   try {
@@ -31,4 +36,5 @@ export function migrateLegacyReportTemperatures(db: Database.Database): void {
   } finally {
     db.pragma('foreign_keys = ON');
   }
+  return true;
 }

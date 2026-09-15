@@ -9,6 +9,7 @@
     "start": "node dist/server.js",
     "db:reset": "rm -f data/trindade.db",
     "db:status": "tsx src/db/status.ts",
+    "db:migrate": "tsx src/db/migrate.ts",
     "test": "node --test --import tsx \"src/**/*.test.ts\"",
     "test:e2e:server": "tsx src/e2e-server.ts"
   },

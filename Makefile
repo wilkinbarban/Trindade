@@ -1,4 +1,4 @@
-.PHONY: install dev build ci ci-clone db-reset db-status docker-up docker-down
+.PHONY: install dev build ci ci-clone db-reset db-status db-migrate docker-up docker-down
 
 install:
 	npm install
@@ -50,6 +50,9 @@ db-reset:
 
 db-status:
 	@npm run db:status --workspace=packages/backend -- "$${DATABASE_PATH:-packages/backend/data/trindade.db}"
+
+db-migrate:
+	@npm run db:migrate --workspace=packages/backend -- "$${DATABASE_PATH:-packages/backend/data/trindade.db}"
 
 docker-up:
 	docker compose up -d
