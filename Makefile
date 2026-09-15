@@ -1,3 +1,5 @@
+SHELL := /usr/bin/env bash
+
 .PHONY: install dev build ci ci-clone db-reset db-status db-migrate db-backup db-restore docker-up docker-down
 
 install:
@@ -19,18 +21,28 @@ ci-clone:
 	trap cleanup EXIT; \
 	git clone --no-local "$$(git rev-parse --show-toplevel)" "$$clone_dir"; \
 	overlay_paths=""; \
-	for path in scripts/ci.sh scripts/verify-schema-clis.sh package.json README.md Makefile; do \
-		if git status --porcelain -- "$$path" | grep -q .; then overlay_paths="$$overlay_paths $$path"; fi; \
-	done; \
+	while IFS= read -r line || [ -n "$$line" ]; do \
+		[ -z "$$line" ] && continue; \
+		st="$${line:0:2}"; \
+		fp="$${line:3}"; \
+		if [[ "$$fp" == *" -> "* ]]; then fp="$${fp##* -> }"; fi; \
+		fp="$${fp#\"}"; fp="$${fp%\"}"; \
+		overlay_paths="$$overlay_paths $$fp"; \
+		if [[ "$$st" =~ D ]]; then \
+			rm -rf "$$clone_dir/$$fp"; \
+		else \
+			if [ -d "$$fp" ]; then \
+				mkdir -p "$$clone_dir/$$fp"; cp -a "$$fp/." "$$clone_dir/$$fp/"; \
+			else \
+				mkdir -p "$$clone_dir/$$(dirname "$$fp")"; cp -a "$$fp" "$$clone_dir/$$fp"; \
+			fi; \
+		fi; \
+	done < <(git status --porcelain); \
 	if [ -n "$$overlay_paths" ]; then \
 		printf '\n!!! WARNING: ci-clone is overlaying these dirty paths:%s !!!\n' "$$overlay_paths" >&2; \
-		printf '!!! This run is NOT a clean-checkout proof; it is HEAD plus working-tree gate files. !!!\n\n' >&2; \
-		mkdir -p "$$clone_dir/scripts"; \
-		for path in $$overlay_paths; do \
-			mkdir -p "$$clone_dir/$$(dirname "$$path")"; cp "$$path" "$$clone_dir/$$path"; \
-		done; \
+		printf '!!! This run is NOT a clean-checkout proof; it is HEAD plus uncommitted working-tree files. !!!\n\n' >&2; \
 	else \
-		printf '\nci-clone: no gate paths are dirty; this is a clean-checkout proof of HEAD.\n'; \
+		printf '\nci-clone: working tree is clean; this is a clean-checkout proof of HEAD.\n'; \
 	fi; \
 	pw_mount=""; \
 	if [ -d "$$HOME/.cache/ms-playwright" ]; then \

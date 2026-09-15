@@ -175,13 +175,12 @@ make ci-clone    # Clone HEAD, run the gate in node:24-bookworm-slim, then clean
 ```
 
 `make ci-clone` clones the local repository and removes its throwaway clone afterward.
-When `scripts/ci.sh`, `scripts/verify-schema-clis.sh`, `package.json`, `README.md`, and
-`Makefile` are clean relative
-to HEAD, it runs a genuine clean-checkout proof of HEAD on the declared engine. If
-any of those gate paths are dirty, it overlays the dirty paths, prints a loud warning,
-and proves only HEAD plus the working-tree gate files—not a clean checkout. This
-keeps the unit bootstrappable while making contaminated evidence explicit. It uses
-the current local HEAD because this repository has no remote yet.
+When the working tree is clean relative to HEAD, it runs a genuine clean-checkout proof
+of HEAD on the declared engine. If any files are uncommitted or dirty, it automatically
+overlays all dirty working-tree files onto the clone, prints a loud warning listing every
+overlaid path, and proves only HEAD plus uncommitted changes—not a clean checkout. This
+keeps work bootstrappable without manual overlay lists while making contaminated evidence
+explicit. It uses the current local HEAD because this repository has no remote yet.
 
 The root `lint` script is currently a documented no-op: it uses npm's
 `--workspaces --if-present`, and no workspace defines a `lint` script. It is
