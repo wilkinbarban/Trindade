@@ -1,4 +1,4 @@
-.PHONY: install dev build ci ci-clone db-reset db-status db-migrate docker-up docker-down
+.PHONY: install dev build ci ci-clone db-reset db-status db-migrate db-backup db-restore docker-up docker-down
 
 install:
 	npm install
@@ -53,6 +53,12 @@ db-status:
 
 db-migrate:
 	@npm run db:migrate --workspace=packages/backend -- "$${DATABASE_PATH:-packages/backend/data/trindade.db}"
+
+db-backup:
+	@bash scripts/db-backup.sh "$${BACKUP_DIR:-}"
+
+db-restore:
+	@bash scripts/db-restore.sh "$${BACKUP_DIR:?Error: BACKUP_DIR must be provided}" $${CONFIRM:-}
 
 docker-up:
 	docker compose up -d

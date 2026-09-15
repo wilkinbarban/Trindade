@@ -100,6 +100,77 @@ export function verifyIsolatedRestore(input: { manifestPath: string; targetDir: 
   return { setId: manifest.setId, verifiedAt: new Date().toISOString(), integrity, schemaIdentity: createHash('sha256').update(tables.join('\n')).digest('hex'), rowCounts, assetsVerified: manifest.assets.length };
 }
 
+export function restoreRecoverySet(input: {
+  manifestPath: string;
+  targetDatabasePath: string;
+  targetAssetsPath: string;
+  allowedRoots: string[];
+}) {
+  const manifestPath = safePath(input.manifestPath, input.allowedRoots, 'manifestPath');
+  const targetDatabasePath = safePath(input.targetDatabasePath, input.allowedRoots, 'targetDatabasePath');
+  const targetAssetsPath = safePath(input.targetAssetsPath, input.allowedRoots, 'targetAssetsPath');
+  const setDir = dirname(manifestPath);
+
+  if (targetDatabasePath === setDir || targetDatabasePath.startsWith(`${setDir}/`) ||
+      targetAssetsPath === setDir || targetAssetsPath.startsWith(`${setDir}/`)) {
+    throw new Error('Restore target overlaps the recovery set');
+  }
+
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as Manifest;
+  const snapshotSource = join(setDir, manifest.snapshot.path);
+  if (!existsSync(snapshotSource) || digest(snapshotSource) !== manifest.snapshot.sha256) {
+    throw new Error('Snapshot checksum mismatch');
+  }
+
+  for (const asset of manifest.assets) {
+    const assetSource = join(setDir, 'assets', asset.path);
+    if (!existsSync(assetSource) || digest(assetSource) !== asset.sha256) {
+      throw new Error(`Asset checksum mismatch: ${asset.path}`);
+    }
+  }
+
+  mkdirSync(dirname(targetDatabasePath), { recursive: true });
+  rmSync(targetAssetsPath, { recursive: true, force: true });
+  mkdirSync(targetAssetsPath, { recursive: true });
+
+  cpSync(snapshotSource, targetDatabasePath);
+
+  const sidecars = [`${targetDatabasePath}-wal`, `${targetDatabasePath}-shm`];
+  for (const sidecar of sidecars) {
+    if (existsSync(sidecar)) {
+      rmSync(sidecar, { force: true });
+    }
+  }
+
+  cpSync(join(setDir, 'assets'), targetAssetsPath, { recursive: true });
+
+  const db = new Database(targetDatabasePath, { readonly: true, fileMustExist: true });
+  const integrity = db.pragma('integrity_check', { simple: true }) as string;
+  const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name").pluck().all() as string[];
+  const rowCounts = Object.fromEntries(tables.map((table) => [table, db.prepare(`SELECT COUNT(*) FROM "${table.replaceAll('"', '""')}"`).pluck().get() as number]));
+  db.close();
+
+  if (integrity !== 'ok') {
+    throw new Error(`Restored database integrity failed: ${integrity}`);
+  }
+
+  for (const asset of manifest.assets) {
+    const restoredAssetPath = join(targetAssetsPath, asset.path);
+    if (!existsSync(restoredAssetPath) || digest(restoredAssetPath) !== asset.sha256) {
+      throw new Error(`Restored asset verification failed: ${asset.path}`);
+    }
+  }
+
+  return {
+    setId: manifest.setId,
+    restoredAt: new Date().toISOString(),
+    integrity,
+    schemaIdentity: createHash('sha256').update(tables.join('\n')).digest('hex'),
+    rowCounts,
+    assetsRestored: manifest.assets.length,
+  };
+}
+
 async function runtimeScenario() {
   const root = mkdtempSync(join(tmpdir(), 'trindade-recovery-runtime-'));
   const source = join(root, 'source'); mkdirSync(join(source, 'photos'), { recursive: true }); writeFileSync(join(source, 'photos', 'probe.txt'), 'probe');
@@ -109,7 +180,72 @@ async function runtimeScenario() {
   console.log(JSON.stringify({ scenario: 'verify-isolated', result: 'pass', ...proof })); rmSync(root, { recursive: true, force: true });
 }
 
+function parseCliRoots(args: string[], paths: string[]): string[] {
+  const custom: string[] = [];
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--allow-root' && args[i + 1]) {
+      custom.push(resolve(args[++i]));
+    }
+  }
+  if (custom.length > 0) return custom;
+  const defaults = ['/app', '/tmp', process.cwd(), tmpdir()].filter(existsSync);
+  for (const p of paths) {
+    let parent = resolve(p);
+    while (!existsSync(parent) && parent !== dirname(parent)) {
+      parent = dirname(parent);
+    }
+    if (existsSync(parent)) defaults.push(parent);
+  }
+  return [...new Set(defaults)];
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  if (process.argv.length === 3 && process.argv[2] === '--verify-isolated') await runtimeScenario();
-  else throw new Error('Usage: recovery.js --verify-isolated');
+  const args = process.argv.slice(2);
+  const command = args[0];
+
+  if (command === '--verify-isolated') {
+    await runtimeScenario();
+  } else if (command === 'capture' && args.length >= 4) {
+    const databasePath = resolve(args[1]);
+    const assetsPath = resolve(args[2]);
+    const outputDir = resolve(args[3]);
+    const allowedRoots = parseCliRoots(args.slice(4), [databasePath, assetsPath, outputDir]);
+    const manifestPath = await captureRecoverySet({
+      databasePath,
+      assetsPath,
+      outputDir,
+      allowedRoots,
+    });
+    console.log(JSON.stringify({ command: 'capture', result: 'ok', manifestPath }));
+  } else if (command === 'verify-isolated' && args.length >= 3) {
+    const manifestPath = resolve(args[1]);
+    const targetDir = resolve(args[2]);
+    const allowedRoots = parseCliRoots(args.slice(3), [manifestPath, targetDir]);
+    const proof = verifyIsolatedRestore({
+      manifestPath,
+      targetDir,
+      allowedRoots,
+    });
+    console.log(JSON.stringify({ command: 'verify-isolated', result: 'ok', ...proof }));
+  } else if (command === 'restore' && args.length >= 4) {
+    const manifestPath = resolve(args[1]);
+    const targetDatabasePath = resolve(args[2]);
+    const targetAssetsPath = resolve(args[3]);
+    const allowedRoots = parseCliRoots(args.slice(4), [manifestPath, targetDatabasePath, targetAssetsPath]);
+    const proof = restoreRecoverySet({
+      manifestPath,
+      targetDatabasePath,
+      targetAssetsPath,
+      allowedRoots,
+    });
+    console.log(JSON.stringify({ command: 'restore', result: 'ok', ...proof }));
+  } else {
+    throw new Error(
+      'Usage:\n' +
+      '  recovery.js --verify-isolated\n' +
+      '  recovery.js capture <databasePath> <assetsPath> <outputDir> [--allow-root <dir>...]\n' +
+      '  recovery.js verify-isolated <manifestPath> <targetDir> [--allow-root <dir>...]\n' +
+      '  recovery.js restore <manifestPath> <targetDatabasePath> <targetAssetsPath> [--allow-root <dir>...]'
+    );
+  }
 }

@@ -136,6 +136,30 @@ npm exec --workspace=packages/backend -- node --test --import tsx src/stage-one-
 
 The harness output is regression evidence, not a production recovery set. Never run reset commands against an existing installation. Production inspection must remain read-only and must not expose secret values in manifests or logs.
 
+### Production recovery set and rollback commands
+
+To capture an actual production recovery set and prove isolated restore before any deployment or schema mutation:
+
+```bash
+make db-backup                                    # captures to ./backups/recovery-<timestamp>
+BACKUP_DIR=/custom/backup/path make db-backup     # explicit destination
+./scripts/db-backup.sh                            # direct script invocation
+```
+
+The backup tool opens the database strictly read-only and calls SQLite online backup (`db.backup()`), copies report photos, generates a SHA-256 manifest, and immediately runs an isolated restore proof to verify that the snapshot and assets pass `PRAGMA integrity_check` and table/row verification.
+
+If a deployment or migration fails, roll back using the verified recovery set:
+
+```bash
+make db-restore BACKUP_DIR=./backups/recovery-<timestamp> CONFIRM=--confirm
+# Or directly:
+./scripts/db-restore.sh ./backups/recovery-<timestamp> --confirm
+```
+
+The restore tool verifies checksums before writing, stops the container to release write locks, replaces the database and photos, deletes stale `-wal` and `-shm` sidecars to prevent WAL replay corruption, restarts the container, and verifies `PRAGMA integrity_check` and schema status.
+
+For the complete step-by-step production rollout, pre-flight gate, schema adoption, and rollback runbook, see [`docs/deployment.md`](docs/deployment.md).
+
 ## Reproducible verification gate
 
 The canonical CI gate is `scripts/ci.sh`. It requires Node.js 24, installs the

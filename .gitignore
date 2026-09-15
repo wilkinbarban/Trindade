@@ -44,6 +44,9 @@ test-results/
 # unanchored .pi/ would also swallow gentle-ai state in any nested package.
 /.pi/
 
+# Local recovery sets
+backups/
+
 # Runtime state — SQLite database, WAL sidecars and uploaded report photos.
 # The directory itself is kept in git via .gitkeep so a fresh clone can boot.
 packages/backend/data/*
