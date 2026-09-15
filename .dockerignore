@@ -1,0 +1,35 @@
+# Dependencies: the images install their own tree with `npm ci`; a local node_modules
+# would both bloat the context and, via `COPY packages/...`, leak stale binaries in.
+node_modules/
+
+# Build output: images rebuild from source, so a stale local dist/ must not ship.
+dist/
+
+# Runtime state: never bake the SQLite database, WAL sidecars, or uploaded photos
+# into an image. This directory is a mounted volume at runtime.
+packages/backend/data/
+
+# Test artifacts.
+test-results/
+
+# Local environment and secrets.
+.env
+.env.*
+
+# Logs.
+*.log
+
+# Git metadata (large and irrelevant to a build).
+.git/
+
+# IDE / OS noise.
+.vscode/
+.idea/
+.DS_Store
+
+# Local Pi / gentle-ai session state.
+.pi/
+
+# Documentation and process artifacts that no image needs.
+openspec/
+PRD_Trindade.md
