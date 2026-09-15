@@ -1,10 +1,13 @@
+# Ignore rules are deliberately unanchored where the artifact can exist at any
+# depth, as with node_modules/, dist/, .env, test-results/, *.db and *.log: each
+# package owns its own copy. Anchor a rule to the repository root only when a
+# nested artifact of the same name must stay versionable, as with /.pi/.
+
 # SDD local artifacts
 .atl/
 
 # Local recovery and diagnostic artifacts
 .git-index-safety/
-cmdline.txt
-get_tools.py
 
 # Dependencies
 node_modules/
