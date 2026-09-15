@@ -53,10 +53,12 @@ DATABASE_PATH=/path/to/trindade.db make db-status   # explicit target
 npm run db:status --workspace=packages/backend      # same command, unscoped
 ```
 
-Inside a running container the compiled command is available without a toolchain:
+Inside a running container the compiled command is available without a toolchain. The API
+image runs from `/app` and copies only `packages/backend/dist`, so the compiled commands live
+under `packages/backend/dist/db/`:
 
 ```bash
-docker exec trindade-api-1 node dist/db/status.js   # read-only inspection
+docker exec trindade-api-1 node packages/backend/dist/db/status.js   # read-only inspection
 ```
 
 The verdicts are `current`, `unversioned` (no stamp), `outdated` (older stamp, migration
@@ -70,7 +72,7 @@ never part of startup:
 ```bash
 make db-migrate                                       # local database
 DATABASE_PATH=/path/to/trindade.db make db-migrate    # explicit target
-docker exec trindade-api-1 node dist/db/migrate.js    # the running container, after the image ships dist
+docker exec trindade-api-1 node packages/backend/dist/db/migrate.js   # in the running container, once the image ships dist
 ```
 
 The migration command reports the before state read-only, refuses a `newer` or
@@ -91,6 +93,27 @@ info level — an unversioned database is the expected state of an installation 
 versioning — while `outdated`, `newer`, and `incompatible` are logged as warnings. Measured
 on the production database (335 KB plus a 4 MB WAL): 8.8 ms for the whole notice, 6.0 ms of
 which is the integrity check.
+
+### Certificate renewal
+
+The public certificates are shared with the other DuckDNS sites behind the Portafolio Nginx,
+so they live in that project's Docker volumes (`portafolio_letsencrypt`,
+`portafolio_certbot-www`) and are renewed by `scripts/renew-certbot.sh`, run daily at 03:17
+from the user crontab with both streams appended to `certbot-renew.log`. The job renews
+whatever sits inside the 30-day window, reloads Nginx so it serves the renewed files, and ends
+with a timestamped heartbeat line: a log that stops growing means the job stopped running. It
+never recreates the container, so it cannot deploy unrelated changes from the Portafolio
+working tree; restarting that proxy is a deliberate deployment step.
+
+Validate renewal without touching the live certificates:
+
+```bash
+cd /home/wilkin/proyectos/Portafolio
+docker compose --profile ssl run --rm certbot renew --dry-run
+```
+
+TLS for `trindademasas.duckdns.org` belongs to that shared proxy: the API image never handles
+certificates.
 
 ## Recovery and stage-one verification
 
