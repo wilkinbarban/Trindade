@@ -56,6 +56,45 @@ npm exec --workspace=packages/backend -- node --test --import tsx src/stage-one-
 
 The harness output is regression evidence, not a production recovery set. Never run reset commands against an existing installation. Production inspection must remain read-only and must not expose secret values in manifests or logs.
 
+## Reproducible verification gate
+
+The canonical CI gate is `scripts/ci.sh`. It requires Node.js 24, installs the
+lockfile dependencies with `npm ci`, builds both workspaces, runs real TypeScript
+checks for both workspaces, and runs the complete backend test suite. It starts
+from a clean dependency tree and refuses to reuse an existing `node_modules`.
+The declared container target is `node:24-bookworm-slim`.
+
+```bash
+make ci          # Run the gate on the host (requires Node.js 24 and no node_modules)
+make ci-clone    # Clone HEAD, run the gate in node:24-bookworm-slim, then clean up
+```
+
+`make ci-clone` clones the local repository and removes its throwaway clone afterward.
+When `scripts/ci.sh`, `package.json`, `README.md`, and `Makefile` are clean relative
+to HEAD, it runs a genuine clean-checkout proof of HEAD on the declared engine. If
+any of those gate paths are dirty, it overlays the dirty paths, prints a loud warning,
+and proves only HEAD plus the working-tree gate files—not a clean checkout. This
+keeps the unit bootstrappable while making contaminated evidence explicit. It uses
+the current local HEAD because this repository has no remote yet.
+
+The root `lint` script is currently a documented no-op: it uses npm's
+`--workspaces --if-present`, and no workspace defines a `lint` script. It is
+therefore not part of the verification gate or evidence of lint coverage.
+
+The gate does not run the frontend Playwright E2E suite; run that separately with a
+running backend.
+
+**Current status: the gate is red on the declared engine, and it reports that
+instead of hiding it.** On Node.js 24 the backend suite aborts inside the native
+database driver: `better-sqlite3@11.10.0` publishes no prebuilt binary for the
+Node 24 ABI (`node-v137`), so it is compiled from source at install time, and its
+statement teardown trips a native assertion (`RemoveEnvironmentCleanupHook`) that
+terminates the process. The aborting set of test files is not stable between runs.
+The same suite passes 218/218 across 29 files on Node.js 22. This is a driver and
+engine compatibility defect, not a regression in project code, and it is tracked as
+the next unit of work. Node.js 24 remains the declared target: the container images
+and `engines.node` both require it, so the host's Node.js 22 is the anomaly.
+
 ## Testing
 
 ```bash
