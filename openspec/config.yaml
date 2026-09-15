@@ -1,0 +1,75 @@
+# openspec/config.yaml — Trindade Massas Operações
+schema: spec-driven
+
+context: |
+  Tech stack: React 19 + TypeScript + Vite 6 + TailwindCSS 3 + shadcn/ui + i18next (FE) | Node.js 24 + Fastify 5 + TypeScript + Zod + JWT (BE) | SQLite + better-sqlite3 (DB) | Docker + Docker Compose (Infra)
+  Architecture: npm workspaces monorepo (packages/backend, packages/frontend), client-server, REST API
+  Testing: node:test (BE unit/integration, 8 files) + Playwright (full-stack E2E, 10 specs/53 tests) | No FE unit runner | No coverage tool
+  Quality: TypeScript strict (tsc) — no project-level linter or formatter configured
+  Style: Mobile-first, responsive, i18n (PT-BR + ES), WhatsApp-optimized exports
+  Language: System UI in PT-BR/ES; WhatsApp exports always in PT-BR
+
+rules:
+  proposal:
+    - Include rollback plan for risky changes
+    - Consider mobile-first UX implications
+  specs:
+    - Use Given/When/Then for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+    - WhatsApp export text MUST always be in Brazilian Portuguese
+  design:
+    - Include sequence diagrams for complex flows
+    - Document architecture decisions with rationale
+  tasks:
+    - Group by phase, use hierarchical numbering
+    - Keep tasks completable in one session
+  apply:
+    - Follow existing code patterns
+    tdd: false
+    test_command: "npm run test --workspace=packages/backend"
+  verify:
+    test_command: "npm run test --workspace=packages/backend"
+    build_command: "npm run build --workspaces --if-present"
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive deltas
+
+strict_tdd: false
+
+testing:
+  detected: "2026-08-08"
+  strict_tdd_eligible: true
+  strict_tdd_reason: "A backend test runner exists, but the preserved project configuration explicitly disables strict TDD."
+  unit:
+    available: true
+    framework: "node:test with tsx"
+    command: "npm run test --workspace=packages/backend"
+  integration:
+    available: true
+    framework: "Fastify injection with SQLite fixtures under node:test"
+    command: "npm run test --workspace=packages/backend"
+  e2e:
+    available: true
+    framework: "Playwright (Chromium) with managed backend and Vite servers"
+    command: "npm run test:e2e --workspace=packages/frontend"
+  coverage:
+    available: false
+    command: ""
+  quality:
+    linter:
+      available: false
+      command: ""
+    type_checker:
+      available: true
+      command: "npm run build --workspaces --if-present"
+    formatter:
+      available: false
+      command: ""
+  verification_snapshot:
+    backend_tests: "failing: 32 passed, 135 failed, 167 total"
+    build: "passing for backend and frontend"
+    e2e_discovery: "passing: 53 tests discovered in 10 files"
+
+delivery:
+  strategy: auto-chain
+  review_budget_lines: 400
