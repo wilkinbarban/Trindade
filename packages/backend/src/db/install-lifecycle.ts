@@ -8,8 +8,12 @@ export type InstallationClass =
   | { kind: 'ambiguous'; reason: string };
 
 export function classifyInstallation(databasePath: string): InstallationClass {
+  const parent = dirname(databasePath);
   try {
-    accessSync(dirname(databasePath), constants.R_OK | constants.W_OK);
+    if (!statSync(parent).isDirectory()) {
+      return { kind: 'ambiguous', reason: 'Database parent is not a directory' };
+    }
+    accessSync(parent, constants.R_OK | constants.W_OK);
   } catch {
     return { kind: 'ambiguous', reason: 'Database parent cannot be inspected safely' };
   }

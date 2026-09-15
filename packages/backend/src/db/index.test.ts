@@ -21,6 +21,16 @@ describe('safe database startup', () => {
     db.close();
   });
 
+  it('refuses a target whose parent is not a directory', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'trindade-startup-'));
+    directories.push(dir);
+    const blocker = join(dir, 'not-a-directory');
+    writeFileSync(blocker, 'occupied');
+
+    assert.throws(() => openDatabase(join(blocker, 'app.db')), /startup refused: Database parent is not a directory/);
+    assert.equal(readFileSync(blocker, 'utf8'), 'occupied');
+  });
+
   it('permits a legitimate write after reopening an existing database', () => {
     const path = target();
     const seed = new Database(path);
@@ -97,6 +107,20 @@ describe('safe database startup', () => {
     assert.equal(existsSync(join(photosDir, 'expired.jpg')), false);
     assert.deepEqual(readFileSync(join(photosDir, 'retained.jpg')), retainedBefore);
     assert.deepEqual(readFileSync(path), before);
+  });
+
+  it('refuses a target whose parent directory does not exist', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'trindade-startup-'));
+    directories.push(dir);
+    const dataDir = join(dir, 'data');
+
+    // Deliberate: the database layer never invents filesystem paths. A missing
+    // parent is a loud configuration failure, not a fresh installation, because
+    // silently seeding an empty database at an unintended path produces an app
+    // that looks healthy while showing no data. The repository ships
+    // packages/backend/data/.gitkeep so a fresh clone already has the directory.
+    assert.throws(() => openDatabase(join(dataDir, 'app.db')), /startup refused: Database parent cannot be inspected safely/);
+    assert.equal(existsSync(dataDir), false);
   });
 
   it('refuses an ambiguous target before mutation', () => {
