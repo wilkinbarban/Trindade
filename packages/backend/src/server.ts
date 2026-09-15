@@ -1,0 +1,130 @@
+import { mkdirSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
+import Fastify from 'fastify';
+import cors from '@fastify/cors';
+import multipart from '@fastify/multipart';
+import { loadRuntimeConfig } from './runtime-config.js';
+import { openDatabase } from './db/index.js';
+import { authRoutes } from './modules/auth/auth.routes.js';
+import { createAuthenticate } from './modules/auth/auth.middleware.js';
+import { dashboardRoutes } from './modules/dashboard/dashboard.routes.js';
+import { reportsRoutes } from './modules/reports/reports.routes.js';
+import { cleanupExpiredPhotos, getPhotoByPublicToken } from './modules/reports/reports.lifecycle.service.js';
+import { loadingRoutes } from './modules/loading/loading.routes.js';
+import { adminRoutes } from './modules/admin/admin.routes.js';
+import { auditRoutes } from './modules/audit/audit.routes.js';
+import { bootstrapRoutes } from './modules/auth/bootstrap.routes.js';
+
+const config = loadRuntimeConfig();
+const db = openDatabase(config.databasePath);
+
+// Photo storage directory
+const DATA_DIR = join(import.meta.dirname, '../data');
+const PHOTOS_DIR = process.env.PHOTOS_DIR || join(DATA_DIR, 'photos');
+const PUBLIC_APP_URL = process.env.PUBLIC_APP_URL || process.env.APP_URL || `http://localhost:${process.env.PORT || '3000'}`;
+mkdirSync(PHOTOS_DIR, { recursive: true });
+
+const server = Fastify({
+  logger: {
+    level: process.env.LOG_LEVEL || 'info',
+  },
+});
+
+// CORS — allow Vite dev server and any origin in development
+await server.register(cors, {
+  origin: true,
+});
+
+// Multipart — 5MB file size limit
+await server.register(multipart, {
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5 MB
+  },
+});
+
+// Decorate fastify instance with the database connection
+server.decorate('db', db);
+
+// Decorate with JWT authenticate (must be at top level, not inside a plugin)
+server.decorate('authenticate', createAuthenticate(config.jwtSecret));
+
+// Register route modules
+await server.register(authRoutes, { prefix: '/api/auth', jwtSecret: config.jwtSecret });
+await server.register(bootstrapRoutes, { prefix: '/api/auth' });
+await server.register(dashboardRoutes, { prefix: '/api/dashboard' });
+await server.register(reportsRoutes, { prefix: '/api/reports', photosDir: PHOTOS_DIR, publicBaseUrl: PUBLIC_APP_URL });
+await server.register(loadingRoutes, { prefix: '/api/loading' });
+await server.register(adminRoutes, { prefix: '/api/admin' });
+await server.register(auditRoutes, { prefix: '/api/admin' });
+
+// Shortened route for serving public report photos (e.g. for WhatsApp copy-paste links)
+server.get(
+  '/p/:token',
+  async (request, reply) => {
+    const { token } = request.params as { token: string };
+    if (!token || token.length < 8) {
+      return reply.status(404).send({ error: 'Photo not found' });
+    }
+
+    const photo = getPhotoByPublicToken(server.db, token);
+    if (!photo) {
+      return reply.status(404).send({ error: 'Photo not found' });
+    }
+
+    const filePath = join(PHOTOS_DIR, photo.file_path);
+    if (!existsSync(filePath)) {
+      return reply.status(404).send({ error: 'Photo file not found on disk' });
+    }
+
+    const contentType = photo.mime_type || 'image/jpeg';
+    reply.header('Content-Type', contentType);
+    reply.header('Cache-Control', 'public, max-age=31536000, immutable');
+
+    const buffer = await import('node:fs/promises').then(fs => fs.readFile(filePath));
+    return reply.send(buffer);
+  }
+);
+
+
+// Authenticated user options for history filters
+server.get('/api/users/options', { preHandler: [server.authenticate] }, async (_request, reply) => {
+  const users = server.db
+    .prepare('SELECT id, display_name FROM users WHERE is_active = 1 ORDER BY display_name ASC')
+    .all();
+  return reply.send({ users });
+});
+
+// Health check
+server.get('/api/health', async () => ({
+  status: 'ok',
+  timestamp: new Date().toISOString(),
+}));
+
+
+function runPhotoRetentionCleanup() {
+  try {
+    const result = cleanupExpiredPhotos(db, PHOTOS_DIR, 30);
+    if (result.deleted > 0 || result.errors > 0) {
+      server.log.info({ result }, 'Report photo retention cleanup finished');
+    }
+  } catch (err) {
+    server.log.warn({ err }, 'Report photo retention cleanup failed');
+  }
+}
+
+runPhotoRetentionCleanup();
+const photoRetentionInterval = setInterval(runPhotoRetentionCleanup, 24 * 60 * 60 * 1000);
+photoRetentionInterval.unref?.();
+
+// Start server
+const port = parseInt(process.env.PORT || '3000', 10);
+const host = process.env.HOST || '0.0.0.0';
+
+try {
+  await server.listen({ port, host });
+} catch (err) {
+  server.log.error(err);
+  process.exit(1);
+}
+
+export default server;
