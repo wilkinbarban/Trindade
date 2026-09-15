@@ -19,7 +19,7 @@ COPY package.json package-lock.json tsconfig.base.json ./
 # Copy backend package metadata.  Only the backend workspace exists here,
 # so npm ci will only install backend dependencies (no frontend bloat).
 COPY packages/backend/package.json packages/backend/
-COPY packages/backend/tsconfig.json packages/backend/
+COPY packages/backend/tsconfig.json packages/backend/tsconfig.build.json packages/backend/
 
 RUN npm ci
 

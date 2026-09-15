@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc && cp src/db/*.sql dist/db/",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json && cp src/db/*.sql dist/db/",
     "start": "node dist/server.js",
     "db:reset": "rm -f data/trindade.db",
     "db:status": "tsx src/db/status.ts",
