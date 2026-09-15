@@ -1,0 +1,56 @@
+# ============================================================
+# Trindade API — Docker Build
+# ============================================================
+FROM node:24-bookworm-slim AS builder
+
+WORKDIR /app
+
+# Install native build dependencies for better-sqlite3
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends build-essential python3 \
+  && rm -rf /var/lib/apt/lists/*
+
+# Copy workspace-level config (npm workspaces needs root package.json)
+COPY package.json package-lock.json tsconfig.base.json ./
+
+# Copy backend package metadata.  Only the backend workspace exists here,
+# so npm ci will only install backend dependencies (no frontend bloat).
+COPY packages/backend/package.json packages/backend/
+COPY packages/backend/tsconfig.json packages/backend/
+
+RUN npm ci
+
+# Copy backend source
+COPY packages/backend/src packages/backend/src/
+
+# Build TypeScript → dist/
+WORKDIR /app/packages/backend
+RUN npm run build
+
+# ============================================================
+# Runner stage — minimal production image
+# ============================================================
+FROM node:24-bookworm-slim AS runner
+
+WORKDIR /app
+
+# Python is required at runtime by better-sqlite3 for some operations
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends python3 \
+  && rm -rf /var/lib/apt/lists/*
+
+# Copy compiled output and runtime dependencies
+COPY --from=builder /app/node_modules /app/node_modules
+COPY --from=builder /app/packages/backend/dist /app/packages/backend/dist
+
+# Copy SQL files alongside compiled JS (they are read at startup)
+COPY --from=builder /app/packages/backend/src/db/schema.sql /app/packages/backend/dist/db/schema.sql
+COPY --from=builder /app/packages/backend/src/db/seed.sql  /app/packages/backend/dist/db/seed.sql
+
+# Mount point for SQLite data volume and photo storage
+RUN mkdir -p /app/packages/backend/data/photos
+
+ENV NODE_ENV=production
+EXPOSE 3000
+
+CMD ["node", "packages/backend/dist/server.js"]

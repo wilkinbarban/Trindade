@@ -1,0 +1,61 @@
+# ============================================================
+# Trindade Massas — Docker Compose
+# ============================================================
+
+services:
+  # ---- Backend API ----
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    ports:
+      - "127.0.0.1:${API_PORT:-3000}:3000"
+    volumes:
+      - sqlite_data:/app/packages/backend/data    # SQLite DB + photos (data/photos/)
+    environment:
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required. Copy .env.example to .env and set a strong secret.}
+      - DATABASE_PATH=${DATABASE_PATH:-/app/packages/backend/data/trindade.db}
+      - PHOTOS_DIR=${PHOTOS_DIR:-/app/packages/backend/data/photos}
+      - GOOGLE_TRANSLATE_API_KEY=${GOOGLE_TRANSLATE_API_KEY:-}
+      - PUBLIC_APP_URL=${PUBLIC_APP_URL:-http://localhost:3000}
+      - NODE_ENV=production
+      - PORT=3000
+      - HOST=0.0.0.0
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "const net=require('net');const s=net.createConnection(3000,'127.0.0.1',()=>{s.end();process.exit(0)});s.on('error',()=>process.exit(1));setTimeout(()=>process.exit(1),2000)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # ---- Web Frontend (multi-stage build: Vite React app served via Nginx) ----
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+      args:
+        VITE_APP_BASE: ${VITE_APP_BASE:-/}
+    ports:
+      - "127.0.0.1:${WEB_PORT:-80}:80"
+    depends_on:
+      - api
+    networks:
+      - default
+      - portafolio
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  sqlite_data:
+
+networks:
+  default: {}
+  portafolio:
+    external: true
+    name: portafolio_default
