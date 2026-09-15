@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { spawn } from 'node:child_process';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, it } from 'node:test';
@@ -68,5 +69,50 @@ describe('stage-one installation invariants', () => {
     assert.doesNotThrow(() => existing.prepare("INSERT INTO settings VALUES ('legitimate','write',datetime('now'))").run());
     assert.equal(existing.prepare("SELECT value FROM settings WHERE key = 'legitimate'").pluck().get(), 'write');
     existing.close();
+  });
+
+  it('refuses a missing database parent before any runtime directory is created', async () => {
+    const root = fixtureRoot();
+    const dataDir = join(root, 'absent', 'data');
+    const photosDir = join(dataDir, 'photos');
+    const port = 31000 + (process.pid % 20000);
+    const { NODE_TEST_CONTEXT: _nodeTestContext, ...serverEnv } = process.env;
+    const child = spawn(process.execPath, ['--import', 'tsx', join(import.meta.dirname, 'server.ts')], {
+      cwd: join(import.meta.dirname, '..'),
+      env: {
+        ...serverEnv,
+        DATABASE_PATH: join(dataDir, 'trindade.db'),
+        PHOTOS_DIR: photosDir,
+        JWT_SECRET: 'startup-order-invariant-secret-32-bytes',
+        HOST: '127.0.0.1',
+        PORT: String(port),
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let logs = '';
+    child.stdout.on('data', chunk => { logs += chunk; });
+    child.stderr.on('data', chunk => { logs += chunk; });
+
+    // Invariant: the database target is classified before PHOTOS_DIR is created
+    // recursively. PHOTOS_DIR is deliberately a child of the missing database
+    // parent, so a mkdir that ran first would create that parent, the target would
+    // classify as fresh, and the server would boot against an unintended empty
+    // database instead of reporting the misconfiguration. Reordering those two
+    // statements in server.ts must fail here.
+    try {
+      const exitCode = await new Promise<number | null | 'timeout'>(resolve => {
+        const timer = setTimeout(() => resolve('timeout'), 15_000);
+        child.once('exit', code => { clearTimeout(timer); resolve(code); });
+      });
+      assert.notEqual(exitCode, 'timeout', `server booted instead of refusing a missing database parent: ${logs}`);
+      assert.notEqual(exitCode, 0, `server exited cleanly instead of refusing a missing database parent: ${logs}`);
+      assert.match(logs, /Database startup refused: Database parent cannot be inspected safely/);
+      assert.equal(existsSync(dataDir), false, 'startup created the missing database parent directory');
+    } finally {
+      if (child.exitCode === null) {
+        child.kill('SIGKILL');
+        await new Promise(resolve => child.once('exit', resolve));
+      }
+    }
   });
 });
