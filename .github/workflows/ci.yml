@@ -16,7 +16,7 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - name: Install Playwright Chromium
-        run: npx playwright install --only-shell chromium
+      - name: Install Playwright Chromium with dependencies
+        run: npx playwright install --with-deps chromium
       - name: Run canonical CI gate
         run: bash scripts/ci.sh

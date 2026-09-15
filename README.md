@@ -245,6 +245,24 @@ Trindade/
 └── PRD_Trindade.md      # Product Requirements Document
 ```
 
+## Milestones and Status
+
+- **Stage 1 (Production Hardening & Operations)**: **Complete**
+  - Schema revision management (`user_version = 1`, `db:status`, `db:migrate`).
+  - Node 24 ABI compatibility (`better-sqlite3@13.0.3` prebuilt N-API).
+  - Production immutability gate (zero automatic startup mutation, strict recovery proofs).
+  - Operator recovery tooling (`make db-backup`, `make db-restore`, WAL sidecar cleanup).
+  - Pruned production container images (zero test or E2E artifacts, 146 dist files).
+  - Docker container log rotation (json-file, 10m max-size, 3 files max).
+  - Automatic TLS renewal daily cron with zero-downtime Nginx reload and heartbeat.
+  - Automated CI gate: 244 backend unit tests + 53 Playwright E2E tests + 9 schema CLI checks.
+  - Dynamic, zero-fragility clean-checkout verification (`make ci-clone`).
+- **Stage 2 (Publishing & Distribution)**: **Prepared**
+  - First tagged release: `v0.1.0`.
+  - Canonical GitHub Actions CI workflow (`.github/workflows/ci.yml`) prepared for remote push.
+  - Next operational step: assign upstream remote (`git remote add origin <url>`) and push `main` + tags.
+- **Stage 3 (Android / Mobile Web)**: Gated behind Stage 2 publication.
+
 ## License
 
 Private — all rights reserved.
