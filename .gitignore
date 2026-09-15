@@ -36,3 +36,12 @@ Thumbs.db
 
 # Test artifacts
 test-results/
+
+# Local Pi / gentle-ai session state. Anchored to the repository root: an
+# unanchored .pi/ would also swallow gentle-ai state in any nested package.
+/.pi/
+
+# Runtime state — SQLite database, WAL sidecars and uploaded report photos.
+# The directory itself is kept in git via .gitkeep so a fresh clone can boot.
+packages/backend/data/*
+!packages/backend/data/.gitkeep
