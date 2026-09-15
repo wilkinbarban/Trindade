@@ -41,7 +41,7 @@ ci-clone:
 		--volume "$$clone_dir:/work" \
 		--workdir /work \
 		node:24-bookworm-slim \
-		bash -ceu 'apt-get update -qq; apt-get install -y -qq --no-install-recommends build-essential python3 util-linux >/dev/null; install -d -o "$$HOST_UID" -g "$$HOST_GID" "$$HOME" "$$npm_config_cache"; setpriv --reuid "$$HOST_UID" --regid "$$HOST_GID" --clear-groups bash scripts/ci.sh'
+		bash -ceu 'apt-get update -qq; apt-get install -y -qq --no-install-recommends util-linux >/dev/null; install -d -o "$$HOST_UID" -g "$$HOST_GID" "$$HOME" "$$npm_config_cache"; setpriv --reuid "$$HOST_UID" --regid "$$HOST_GID" --clear-groups bash scripts/ci.sh'
 
 
 db-reset:

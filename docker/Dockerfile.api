@@ -5,10 +5,11 @@ FROM node:24-bookworm-slim AS builder
 
 WORKDIR /app
 
-# Install native build dependencies for better-sqlite3
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends build-essential python3 \
-  && rm -rf /var/lib/apt/lists/*
+# No build toolchain is installed on purpose. better-sqlite3's install script is
+# `prebuild-install || node-gyp rebuild`, and prebuild-install downloads the
+# prebuilt binary for the running ABI, so nothing compiles. Without a toolchain a
+# missing prebuild fails the build loudly instead of compiling a binary against the
+# running Node headers (the defect documented in README.md).
 
 # Copy workspace-level config (npm workspaces needs root package.json)
 COPY package.json package-lock.json tsconfig.base.json ./
@@ -34,10 +35,8 @@ FROM node:24-bookworm-slim AS runner
 
 WORKDIR /app
 
-# Python is required at runtime by better-sqlite3 for some operations
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends python3 \
-  && rm -rf /var/lib/apt/lists/*
+# No python3 either: better-sqlite3 loads a prebuilt native binary, so nothing
+# compiles or interprets SQLite bindings at runtime.
 
 # Copy compiled output and runtime dependencies
 COPY --from=builder /app/node_modules /app/node_modules

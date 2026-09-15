@@ -84,16 +84,27 @@ therefore not part of the verification gate or evidence of lint coverage.
 The gate does not run the frontend Playwright E2E suite; run that separately with a
 running backend.
 
-**Current status: the gate is red on the declared engine, and it reports that
-instead of hiding it.** On Node.js 24 the backend suite aborts inside the native
-database driver: `better-sqlite3@11.10.0` publishes no prebuilt binary for the
-Node 24 ABI (`node-v137`), so it is compiled from source at install time, and its
-statement teardown trips a native assertion (`RemoveEnvironmentCleanupHook`) that
-terminates the process. The aborting set of test files is not stable between runs.
-The same suite passes 218/218 across 29 files on Node.js 22. This is a driver and
-engine compatibility defect, not a regression in project code, and it is tracked as
-the next unit of work. Node.js 24 remains the declared target: the container images
-and `engines.node` both require it, so the host's Node.js 22 is the anomaly.
+**Current status: the gate is green on the declared engine.** The red state this file
+previously documented was a native driver and engine compatibility defect, now
+understood and fixed. Node.js 24.19.0 changed the internal `node::ObjectWrap`
+teardown: its destructor now calls `RemoveEnvironmentCleanupHook`, and during
+environment teardown that call aborts the process on a native assertion
+(`(env) != nullptr`). An addon is affected only if it was compiled against those
+headers; a binary built earlier is not. `better-sqlite3@11.10.0` publishes no
+prebuilt binary for the Node 24 ABI (`node-v137`), and its install script is
+`prebuild-install || node-gyp rebuild`, so `npm ci` fell through to `node-gyp` and
+every run inherited the aborting teardown. The dependency is now pinned to the 12.x
+line, `better-sqlite3@^12.11.1`: `prebuild-install` downloads the prebuilt binary for
+the running ABI, so nothing compiles, and the caret range cannot reach 13.x, which
+declares `node-gyp rebuild` and therefore requires a compiler. Because nothing
+compiles, neither the API image nor the gate container installs `build-essential` or
+`python3` any more; the runner used to install python3 claiming better-sqlite3 needed
+it at runtime, which was never true. A missing prebuild now fails the build loudly
+instead of quietly compiling a binary against the running Node headers. Measured on
+the declared engine: 218/218 tests across 29 files and zero native assertions, built
+on Node.js 24.21.0 with no compiler and no python3 present. Node.js 24 remains the
+declared target: the container images and `engines.node` both require it, so the
+host's Node.js 22 is the anomaly, not the target.
 
 ## Testing
 
