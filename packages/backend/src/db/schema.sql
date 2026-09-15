@@ -1,6 +1,11 @@
 -- ============================================================
 -- Trindade Massas Operações — Database Schema
--- All 16 PRD tables defined upfront to avoid future migrations.
+-- 14 user tables: the approved schema after the admin-refactor-loading-rules change
+-- dropped report_products and report_quantities, whose data report_items carries in
+-- selected_products as JSON. The PRD listed 16 tables; the refactor superseded two.
+-- Changing this file needs a matching SCHEMA_VERSION bump in schema-version.ts and an
+-- approved migration path: a fresh installation stamps PRAGMA user_version, and an
+-- existing database is never migrated, reset, seeded, or stamped by startup.
 -- ============================================================
 
 PRAGMA journal_mode = WAL;

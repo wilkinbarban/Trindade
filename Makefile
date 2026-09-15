@@ -1,4 +1,4 @@
-.PHONY: install dev build ci ci-clone db-reset docker-up docker-down
+.PHONY: install dev build ci ci-clone db-reset db-status docker-up docker-down
 
 install:
 	npm install
@@ -47,6 +47,9 @@ ci-clone:
 db-reset:
 	rm -f packages/backend/data/trindade.db
 	@echo "Database reset. Restart the backend to recreate."
+
+db-status:
+	@npm run db:status --workspace=packages/backend -- "$${DATABASE_PATH:-packages/backend/data/trindade.db}"
 
 docker-up:
 	docker compose up -d

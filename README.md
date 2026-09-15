@@ -35,6 +35,35 @@ When `DATABASE_PATH` identifies an established SQLite database, stage-one startu
 
 An empty, corrupt, partial, sidecar-only, inaccessible, or otherwise ambiguous target fails closed. Resolve the target identity; do not delete files to force fresh classification.
 
+### Schema revision and status
+
+A fresh installation stamps the approved schema revision into `PRAGMA user_version`
+(currently **1**) inside the same transaction that seeds reference data. An existing
+database is never migrated, reset, seeded, or stamped by startup, so a database created
+before versioning keeps reporting revision **0** until an explicit approved operation
+changes it — even when its tables happen to match.
+
+Ask whether a database is up to date with the read-only status command. It prints the
+revision, integrity, table inventory, and verdict; it exits non-zero unless the verdict
+is `current`; and it never creates, migrates, stamps, or repairs anything:
+
+```bash
+make db-status                                      # local database
+DATABASE_PATH=/path/to/trindade.db make db-status   # explicit target
+npm run db:status --workspace=packages/backend      # same command, unscoped
+```
+
+Inside a running container the compiled command is available without a toolchain:
+
+```bash
+docker exec trindade-api-1 node dist/db/status.js   # read-only inspection
+```
+
+The verdicts are `current`, `unversioned` (no stamp), `outdated` (older stamp, migration
+pending), `incompatible` (failed integrity or missing tables), and `newer` (written by a
+build this one does not know: never downgrade it). Unexpected extra tables are reported
+without changing the verdict, because they cannot break the application.
+
 ## Recovery and stage-one verification
 
 Stage one does **not** authorize production mutation or deployment. Before any later upgrade:
