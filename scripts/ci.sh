@@ -33,6 +33,9 @@ run_step 'Verify the built schema CLIs' bash scripts/verify-schema-clis.sh
 if [[ "${SKIP_E2E:-}" == "1" ]]; then
   printf '\nSkipping Playwright E2E tests (SKIP_E2E=1)\n'
 else
+  if [[ "${CI:-}" == "true" ]]; then
+    run_step 'Install Playwright browsers' npx --workspace=@trindade/frontend playwright install --with-deps chromium chromium-headless-shell
+  fi
   run_step 'Run frontend Playwright E2E tests' npm run test:e2e --workspace=packages/frontend
 fi
 
