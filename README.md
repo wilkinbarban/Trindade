@@ -139,16 +139,22 @@ environment teardown that call aborts the process on a native assertion
 headers; a binary built earlier is not. `better-sqlite3@11.10.0` publishes no
 prebuilt binary for the Node 24 ABI (`node-v137`), and its install script is
 `prebuild-install || node-gyp rebuild`, so `npm ci` fell through to `node-gyp` and
-every run inherited the aborting teardown. The dependency is now pinned to the 12.x
-line, `better-sqlite3@^12.11.1`: `prebuild-install` downloads the prebuilt binary for
-the running ABI, so nothing compiles, and the caret range cannot reach 13.x, which
-declares `node-gyp rebuild` and therefore requires a compiler. Because nothing
+every run inherited the aborting teardown. The dependency is now on the 13.x line, `better-sqlite3@^13.0.3`, the first N-API
+release: it removed the deprecated `prebuild-install` dependency by design and ships
+the prebuilt binaries inside the package itself (`prebuilds/**`). 13.x declares no
+install script, so npm injects its default `node-gyp rebuild`, which needs `python3`
+only to read `binding.gyp`; `allowScripts` in the root `package.json` (npm >= 11.19,
+which the `node:24` images ship) records an explicit denial for
+`better-sqlite3@13.0.3`, so npm skips it. `lib/binding.js` resolves
+`prebuilds/linux-x64.node` at require time and falls back to the node-gyp output only
+when no prebuild exists, so skipping the build is safe by design. Because nothing
 compiles, neither the API image nor the gate container installs `build-essential` or
-`python3` any more; the runner used to install python3 claiming better-sqlite3 needed
-it at runtime, which was never true. A missing prebuild now fails the build loudly
-instead of quietly compiling a binary against the running Node headers. Measured on
-the declared engine: 218/218 tests across 29 files and zero native assertions, built
-on Node.js 24.21.0 with no compiler and no python3 present. Node.js 24 remains the
+`python3`; the runner used to install python3 claiming better-sqlite3 needed it at
+runtime, which was never true. A missing prebuild fails the build loudly instead of
+quietly compiling a binary against the running Node headers. Measured on the declared
+engine: 235/235 tests across 32 files and zero native assertions, installed and built
+on Node.js 24.21.0 with no compiler and no python3 present; `npm ci` reports no
+deprecation warnings and `npm audit` reports no vulnerabilities. Node.js 24 remains the
 declared target: the container images and `engines.node` both require it, so the
 host's Node.js 22 is the anomaly, not the target.
 
