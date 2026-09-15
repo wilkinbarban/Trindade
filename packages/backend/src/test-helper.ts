@@ -158,6 +158,8 @@ app.get('/api/users/options', { preHandler: [app.authenticate] }, async (_reques
     }
   );
 
+  app.get('/api/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));
+
   // Register a test-only admin route for role guard verification
   const { requireRole } = await import('./modules/auth/auth.middleware.js');
   app.get(
@@ -165,6 +167,11 @@ app.get('/api/users/options', { preHandler: [app.authenticate] }, async (_reques
     { preHandler: [app.authenticate, requireRole('Administrador')] },
     async () => 'ok'
   );
+
+  app.get('/__test_fixtures', async () => ({
+    admin: fixtures.admin,
+    worker: fixtures.worker,
+  }));
 
   await app.ready();
 

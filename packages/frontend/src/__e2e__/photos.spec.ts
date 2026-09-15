@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { getE2EIdentities, goToProtected, loginViaApi } from './auth-helpers';
+import { fillAllTemperatureInputs, getActiveTemperatureReadings, getE2EIdentities, goToProtected, loginViaApi, VALID_TEMPERATURES } from './auth-helpers';
 
 /**
  * Photo Gallery UI E2E tests (PR1 remediation)
@@ -53,8 +53,7 @@ test.describe('Photo Gallery UI (Phase 3)', () => {
 
     // Create a minimal report
     await page.locator('[data-testid="check-task-1"]').check();
-    await page.locator('[data-testid="temperature-task-5"]').fill('2');
-    await page.locator('[data-testid="temperature-task-6"]').fill('3');
+    await fillAllTemperatureInputs(page);
     await page.locator('[data-testid="submit-report-btn"]').click();
 
     // Should redirect to report detail
@@ -72,8 +71,7 @@ test.describe('Photo Gallery UI (Phase 3)', () => {
     await page.waitForSelector('[data-testid="report-builder-form"]', { timeout: 10000 });
 
     await page.locator('[data-testid="check-task-1"]').check();
-    await page.locator('[data-testid="temperature-task-5"]').fill('2');
-    await page.locator('[data-testid="temperature-task-6"]').fill('3');
+    await fillAllTemperatureInputs(page);
     await page.locator('[data-testid="submit-report-btn"]').click();
 
     await page.waitForSelector('[data-testid="report-detail"]', { timeout: 10000 });
@@ -95,8 +93,7 @@ test.describe('Photo Gallery UI (Phase 3)', () => {
     await page.waitForSelector('[data-testid="report-builder-form"]', { timeout: 10000 });
 
     await page.locator('[data-testid="check-task-1"]').check();
-    await page.locator('[data-testid="temperature-task-5"]').fill('2');
-    await page.locator('[data-testid="temperature-task-6"]').fill('3');
+    await fillAllTemperatureInputs(page);
     await page.locator('[data-testid="submit-report-btn"]').click();
 
     await page.waitForSelector('[data-testid="report-detail"]', { timeout: 10000 });
@@ -149,8 +146,7 @@ test.describe('Photo Gallery UI (Phase 3)', () => {
     await page.waitForSelector('[data-testid="report-builder-form"]', { timeout: 10000 });
 
     await page.locator('[data-testid="check-task-1"]').check();
-    await page.locator('[data-testid="temperature-task-5"]').fill('2');
-    await page.locator('[data-testid="temperature-task-6"]').fill('3');
+    await fillAllTemperatureInputs(page);
     await page.locator('[data-testid="notes-textarea"]').fill('Retry keeps this note');
     await page.locator('[data-testid="report-photo-input"]').setInputFiles(generateTestPng());
     await expect(page.locator('[data-testid="remove-pending-photo-btn"]')).toHaveCount(1);
@@ -197,15 +193,13 @@ test.describe('Photo Gallery UI (Phase 3)', () => {
     expect(creatorLogin.ok()).toBeTruthy();
     const creatorToken = (await creatorLogin.json()).token as string;
 
+    const temperatures = await getActiveTemperatureReadings(page.request, creatorToken);
     const createReport = await page.request.post('http://localhost:3099/api/reports', {
       headers: { authorization: `Bearer ${creatorToken}` },
       data: {
         turno: 'tarde',
         notes: 'Creator-owned photo report',
-        temperatures: [
-          { location: 'Câmara Principal', value: 2 },
-          { location: 'Câmara de Resfriamento', value: 3 }
-        ]
+        temperatures,
       },
     });
     expect(createReport.ok()).toBeTruthy();

@@ -15,8 +15,7 @@ export type E2EFixtures = Pick<TestFixtures, 'admin' | 'worker'>;
 const port = parseInt(process.env.PORT || '3099', 10);
 const host = process.env.HOST || '0.0.0.0';
 
-const { app, fixtures } = await buildTestApp();
-app.get('/__test_fixtures', async (): Promise<E2EFixtures> => ({ admin: fixtures.admin, worker: fixtures.worker }));
+const { app } = await buildTestApp();
 
 try {
   await app.listen({ port, host });

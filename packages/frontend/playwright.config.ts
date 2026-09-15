@@ -1,4 +1,13 @@
 import { defineConfig, devices } from '@playwright/test';
+import { existsSync, readFileSync } from 'node:fs';
+
+// Future Ubuntu preview releases (>=26.04) are binary-compatible with 24.04 for Playwright
+if (!process.env.PLAYWRIGHT_HOST_PLATFORM_OVERRIDE && existsSync('/etc/os-release')) {
+  const osRelease = readFileSync('/etc/os-release', 'utf8');
+  if (/ID=ubuntu/i.test(osRelease) && /VERSION_ID="2[6-9]\./.test(osRelease)) {
+    process.env.PLAYWRIGHT_HOST_PLATFORM_OVERRIDE = 'ubuntu24.04-x64';
+  }
+}
 
 const PORT = 3099;
 const FRONTEND_PORT = 5173;

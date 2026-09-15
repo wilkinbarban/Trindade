@@ -32,16 +32,21 @@ ci-clone:
 	else \
 		printf '\nci-clone: no gate paths are dirty; this is a clean-checkout proof of HEAD.\n'; \
 	fi; \
+	pw_mount=""; \
+	if [ -d "$$HOME/.cache/ms-playwright" ]; then \
+		pw_mount="--volume $$HOME/.cache/ms-playwright:/tmp/trindade-home/.cache/ms-playwright:ro"; \
+	fi; \
 	docker run --rm \
 		--user root \
 		--env HOST_UID="$$(id -u)" \
 		--env HOST_GID="$$(id -g)" \
 		--env HOME=/tmp/trindade-home \
 		--env npm_config_cache=/tmp/trindade-npm-cache \
+		$$pw_mount \
 		--volume "$$clone_dir:/work" \
 		--workdir /work \
 		node:24-bookworm-slim \
-		bash -ceu 'apt-get update -qq; apt-get install -y -qq --no-install-recommends util-linux >/dev/null; install -d -o "$$HOST_UID" -g "$$HOST_GID" "$$HOME" "$$npm_config_cache"; setpriv --reuid "$$HOST_UID" --regid "$$HOST_GID" --clear-groups bash scripts/ci.sh'
+		bash -ceu 'apt-get update -qq >/dev/null; apt-get install -y -qq --no-install-recommends util-linux libglib2.0-0 libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libdbus-1-3 libxcb1 libxkbcommon0 libx11-6 libxcomposite1 libxdamage1 libxext6 libxfixes3 libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2 >/dev/null; install -d -o "$$HOST_UID" -g "$$HOST_GID" "$$HOME" "$$npm_config_cache"; if [ ! -d /tmp/trindade-home/.cache/ms-playwright ]; then npx -p @playwright/test@1.60.0 playwright install --only-shell chromium >/dev/null 2>&1 || true; fi; setpriv --reuid "$$HOST_UID" --regid "$$HOST_GID" --clear-groups bash scripts/ci.sh'
 
 
 db-reset:

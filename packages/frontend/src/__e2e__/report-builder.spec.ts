@@ -72,11 +72,11 @@ test.describe('Report Builder — Element Types', () => {
     await temp5.fill('-18');
     await expect(temp5).toHaveValue('-18');
 
-    // Second temperature task
-    const temp6 = page.locator('[data-testid="temperature-task-6"]');
-    await expect(temp6).toBeVisible();
-    await temp6.fill('-5');
-    await expect(temp6).toHaveValue('-5');
+    // Second temperature reading (Task 5 has 2 readings in seed data)
+    const temp5_2 = page.locator('[data-testid="temperature-task-5-2"]');
+    await expect(temp5_2).toBeVisible();
+    await temp5_2.fill('-5');
+    await expect(temp5_2).toHaveValue('-5');
   });
 
   test('renders the configured number of temperature readings', async ({ page }) => {

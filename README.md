@@ -187,8 +187,10 @@ The root `lint` script is currently a documented no-op: it uses npm's
 `--workspaces --if-present`, and no workspace defines a `lint` script. It is
 therefore not part of the verification gate or evidence of lint coverage.
 
-The gate does not run the frontend Playwright E2E suite; run that separately with a
-running backend.
+The gate runs the full backend test suite, the built schema CLI verification,
+and the complete frontend Playwright E2E test suite (53 tests). To run the gate
+without E2E (e.g. for rapid local iteration), use `SKIP_E2E=1 make ci` or
+`SKIP_E2E=1 make ci-clone`.
 
 **Current status: the gate is green on the declared engine.** The red state this file
 previously documented was a native driver and engine compatibility defect, now
@@ -224,7 +226,7 @@ host's Node.js 22 is the anomaly, not the target.
 # Backend unit tests
 npm run test --workspace=packages/backend
 
-# E2E tests (requires Playwright and a running backend)
+# Frontend Playwright E2E tests (automatically starts backend + frontend test servers)
 npm run test:e2e --workspace=packages/frontend
 ```
 

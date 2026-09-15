@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { getE2EIdentities, goToProtected } from './auth-helpers';
+import { fillAllTemperatureInputs, getE2EIdentities, goToProtected } from './auth-helpers';
 
 const API_BASE = 'http://localhost:3099/api';
 
@@ -58,7 +58,7 @@ test.describe('Admin Edit & Export (Phase 4)', () => {
     await page.locator('text=Categorias').first().click();
     // Verify the API-created category appears in the table
     await page.waitForSelector('text=Teste E2E Categoria', { timeout: 5000 });
-    await expect(page.locator('text=Teste E2E Categoria')).toBeVisible();
+    await expect(page.locator('text=Teste E2E Categoria').first()).toBeVisible();
 
     // --- Step 2: Create a report via the report builder ---
     await page.goto('/reports');
@@ -66,8 +66,8 @@ test.describe('Admin Edit & Export (Phase 4)', () => {
 
     await page.locator('[data-testid="check-task-1"]').check();
     await page.locator('[data-testid="check-task-3"]').check();
+    await fillAllTemperatureInputs(page);
     await page.locator('[data-testid="temperature-task-5"]').fill('-22');
-    await page.locator('[data-testid="temperature-task-6"]').fill('2');
     await page.locator('[data-testid="notes-textarea"]').fill('Relatório de teste E2E');
     await page.locator('[data-testid="submit-report-btn"]').click();
 

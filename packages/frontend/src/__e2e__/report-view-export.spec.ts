@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { getE2EIdentities, goToProtected } from './auth-helpers';
+import { fillAllTemperatureInputs, getE2EIdentities, goToProtected } from './auth-helpers';
 
 async function cleanTodayReports(page: Page) {
   const identities = await getE2EIdentities(page);
@@ -36,8 +36,8 @@ test.describe('Report View & Export', () => {
     await page.locator('[data-testid="check-task-3"]').check();
 
     // Fill a temperature
+    await fillAllTemperatureInputs(page);
     await page.locator('[data-testid="temperature-task-5"]').fill('-18');
-    await page.locator('[data-testid="temperature-task-6"]').fill('2');
 
     // Add notes
     await page.locator('[data-testid="notes-textarea"]').fill('E2E test report');
@@ -56,7 +56,7 @@ test.describe('Report View & Export', () => {
     await expect(page.locator('text=E2E test report')).toBeVisible();
 
     // Temperature should be visible in some form (it's rendered in a section)
-    await expect(page.locator('text=-18°C')).toBeVisible();
+    await expect(page.locator('text=-18°C').first()).toBeVisible();
   });
 
   test('export button opens export preview dialog', async ({ page }) => {
@@ -65,8 +65,7 @@ test.describe('Report View & Export', () => {
     await page.waitForSelector('[data-testid="report-builder-form"]', { timeout: 10000 });
 
     await page.locator('[data-testid="check-task-1"]').check();
-    await page.locator('[data-testid="temperature-task-5"]').fill('-20');
-    await page.locator('[data-testid="temperature-task-6"]').fill('2');
+    await fillAllTemperatureInputs(page);
     await page.locator('[data-testid="notes-textarea"]').fill('Export test');
     await page.locator('[data-testid="submit-report-btn"]').click();
 
@@ -108,8 +107,7 @@ test.describe('Report View & Export', () => {
     await page.waitForSelector('[data-testid="report-builder-form"]', { timeout: 10000 });
 
     await page.locator('[data-testid="check-task-1"]').check();
-    await page.locator('[data-testid="temperature-task-5"]').fill('2');
-    await page.locator('[data-testid="temperature-task-6"]').fill('3');
+    await fillAllTemperatureInputs(page);
     await page.locator('[data-testid="submit-report-btn"]').click();
 
     await page.waitForSelector('[data-testid="report-detail"]', { timeout: 10000 });
@@ -132,8 +130,7 @@ test.describe('Report View & Export', () => {
     await page.waitForSelector('[data-testid="report-builder-form"]', { timeout: 10000 });
 
     await page.locator('[data-testid="check-task-1"]').check();
-    await page.locator('[data-testid="temperature-task-5"]').fill('2');
-    await page.locator('[data-testid="temperature-task-6"]').fill('3');
+    await fillAllTemperatureInputs(page);
     await page.locator('[data-testid="submit-report-btn"]').click();
 
     await page.waitForSelector('[data-testid="report-detail"]', { timeout: 10000 });
@@ -158,8 +155,8 @@ test.describe('Report View & Export', () => {
     await page.waitForSelector('[data-testid="report-builder-form"]', { timeout: 10000 });
 
     await page.locator('[data-testid="check-task-1"]').check();
+    await fillAllTemperatureInputs(page);
     await page.locator('[data-testid="temperature-task-5"]').fill('-15');
-    await page.locator('[data-testid="temperature-task-6"]').fill('3');
     await page.locator('[data-testid="submit-report-btn"]').click();
 
     await page.waitForSelector('[data-testid="report-detail"]', { timeout: 10000 });
@@ -183,8 +180,7 @@ test.describe('Report View & Export', () => {
     await page.waitForSelector('[data-testid="report-builder-form"]', { timeout: 10000 });
 
     await page.locator('[data-testid="check-task-1"]').check();
-    await page.locator('[data-testid="temperature-task-5"]').fill('2');
-    await page.locator('[data-testid="temperature-task-6"]').fill('3');
+    await fillAllTemperatureInputs(page);
     await page.locator('[data-testid="submit-report-btn"]').click();
 
     await page.waitForSelector('[data-testid="report-detail"]', { timeout: 10000 });
