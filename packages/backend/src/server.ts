@@ -5,6 +5,7 @@ import cors from '@fastify/cors';
 import multipart from '@fastify/multipart';
 import { loadRuntimeConfig } from './runtime-config.js';
 import { openDatabase } from './db/index.js';
+import { schemaNoticeForStartup } from './db/schema-notice.js';
 import { authRoutes } from './modules/auth/auth.routes.js';
 import { createAuthenticate } from './modules/auth/auth.middleware.js';
 import { dashboardRoutes } from './modules/dashboard/dashboard.routes.js';
@@ -29,6 +30,17 @@ const server = Fastify({
     level: process.env.LOG_LEVEL || 'info',
   },
 });
+
+// Report the schema revision the database was found in, and nothing else: startup never
+// migrates, stamps, or refuses. This is a log notice for operators (`db:status` answers
+// the same question on demand, and the only sanctioned write path is `db:migrate`). It is
+// emitted here because the logger does not exist yet where the database is opened above.
+const schemaNotice = schemaNoticeForStartup(db);
+if (schemaNotice.level === 'warn') {
+  server.log.warn(schemaNotice.payload, schemaNotice.message);
+} else {
+  server.log.info(schemaNotice.payload, schemaNotice.message);
+}
 
 // CORS — allow Vite dev server and any origin in development
 await server.register(cors, {

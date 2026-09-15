@@ -29,6 +29,7 @@ run_step 'Install dependencies' npm ci
 run_step 'Build all workspaces' npm run build
 run_step 'Typecheck backend and frontend' npm run typecheck
 run_step 'Run backend tests' npm run test --workspace=packages/backend
+run_step 'Verify the built schema CLIs' bash scripts/verify-schema-clis.sh
 
 printf '\n========== CI gate passed ==========%s' $'\n'
 

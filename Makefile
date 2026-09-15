@@ -19,7 +19,7 @@ ci-clone:
 	trap cleanup EXIT; \
 	git clone --no-local "$$(git rev-parse --show-toplevel)" "$$clone_dir"; \
 	overlay_paths=""; \
-	for path in scripts/ci.sh package.json README.md Makefile; do \
+	for path in scripts/ci.sh scripts/verify-schema-clis.sh package.json README.md Makefile; do \
 		if git status --porcelain -- "$$path" | grep -q .; then overlay_paths="$$overlay_paths $$path"; fi; \
 	done; \
 	if [ -n "$$overlay_paths" ]; then \

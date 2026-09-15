@@ -81,6 +81,17 @@ then the revision is stamped. Because it writes, run it only after the recovery-
 evidence recorded above (snapshot, isolated restore, approval) against the exact target you
 authorized — it is a change to an existing production database, not an inspection.
 
+Startup reports the verdict, and nothing else. The server logs one line at boot with the
+verdict, the observed revision, the revision this build supports, the integrity result, and
+the table counts, so a restart tells you which schema the running process found; find it
+with `docker logs trindade-api-1 | grep 'database schema notice'`. It is a notice, not
+enforcement: startup never migrates, stamps, or refuses, and a classification failure is
+logged as a warning instead of failing the boot. `current` and `unversioned` are logged at
+info level — an unversioned database is the expected state of an installation that predates
+versioning — while `outdated`, `newer`, and `incompatible` are logged as warnings. Measured
+on the production database (335 KB plus a 4 MB WAL): 8.8 ms for the whole notice, 6.0 ms of
+which is the integrity check.
+
 ## Recovery and stage-one verification
 
 Stage one does **not** authorize production mutation or deployment. Before any later upgrade:
@@ -106,7 +117,8 @@ The harness output is regression evidence, not a production recovery set. Never 
 
 The canonical CI gate is `scripts/ci.sh`. It requires Node.js 24, installs the
 lockfile dependencies with `npm ci`, builds both workspaces, runs real TypeScript
-checks for both workspaces, and runs the complete backend test suite. It starts
+checks for both workspaces, runs the complete backend test suite, and verifies the built
+schema commands with `scripts/verify-schema-clis.sh`. It starts
 from a clean dependency tree and refuses to reuse an existing `node_modules`.
 The declared container target is `node:24-bookworm-slim`.
 
@@ -116,7 +128,8 @@ make ci-clone    # Clone HEAD, run the gate in node:24-bookworm-slim, then clean
 ```
 
 `make ci-clone` clones the local repository and removes its throwaway clone afterward.
-When `scripts/ci.sh`, `package.json`, `README.md`, and `Makefile` are clean relative
+When `scripts/ci.sh`, `scripts/verify-schema-clis.sh`, `package.json`, `README.md`, and
+`Makefile` are clean relative
 to HEAD, it runs a genuine clean-checkout proof of HEAD on the declared engine. If
 any of those gate paths are dirty, it overlays the dirty paths, prints a loud warning,
 and proves only HEAD plus the working-tree gate files—not a clean checkout. This
@@ -152,7 +165,7 @@ compiles, neither the API image nor the gate container installs `build-essential
 `python3`; the runner used to install python3 claiming better-sqlite3 needed it at
 runtime, which was never true. A missing prebuild fails the build loudly instead of
 quietly compiling a binary against the running Node headers. Measured on the declared
-engine: 235/235 tests across 32 files and zero native assertions, installed and built
+engine: 240/240 tests across 33 files and zero native assertions, installed and built
 on Node.js 24.21.0 with no compiler and no python3 present; `npm ci` reports no
 deprecation warnings and `npm audit` reports no vulnerabilities. Node.js 24 remains the
 declared target: the container images and `engines.node` both require it, so the
