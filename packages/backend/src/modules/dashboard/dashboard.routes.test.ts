@@ -63,7 +63,7 @@ describe('Dashboard Routes', () => {
     const higieneTotal = (db.prepare(`SELECT COUNT(*) AS count FROM report_tasks rt JOIN report_categories rc ON rc.id = rt.category_id WHERE rc.name_pt = 'Higiene e Organização' AND rt.is_active = 1`).get() as { count: number }).count;
     assert.strictEqual(body.higieneTotal, higieneTotal);
     assert.strictEqual(body.recepcionDone, 0);
-    const recepcionTotal = (db.prepare(`SELECT COUNT(*) AS count FROM report_tasks rt JOIN report_categories rc ON rc.id = rt.category_id WHERE rc.name_pt = 'Recebimento de Mercadorias' AND rt.is_active = 1`).get() as { count: number }).count;
+    const recepcionTotal = (db.prepare(`SELECT COUNT(*) AS count FROM report_tasks rt JOIN report_categories rc ON rc.id = rt.category_id WHERE rc.id = 4 AND rt.is_active = 1`).get() as { count: number }).count;
     assert.strictEqual(body.recepcionTotal, recepcionTotal);
   });
 

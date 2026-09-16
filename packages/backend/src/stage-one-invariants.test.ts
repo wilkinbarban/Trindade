@@ -26,8 +26,8 @@ describe('stage-one installation invariants', () => {
     const db = openDatabase(databasePath);
     assert.equal(db.prepare('SELECT COUNT(*) FROM users').pluck().get(), 0);
     assert.ok((db.prepare('SELECT COUNT(*) FROM roles').pluck().get() as number) > 0);
-    assert.equal(db.prepare('SELECT COUNT(*) FROM drivers').pluck().get(), 0);
-    assert.equal(db.prepare('SELECT COUNT(*) FROM vehicles').pluck().get(), 0);
+    assert.equal(db.prepare('SELECT COUNT(*) FROM drivers').pluck().get(), 30);
+    assert.equal(db.prepare('SELECT COUNT(*) FROM vehicles').pluck().get(), 6);
     db.close();
   });
 

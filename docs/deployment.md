@@ -244,3 +244,78 @@ In the unlikely event that scripts or Docker Compose tooling fail:
      '
    docker compose start api
    ```
+
+---
+
+## 9. Standalone Deployment on a New VPS (Quick Start)
+
+Trindade is fully autonomous and requires no external Docker networks or shared proxy stacks.
+
+### Step 1: Install prerequisites
+- Docker Engine & Docker Compose (v2)
+- Git
+- Host Nginx & Certbot (for public HTTPS termination)
+
+### Step 2: Clone repository & configure environment
+```bash
+git clone https://github.com/wilkinbarban/Trindade.git
+cd Trindade
+
+cp .env.example .env
+# Edit .env and configure:
+#   JWT_SECRET=<strong-unique-secret-at-least-32-chars>
+#   PUBLIC_APP_URL=https://trindademasas.duckdns.org
+#   WEB_BIND=127.0.0.1
+#   WEB_PORT=8080
+```
+
+> **Why port 8080?** Host Nginx binds TCP port 80/443 to receive internet traffic and handle Certbot challenges. The Trindade container listens privately on `127.0.0.1:8080`, completely preventing port 80 conflicts.
+
+### Step 3: Two-step Host Nginx and TLS Setup
+To avoid bootstrap cycles (Nginx refusing to start because SSL certificates do not yet exist):
+
+```bash
+# 1. Prepare ACME challenge webroot directory
+sudo mkdir -p /var/www/certbot
+
+# 2. Deploy the HTTP-only bootstrap configuration
+sudo cp docker/nginx-standalone-host.conf.example /etc/nginx/sites-available/trindademasas
+# Ensure only the Step 1 (HTTP) server block is active initially, then symlink:
+sudo ln -s /etc/nginx/sites-available/trindademasas /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+
+# 3. Issue the SSL certificate via Certbot webroot
+sudo certbot certonly --webroot -w /var/www/certbot -d trindademasas.duckdns.org
+
+# 4. Activate the Step 2 (HTTPS) block in /etc/nginx/sites-available/trindademasas
+# (uncomment the HTTPS server block pointing to http://127.0.0.1:8080)
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+### Step 4: Launch container stack
+```bash
+docker compose up -d --build
+```
+
+**Seed behavior**:
+A fresh volume automatically loads `seed.sql`, creating the complete operational catalog: all 6 categories, all 57 tasks, all 6 company vehicles, and all 30 drivers/fleteros, stamped to `user_version = 1`. Open `https://trindademasas.duckdns.org` to create the administrator account.
+
+### Step 5: Transfer existing live database (Optional)
+To replicate the live database with all historical reports, past loading schedules, audit logs, and photos from your existing server:
+
+```bash
+# On the source server:
+make db-backup  # captures to backups/recovery-<timestamp>
+
+# Copy to the new VPS:
+scp -r backups/recovery-<timestamp> user@new-vps:~/Trindade/backups/
+
+# On the new VPS:
+make db-restore BACKUP_DIR=backups/recovery-<timestamp> CONFIRM=--confirm
+```
+
+### Step 6: Automated certificate renewal
+Set up daily renewal in root crontab:
+```bash
+(sudo crontab -l 2>/dev/null; echo "17 3 * * * /home/wilkin/proyectos/Trindade/scripts/renew-certbot.sh >> /var/log/trindade-certbot.log 2>&1") | sudo crontab -
+```

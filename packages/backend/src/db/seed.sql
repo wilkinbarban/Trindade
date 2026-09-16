@@ -1,19 +1,27 @@
--- Required reference dataset: trindade-required-references v1.
--- Runtime reports, schedules, photos and audit logs are intentionally excluded.
+-- ============================================================
+-- Trindade Massas Operações — Operational Catalog Seed Dataset
+-- Reference version 1: categories, tasks, company vehicles, and drivers.
+-- User credentials, operational reports, schedules, photos, and audit logs
+-- are intentionally excluded to prevent credential and PII disclosure in Git.
+-- ============================================================
 
+-- Roles
 INSERT OR IGNORE INTO roles (id, name) VALUES (1, 'Administrador');
 INSERT OR IGNORE INTO roles (id, name) VALUES (2, 'Trabalhador');
 
+-- Settings
 INSERT OR IGNORE INTO settings (key, value) VALUES ('loading_time_slots', '["04:00","04:30","05:00","05:30","06:00","06:30","07:00"]');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('reference_dataset_version', '1');
 
+-- Report Categories (6 categories)
 INSERT OR IGNORE INTO report_categories (id, parent_category_id, name_pt, name_es, category_type, sort_order, is_active) VALUES (1, NULL, 'Higiene e Organização', 'Higiene y Organización', 'check', 1, 1);
 INSERT OR IGNORE INTO report_categories (id, parent_category_id, name_pt, name_es, category_type, sort_order, is_active) VALUES (2, NULL, 'Temperaturas', 'Temperaturas', 'temperature', 2, 1);
-INSERT OR IGNORE INTO report_categories (id, parent_category_id, name_pt, name_es, category_type, sort_order, is_active) VALUES (4, NULL, 'Recebimento de Mercadorias', 'Recepción de Mercancías', 'check', 4, 1);
+INSERT OR IGNORE INTO report_categories (id, parent_category_id, name_pt, name_es, category_type, sort_order, is_active) VALUES (4, NULL, 'Recebimento', 'Recepción de Mercancías', 'check', 4, 1);
 INSERT OR IGNORE INTO report_categories (id, parent_category_id, name_pt, name_es, category_type, sort_order, is_active) VALUES (8, NULL, 'Montagem das Caixas', 'Montaje de Cajas', 'check', 3, 1);
 INSERT OR IGNORE INTO report_categories (id, parent_category_id, name_pt, name_es, category_type, sort_order, is_active) VALUES (9, 8, 'Caixas pequenas', 'Cajas pequeñas', 'check', 5, 1);
 INSERT OR IGNORE INTO report_categories (id, parent_category_id, name_pt, name_es, category_type, sort_order, is_active) VALUES (10, 8, 'Caixas Assai', 'Cajas Assai', 'check', 6, 1);
 
+-- Report Tasks (57 tasks)
 INSERT OR IGNORE INTO report_tasks (id, category_id, name_pt, name_es, temperature_readings, is_active, created_by_user_id) VALUES (1, 1, 'Organização do pátio', 'Organización del patio', 1, 1, NULL);
 INSERT OR IGNORE INTO report_tasks (id, category_id, name_pt, name_es, temperature_readings, is_active, created_by_user_id) VALUES (2, 1, 'Organização da área da farinha', 'Organización del área de harina', 1, 1, NULL);
 INSERT OR IGNORE INTO report_tasks (id, category_id, name_pt, name_es, temperature_readings, is_active, created_by_user_id) VALUES (3, 1, 'Organização da Câmara F. Principal', 'Organización de la Cámara F. Principal', 1, 1, NULL);
@@ -69,3 +77,45 @@ INSERT OR IGNORE INTO report_tasks (id, category_id, name_pt, name_es, temperatu
 INSERT OR IGNORE INTO report_tasks (id, category_id, name_pt, name_es, temperature_readings, is_active, created_by_user_id) VALUES (66, 10, 'Quadrada', 'Cuadrada', 1, 1, NULL);
 INSERT OR IGNORE INTO report_tasks (id, category_id, name_pt, name_es, temperature_readings, is_active, created_by_user_id) VALUES (67, 10, 'Rolo 500g', 'Rollo 500g', 1, 1, NULL);
 INSERT OR IGNORE INTO report_tasks (id, category_id, name_pt, name_es, temperature_readings, is_active, created_by_user_id) VALUES (68, 10, 'Lasanha', 'Lasaña', 1, 1, NULL);
+INSERT OR IGNORE INTO report_tasks (id, category_id, name_pt, name_es, temperature_readings, is_active, created_by_user_id) VALUES (69, 4, 'Recebimento de nhoque', 'Recepción de ñoquis', 1, 1, NULL);
+INSERT OR IGNORE INTO report_tasks (id, category_id, name_pt, name_es, temperature_readings, is_active, created_by_user_id) VALUES (70, 4, 'Recebimento de Pão alho ', 'Recibo de pan de ajo', 1, 1, NULL);
+
+-- Vehicles (6 company vehicles)
+INSERT OR IGNORE INTO vehicles (id, description, license_plate, is_active) VALUES (2, 'Casa BDG', 'BDG', 1);
+INSERT OR IGNORE INTO vehicles (id, description, license_plate, is_active) VALUES (3, 'Casa RKM', 'RKM', 1);
+INSERT OR IGNORE INTO vehicles (id, description, license_plate, is_active) VALUES (4, 'Casa RXK', 'RXK', 1);
+INSERT OR IGNORE INTO vehicles (id, description, license_plate, is_active) VALUES (5, 'Casa RAA', 'RAA', 1);
+INSERT OR IGNORE INTO vehicles (id, description, license_plate, is_active) VALUES (6, 'Casa RPI', 'RPI', 1);
+INSERT OR IGNORE INTO vehicles (id, description, license_plate, is_active) VALUES (7, 'Sem matrícula', 'S/M', 1);
+
+-- Drivers / Fleteros (30 active drivers)
+INSERT OR IGNORE INTO drivers (id, name, license_plate, driver_type, is_active, created_by_user_id) VALUES (4, 'André', NULL, 'fletero', 1, NULL);
+INSERT OR IGNORE INTO drivers (id, name, license_plate, driver_type, is_active, created_by_user_id) VALUES (5, 'Rafael', NULL, 'casa', 1, NULL);
+INSERT OR IGNORE INTO drivers (id, name, license_plate, driver_type, is_active, created_by_user_id) VALUES (6, 'Ricardo', NULL, 'casa', 1, NULL);
+INSERT OR IGNORE INTO drivers (id, name, license_plate, driver_type, is_active, created_by_user_id) VALUES (7, 'Edinaldo', NULL, 'casa', 1, NULL);
+INSERT OR IGNORE INTO drivers (id, name, license_plate, driver_type, is_active, created_by_user_id) VALUES (8, 'Luiz Eloi', NULL, 'fletero', 1, NULL);
+INSERT OR IGNORE INTO drivers (id, name, license_plate, driver_type, is_active, created_by_user_id) VALUES (9, 'Matheus', NULL, 'fletero', 1, NULL);
+INSERT OR IGNORE INTO drivers (id, name, license_plate, driver_type, is_active, created_by_user_id) VALUES (10, 'Diego', NULL, 'fletero', 1, NULL);
+INSERT OR IGNORE INTO drivers (id, name, license_plate, driver_type, is_active, created_by_user_id) VALUES (11, 'Roberto', NULL, 'fletero', 1, NULL);
+INSERT OR IGNORE INTO drivers (id, name, license_plate, driver_type, is_active, created_by_user_id) VALUES (12, 'Juverson', NULL, 'casa', 1, NULL);
+INSERT OR IGNORE INTO drivers (id, name, license_plate, driver_type, is_active, created_by_user_id) VALUES (13, 'Luis Guilherme', NULL, 'fletero', 1, NULL);
+INSERT OR IGNORE INTO drivers (id, name, license_plate, driver_type, is_active, created_by_user_id) VALUES (14, 'José', NULL, 'fletero', 1, NULL);
+INSERT OR IGNORE INTO drivers (id, name, license_plate, driver_type, is_active, created_by_user_id) VALUES (15, 'Gustavo', NULL, 'casa', 1, NULL);
+INSERT OR IGNORE INTO drivers (id, name, license_plate, driver_type, is_active, created_by_user_id) VALUES (16, 'Ronaldo', NULL, 'fletero', 1, NULL);
+INSERT OR IGNORE INTO drivers (id, name, license_plate, driver_type, is_active, created_by_user_id) VALUES (17, 'Everson', NULL, 'fletero', 1, NULL);
+INSERT OR IGNORE INTO drivers (id, name, license_plate, driver_type, is_active, created_by_user_id) VALUES (18, 'Carlos Renan', NULL, 'fletero', 1, NULL);
+INSERT OR IGNORE INTO drivers (id, name, license_plate, driver_type, is_active, created_by_user_id) VALUES (19, 'Gabriel', NULL, 'fletero', 1, NULL);
+INSERT OR IGNORE INTO drivers (id, name, license_plate, driver_type, is_active, created_by_user_id) VALUES (20, 'Luiz', NULL, 'fletero', 1, NULL);
+INSERT OR IGNORE INTO drivers (id, name, license_plate, driver_type, is_active, created_by_user_id) VALUES (21, 'Nildo', NULL, 'fletero', 1, NULL);
+INSERT OR IGNORE INTO drivers (id, name, license_plate, driver_type, is_active, created_by_user_id) VALUES (22, 'Eduardo', NULL, 'fletero', 1, NULL);
+INSERT OR IGNORE INTO drivers (id, name, license_plate, driver_type, is_active, created_by_user_id) VALUES (23, 'Cleberson', NULL, 'fletero', 1, NULL);
+INSERT OR IGNORE INTO drivers (id, name, license_plate, driver_type, is_active, created_by_user_id) VALUES (24, 'Adenilson', NULL, 'fletero', 1, NULL);
+INSERT OR IGNORE INTO drivers (id, name, license_plate, driver_type, is_active, created_by_user_id) VALUES (25, 'Elton', NULL, 'fletero', 1, NULL);
+INSERT OR IGNORE INTO drivers (id, name, license_plate, driver_type, is_active, created_by_user_id) VALUES (26, 'Carlos', NULL, 'fletero', 1, NULL);
+INSERT OR IGNORE INTO drivers (id, name, license_plate, driver_type, is_active, created_by_user_id) VALUES (27, 'Admilson', NULL, 'fletero', 1, NULL);
+INSERT OR IGNORE INTO drivers (id, name, license_plate, driver_type, is_active, created_by_user_id) VALUES (28, 'Gilson', NULL, 'fletero', 1, NULL);
+INSERT OR IGNORE INTO drivers (id, name, license_plate, driver_type, is_active, created_by_user_id) VALUES (29, 'Diego Schultz', NULL, 'fletero', 1, NULL);
+INSERT OR IGNORE INTO drivers (id, name, license_plate, driver_type, is_active, created_by_user_id) VALUES (30, 'Fernando', NULL, 'fletero', 1, NULL);
+INSERT OR IGNORE INTO drivers (id, name, license_plate, driver_type, is_active, created_by_user_id) VALUES (31, 'Celso', 'RXK', 'fletero', 1, NULL);
+INSERT OR IGNORE INTO drivers (id, name, license_plate, driver_type, is_active, created_by_user_id) VALUES (32, 'Antônio', NULL, 'fletero', 1, NULL);
+INSERT OR IGNORE INTO drivers (id, name, license_plate, driver_type, is_active, created_by_user_id) VALUES (33, 'Luiz Davi', NULL, 'fletero', 1, NULL);

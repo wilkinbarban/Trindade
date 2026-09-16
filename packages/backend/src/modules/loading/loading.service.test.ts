@@ -170,8 +170,9 @@ describe('loading service direct persistence contract', () => {
     const active = driver(db, 'Active');
     vehicle(db, 'Active van');
     vehicle(db, 'Old van', 0);
-    assert.deepEqual(loading.listDrivers(db).map((row) => row.id), [active]);
-    assert.equal(loading.listActiveVehicles(db).length, 1);
+    assert.ok(loading.listDrivers(db).map((row) => row.id).includes(active));
+    assert.ok(loading.listActiveVehicles(db).some((v) => v.description === 'Active van'));
+    assert.ok(!loading.listActiveVehicles(db).some((v) => v.description === 'Old van'));
     assert.deepEqual(loading.getTimeSlots(db), ['04:00', '04:30', '05:00', '05:30', '06:00', '06:30', '07:00']);
     db.prepare("UPDATE settings SET value = 'invalid' WHERE key = 'loading_time_slots'").run();
     assert.equal(loading.getTimeSlots(db)[0], '04:00');

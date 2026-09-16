@@ -33,8 +33,8 @@ export async function buildLoadingTestApp(): Promise<{
   db.exec(readFileSync(join(import.meta.dirname, '../../db/seed.sql'), 'utf8'));
   verifyReferencePrerequisites(db);
   db.exec(`
-    INSERT INTO drivers (id, name, driver_type) VALUES (4, 'André', 'fletero');
-    INSERT INTO vehicles (id, description, license_plate) VALUES (2, 'Casa BDG', 'BDG');
+    INSERT OR IGNORE INTO drivers (id, name, driver_type) VALUES (4, 'André', 'fletero');
+    INSERT OR IGNORE INTO vehicles (id, description, license_plate) VALUES (2, 'Casa BDG', 'BDG');
   `);
 
   const fixtures: TestFixtures = {

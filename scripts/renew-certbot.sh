@@ -17,15 +17,34 @@ set -eu
 
 PORTAFOLIO_DIR=${PORTAFOLIO_DIR:-/home/wilkin/proyectos/Portafolio}
 
-cd "$PORTAFOLIO_DIR"
-
-sg docker -c 'docker compose --profile ssl run --rm certbot renew --quiet'
-
-# Nginx reads certificate files when it loads a configuration, and the active
-# configuration is generated at container start from the templates, so a reload
-# is enough to start serving renewed certificates. Deliberately not
-# `up -d --force-recreate`: this job renews certificates, it does not deploy
-# unrelated working-tree changes to the Compose file or the Nginx templates.
-sg docker -c 'docker compose exec -T nginx nginx -s reload'
+if [ -d "$PORTAFOLIO_DIR" ] && [ "${FORCE_HOST_CERTBOT:-0}" != "1" ]; then
+  cd "$PORTAFOLIO_DIR"
+  if [ $# -gt 0 ]; then
+    sg docker -c "docker compose --profile ssl run --rm certbot renew $*"
+  else
+    sg docker -c 'docker compose --profile ssl run --rm certbot renew --quiet'
+  fi
+  sg docker -c 'docker compose exec -T nginx nginx -s reload'
+elif command -v certbot >/dev/null 2>&1; then
+  # Standalone VPS with host-level Certbot and Nginx
+  if [ "$(id -u)" -eq 0 ]; then
+    certbot renew --quiet "$@"
+    if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet nginx 2>/dev/null; then
+      systemctl reload nginx
+    elif command -v nginx >/dev/null 2>&1; then
+      nginx -s reload
+    fi
+  else
+    sudo certbot renew --quiet "$@"
+    if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet nginx 2>/dev/null; then
+      sudo systemctl reload nginx
+    elif command -v nginx >/dev/null 2>&1; then
+      sudo nginx -s reload
+    fi
+  fi
+else
+  echo "Error: neither host certbot nor PORTAFOLIO_DIR ($PORTAFOLIO_DIR) is available." >&2
+  exit 1
+fi
 
 echo "renew-certbot.sh ok $(date -Is)"

@@ -71,10 +71,10 @@ export async function buildTestApp(): Promise<{
   db.exec(readFileSync(seedPath, 'utf-8'));
   verifyReferencePrerequisites(db);
   db.exec(`
-    INSERT INTO drivers (id, name, driver_type) VALUES (4, 'André', 'fletero');
-    INSERT INTO drivers (id, name, driver_type) VALUES (5, 'Fixture Casa', 'casa');
-    INSERT INTO drivers (id, name, driver_type) VALUES (6, 'Fixture Fletero', 'fletero');
-    INSERT INTO vehicles (id, description, license_plate) VALUES (2, 'Casa BDG', 'BDG');
+    INSERT OR IGNORE INTO drivers (id, name, driver_type) VALUES (4, 'André', 'fletero');
+    INSERT OR IGNORE INTO drivers (id, name, driver_type) VALUES (9005, 'Fixture Casa', 'casa');
+    INSERT OR IGNORE INTO drivers (id, name, driver_type) VALUES (9006, 'Fixture Fletero', 'fletero');
+    INSERT OR IGNORE INTO vehicles (id, description, license_plate) VALUES (2, 'Casa BDG', 'BDG');
   `);
 
   const fixtures: TestFixtures = {

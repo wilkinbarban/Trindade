@@ -25,9 +25,11 @@ The backend starts on `http://localhost:3099` and the frontend on `http://localh
 
 Copy `.env.example` to `.env`, generate a unique `JWT_SECRET` with at least 32 UTF-8 bytes, and keep the value outside source control. The backend rejects missing, weak, known default, and test secrets before opening the database.
 
-### Fresh installation
+### Fresh installation and catalog seeds
 
-When `DATABASE_PATH` has no database or SQLite sidecars, startup creates the approved schema and required reference data without users, demo operational records, or fixed credentials. Open the web application and complete the one-time administrator setup. The submitted password must contain at least eight characters; it is hashed before storage. After the first administrator is created, setup closes atomically.
+When `DATABASE_PATH` has no database or SQLite sidecars, startup creates the approved schema (`schema.sql`) and seeds the complete operational catalogs from `seed.sql`: all 6 categories, all 57 tasks, all 6 company vehicles, and all 30 active drivers/fleteros, stamped atomically to `user_version = 1`.
+
+User credentials, operational reports, schedules, photos, and audit logs are intentionally kept out of source control to protect credentials and personal data. Open the web application upon initial boot to complete the one-time administrator setup. To transfer an existing operational database with users, history, and photos between servers, use the verified backup/restore runbook (`make db-backup` / `make db-restore`).
 
 ### Existing installation
 
@@ -94,26 +96,23 @@ versioning — while `outdated`, `newer`, and `incompatible` are logged as warni
 on the production database (335 KB plus a 4 MB WAL): 8.8 ms for the whole notice, 6.0 ms of
 which is the integrity check.
 
-### Certificate renewal
+### Certificate renewal and TLS
 
-The public certificates are shared with the other DuckDNS sites behind the Portafolio Nginx,
-so they live in that project's Docker volumes (`portafolio_letsencrypt`,
-`portafolio_certbot-www`) and are renewed by `scripts/renew-certbot.sh`, run daily at 03:17
-from the user crontab with both streams appended to `certbot-renew.log`. The job renews
-whatever sits inside the 30-day window, reloads Nginx so it serves the renewed files, and ends
-with a timestamped heartbeat line: a log that stops growing means the job stopped running. It
-never recreates the container, so it cannot deploy unrelated changes from the Portafolio
-working tree; restarting that proxy is a deliberate deployment step.
+Trindade supports both standalone VPS deployment and shared reverse proxy topologies:
 
-Validate renewal without touching the live certificates:
+1. **Standalone VPS (Host Nginx + Certbot)**:
+   - Configure host Nginx using the two-step template in `docker/nginx-standalone-host.conf.example`.
+   - Host Nginx terminates HTTPS for `trindademasas.duckdns.org` and proxies to loopback `127.0.0.1:8080` (configured via `WEB_PORT=8080`), avoiding TCP port 80 collisions.
+   - `scripts/renew-certbot.sh` automatically detects host `certbot` and reloads Nginx.
+
+2. **Legacy Shared Proxy**:
+   - If running behind a shared multi-tenant proxy (e.g. `PORTAFOLIO_DIR`), `scripts/renew-certbot.sh` falls back to renewing certificates inside that Compose project.
+
+Validate renewal without touching certificates:
 
 ```bash
-cd /home/wilkin/proyectos/Portafolio
-docker compose --profile ssl run --rm certbot renew --dry-run
+bash scripts/renew-certbot.sh --dry-run
 ```
-
-TLS for `trindademasas.duckdns.org` belongs to that shared proxy: the API image never handles
-certificates.
 
 ## Recovery and stage-one verification
 

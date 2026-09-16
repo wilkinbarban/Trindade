@@ -42,12 +42,9 @@ services:
       args:
         VITE_APP_BASE: ${VITE_APP_BASE:-/}
     ports:
-      - "127.0.0.1:${WEB_PORT:-80}:80"
+      - "${WEB_BIND:-127.0.0.1}:${WEB_PORT:-8080}:80"
     depends_on:
       - api
-    networks:
-      - default
-      - portafolio
     restart: unless-stopped
     logging:
       driver: "json-file"
@@ -64,8 +61,3 @@ services:
 volumes:
   sqlite_data:
 
-networks:
-  default: {}
-  portafolio:
-    external: true
-    name: portafolio_default

@@ -208,7 +208,7 @@ describe('Database Initialization', () => {
     const expectedCategories = [
       'Higiene e Organização',
       'Temperaturas',
-      'Recebimento de Mercadorias',
+      'Recebimento',
       'Montagem das Caixas',
     ];
     for (const expected of expectedCategories) {
@@ -229,12 +229,12 @@ describe('Database Initialization', () => {
     const driverCount = (
       db.prepare('SELECT COUNT(*) AS count FROM drivers').get() as { count: number }
     ).count;
-    assert.strictEqual(driverCount, 0);
+    assert.strictEqual(driverCount, 30);
 
     const vehicleCount = (
       db.prepare('SELECT COUNT(*) AS count FROM vehicles').get() as { count: number }
     ).count;
-    assert.strictEqual(vehicleCount, 0);
+    assert.strictEqual(vehicleCount, 6);
 
     db.close();
   });
