@@ -88,6 +88,10 @@ ci-clone:
 #   * GRADLE_USER_HOME is a host directory rather than a named volume, because host directories are
 #     already owned by the invoking user and need no chown.
 #   * the install is skipped when the platform is already present, so only a fresh volume pays.
+#     The package id carries the dotted `.0` suffix, and that is not cosmetic: `sdkmanager --list`
+#     offers both `platforms;android-37` and `platforms;android-37.0`, but only the dotted form
+#     installs -- the integer form fails with "Failed to find package". Listing a package is not the
+#     same as being able to install it, which is the mistake that produced this note.
 ci-android:
 	@set -euo pipefail; \
 	mkdir -p "$$HOME/.cache/trindade-gradle"; \

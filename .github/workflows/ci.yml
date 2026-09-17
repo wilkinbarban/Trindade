@@ -39,6 +39,9 @@ jobs:
       - name: Accept the SDK licences
         run: yes | sdkmanager --licenses >/dev/null 2>&1 || true
       - name: Ensure the platform the build compiles against is present
+        # The package id carries the dotted `.0` suffix deliberately. `sdkmanager --list` offers both
+        # `platforms;android-37` and `platforms;android-37.0`, but the integer form does NOT install:
+        # it fails with "Failed to find package". Listing a package is not the same as installing it.
         run: sdkmanager --install "platforms;android-37.0"
       - name: Run the Android lane
         run: bash scripts/ci-android.sh
