@@ -706,7 +706,7 @@ function buildRegistry(): OpenAPIRegistry {
     summary: 'Fetch a photo by its public token, without authentication',
     description:
       'Documented as implemented, not as intended: this route requires a token of at least sixteen ' +
-      + 'characters while the server issues twelve-hex-character tokens, so it answers 404 in practice. The ' +
+      'characters while the server issues twelve-hex-character tokens, so it answers 404 in practice. The ' +
       'short route `/p/{token}` is the one that works and is what `publicUrl` points at.',
     tags: ['reports'],
     request: { params: PHOTO_TOKEN_PARAMS },

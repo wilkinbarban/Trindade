@@ -186,5 +186,28 @@ describe('API contract', () => {
       const document = buildOpenApiDocument();
       assert.deepStrictEqual(JSON.parse(JSON.stringify(document)), document);
     });
+
+    // A description built by concatenation can silently degrade: a stray `+` before a string literal
+    // makes TypeScript apply unary plus, which coerces the literal to NaN and drops the sentence
+    // while leaving valid JSON behind. Nothing else here reads the text, so this is the check that
+    // would have caught it before the corrupted string reached the committed artifact.
+    it('carries no degenerated text in any string it emits', () => {
+      const offenders: string[] = [];
+
+      const walk = (value: unknown, path: string) => {
+        if (typeof value === 'string') {
+          for (const marker of ['NaN', 'undefined', '[object Object]']) {
+            if (value.includes(marker)) offenders.push(`${path} contains ${marker}`);
+          }
+        } else if (Array.isArray(value)) {
+          value.forEach((entry, index) => walk(entry, `${path}[${index}]`));
+        } else if (value && typeof value === 'object') {
+          for (const [key, entry] of Object.entries(value)) walk(entry, `${path}.${key}`);
+        }
+      };
+
+      walk(buildOpenApiDocument(), 'document');
+      assert.deepStrictEqual(offenders, []);
+    });
   });
 });
