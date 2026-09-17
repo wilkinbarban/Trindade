@@ -830,11 +830,72 @@ variables that landed in the same file.
 
 ---
 
-## Slice D — Android client (gated)
+## Slice D — Android client
 
-Blocked on A1, A2, B2 and on an https-reachable backend. The remote now exists
-(`origin` → `github.com/wilkinbarban/Trindade`, with local `main` level with `origin/main`), so
-what remains is the deployment itself plus a reachable https base URL for device testing.
+**Gate status.** A1, A2 and B2 are all done, so the backend prerequisites this slice was named as
+waiting on are met. Two things still are not, and they gate different parts of D:
+
+- **The revision 2 deployment has not happened.** Nothing is verifying the Android client against a
+  real backend until it does. D1 does not need it; D2 onwards cannot be closed out without it.
+- **On-device testing is impossible on this machine**: no `adb` on the host and no device or
+  emulator. Everything up to a release APK can be built and checked in a container, but "works on a
+  phone" remains a human step on the user's side.
+
+The remote exists (`origin` → `github.com/wilkinbarban/Trindade`, local `main` level with
+`origin/main`).
+
+### Build toolchain — decided and verified
+
+This host has no Java, no Gradle and no Android SDK: `java`, `javac`, `gradle`, `kotlinc`, `adb`,
+`sdkmanager` and `aapt2` are all absent and `ANDROID_HOME` is unset. Decided with the user: build in
+a container rather than installing 3-5 GB on the host.
+
+Verified against `ghcr.io/cirruslabs/android-sdk:35` (2.72 GB, amd64 and arm64):
+
+| Needs | Found |
+|---|---|
+| JDK | OpenJDK **21.0.6** |
+| `ANDROID_HOME` | `/opt/android-sdk-linux` |
+| Platform | `android-35` |
+| Build tools | `35.0.0` |
+| `sdkmanager`, platform-tools (incl. `adb`) | present |
+| SDK licences | **already accepted** (all six), so no interactive step |
+| Network to `dl.google.com` and `services.gradle.org` | 200, so the wrapper and AGP can resolve |
+
+Gradle is deliberately not in the image: the project uses the wrapper, which is what keeps the
+build reproducible outside the container too. Two named volumes cache the cost across runs:
+`trindade-gradle` for the Gradle user home and `trindade-android-sdk` for anything the build
+installs later.
+
+The loop is the same shape as the backend sandbox, so it needs no new habit:
+
+```
+docker run --rm -v <repo>:/work -v trindade-gradle:/root/.gradle \
+  -w /work/packages/android ghcr.io/cirruslabs/android-sdk:35 ./gradlew assembleDebug
+```
+
+### D1. Project skeleton — planned, not started
+
+Deliverables: Gradle Kotlin DSL with a version catalog, Compose + Material 3, Hilt, Retrofit +
+OkHttp + kotlinx.serialization, the module placed in the monorepo at `packages/android`, and a CI
+lane that has a JDK -- the canonical gate image does not, so the Android lane needs its own.
+
+Deliberately NOT in D1: any screen beyond a placeholder, any dependency on the live backend, and any
+signing. The point of D1 is a project that **builds**, because nothing else can be verified until
+it does.
+
+Two decisions to make while writing it, both worth stating before the first file rather than after:
+
+- **Where the contract types come from.** `packages/contracts/openapi.json` is generated and the
+  backend's Zod schemas are the source of truth. The Android client should consume the artifact,
+  not hand-copy shapes, but the mechanism (codegen at build time vs a checked-in generated module)
+  has to be chosen deliberately and durably. B2 exists so this choice is available at all.
+- **The base URL is configuration, never a constant.** Shared rule already recorded for every
+  Android slice, and it is what lets D2 point at a deployment that does not exist yet.
+
+The evidence bar for D1 is `./gradlew assembleDebug` succeeding in the container plus the canonical
+gate still green, which is a real check that adding a `packages/android` did not disturb the npm
+workspaces.
 
 - **D1** Project skeleton: Gradle Kotlin DSL, version catalog, Compose + Material 3,
   Hilt, Retrofit + OkHttp + kotlinx.serialization, module in the monorepo with a
