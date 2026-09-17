@@ -88,8 +88,66 @@ const API_TITLE = 'Trindade Massas Operações API';
 const API_VERSION = '0.1.0';
 const JSON_MEDIA_TYPE = 'application/json';
 
+/**
+ * The component name behind each registered schema, so a response can point at the component instead
+ * of repeating it. See registerComponent for why this map exists.
+ */
+const COMPONENT_NAME_BY_SCHEMA = new Map<z.ZodTypeAny, string>();
+
+/**
+ * Register a schema as a named component, and remember the pairing.
+ *
+ * The remembering is the point. `registry.register` names a schema, but the generator does not turn
+ * later uses of it into references: it expands the object inline at every use, which is exactly the
+ * anonymous repetition the registrations exist to prevent. The pairing below is what lets
+ * jsonResponse and jsonRequest emit a real reference, and it is required rather than optional so a
+ * schema that is used but never named fails loudly instead of silently producing an unnamed model in
+ * every generated client.
+ */
+function registerComponent(registry: OpenAPIRegistry, name: string, schema: z.ZodTypeAny): void {
+  registry.register(name, schema);
+  COMPONENT_NAME_BY_SCHEMA.set(schema, name);
+}
+
+/**
+ * A reference to a registered component.
+ *
+ * Cast because the library types a schema position as a Zod type while accepting a plain reference
+ * object at runtime, which is the form OpenAPI uses for reuse.
+ */
+function componentRef(schema: z.ZodTypeAny): z.ZodTypeAny {
+  const name = COMPONENT_NAME_BY_SCHEMA.get(schema);
+  if (!name) {
+    // Naming the shape is what makes this actionable. A schema object has no name to report, so
+    // without this the message would say a schema is unregistered and leave the reader to bisect
+    // every call site to find which one.
+    const shape = schema instanceof z.ZodObject ? Object.keys(schema.shape).join(', ') : '(not a plain object)';
+    throw new Error(
+      `A schema used in the contract was never registered as a component, so it would be inlined ` +
+        `anonymously and every generated client would get an unnamed type for it. Its fields are: ` +
+        `[${shape}]. Register it with registerComponent(registry, <Name>, <Schema>) in buildRegistry().`,
+    );
+  }
+  return { $ref: `#/components/schemas/${name}` } as unknown as z.ZodTypeAny;
+}
+
 function jsonResponse(description: string, schema: z.ZodTypeAny): ResponseConfig {
-  return { description, content: { [JSON_MEDIA_TYPE]: { schema } } };
+  return { description, content: { [JSON_MEDIA_TYPE]: { schema: componentRef(schema) } } };
+}
+
+/**
+ * A JSON request body, referencing its component for the same reason a response does.
+ *
+ * `required: false` marks a body a client may omit entirely, which is different from a body whose
+ * fields are all optional.
+ */
+function jsonRequest(schema: z.ZodTypeAny, options: { required?: boolean } = {}) {
+  return {
+    body: {
+      content: { [JSON_MEDIA_TYPE]: { schema: componentRef(schema) } },
+      ...(options.required === false ? { required: false } : {}),
+    },
+  };
 }
 
 /** The envelope shared by every failure, so a client can parse one error shape. */
@@ -113,10 +171,6 @@ function binaryResponse(description: string): ResponseConfig {
   return { description, content };
 }
 
-const UNAUTHORIZED = errorResponse('Missing, invalid, or expired credentials');
-const INVALID_INPUT = errorResponse('The request body failed validation');
-const USER_NOT_FOUND = errorResponse('The authenticated user no longer exists');
-
 // Path parameters. Declared as plain strings because that is what the router hands the
 // handler; each handler decides for itself whether the value is usable. The pattern is not
 // repeated here on purpose: the regex lives in the route, and duplicating it would create a
@@ -138,39 +192,81 @@ function buildRegistry(): OpenAPIRegistry {
 
   // Registered as named components so a generated client gets named models instead of
   // anonymous inline objects repeated at every reference.
-  registry.register('ErrorEnvelope', ErrorEnvelopeSchema);
-  registry.register('AuthUser', AuthUserSchema);
-  registry.register('AuthProfile', AuthProfileSchema);
-  registry.register('LoginResponse', LoginResponseSchema);
-  registry.register('RefreshResponse', RefreshResponseSchema);
-  registry.register('ProfileResponse', ProfileResponseSchema);
-  registry.register('SuccessResponse', SuccessResponseSchema);
-  registry.register('SetupStatusResponse', SetupStatusResponseSchema);
-  registry.register('SetupResponse', SetupResponseSchema);
-  registry.register('TextResponse', TextResponseSchema);
-  registry.register('Pagination', PaginationSchema);
-  registry.register('Schedule', ScheduleSchema);
-  registry.register('LoadingBatchHistoryItem', LoadingBatchHistoryItemSchema);
-  registry.register('Driver', DriverSchema);
-  registry.register('Vehicle', VehicleSchema);
-  registry.register('ReportCategory', CategoryResponseSchema);
-  registry.register('ReportTask', TaskResponseSchema);
-  registry.register('ReportListItem', ReportListItemSchema);
-  registry.register('ReportDetail', ReportDetailSchema);
-  registry.register('ReportItemDetail', ReportItemDetailSchema);
-  registry.register('ReportTemperatureDetail', ReportTemperatureDetailSchema);
-  registry.register('ReportUser', ReportUserSchema);
-  registry.register('ReportPhoto', PhotoSchema);
-  registry.register('DashboardSummary', DashboardSummarySchema);
-  registry.register('HealthResponse', HealthResponseSchema);
-  registry.register('UserOptionsResponse', UserOptionsResponseSchema);
+  registerComponent(registry, 'ErrorEnvelope', ErrorEnvelopeSchema);
+  registerComponent(registry, 'AuthUser', AuthUserSchema);
+  registerComponent(registry, 'AuthProfile', AuthProfileSchema);
+  registerComponent(registry, 'LoginResponse', LoginResponseSchema);
+  registerComponent(registry, 'RefreshResponse', RefreshResponseSchema);
+  registerComponent(registry, 'ProfileResponse', ProfileResponseSchema);
+  registerComponent(registry, 'SuccessResponse', SuccessResponseSchema);
+  registerComponent(registry, 'SetupStatusResponse', SetupStatusResponseSchema);
+  registerComponent(registry, 'SetupResponse', SetupResponseSchema);
+  registerComponent(registry, 'TextResponse', TextResponseSchema);
+  registerComponent(registry, 'Pagination', PaginationSchema);
+  registerComponent(registry, 'Schedule', ScheduleSchema);
+  registerComponent(registry, 'LoadingBatchHistoryItem', LoadingBatchHistoryItemSchema);
+  registerComponent(registry, 'Driver', DriverSchema);
+  registerComponent(registry, 'Vehicle', VehicleSchema);
+  registerComponent(registry, 'ReportCategory', CategoryResponseSchema);
+  registerComponent(registry, 'ReportTask', TaskResponseSchema);
+  registerComponent(registry, 'ReportListItem', ReportListItemSchema);
+  registerComponent(registry, 'ReportDetail', ReportDetailSchema);
+  registerComponent(registry, 'ReportItemDetail', ReportItemDetailSchema);
+  registerComponent(registry, 'ReportTemperatureDetail', ReportTemperatureDetailSchema);
+  registerComponent(registry, 'ReportUser', ReportUserSchema);
+  registerComponent(registry, 'ReportPhoto', PhotoSchema);
+  registerComponent(registry, 'DashboardSummary', DashboardSummarySchema);
+  registerComponent(registry, 'HealthResponse', HealthResponseSchema);
+  registerComponent(registry, 'UserOptionsResponse', UserOptionsResponseSchema);
+
+  // Response envelopes. These existed as schemas and were used in the paths below, but were never
+  // registered, so every one of them was expanded inline and a generated client got an unnamed
+  // duplicate instead of the model it should have. Registering them changes no shape: each is used
+  // here unchanged, and the artifact comparison proves the expansion was identical.
+  registerComponent(registry, 'SchedulesResponse', SchedulesResponseSchema);
+  registerComponent(registry, 'ScheduleResponse', ScheduleResponseSchema);
+  registerComponent(registry, 'ScheduleHistoryResponse', ScheduleHistoryResponseSchema);
+  registerComponent(registry, 'DriversResponse', DriversResponseSchema);
+  registerComponent(registry, 'DriverResponse', DriverResponseSchema);
+  registerComponent(registry, 'VehiclesResponse', VehiclesResponseSchema);
+  registerComponent(registry, 'TimeSlotsResponse', TimeSlotsResponseSchema);
+  registerComponent(registry, 'TurnoResponse', TurnoResponseSchema);
+  registerComponent(registry, 'ReportsResponse', ReportsResponseSchema);
+  registerComponent(registry, 'ReportResponse', ReportResponseSchema);
+  registerComponent(registry, 'ReportHistoryResponse', ReportHistoryResponseSchema);
+  registerComponent(registry, 'CategoriesResponse', CategoriesResponseSchema);
+  registerComponent(registry, 'PhotosResponse', PhotosResponseSchema);
+  registerComponent(registry, 'PhotoResponse', PhotoResponseSchema);
+
+  // Request bodies. Named so a client gets a named input type rather than one invented from the
+  // operation id, which is what produced names like ApiAuthLoginPostRequest.
+  registerComponent(registry, 'LoginRequest', loginSchema);
+  registerComponent(registry, 'RefreshRequest', refreshSessionSchema);
+  registerComponent(registry, 'LogoutRequest', logoutSchema);
+  registerComponent(registry, 'ChangePasswordRequest', changePasswordSchema);
+  registerComponent(registry, 'UpdateProfileRequest', updateProfileSchema);
+  registerComponent(registry, 'SetupRequest', setupSchema);
+  registerComponent(registry, 'CreateScheduleRequest', CreateScheduleSchema);
+  registerComponent(registry, 'UpdateScheduleRequest', UpdateScheduleSchema);
+  registerComponent(registry, 'CreateDriverRequest', CreateDriverSchema);
+  registerComponent(registry, 'CreateReportRequest', CreateReportBodySchema);
+  registerComponent(registry, 'UpdateReportRequest', UpdateReportBodySchema);
+
+  // The failure envelopes every path reuses. Declared here rather than at module scope because
+  // errorResponse resolves the schema to a component reference, and the map it consults is only
+  // populated by the registrations above. At module scope these three were evaluated before any
+  // registration had run, so they threw -- which is how the ordering requirement was discovered,
+  // and why the failure named the envelope's fields instead of a name it did not have yet.
+  const UNAUTHORIZED = errorResponse('Missing, invalid, or expired credentials');
+  const INVALID_INPUT = errorResponse('The request body failed validation');
+  const USER_NOT_FOUND = errorResponse('The authenticated user no longer exists');
 
   registry.registerPath({
     method: 'post',
     path: '/api/auth/login',
     summary: 'Exchange credentials for an access token and a refresh session',
     tags: ['auth'],
-    request: { body: { content: { [JSON_MEDIA_TYPE]: { schema: loginSchema } } } },
+    request: { ...jsonRequest(loginSchema) },
     responses: {
       200: jsonResponse('Authenticated. The refresh token is the session and is rotated on every refresh.', LoginResponseSchema),
       400: INVALID_INPUT,
@@ -188,7 +284,7 @@ function buildRegistry(): OpenAPIRegistry {
       'or had been revoked. Presenting a token that was already rotated away is treated as a leak and ' +
       'revokes the whole session family.',
     tags: ['auth'],
-    request: { body: { content: { [JSON_MEDIA_TYPE]: { schema: refreshSessionSchema } } } },
+    request: { ...jsonRequest(refreshSessionSchema) },
     responses: {
       200: jsonResponse('A new token pair. The presented refresh token is no longer valid.', RefreshResponseSchema),
       400: INVALID_INPUT,
@@ -204,7 +300,7 @@ function buildRegistry(): OpenAPIRegistry {
       'Ends only the session whose refresh token is presented, so logging out on one device leaves other ' +
       'devices signed in. The body is optional: the web client sends none.',
     tags: ['auth'],
-    request: { body: { content: { [JSON_MEDIA_TYPE]: { schema: logoutSchema } }, required: false } },
+    request: { ...jsonRequest(logoutSchema, { required: false }) },
     responses: {
       200: jsonResponse('The session was ended. Idempotent: an unknown or already-ended token still succeeds.', SuccessResponseSchema),
       400: INVALID_INPUT,
@@ -241,7 +337,7 @@ function buildRegistry(): OpenAPIRegistry {
     path: '/api/auth/profile',
     summary: 'Update the authenticated user profile',
     tags: ['auth'],
-    request: { body: { content: { [JSON_MEDIA_TYPE]: { schema: updateProfileSchema } } } },
+    request: { ...jsonRequest(updateProfileSchema) },
     responses: {
       200: jsonResponse('The updated profile', ProfileResponseSchema),
       400: INVALID_INPUT,
@@ -256,7 +352,7 @@ function buildRegistry(): OpenAPIRegistry {
     summary: 'Change the authenticated user password',
     description: 'Ends every session of that user, so other devices must authenticate again.',
     tags: ['auth'],
-    request: { body: { content: { [JSON_MEDIA_TYPE]: { schema: changePasswordSchema } } } },
+    request: { ...jsonRequest(changePasswordSchema) },
     responses: {
       200: jsonResponse('The password was changed and all sessions were ended', SuccessResponseSchema),
       400: errorResponse('The body failed validation, or the current password is wrong'),
@@ -281,7 +377,7 @@ function buildRegistry(): OpenAPIRegistry {
     summary: 'Create the first administrator',
     description: 'Available only while no user exists. Refused once the installation has an administrator.',
     tags: ['auth'],
-    request: { body: { content: { [JSON_MEDIA_TYPE]: { schema: setupSchema } } } },
+    request: { ...jsonRequest(setupSchema) },
     responses: {
       201: jsonResponse('The administrator was created', SetupResponseSchema),
       400: INVALID_INPUT,
@@ -326,7 +422,7 @@ function buildRegistry(): OpenAPIRegistry {
       'informational, and the server accepts the assignment. The only uniqueness rules the server ' +
       'enforces are that one driver and one vehicle cannot appear twice on the same date.',
     tags: ['loading'],
-    request: { body: { content: { [JSON_MEDIA_TYPE]: { schema: CreateScheduleSchema } } } },
+    request: { ...jsonRequest(CreateScheduleSchema) },
     responses: {
       201: jsonResponse('The created schedule, projected like a listed one', ScheduleResponseSchema),
       400: errorResponse('The body failed validation, the driver is missing or inactive, or the date already has a deactivated batch'),
@@ -344,7 +440,7 @@ function buildRegistry(): OpenAPIRegistry {
     tags: ['loading'],
     request: {
       params: SCHEDULE_ID_PARAMS,
-      body: { content: { [JSON_MEDIA_TYPE]: { schema: UpdateScheduleSchema } } },
+      ...jsonRequest(UpdateScheduleSchema),
     },
     responses: {
       200: jsonResponse('The updated schedule, projected like a listed one', ScheduleResponseSchema),
@@ -452,7 +548,7 @@ function buildRegistry(): OpenAPIRegistry {
     summary: 'Quick-add an external driver',
     description: 'Always creates a `fletero`; company drivers are managed from the admin surface.',
     tags: ['loading'],
-    request: { body: { content: { [JSON_MEDIA_TYPE]: { schema: CreateDriverSchema } } } },
+    request: { ...jsonRequest(CreateDriverSchema) },
     responses: {
       201: jsonResponse('The created driver', DriverResponseSchema),
       400: INVALID_INPUT,
@@ -517,7 +613,7 @@ function buildRegistry(): OpenAPIRegistry {
     path: '/api/reports',
     summary: 'Create a report',
     tags: ['reports'],
-    request: { body: { content: { [JSON_MEDIA_TYPE]: { schema: CreateReportBodySchema } } } },
+    request: { ...jsonRequest(CreateReportBodySchema) },
     responses: {
       201: jsonResponse('The created report', ReportResponseSchema),
       400: errorResponse('The body failed validation, or a report already exists for that shift and date'),
@@ -573,7 +669,7 @@ function buildRegistry(): OpenAPIRegistry {
     tags: ['reports'],
     request: {
       params: REPORT_ID_PARAMS,
-      body: { content: { [JSON_MEDIA_TYPE]: { schema: UpdateReportBodySchema } } },
+      ...jsonRequest(UpdateReportBodySchema),
     },
     responses: {
       200: jsonResponse('The updated report', ReportResponseSchema),

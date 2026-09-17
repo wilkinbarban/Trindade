@@ -215,3 +215,81 @@ describe('API contract', () => {
     });
   });
 });
+
+/** A schema position that points at a component rather than repeating it. */
+function isReference(schema: unknown): boolean {
+  return typeof schema === 'object' && schema !== null && '$ref' in schema;
+}
+
+// The document is the input a client generator consumes, and a generator cannot name what the
+// document does not name. An inline object repeated at every response yields one unnamed model per
+// operation, which is what happened here: 26 components were registered and every response inlined
+// its own copy anyway, so the generated Android client carried 81 models where 26 named ones plus
+// their envelopes would do.
+//
+// Nothing caught it because the other tests look at paths, counts and shapes, and an inlined
+// document satisfies all three. These two assertions look at reuse itself, which is the property the
+// registrations exist to provide and the only one a generator depends on.
+describe('the contract document references its own components', () => {
+  const document = buildOpenApiDocument();
+
+  it('points every JSON response and request body at a component instead of inlining it', () => {
+    const inlined: string[] = [];
+
+    for (const [path, operations] of Object.entries(document.paths ?? {})) {
+      for (const [method, rawOperation] of Object.entries(operations)) {
+        if (!rawOperation || typeof rawOperation !== 'object') continue;
+        const operation = rawOperation as {
+          responses?: Record<string, { content?: Record<string, { schema?: unknown }> } | undefined>;
+          requestBody?: { content?: Record<string, { schema?: unknown }> };
+        };
+
+        for (const [status, response] of Object.entries(operation.responses ?? {})) {
+          const schema = response?.content?.['application/json']?.schema;
+          if (schema !== undefined && !isReference(schema)) {
+            inlined.push(`${method.toUpperCase()} ${path} ${status}`);
+          }
+        }
+
+        const body = operation.requestBody?.content?.['application/json']?.schema;
+        if (body !== undefined && !isReference(body)) {
+          inlined.push(`${method.toUpperCase()} ${path} request body`);
+        }
+      }
+    }
+
+    assert.deepStrictEqual(
+      inlined,
+      [],
+      'these JSON shapes are written inline, so every generated client gets an unnamed model for each one. Register the shape as a component and reference it.',
+    );
+  });
+
+  it('resolves every $ref to a component that exists', () => {
+    const components = new Set(Object.keys(document.components?.schemas ?? {}));
+    const dangling: string[] = [];
+
+    const walk = (value: unknown, where: string): void => {
+      if (Array.isArray(value)) {
+        value.forEach((entry, index) => walk(entry, `${where}[${index}]`));
+        return;
+      }
+      if (!value || typeof value !== 'object') return;
+
+      const record = value as Record<string, unknown>;
+      const ref = record.$ref;
+      if (typeof ref === 'string' && !components.has(ref.split('/').pop() ?? '')) {
+        dangling.push(`${where} -> ${ref}`);
+      }
+      for (const [key, entry] of Object.entries(record)) walk(entry, `${where}.${key}`);
+    };
+
+    walk(document, 'document');
+
+    assert.deepStrictEqual(
+      dangling,
+      [],
+      'a reference that resolves to nothing is worse than the repetition it replaces',
+    );
+  });
+});

@@ -1084,6 +1084,1408 @@
           "users"
         ],
         "additionalProperties": false
+      },
+      "SchedulesResponse": {
+        "type": "object",
+        "properties": {
+          "schedules": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "schedule_date": {
+                  "type": "string"
+                },
+                "time_slot": {
+                  "type": "string"
+                },
+                "driver_type": {
+                  "type": "string",
+                  "enum": [
+                    "fletero",
+                    "casa"
+                  ]
+                },
+                "driver_id": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "driver_name": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "license_plate": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "vehicle_id": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "vehicle_description": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "vehicle_plate": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "user_id": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "created_at": {
+                  "type": "string"
+                },
+                "updated_at": {
+                  "type": "string"
+                },
+                "is_active": {
+                  "type": "integer"
+                },
+                "creator_name": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "isActive": {
+                  "type": "boolean"
+                },
+                "readOnly": {
+                  "type": "boolean"
+                },
+                "canEdit": {
+                  "type": "boolean"
+                },
+                "canDeactivate": {
+                  "type": "boolean"
+                },
+                "canDelete": {
+                  "type": "boolean"
+                },
+                "creator": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "display_name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "display_name"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "id",
+                "schedule_date",
+                "time_slot",
+                "driver_type",
+                "driver_id",
+                "driver_name",
+                "license_plate",
+                "vehicle_id",
+                "vehicle_description",
+                "vehicle_plate",
+                "user_id",
+                "created_at",
+                "updated_at",
+                "is_active",
+                "creator_name",
+                "isActive",
+                "readOnly",
+                "canEdit",
+                "canDeactivate",
+                "canDelete",
+                "creator"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "schedules"
+        ],
+        "additionalProperties": false
+      },
+      "ScheduleResponse": {
+        "type": "object",
+        "properties": {
+          "schedule": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "schedule_date": {
+                "type": "string"
+              },
+              "time_slot": {
+                "type": "string"
+              },
+              "driver_type": {
+                "type": "string",
+                "enum": [
+                  "fletero",
+                  "casa"
+                ]
+              },
+              "driver_id": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "driver_name": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "license_plate": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "vehicle_id": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "vehicle_description": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "vehicle_plate": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "user_id": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "created_at": {
+                "type": "string"
+              },
+              "updated_at": {
+                "type": "string"
+              },
+              "is_active": {
+                "type": "integer"
+              },
+              "creator_name": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "isActive": {
+                "type": "boolean"
+              },
+              "readOnly": {
+                "type": "boolean"
+              },
+              "canEdit": {
+                "type": "boolean"
+              },
+              "canDeactivate": {
+                "type": "boolean"
+              },
+              "canDelete": {
+                "type": "boolean"
+              },
+              "creator": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "integer"
+                  },
+                  "display_name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "display_name"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "id",
+              "schedule_date",
+              "time_slot",
+              "driver_type",
+              "driver_id",
+              "driver_name",
+              "license_plate",
+              "vehicle_id",
+              "vehicle_description",
+              "vehicle_plate",
+              "user_id",
+              "created_at",
+              "updated_at",
+              "is_active",
+              "creator_name",
+              "isActive",
+              "readOnly",
+              "canEdit",
+              "canDeactivate",
+              "canDelete",
+              "creator"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "schedule"
+        ],
+        "additionalProperties": false
+      },
+      "ScheduleHistoryResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "batch_date": {
+                  "type": "string"
+                },
+                "loading_date": {
+                  "type": "string"
+                },
+                "total_loadings": {
+                  "type": "integer"
+                },
+                "created_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "updated_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "isActive": {
+                  "type": "boolean"
+                },
+                "canEdit": {
+                  "type": "boolean"
+                },
+                "canDeactivate": {
+                  "type": "boolean"
+                },
+                "canDelete": {
+                  "type": "boolean"
+                },
+                "readOnly": {
+                  "type": "boolean"
+                },
+                "creator": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "display_name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "display_name"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "batch_date",
+                "loading_date",
+                "total_loadings",
+                "created_at",
+                "updated_at",
+                "isActive",
+                "canEdit",
+                "canDeactivate",
+                "canDelete",
+                "readOnly",
+                "creator"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "pagination": {
+            "type": "object",
+            "properties": {
+              "page": {
+                "type": "integer"
+              },
+              "pageSize": {
+                "type": "integer"
+              },
+              "total": {
+                "type": "integer"
+              },
+              "totalPages": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "page",
+              "pageSize",
+              "total",
+              "totalPages"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "items",
+          "pagination"
+        ],
+        "additionalProperties": false
+      },
+      "DriversResponse": {
+        "type": "object",
+        "properties": {
+          "drivers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "license_plate": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "driver_type": {
+                  "type": "string",
+                  "enum": [
+                    "casa",
+                    "fletero"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "license_plate",
+                "driver_type"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "drivers"
+        ],
+        "additionalProperties": false
+      },
+      "DriverResponse": {
+        "type": "object",
+        "properties": {
+          "driver": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "license_plate": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "driver_type": {
+                "type": "string",
+                "enum": [
+                  "casa",
+                  "fletero"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "license_plate",
+              "driver_type"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "driver"
+        ],
+        "additionalProperties": false
+      },
+      "VehiclesResponse": {
+        "type": "object",
+        "properties": {
+          "vehicles": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "license_plate": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "description",
+                "license_plate"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "vehicles"
+        ],
+        "additionalProperties": false
+      },
+      "TimeSlotsResponse": {
+        "type": "object",
+        "properties": {
+          "timeSlots": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "timeSlots"
+        ],
+        "additionalProperties": false
+      },
+      "TurnoResponse": {
+        "type": "object",
+        "properties": {
+          "turno": {
+            "type": "string",
+            "enum": [
+              "tarde",
+              "noite"
+            ]
+          }
+        },
+        "required": [
+          "turno"
+        ],
+        "additionalProperties": false
+      },
+      "ReportsResponse": {
+        "type": "object",
+        "properties": {
+          "reports": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "turno": {
+                  "type": "string",
+                  "enum": [
+                    "tarde",
+                    "noite"
+                  ]
+                },
+                "report_date": {
+                  "type": "string"
+                },
+                "notes": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "created_at": {
+                  "type": "string"
+                },
+                "user": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "display_name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "display_name"
+                  ],
+                  "additionalProperties": false
+                },
+                "isActive": {
+                  "type": "boolean"
+                },
+                "readOnly": {
+                  "type": "boolean"
+                },
+                "canEdit": {
+                  "type": "boolean"
+                },
+                "canDeactivate": {
+                  "type": "boolean"
+                },
+                "canDelete": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "id",
+                "turno",
+                "report_date",
+                "notes",
+                "created_at",
+                "user"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "reports"
+        ],
+        "additionalProperties": false
+      },
+      "ReportResponse": {
+        "type": "object",
+        "properties": {
+          "report": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "turno": {
+                "type": "string",
+                "enum": [
+                  "tarde",
+                  "noite"
+                ]
+              },
+              "report_date": {
+                "type": "string"
+              },
+              "notes": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "created_at": {
+                "type": "string"
+              },
+              "user": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer"
+                  },
+                  "display_name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "display_name"
+                ],
+                "additionalProperties": false
+              },
+              "isActive": {
+                "type": "boolean"
+              },
+              "readOnly": {
+                "type": "boolean"
+              },
+              "canEdit": {
+                "type": "boolean"
+              },
+              "canDeactivate": {
+                "type": "boolean"
+              },
+              "canDelete": {
+                "type": "boolean"
+              },
+              "updated_at": {
+                "type": "string"
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "task_id": {
+                      "type": "integer"
+                    },
+                    "task_name": {
+                      "type": "string"
+                    },
+                    "task_name_es": {
+                      "type": "string"
+                    },
+                    "task_type": {
+                      "type": "string",
+                      "enum": [
+                        "check",
+                        "temperature",
+                        "check_assai",
+                        "check_normal"
+                      ]
+                    },
+                    "category_name": {
+                      "type": "string"
+                    },
+                    "category_name_es": {
+                      "type": "string"
+                    },
+                    "checked": {
+                      "type": "boolean"
+                    },
+                    "selectedProducts": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "task_id",
+                    "task_name",
+                    "task_name_es",
+                    "task_type",
+                    "category_name",
+                    "category_name_es",
+                    "checked"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "temperatures": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "location": {
+                      "type": "string"
+                    },
+                    "location_es": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "readingIndex": {
+                      "type": "integer"
+                    },
+                    "value": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "location",
+                    "location_es",
+                    "readingIndex",
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "id",
+              "turno",
+              "report_date",
+              "notes",
+              "created_at",
+              "user",
+              "updated_at",
+              "items",
+              "temperatures"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "report"
+        ],
+        "additionalProperties": false
+      },
+      "ReportHistoryResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "turno": {
+                  "type": "string",
+                  "enum": [
+                    "tarde",
+                    "noite"
+                  ]
+                },
+                "report_date": {
+                  "type": "string"
+                },
+                "notes": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "created_at": {
+                  "type": "string"
+                },
+                "user": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "display_name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "display_name"
+                  ],
+                  "additionalProperties": false
+                },
+                "isActive": {
+                  "type": "boolean"
+                },
+                "readOnly": {
+                  "type": "boolean"
+                },
+                "canEdit": {
+                  "type": "boolean"
+                },
+                "canDeactivate": {
+                  "type": "boolean"
+                },
+                "canDelete": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "id",
+                "turno",
+                "report_date",
+                "notes",
+                "created_at",
+                "user"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "pagination": {
+            "type": "object",
+            "properties": {
+              "page": {
+                "type": "integer"
+              },
+              "pageSize": {
+                "type": "integer"
+              },
+              "total": {
+                "type": "integer"
+              },
+              "totalPages": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "page",
+              "pageSize",
+              "total",
+              "totalPages"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "items",
+          "pagination"
+        ],
+        "additionalProperties": false
+      },
+      "CategoriesResponse": {
+        "type": "object",
+        "properties": {
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "parent_category_id": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "name_pt": {
+                  "type": "string"
+                },
+                "name_es": {
+                  "type": "string"
+                },
+                "sort_order": {
+                  "type": "integer"
+                },
+                "category_type": {
+                  "type": "string",
+                  "enum": [
+                    "check",
+                    "temperature",
+                    "check_assai",
+                    "check_normal"
+                  ]
+                },
+                "tasks": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "integer"
+                      },
+                      "category_id": {
+                        "type": "integer"
+                      },
+                      "name_pt": {
+                        "type": "string"
+                      },
+                      "name_es": {
+                        "type": "string"
+                      },
+                      "task_type": {
+                        "type": "string",
+                        "enum": [
+                          "check",
+                          "temperature",
+                          "check_assai",
+                          "check_normal"
+                        ]
+                      },
+                      "temperature_readings": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "category_id",
+                      "name_pt",
+                      "name_es",
+                      "task_type",
+                      "temperature_readings"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "parent_category_id",
+                "name_pt",
+                "name_es",
+                "sort_order",
+                "category_type",
+                "tasks"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "categories"
+        ],
+        "additionalProperties": false
+      },
+      "PhotosResponse": {
+        "type": "object",
+        "properties": {
+          "photos": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "report_id": {
+                  "type": "integer"
+                },
+                "file_path": {
+                  "type": "string"
+                },
+                "file_size": {
+                  "type": "integer"
+                },
+                "mime_type": {
+                  "type": "string"
+                },
+                "public_token": {
+                  "type": "string"
+                },
+                "created_at": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string"
+                },
+                "publicUrl": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "report_id",
+                "file_path",
+                "file_size",
+                "mime_type",
+                "public_token",
+                "created_at"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "photos"
+        ],
+        "additionalProperties": false
+      },
+      "PhotoResponse": {
+        "type": "object",
+        "properties": {
+          "photo": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "report_id": {
+                "type": "integer"
+              },
+              "file_path": {
+                "type": "string"
+              },
+              "file_size": {
+                "type": "integer"
+              },
+              "mime_type": {
+                "type": "string"
+              },
+              "public_token": {
+                "type": "string"
+              },
+              "created_at": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              },
+              "publicUrl": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "report_id",
+              "file_path",
+              "file_size",
+              "mime_type",
+              "public_token",
+              "created_at"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "photo"
+        ],
+        "additionalProperties": false
+      },
+      "LoginRequest": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "minLength": 1
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "username",
+          "password"
+        ]
+      },
+      "RefreshRequest": {
+        "type": "object",
+        "properties": {
+          "refreshToken": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "refreshToken"
+        ]
+      },
+      "LogoutRequest": {
+        "type": "object",
+        "properties": {
+          "refreshToken": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "ChangePasswordRequest": {
+        "type": "object",
+        "properties": {
+          "currentPassword": {
+            "type": "string",
+            "minLength": 1
+          },
+          "newPassword": {
+            "type": "string",
+            "minLength": 8
+          }
+        },
+        "required": [
+          "currentPassword",
+          "newPassword"
+        ]
+      },
+      "UpdateProfileRequest": {
+        "type": "object",
+        "properties": {
+          "display_name": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "SetupRequest": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "minLength": 1
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8
+          }
+        },
+        "required": [
+          "username",
+          "displayName",
+          "password"
+        ],
+        "additionalProperties": false
+      },
+      "CreateScheduleRequest": {
+        "type": "object",
+        "properties": {
+          "schedule_date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "time_slot": {
+            "type": "string",
+            "minLength": 1
+          },
+          "driver_type": {
+            "type": "string",
+            "enum": [
+              "fletero",
+              "casa"
+            ]
+          },
+          "driver_id": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "vehicle_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "exclusiveMinimum": 0
+          }
+        },
+        "required": [
+          "schedule_date",
+          "time_slot",
+          "driver_type",
+          "driver_id"
+        ]
+      },
+      "UpdateScheduleRequest": {
+        "type": "object",
+        "properties": {
+          "schedule_date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "time_slot": {
+            "type": "string",
+            "minLength": 1
+          },
+          "driver_type": {
+            "type": "string",
+            "enum": [
+              "fletero",
+              "casa"
+            ]
+          },
+          "driver_id": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "vehicle_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "exclusiveMinimum": 0
+          }
+        }
+      },
+      "CreateDriverRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "license_plate": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "CreateReportRequest": {
+        "type": "object",
+        "properties": {
+          "turno": {
+            "type": "string",
+            "enum": [
+              "tarde",
+              "noite"
+            ]
+          },
+          "notes": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "taskId": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                "checked": {
+                  "type": "boolean"
+                },
+                "selectedProducts": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "taskId",
+                "checked"
+              ]
+            },
+            "default": []
+          },
+          "temperatures": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "location": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "readingIndex": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3,
+                  "default": 1
+                },
+                "value": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "location",
+                "value"
+              ]
+            },
+            "default": []
+          }
+        }
+      },
+      "UpdateReportRequest": {
+        "type": "object",
+        "properties": {
+          "turno": {
+            "type": "string",
+            "enum": [
+              "tarde",
+              "noite"
+            ]
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "taskId": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                "checked": {
+                  "type": "boolean"
+                },
+                "selectedProducts": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "taskId",
+                "checked"
+              ]
+            }
+          },
+          "temperatures": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "location": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "readingIndex": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3,
+                  "default": 1
+                },
+                "value": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "location",
+                "value"
+              ]
+            }
+          }
+        }
       }
     },
     "parameters": {}
@@ -1099,21 +2501,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "username": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "password": {
-                    "type": "string",
-                    "minLength": 1
-                  }
-                },
-                "required": [
-                  "username",
-                  "password"
-                ]
+                "$ref": "#/components/schemas/LoginRequest"
               }
             }
           }
@@ -1124,46 +2512,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "token": {
-                      "type": "string"
-                    },
-                    "refreshToken": {
-                      "type": "string"
-                    },
-                    "expiresIn": {
-                      "type": "integer",
-                      "exclusiveMinimum": 0
-                    },
-                    "user": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "integer"
-                        },
-                        "username": {
-                          "type": "string"
-                        },
-                        "role": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "username",
-                        "role"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "token",
-                    "refreshToken",
-                    "expiresIn",
-                    "user"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/LoginResponse"
                 }
               }
             }
@@ -1173,20 +2522,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -1196,20 +2532,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -1228,16 +2551,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "refreshToken": {
-                    "type": "string",
-                    "minLength": 1
-                  }
-                },
-                "required": [
-                  "refreshToken"
-                ]
+                "$ref": "#/components/schemas/RefreshRequest"
               }
             }
           }
@@ -1248,25 +2562,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "token": {
-                      "type": "string"
-                    },
-                    "refreshToken": {
-                      "type": "string"
-                    },
-                    "expiresIn": {
-                      "type": "integer",
-                      "exclusiveMinimum": 0
-                    }
-                  },
-                  "required": [
-                    "token",
-                    "refreshToken",
-                    "expiresIn"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/RefreshResponse"
                 }
               }
             }
@@ -1276,20 +2572,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -1299,20 +2582,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -1332,13 +2602,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "refreshToken": {
-                    "type": "string",
-                    "minLength": 1
-                  }
-                }
+                "$ref": "#/components/schemas/LogoutRequest"
               }
             }
           }
@@ -1349,19 +2613,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        true
-                      ]
-                    }
-                  },
-                  "required": [
-                    "success"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/SuccessResponse"
                 }
               }
             }
@@ -1371,20 +2623,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -1394,20 +2633,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -1427,37 +2653,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "user": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "integer"
-                        },
-                        "username": {
-                          "type": "string"
-                        },
-                        "display_name": {
-                          "type": "string"
-                        },
-                        "role": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "username",
-                        "display_name",
-                        "role"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "user"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ProfileResponse"
                 }
               }
             }
@@ -1467,20 +2663,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -1490,20 +2673,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -1523,37 +2693,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "user": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "integer"
-                        },
-                        "username": {
-                          "type": "string"
-                        },
-                        "display_name": {
-                          "type": "string"
-                        },
-                        "role": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "username",
-                        "display_name",
-                        "role"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "user"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ProfileResponse"
                 }
               }
             }
@@ -1563,20 +2703,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -1586,20 +2713,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -1615,14 +2729,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "display_name": {
-                    "type": "string",
-                    "minLength": 1
-                  }
-                },
-                "additionalProperties": false
+                "$ref": "#/components/schemas/UpdateProfileRequest"
               }
             }
           }
@@ -1633,37 +2740,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "user": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "integer"
-                        },
-                        "username": {
-                          "type": "string"
-                        },
-                        "display_name": {
-                          "type": "string"
-                        },
-                        "role": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "username",
-                        "display_name",
-                        "role"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "user"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ProfileResponse"
                 }
               }
             }
@@ -1673,20 +2750,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -1696,20 +2760,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -1719,20 +2770,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -1751,21 +2789,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "currentPassword": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "newPassword": {
-                    "type": "string",
-                    "minLength": 8
-                  }
-                },
-                "required": [
-                  "currentPassword",
-                  "newPassword"
-                ]
+                "$ref": "#/components/schemas/ChangePasswordRequest"
               }
             }
           }
@@ -1776,19 +2800,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        true
-                      ]
-                    }
-                  },
-                  "required": [
-                    "success"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/SuccessResponse"
                 }
               }
             }
@@ -1798,20 +2810,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -1821,20 +2820,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -1844,20 +2830,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -1877,16 +2850,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "setupRequired": {
-                      "type": "boolean"
-                    }
-                  },
-                  "required": [
-                    "setupRequired"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/SetupStatusResponse"
                 }
               }
             }
@@ -1905,27 +2869,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "username": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "displayName": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "password": {
-                    "type": "string",
-                    "minLength": 8
-                  }
-                },
-                "required": [
-                  "username",
-                  "displayName",
-                  "password"
-                ],
-                "additionalProperties": false
+                "$ref": "#/components/schemas/SetupRequest"
               }
             }
           }
@@ -1936,23 +2880,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        true
-                      ]
-                    },
-                    "userId": {
-                      "type": "integer"
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "userId"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/SetupResponse"
                 }
               }
             }
@@ -1962,20 +2890,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -1985,20 +2900,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -2068,115 +2970,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "items": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "batch_date": {
-                            "type": "string"
-                          },
-                          "loading_date": {
-                            "type": "string"
-                          },
-                          "total_loadings": {
-                            "type": "integer"
-                          },
-                          "created_at": {
-                            "type": [
-                              "string",
-                              "null"
-                            ]
-                          },
-                          "updated_at": {
-                            "type": [
-                              "string",
-                              "null"
-                            ]
-                          },
-                          "isActive": {
-                            "type": "boolean"
-                          },
-                          "canEdit": {
-                            "type": "boolean"
-                          },
-                          "canDeactivate": {
-                            "type": "boolean"
-                          },
-                          "canDelete": {
-                            "type": "boolean"
-                          },
-                          "readOnly": {
-                            "type": "boolean"
-                          },
-                          "creator": {
-                            "type": [
-                              "object",
-                              "null"
-                            ],
-                            "properties": {
-                              "id": {
-                                "type": "integer"
-                              },
-                              "display_name": {
-                                "type": "string"
-                              }
-                            },
-                            "required": [
-                              "id",
-                              "display_name"
-                            ],
-                            "additionalProperties": false
-                          }
-                        },
-                        "required": [
-                          "batch_date",
-                          "loading_date",
-                          "total_loadings",
-                          "created_at",
-                          "updated_at",
-                          "isActive",
-                          "canEdit",
-                          "canDeactivate",
-                          "canDelete",
-                          "readOnly",
-                          "creator"
-                        ],
-                        "additionalProperties": false
-                      }
-                    },
-                    "pagination": {
-                      "type": "object",
-                      "properties": {
-                        "page": {
-                          "type": "integer"
-                        },
-                        "pageSize": {
-                          "type": "integer"
-                        },
-                        "total": {
-                          "type": "integer"
-                        },
-                        "totalPages": {
-                          "type": "integer"
-                        }
-                      },
-                      "required": [
-                        "page",
-                        "pageSize",
-                        "total",
-                        "totalPages"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "items",
-                    "pagination"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ScheduleHistoryResponse"
                 }
               }
             }
@@ -2186,20 +2980,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -2209,20 +2990,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -2253,152 +3021,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "schedules": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "integer"
-                          },
-                          "schedule_date": {
-                            "type": "string"
-                          },
-                          "time_slot": {
-                            "type": "string"
-                          },
-                          "driver_type": {
-                            "type": "string",
-                            "enum": [
-                              "fletero",
-                              "casa"
-                            ]
-                          },
-                          "driver_id": {
-                            "type": [
-                              "integer",
-                              "null"
-                            ]
-                          },
-                          "driver_name": {
-                            "type": [
-                              "string",
-                              "null"
-                            ]
-                          },
-                          "license_plate": {
-                            "type": [
-                              "string",
-                              "null"
-                            ]
-                          },
-                          "vehicle_id": {
-                            "type": [
-                              "integer",
-                              "null"
-                            ]
-                          },
-                          "vehicle_description": {
-                            "type": [
-                              "string",
-                              "null"
-                            ]
-                          },
-                          "vehicle_plate": {
-                            "type": [
-                              "string",
-                              "null"
-                            ]
-                          },
-                          "user_id": {
-                            "type": [
-                              "integer",
-                              "null"
-                            ]
-                          },
-                          "created_at": {
-                            "type": "string"
-                          },
-                          "updated_at": {
-                            "type": "string"
-                          },
-                          "is_active": {
-                            "type": "integer"
-                          },
-                          "creator_name": {
-                            "type": [
-                              "string",
-                              "null"
-                            ]
-                          },
-                          "isActive": {
-                            "type": "boolean"
-                          },
-                          "readOnly": {
-                            "type": "boolean"
-                          },
-                          "canEdit": {
-                            "type": "boolean"
-                          },
-                          "canDeactivate": {
-                            "type": "boolean"
-                          },
-                          "canDelete": {
-                            "type": "boolean"
-                          },
-                          "creator": {
-                            "type": [
-                              "object",
-                              "null"
-                            ],
-                            "properties": {
-                              "id": {
-                                "type": "integer"
-                              },
-                              "display_name": {
-                                "type": "string"
-                              }
-                            },
-                            "required": [
-                              "id",
-                              "display_name"
-                            ],
-                            "additionalProperties": false
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "schedule_date",
-                          "time_slot",
-                          "driver_type",
-                          "driver_id",
-                          "driver_name",
-                          "license_plate",
-                          "vehicle_id",
-                          "vehicle_description",
-                          "vehicle_plate",
-                          "user_id",
-                          "created_at",
-                          "updated_at",
-                          "is_active",
-                          "creator_name",
-                          "isActive",
-                          "readOnly",
-                          "canEdit",
-                          "canDeactivate",
-                          "canDelete",
-                          "creator"
-                        ],
-                        "additionalProperties": false
-                      }
-                    }
-                  },
-                  "required": [
-                    "schedules"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/SchedulesResponse"
                 }
               }
             }
@@ -2408,20 +3031,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -2431,20 +3041,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -2461,41 +3058,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "schedule_date": {
-                    "type": "string",
-                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-                  },
-                  "time_slot": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "driver_type": {
-                    "type": "string",
-                    "enum": [
-                      "fletero",
-                      "casa"
-                    ]
-                  },
-                  "driver_id": {
-                    "type": "integer",
-                    "exclusiveMinimum": 0
-                  },
-                  "vehicle_id": {
-                    "type": [
-                      "integer",
-                      "null"
-                    ],
-                    "exclusiveMinimum": 0
-                  }
-                },
-                "required": [
-                  "schedule_date",
-                  "time_slot",
-                  "driver_type",
-                  "driver_id"
-                ]
+                "$ref": "#/components/schemas/CreateScheduleRequest"
               }
             }
           }
@@ -2506,149 +3069,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "schedule": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "integer"
-                        },
-                        "schedule_date": {
-                          "type": "string"
-                        },
-                        "time_slot": {
-                          "type": "string"
-                        },
-                        "driver_type": {
-                          "type": "string",
-                          "enum": [
-                            "fletero",
-                            "casa"
-                          ]
-                        },
-                        "driver_id": {
-                          "type": [
-                            "integer",
-                            "null"
-                          ]
-                        },
-                        "driver_name": {
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        },
-                        "license_plate": {
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        },
-                        "vehicle_id": {
-                          "type": [
-                            "integer",
-                            "null"
-                          ]
-                        },
-                        "vehicle_description": {
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        },
-                        "vehicle_plate": {
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        },
-                        "user_id": {
-                          "type": [
-                            "integer",
-                            "null"
-                          ]
-                        },
-                        "created_at": {
-                          "type": "string"
-                        },
-                        "updated_at": {
-                          "type": "string"
-                        },
-                        "is_active": {
-                          "type": "integer"
-                        },
-                        "creator_name": {
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        },
-                        "isActive": {
-                          "type": "boolean"
-                        },
-                        "readOnly": {
-                          "type": "boolean"
-                        },
-                        "canEdit": {
-                          "type": "boolean"
-                        },
-                        "canDeactivate": {
-                          "type": "boolean"
-                        },
-                        "canDelete": {
-                          "type": "boolean"
-                        },
-                        "creator": {
-                          "type": [
-                            "object",
-                            "null"
-                          ],
-                          "properties": {
-                            "id": {
-                              "type": "integer"
-                            },
-                            "display_name": {
-                              "type": "string"
-                            }
-                          },
-                          "required": [
-                            "id",
-                            "display_name"
-                          ],
-                          "additionalProperties": false
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "schedule_date",
-                        "time_slot",
-                        "driver_type",
-                        "driver_id",
-                        "driver_name",
-                        "license_plate",
-                        "vehicle_id",
-                        "vehicle_description",
-                        "vehicle_plate",
-                        "user_id",
-                        "created_at",
-                        "updated_at",
-                        "is_active",
-                        "creator_name",
-                        "isActive",
-                        "readOnly",
-                        "canEdit",
-                        "canDeactivate",
-                        "canDelete",
-                        "creator"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "schedule"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ScheduleResponse"
                 }
               }
             }
@@ -2658,20 +3079,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -2681,20 +3089,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -2704,20 +3099,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -2727,20 +3109,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -2750,20 +3119,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -2791,35 +3147,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "schedule_date": {
-                    "type": "string",
-                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-                  },
-                  "time_slot": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "driver_type": {
-                    "type": "string",
-                    "enum": [
-                      "fletero",
-                      "casa"
-                    ]
-                  },
-                  "driver_id": {
-                    "type": "integer",
-                    "exclusiveMinimum": 0
-                  },
-                  "vehicle_id": {
-                    "type": [
-                      "integer",
-                      "null"
-                    ],
-                    "exclusiveMinimum": 0
-                  }
-                }
+                "$ref": "#/components/schemas/UpdateScheduleRequest"
               }
             }
           }
@@ -2830,149 +3158,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "schedule": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "integer"
-                        },
-                        "schedule_date": {
-                          "type": "string"
-                        },
-                        "time_slot": {
-                          "type": "string"
-                        },
-                        "driver_type": {
-                          "type": "string",
-                          "enum": [
-                            "fletero",
-                            "casa"
-                          ]
-                        },
-                        "driver_id": {
-                          "type": [
-                            "integer",
-                            "null"
-                          ]
-                        },
-                        "driver_name": {
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        },
-                        "license_plate": {
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        },
-                        "vehicle_id": {
-                          "type": [
-                            "integer",
-                            "null"
-                          ]
-                        },
-                        "vehicle_description": {
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        },
-                        "vehicle_plate": {
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        },
-                        "user_id": {
-                          "type": [
-                            "integer",
-                            "null"
-                          ]
-                        },
-                        "created_at": {
-                          "type": "string"
-                        },
-                        "updated_at": {
-                          "type": "string"
-                        },
-                        "is_active": {
-                          "type": "integer"
-                        },
-                        "creator_name": {
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        },
-                        "isActive": {
-                          "type": "boolean"
-                        },
-                        "readOnly": {
-                          "type": "boolean"
-                        },
-                        "canEdit": {
-                          "type": "boolean"
-                        },
-                        "canDeactivate": {
-                          "type": "boolean"
-                        },
-                        "canDelete": {
-                          "type": "boolean"
-                        },
-                        "creator": {
-                          "type": [
-                            "object",
-                            "null"
-                          ],
-                          "properties": {
-                            "id": {
-                              "type": "integer"
-                            },
-                            "display_name": {
-                              "type": "string"
-                            }
-                          },
-                          "required": [
-                            "id",
-                            "display_name"
-                          ],
-                          "additionalProperties": false
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "schedule_date",
-                        "time_slot",
-                        "driver_type",
-                        "driver_id",
-                        "driver_name",
-                        "license_plate",
-                        "vehicle_id",
-                        "vehicle_description",
-                        "vehicle_plate",
-                        "user_id",
-                        "created_at",
-                        "updated_at",
-                        "is_active",
-                        "creator_name",
-                        "isActive",
-                        "readOnly",
-                        "canEdit",
-                        "canDeactivate",
-                        "canDelete",
-                        "creator"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "schedule"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ScheduleResponse"
                 }
               }
             }
@@ -2982,20 +3168,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -3005,20 +3178,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -3028,20 +3188,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -3051,20 +3198,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -3074,20 +3208,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -3119,20 +3240,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -3142,20 +3250,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -3165,20 +3260,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -3188,20 +3270,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -3231,19 +3300,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        true
-                      ]
-                    }
-                  },
-                  "required": [
-                    "success"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/SuccessResponse"
                 }
               }
             }
@@ -3253,20 +3310,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -3276,20 +3320,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -3299,20 +3330,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -3322,20 +3340,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -3365,19 +3370,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        true
-                      ]
-                    }
-                  },
-                  "required": [
-                    "success"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/SuccessResponse"
                 }
               }
             }
@@ -3387,20 +3380,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -3410,20 +3390,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -3433,20 +3400,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -3456,20 +3410,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -3502,20 +3443,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -3525,20 +3453,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -3548,20 +3463,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -3571,20 +3473,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -3616,16 +3505,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "text": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "text"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/TextResponse"
                 }
               }
             }
@@ -3635,20 +3515,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -3658,20 +3525,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -3691,47 +3545,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "drivers": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "integer"
-                          },
-                          "name": {
-                            "type": "string"
-                          },
-                          "license_plate": {
-                            "type": [
-                              "string",
-                              "null"
-                            ]
-                          },
-                          "driver_type": {
-                            "type": "string",
-                            "enum": [
-                              "casa",
-                              "fletero"
-                            ]
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "name",
-                          "license_plate",
-                          "driver_type"
-                        ],
-                        "additionalProperties": false
-                      }
-                    }
-                  },
-                  "required": [
-                    "drivers"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/DriversResponse"
                 }
               }
             }
@@ -3741,20 +3555,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -3771,19 +3572,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "name": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "license_plate": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "name"
-                ]
+                "$ref": "#/components/schemas/CreateDriverRequest"
               }
             }
           }
@@ -3794,44 +3583,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "driver": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "integer"
-                        },
-                        "name": {
-                          "type": "string"
-                        },
-                        "license_plate": {
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        },
-                        "driver_type": {
-                          "type": "string",
-                          "enum": [
-                            "casa",
-                            "fletero"
-                          ]
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "name",
-                        "license_plate",
-                        "driver_type"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "driver"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/DriverResponse"
                 }
               }
             }
@@ -3841,20 +3593,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -3864,20 +3603,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -3897,36 +3623,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "vehicles": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "integer"
-                          },
-                          "description": {
-                            "type": "string"
-                          },
-                          "license_plate": {
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "description",
-                          "license_plate"
-                        ],
-                        "additionalProperties": false
-                      }
-                    }
-                  },
-                  "required": [
-                    "vehicles"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/VehiclesResponse"
                 }
               }
             }
@@ -3936,20 +3633,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -3970,19 +3654,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "timeSlots": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
-                    }
-                  },
-                  "required": [
-                    "timeSlots"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/TimeSlotsResponse"
                 }
               }
             }
@@ -3992,20 +3664,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -4025,99 +3684,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "categories": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "integer"
-                          },
-                          "parent_category_id": {
-                            "type": [
-                              "integer",
-                              "null"
-                            ]
-                          },
-                          "name_pt": {
-                            "type": "string"
-                          },
-                          "name_es": {
-                            "type": "string"
-                          },
-                          "sort_order": {
-                            "type": "integer"
-                          },
-                          "category_type": {
-                            "type": "string",
-                            "enum": [
-                              "check",
-                              "temperature",
-                              "check_assai",
-                              "check_normal"
-                            ]
-                          },
-                          "tasks": {
-                            "type": "array",
-                            "items": {
-                              "type": "object",
-                              "properties": {
-                                "id": {
-                                  "type": "integer"
-                                },
-                                "category_id": {
-                                  "type": "integer"
-                                },
-                                "name_pt": {
-                                  "type": "string"
-                                },
-                                "name_es": {
-                                  "type": "string"
-                                },
-                                "task_type": {
-                                  "type": "string",
-                                  "enum": [
-                                    "check",
-                                    "temperature",
-                                    "check_assai",
-                                    "check_normal"
-                                  ]
-                                },
-                                "temperature_readings": {
-                                  "type": "integer"
-                                }
-                              },
-                              "required": [
-                                "id",
-                                "category_id",
-                                "name_pt",
-                                "name_es",
-                                "task_type",
-                                "temperature_readings"
-                              ],
-                              "additionalProperties": false
-                            }
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "parent_category_id",
-                          "name_pt",
-                          "name_es",
-                          "sort_order",
-                          "category_type",
-                          "tasks"
-                        ],
-                        "additionalProperties": false
-                      }
-                    }
-                  },
-                  "required": [
-                    "categories"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/CategoriesResponse"
                 }
               }
             }
@@ -4127,20 +3694,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -4196,83 +3750,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "reports": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "integer"
-                          },
-                          "turno": {
-                            "type": "string",
-                            "enum": [
-                              "tarde",
-                              "noite"
-                            ]
-                          },
-                          "report_date": {
-                            "type": "string"
-                          },
-                          "notes": {
-                            "type": [
-                              "string",
-                              "null"
-                            ]
-                          },
-                          "created_at": {
-                            "type": "string"
-                          },
-                          "user": {
-                            "type": "object",
-                            "properties": {
-                              "id": {
-                                "type": "integer"
-                              },
-                              "display_name": {
-                                "type": "string"
-                              }
-                            },
-                            "required": [
-                              "id",
-                              "display_name"
-                            ],
-                            "additionalProperties": false
-                          },
-                          "isActive": {
-                            "type": "boolean"
-                          },
-                          "readOnly": {
-                            "type": "boolean"
-                          },
-                          "canEdit": {
-                            "type": "boolean"
-                          },
-                          "canDeactivate": {
-                            "type": "boolean"
-                          },
-                          "canDelete": {
-                            "type": "boolean"
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "turno",
-                          "report_date",
-                          "notes",
-                          "created_at",
-                          "user"
-                        ],
-                        "additionalProperties": false
-                      }
-                    }
-                  },
-                  "required": [
-                    "reports"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ReportsResponse"
                 }
               }
             }
@@ -4282,20 +3760,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -4305,20 +3770,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -4334,71 +3786,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "turno": {
-                    "type": "string",
-                    "enum": [
-                      "tarde",
-                      "noite"
-                    ]
-                  },
-                  "notes": {
-                    "type": "string"
-                  },
-                  "items": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "taskId": {
-                          "type": "integer",
-                          "exclusiveMinimum": 0
-                        },
-                        "checked": {
-                          "type": "boolean"
-                        },
-                        "selectedProducts": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
-                        }
-                      },
-                      "required": [
-                        "taskId",
-                        "checked"
-                      ]
-                    },
-                    "default": []
-                  },
-                  "temperatures": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "location": {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        "readingIndex": {
-                          "type": "integer",
-                          "minimum": 1,
-                          "maximum": 3,
-                          "default": 1
-                        },
-                        "value": {
-                          "type": "number"
-                        }
-                      },
-                      "required": [
-                        "location",
-                        "value"
-                      ]
-                    },
-                    "default": []
-                  }
-                }
+                "$ref": "#/components/schemas/CreateReportRequest"
               }
             }
           }
@@ -4409,167 +3797,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "report": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "integer"
-                        },
-                        "turno": {
-                          "type": "string",
-                          "enum": [
-                            "tarde",
-                            "noite"
-                          ]
-                        },
-                        "report_date": {
-                          "type": "string"
-                        },
-                        "notes": {
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        },
-                        "created_at": {
-                          "type": "string"
-                        },
-                        "user": {
-                          "type": "object",
-                          "properties": {
-                            "id": {
-                              "type": "integer"
-                            },
-                            "display_name": {
-                              "type": "string"
-                            }
-                          },
-                          "required": [
-                            "id",
-                            "display_name"
-                          ],
-                          "additionalProperties": false
-                        },
-                        "isActive": {
-                          "type": "boolean"
-                        },
-                        "readOnly": {
-                          "type": "boolean"
-                        },
-                        "canEdit": {
-                          "type": "boolean"
-                        },
-                        "canDeactivate": {
-                          "type": "boolean"
-                        },
-                        "canDelete": {
-                          "type": "boolean"
-                        },
-                        "updated_at": {
-                          "type": "string"
-                        },
-                        "items": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "task_id": {
-                                "type": "integer"
-                              },
-                              "task_name": {
-                                "type": "string"
-                              },
-                              "task_name_es": {
-                                "type": "string"
-                              },
-                              "task_type": {
-                                "type": "string",
-                                "enum": [
-                                  "check",
-                                  "temperature",
-                                  "check_assai",
-                                  "check_normal"
-                                ]
-                              },
-                              "category_name": {
-                                "type": "string"
-                              },
-                              "category_name_es": {
-                                "type": "string"
-                              },
-                              "checked": {
-                                "type": "boolean"
-                              },
-                              "selectedProducts": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              }
-                            },
-                            "required": [
-                              "task_id",
-                              "task_name",
-                              "task_name_es",
-                              "task_type",
-                              "category_name",
-                              "category_name_es",
-                              "checked"
-                            ],
-                            "additionalProperties": false
-                          }
-                        },
-                        "temperatures": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "location": {
-                                "type": "string"
-                              },
-                              "location_es": {
-                                "type": [
-                                  "string",
-                                  "null"
-                                ]
-                              },
-                              "readingIndex": {
-                                "type": "integer"
-                              },
-                              "value": {
-                                "type": "number"
-                              }
-                            },
-                            "required": [
-                              "location",
-                              "location_es",
-                              "readingIndex",
-                              "value"
-                            ],
-                            "additionalProperties": false
-                          }
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "turno",
-                        "report_date",
-                        "notes",
-                        "created_at",
-                        "user",
-                        "updated_at",
-                        "items",
-                        "temperatures"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "report"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ReportResponse"
                 }
               }
             }
@@ -4579,20 +3807,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -4602,20 +3817,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -4685,108 +3887,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "items": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "integer"
-                          },
-                          "turno": {
-                            "type": "string",
-                            "enum": [
-                              "tarde",
-                              "noite"
-                            ]
-                          },
-                          "report_date": {
-                            "type": "string"
-                          },
-                          "notes": {
-                            "type": [
-                              "string",
-                              "null"
-                            ]
-                          },
-                          "created_at": {
-                            "type": "string"
-                          },
-                          "user": {
-                            "type": "object",
-                            "properties": {
-                              "id": {
-                                "type": "integer"
-                              },
-                              "display_name": {
-                                "type": "string"
-                              }
-                            },
-                            "required": [
-                              "id",
-                              "display_name"
-                            ],
-                            "additionalProperties": false
-                          },
-                          "isActive": {
-                            "type": "boolean"
-                          },
-                          "readOnly": {
-                            "type": "boolean"
-                          },
-                          "canEdit": {
-                            "type": "boolean"
-                          },
-                          "canDeactivate": {
-                            "type": "boolean"
-                          },
-                          "canDelete": {
-                            "type": "boolean"
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "turno",
-                          "report_date",
-                          "notes",
-                          "created_at",
-                          "user"
-                        ],
-                        "additionalProperties": false
-                      }
-                    },
-                    "pagination": {
-                      "type": "object",
-                      "properties": {
-                        "page": {
-                          "type": "integer"
-                        },
-                        "pageSize": {
-                          "type": "integer"
-                        },
-                        "total": {
-                          "type": "integer"
-                        },
-                        "totalPages": {
-                          "type": "integer"
-                        }
-                      },
-                      "required": [
-                        "page",
-                        "pageSize",
-                        "total",
-                        "totalPages"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "items",
-                    "pagination"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ReportHistoryResponse"
                 }
               }
             }
@@ -4796,20 +3897,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -4819,20 +3907,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -4853,20 +3928,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "turno": {
-                      "type": "string",
-                      "enum": [
-                        "tarde",
-                        "noite"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "turno"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/TurnoResponse"
                 }
               }
             }
@@ -4876,20 +3938,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -4919,167 +3968,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "report": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "integer"
-                        },
-                        "turno": {
-                          "type": "string",
-                          "enum": [
-                            "tarde",
-                            "noite"
-                          ]
-                        },
-                        "report_date": {
-                          "type": "string"
-                        },
-                        "notes": {
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        },
-                        "created_at": {
-                          "type": "string"
-                        },
-                        "user": {
-                          "type": "object",
-                          "properties": {
-                            "id": {
-                              "type": "integer"
-                            },
-                            "display_name": {
-                              "type": "string"
-                            }
-                          },
-                          "required": [
-                            "id",
-                            "display_name"
-                          ],
-                          "additionalProperties": false
-                        },
-                        "isActive": {
-                          "type": "boolean"
-                        },
-                        "readOnly": {
-                          "type": "boolean"
-                        },
-                        "canEdit": {
-                          "type": "boolean"
-                        },
-                        "canDeactivate": {
-                          "type": "boolean"
-                        },
-                        "canDelete": {
-                          "type": "boolean"
-                        },
-                        "updated_at": {
-                          "type": "string"
-                        },
-                        "items": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "task_id": {
-                                "type": "integer"
-                              },
-                              "task_name": {
-                                "type": "string"
-                              },
-                              "task_name_es": {
-                                "type": "string"
-                              },
-                              "task_type": {
-                                "type": "string",
-                                "enum": [
-                                  "check",
-                                  "temperature",
-                                  "check_assai",
-                                  "check_normal"
-                                ]
-                              },
-                              "category_name": {
-                                "type": "string"
-                              },
-                              "category_name_es": {
-                                "type": "string"
-                              },
-                              "checked": {
-                                "type": "boolean"
-                              },
-                              "selectedProducts": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              }
-                            },
-                            "required": [
-                              "task_id",
-                              "task_name",
-                              "task_name_es",
-                              "task_type",
-                              "category_name",
-                              "category_name_es",
-                              "checked"
-                            ],
-                            "additionalProperties": false
-                          }
-                        },
-                        "temperatures": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "location": {
-                                "type": "string"
-                              },
-                              "location_es": {
-                                "type": [
-                                  "string",
-                                  "null"
-                                ]
-                              },
-                              "readingIndex": {
-                                "type": "integer"
-                              },
-                              "value": {
-                                "type": "number"
-                              }
-                            },
-                            "required": [
-                              "location",
-                              "location_es",
-                              "readingIndex",
-                              "value"
-                            ],
-                            "additionalProperties": false
-                          }
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "turno",
-                        "report_date",
-                        "notes",
-                        "created_at",
-                        "user",
-                        "updated_at",
-                        "items",
-                        "temperatures"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "report"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ReportResponse"
                 }
               }
             }
@@ -5089,20 +3978,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -5112,20 +3988,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -5135,20 +3998,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -5174,72 +4024,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "turno": {
-                    "type": "string",
-                    "enum": [
-                      "tarde",
-                      "noite"
-                    ]
-                  },
-                  "notes": {
-                    "type": [
-                      "string",
-                      "null"
-                    ]
-                  },
-                  "items": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "taskId": {
-                          "type": "integer",
-                          "exclusiveMinimum": 0
-                        },
-                        "checked": {
-                          "type": "boolean"
-                        },
-                        "selectedProducts": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
-                        }
-                      },
-                      "required": [
-                        "taskId",
-                        "checked"
-                      ]
-                    }
-                  },
-                  "temperatures": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "location": {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        "readingIndex": {
-                          "type": "integer",
-                          "minimum": 1,
-                          "maximum": 3,
-                          "default": 1
-                        },
-                        "value": {
-                          "type": "number"
-                        }
-                      },
-                      "required": [
-                        "location",
-                        "value"
-                      ]
-                    }
-                  }
-                }
+                "$ref": "#/components/schemas/UpdateReportRequest"
               }
             }
           }
@@ -5250,167 +4035,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "report": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "integer"
-                        },
-                        "turno": {
-                          "type": "string",
-                          "enum": [
-                            "tarde",
-                            "noite"
-                          ]
-                        },
-                        "report_date": {
-                          "type": "string"
-                        },
-                        "notes": {
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        },
-                        "created_at": {
-                          "type": "string"
-                        },
-                        "user": {
-                          "type": "object",
-                          "properties": {
-                            "id": {
-                              "type": "integer"
-                            },
-                            "display_name": {
-                              "type": "string"
-                            }
-                          },
-                          "required": [
-                            "id",
-                            "display_name"
-                          ],
-                          "additionalProperties": false
-                        },
-                        "isActive": {
-                          "type": "boolean"
-                        },
-                        "readOnly": {
-                          "type": "boolean"
-                        },
-                        "canEdit": {
-                          "type": "boolean"
-                        },
-                        "canDeactivate": {
-                          "type": "boolean"
-                        },
-                        "canDelete": {
-                          "type": "boolean"
-                        },
-                        "updated_at": {
-                          "type": "string"
-                        },
-                        "items": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "task_id": {
-                                "type": "integer"
-                              },
-                              "task_name": {
-                                "type": "string"
-                              },
-                              "task_name_es": {
-                                "type": "string"
-                              },
-                              "task_type": {
-                                "type": "string",
-                                "enum": [
-                                  "check",
-                                  "temperature",
-                                  "check_assai",
-                                  "check_normal"
-                                ]
-                              },
-                              "category_name": {
-                                "type": "string"
-                              },
-                              "category_name_es": {
-                                "type": "string"
-                              },
-                              "checked": {
-                                "type": "boolean"
-                              },
-                              "selectedProducts": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              }
-                            },
-                            "required": [
-                              "task_id",
-                              "task_name",
-                              "task_name_es",
-                              "task_type",
-                              "category_name",
-                              "category_name_es",
-                              "checked"
-                            ],
-                            "additionalProperties": false
-                          }
-                        },
-                        "temperatures": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "location": {
-                                "type": "string"
-                              },
-                              "location_es": {
-                                "type": [
-                                  "string",
-                                  "null"
-                                ]
-                              },
-                              "readingIndex": {
-                                "type": "integer"
-                              },
-                              "value": {
-                                "type": "number"
-                              }
-                            },
-                            "required": [
-                              "location",
-                              "location_es",
-                              "readingIndex",
-                              "value"
-                            ],
-                            "additionalProperties": false
-                          }
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "turno",
-                        "report_date",
-                        "notes",
-                        "created_at",
-                        "user",
-                        "updated_at",
-                        "items",
-                        "temperatures"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "report"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ReportResponse"
                 }
               }
             }
@@ -5420,20 +4045,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -5443,20 +4055,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -5466,20 +4065,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -5489,20 +4075,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -5534,20 +4107,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -5557,20 +4117,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -5580,20 +4127,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -5603,20 +4137,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -5647,19 +4168,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        true
-                      ]
-                    }
-                  },
-                  "required": [
-                    "success"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/SuccessResponse"
                 }
               }
             }
@@ -5669,20 +4178,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -5692,20 +4188,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -5715,20 +4198,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -5738,20 +4208,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -5782,16 +4239,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "text": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "text"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/TextResponse"
                 }
               }
             }
@@ -5801,20 +4249,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -5824,20 +4259,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -5847,20 +4269,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -5890,58 +4299,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "photos": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "integer"
-                          },
-                          "report_id": {
-                            "type": "integer"
-                          },
-                          "file_path": {
-                            "type": "string"
-                          },
-                          "file_size": {
-                            "type": "integer"
-                          },
-                          "mime_type": {
-                            "type": "string"
-                          },
-                          "public_token": {
-                            "type": "string"
-                          },
-                          "created_at": {
-                            "type": "string"
-                          },
-                          "url": {
-                            "type": "string"
-                          },
-                          "publicUrl": {
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "report_id",
-                          "file_path",
-                          "file_size",
-                          "mime_type",
-                          "public_token",
-                          "created_at"
-                        ],
-                        "additionalProperties": false
-                      }
-                    }
-                  },
-                  "required": [
-                    "photos"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/PhotosResponse"
                 }
               }
             }
@@ -5951,20 +4309,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -5974,20 +4319,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -6034,55 +4366,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "photo": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "integer"
-                        },
-                        "report_id": {
-                          "type": "integer"
-                        },
-                        "file_path": {
-                          "type": "string"
-                        },
-                        "file_size": {
-                          "type": "integer"
-                        },
-                        "mime_type": {
-                          "type": "string"
-                        },
-                        "public_token": {
-                          "type": "string"
-                        },
-                        "created_at": {
-                          "type": "string"
-                        },
-                        "url": {
-                          "type": "string"
-                        },
-                        "publicUrl": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "report_id",
-                        "file_path",
-                        "file_size",
-                        "mime_type",
-                        "public_token",
-                        "created_at"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "photo"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/PhotoResponse"
                 }
               }
             }
@@ -6092,20 +4376,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -6115,20 +4386,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -6138,20 +4396,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -6161,20 +4406,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -6184,20 +4416,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -6207,20 +4426,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -6230,20 +4436,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -6273,19 +4466,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        true
-                      ]
-                    }
-                  },
-                  "required": [
-                    "success"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/SuccessResponse"
                 }
               }
             }
@@ -6295,20 +4476,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -6318,20 +4486,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -6341,20 +4496,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -6406,20 +4548,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -6429,20 +4558,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -6496,20 +4612,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -6530,55 +4633,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "reportsToday": {
-                      "type": "integer"
-                    },
-                    "schedulesTomorrow": {
-                      "type": "integer"
-                    },
-                    "activeUsers": {
-                      "type": "integer"
-                    },
-                    "reportsTotal": {
-                      "type": "integer"
-                    },
-                    "schedulesTotal": {
-                      "type": "integer"
-                    },
-                    "latestReportId": {
-                      "type": [
-                        "integer",
-                        "null"
-                      ]
-                    },
-                    "higieneDone": {
-                      "type": "integer"
-                    },
-                    "higieneTotal": {
-                      "type": "integer"
-                    },
-                    "recepcionDone": {
-                      "type": "integer"
-                    },
-                    "recepcionTotal": {
-                      "type": "integer"
-                    }
-                  },
-                  "required": [
-                    "reportsToday",
-                    "schedulesTomorrow",
-                    "activeUsers",
-                    "reportsTotal",
-                    "schedulesTotal",
-                    "latestReportId",
-                    "higieneDone",
-                    "higieneTotal",
-                    "recepcionDone",
-                    "recepcionTotal"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/DashboardSummary"
                 }
               }
             }
@@ -6588,20 +4643,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -6622,23 +4664,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "status": {
-                      "type": "string",
-                      "enum": [
-                        "ok"
-                      ]
-                    },
-                    "timestamp": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "status",
-                    "timestamp"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/HealthResponse"
                 }
               }
             }
@@ -6658,32 +4684,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "users": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "integer"
-                          },
-                          "display_name": {
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "display_name"
-                        ],
-                        "additionalProperties": false
-                      }
-                    }
-                  },
-                  "required": [
-                    "users"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/UserOptionsResponse"
                 }
               }
             }
@@ -6693,20 +4694,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -6760,20 +4748,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {},
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
