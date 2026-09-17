@@ -874,28 +874,68 @@ docker run --rm -v <repo>:/work -v trindade-gradle:/root/.gradle \
   -w /work/packages/android ghcr.io/cirruslabs/android-sdk:35 ./gradlew assembleDebug
 ```
 
-### D1. Project skeleton — planned, not started
+### D1. Project skeleton — DONE (skeleton; the Android CI lane is still outstanding)
 
-Deliverables: Gradle Kotlin DSL with a version catalog, Compose + Material 3, Hilt, Retrofit +
-OkHttp + kotlinx.serialization, the module placed in the monorepo at `packages/android`, and a CI
-lane that has a JDK -- the canonical gate image does not, so the Android lane needs its own.
+Delivered 18 files under `packages/android`, all source and configuration. `assembleDebug` and
+`testDebugUnitTest` both green in the container, APK 12,652,707 bytes, 1 unit test passing, and the
+canonical gate still green -- which is the empirical answer to whether adding a `packages/android`
+directory disturbs the npm workspaces. It does not: `npm ci` and `npm run build` both succeed with
+it present, because npm skips a workspace directory that has no `package.json`. That was checked
+rather than assumed, since `packages/*` is a glob the root `package.json` owns.
 
-Deliberately NOT in D1: any screen beyond a placeholder, any dependency on the live backend, and any
-signing. The point of D1 is a project that **builds**, because nothing else can be verified until
-it does.
+Deliberately not in D1: any screen beyond a placeholder, any dependency on the live backend, and any
+signing. **The Android CI lane is also not done** and remains outstanding: the canonical gate image
+has no JDK, so it needs its own lane, and that lane has to provision the SDK (see below).
 
-Two decisions to make while writing it, both worth stating before the first file rather than after:
+**Three deviations from the plan, each with its reason.**
 
-- **Where the contract types come from.** `packages/contracts/openapi.json` is generated and the
-  backend's Zod schemas are the source of truth. The Android client should consume the artifact,
-  not hand-copy shapes, but the mechanism (codegen at build time vs a checked-in generated module)
-  has to be chosen deliberately and durably. B2 exists so this choice is available at all.
-- **The base URL is configuration, never a constant.** Shared rule already recorded for every
-  Android slice, and it is what lets D2 point at a deployment that does not exist yet.
+1. **Gradle 9.1.0 -> 9.6.0.** Not a preference: AGP 9.4.0 fails hard with "Minimum supported Gradle
+   version is 9.6.0". Changed in `gradle-wrapper.properties` only; the wrapper jar is untouched.
+2. **compileSdk 35 -> 37, keeping targetSdk 35 and minSdk 26.** The pinned Compose BOM 2026.09.00
+   and its transitive `androidx` versions require API 36/37 -- 17 hard errors otherwise. `compileSdk`
+   is build-time only, so the runtime floor and the target are unchanged. This has an infra
+   consequence: the SDK image ships only `platforms/android-35`.
+3. **KSP is 2.3.12, not `2.4.20-<something>`.** The instruction I wrote assumed KSP still versions
+   itself as `<kotlin>-<ksp>`. It does not: KSP decoupled from the Kotlin compiler version at 2.3.0,
+   and the registry has 160 versions with **none** carrying a `2.4.20-` prefix. Verified against
+   `maven-metadata.xml` rather than trusted, and the build proves it works, since Hilt's generated
+   components only compile if KSP actually ran. This is the clearest argument for the instruction
+   that caught it: resolve versions from the registry, never from memory, including the parent's.
 
-The evidence bar for D1 is `./gradlew assembleDebug` succeeding in the container plus the canonical
-gate still green, which is a real check that adding a `packages/android` did not disturb the npm
-workspaces.
+**The build must not run as root — this cost a full gate failure.** The container was first run as
+root, so it wrote `build/` into the mounted repository owned by root. Those directories are
+`gitignore`d, which is why `git status` showed nothing, but the gate's clean-checkout step copies
+the working tree and died with `cp: cannot open 'packages/android/build/reports/problems/
+problems-report.html': Permission denied`. It is the same class of defect as F2, where
+`make ci-clone` ran the npm pre-warm as root and poisoned the shared cache.
+
+The working recipe therefore runs as the invoking user, with the Gradle user home on a path that is
+already theirs rather than a root-owned volume:
+
+```
+docker run --rm --user $(id -u):$(id -g) \
+  -v <repo>:/work -v ~/.cache/trindade-gradle:/g -e GRADLE_USER_HOME=/g -e HOME=/g \
+  -v trindade-android-sdk:/opt/android-sdk-linux \
+  -w /work/packages/android ghcr.io/cirruslabs/android-sdk:35 ./gradlew assembleDebug
+```
+
+The named SDK volume is populated once with `sdkmanager --install "platforms;android-37.0"` and
+persists across runs, so no build needs to install anything again. Recorded because it is not
+evident: mounting a volume over `/opt/android-sdk-linux` initialises it from the image, which is what
+makes the persistence work without a derived Dockerfile.
+
+**A defect found while fixing the above.** The generated `.gitignore` covered `build/` and `.gradle/`
+but not `.kotlin/`, which the Kotlin Gradle plugin writes into the project directory -- so D1 would
+have committed the compiler's project-local cache. Added.
+
+Two decisions made while writing it, both stated before the first file rather than after:
+
+- **The base URL is configuration.** A Gradle property read into a `BuildConfig` field with a
+documented local default, so the same source can point at a deployment that does not exist yet.
+- **Where the contract types come from** was NOT resolved and is deferred: the skeleton carries no
+  API types, so nothing forced the choice between build-time codegen and a checked-in generated
+  module. It belongs with D2, the first slice that actually needs a type from
+  `packages/contracts/openapi.json`.
 
 - **D1** Project skeleton: Gradle Kotlin DSL, version catalog, Compose + Material 3,
   Hilt, Retrofit + OkHttp + kotlinx.serialization, module in the monorepo with a
