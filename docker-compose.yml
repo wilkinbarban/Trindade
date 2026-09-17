@@ -14,6 +14,9 @@ services:
       - sqlite_data:/app/packages/backend/data    # SQLite DB + photos (data/photos/)
     environment:
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required. Copy .env.example to .env and set a strong secret.}
+      # Without this line the container never receives the variable and silently uses the code
+      # default of 30 days, so setting it in .env would have no effect.
+      - REFRESH_TOKEN_TTL_DAYS=${REFRESH_TOKEN_TTL_DAYS:-30}
       - DATABASE_PATH=${DATABASE_PATH:-/app/packages/backend/data/trindade.db}
       - PHOTOS_DIR=${PHOTOS_DIR:-/app/packages/backend/data/photos}
       - GOOGLE_TRANSLATE_API_KEY=${GOOGLE_TRANSLATE_API_KEY:-}
@@ -21,6 +24,8 @@ services:
       - NODE_ENV=production
       - PORT=3000
       - HOST=0.0.0.0
+      # Same reason as REFRESH_TOKEN_TTL_DAYS: the code reads LOG_LEVEL and defaults to info.
+      - LOG_LEVEL=${LOG_LEVEL:-info}
     restart: unless-stopped
     logging:
       driver: "json-file"
