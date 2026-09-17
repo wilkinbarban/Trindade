@@ -274,8 +274,13 @@ and green:
 | --- | --- | --- |
 | B2.1 | harness + `auth` (8 paths / 9 operations) | DONE |
 | B2.2 | `loading` (10 paths / 13 operations) | DONE |
-| B2.3 | `reports` (15 routes) | pending |
-| B2.4 | `dashboard` (1 route) + shared route registration + the coverage test | delivered |
+| B2.3 | `reports` (10 paths / 15 operations) | DONE, as B2.3a and B2.3b |
+| B2.4 | `dashboard` and the ungrouped routes (4 paths / 4 operations) + shared route registration + the coverage test | DONE |
+
+The four rows reconcile against the artifact the CI check verifies: 32 paths and 41 operations,
+which is 8+10+10+4 and 9+13+15+4. That agreement is worth keeping as a check on the table
+itself, because a row that silently changes count is how a summary drifts from the thing it
+summarises.
 
 The coverage test lands in B2.4, once every field-operations path is registered and it can
 pass. Until then the CI freshness check still guarantees the artifact matches the schemas,
