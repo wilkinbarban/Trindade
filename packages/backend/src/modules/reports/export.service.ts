@@ -1,4 +1,5 @@
 import type Database from 'better-sqlite3';
+import { parseSelectedProducts } from './reports.schema.js';
 
 /**
  * Generador Inteligente — WhatsApp text export engine.
@@ -146,7 +147,7 @@ export function generateWhatsAppText(db: Database.Database, reportId: number, pu
 
     for (const item of items) {
       if (item.task_type === 'check_assai' || item.task_type === 'check_normal') {
-        const selected = item.selected_products ? JSON.parse(item.selected_products) : [];
+        const selected = parseSelectedProducts(item.selected_products) ?? [];
         if (selected && selected.length > 0) {
           lines.push(`✅ ${item.task_name}:`);
           for (const p of selected) {

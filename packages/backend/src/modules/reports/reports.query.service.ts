@@ -1,5 +1,6 @@
 import type Database from 'better-sqlite3';
-import type { CategoryResponse, TaskResponse, ReportQuery, ReportListItem, ReportDetail, ReportItemDetail, ReportTemperatureDetail } from './reports.schema.js';
+import type { CategoryResponse, TaskResponse, ReportQuery, ReportListItem, ReportDetail, ReportItemDetail, ReportTemperatureDetail, TaskType } from './reports.schema.js';
+import { parseSelectedProducts } from './reports.schema.js';
 import { projectHistoryPermissions, type HistoryActor } from '../history-permissions.js';
 import { getSaoPauloDateString } from '../../utils/date.js';
 
@@ -52,6 +53,17 @@ export function getCategories(db: Database.Database): CategoryResponse[] {
     return { ...cat, tasks };
   });
 }
+interface ReportItemRow {
+  task_id: number;
+  task_name: string;
+  task_name_es: string;
+  task_type: string;
+  category_name: string;
+  category_name_es: string;
+  checked: number;
+  selected_products: string | null;
+}
+
 interface ReportRow {
   id: number;
   user_id: number;
@@ -165,17 +177,18 @@ function enrichReport(db: Database.Database, row: ReportRow, actor?: HistoryActo
        WHERE ri.report_id = ?
        ORDER BY rc.sort_order ASC, rt.id ASC`
     )
-    .all(row.id) as any[];
+    .all(row.id) as ReportItemRow[];
 
   const items: ReportItemDetail[] = itemRows.map((r) => ({
     task_id: r.task_id,
     task_name: r.task_name,
     task_name_es: r.task_name_es,
-    task_type: r.task_type,
+    // A CHECK constraint holds this column to the same four values the response schema enumerates.
+    task_type: r.task_type as TaskType,
     category_name: r.category_name,
     category_name_es: r.category_name_es,
     checked: Boolean(r.checked),
-    selectedProducts: r.selected_products ? JSON.parse(r.selected_products) : undefined,
+    selectedProducts: parseSelectedProducts(r.selected_products),
   }));
 
   const temperatures = db

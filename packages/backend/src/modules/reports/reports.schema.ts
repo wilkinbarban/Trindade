@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { PaginationSchema } from '../../contracts/common.schema.js';
 
 export const TASK_TYPES = ['check', 'temperature', 'check_assai', 'check_normal'] as const;
 export type TaskType = typeof TASK_TYPES[number];
@@ -61,72 +62,135 @@ export const HistoryQuerySchema = z.object({
 
 export type HistoryQuery = z.infer<typeof HistoryQuerySchema>;
 
-export interface HistoryPagination {
-  page: number;
-  pageSize: number;
-  total: number;
-  totalPages: number;
+// ---- Response Schemas ----
+//
+// Schemas rather than interfaces, so the contract generator can read them and tests can validate
+// what the routes really return. They are `.strict()`, which is what makes a test prove the
+// server sends exactly the documented fields instead of accepting anything extra.
+
+/** The four element types a category can define. Reused from the request-side list above. */
+export const TaskTypeSchema = z.enum(TASK_TYPES);
+
+export const SelectedProductsSchema = z.array(z.string());
+
+export const TaskResponseSchema = z
+  .object({
+    id: z.number().int(),
+    category_id: z.number().int(),
+    name_pt: z.string(),
+    name_es: z.string(),
+    // The CATEGORY's type, which is what the query selects as `task_type`: a task inherits the
+    // type of the category it belongs to rather than carrying one of its own.
+    task_type: TaskTypeSchema,
+    temperature_readings: z.number().int(),
+  })
+  .strict();
+
+export const CategoryResponseSchema = z
+  .object({
+    id: z.number().int(),
+    parent_category_id: z.number().int().nullable(),
+    name_pt: z.string(),
+    name_es: z.string(),
+    sort_order: z.number().int(),
+    // Selected and returned by the query even though the interface this replaces omitted it, so
+    // it is documented rather than dropped: it is what a client keys its rendering off.
+    category_type: TaskTypeSchema,
+    tasks: z.array(TaskResponseSchema),
+  })
+  .strict();
+
+export const ReportUserSchema = z
+  .object({ id: z.number().int(), display_name: z.string() })
+  .strict();
+
+export const ReportListItemSchema = z
+  .object({
+    id: z.number().int(),
+    turno: z.enum(['tarde', 'noite']),
+    report_date: z.string(),
+    notes: z.string().nullable(),
+    created_at: z.string(),
+    user: ReportUserSchema,
+    // Server-computed lifecycle flags, present only on the endpoints that pass an actor.
+    isActive: z.boolean().optional(),
+    readOnly: z.boolean().optional(),
+    canEdit: z.boolean().optional(),
+    canDeactivate: z.boolean().optional(),
+    canDelete: z.boolean().optional(),
+  })
+  .strict();
+
+export const ReportItemDetailSchema = z
+  .object({
+    task_id: z.number().int(),
+    task_name: z.string(),
+    task_name_es: z.string(),
+    task_type: TaskTypeSchema,
+    category_name: z.string(),
+    category_name_es: z.string(),
+    checked: z.boolean(),
+    selectedProducts: SelectedProductsSchema.optional(),
+  })
+  .strict();
+
+export const ReportTemperatureDetailSchema = z
+  .object({
+    location: z.string(),
+    // Resolved through a LEFT JOIN, so a reading whose location no longer matches a task has no
+    // Spanish name. That is the only reason this one is nullable where the other `_es` fields are not.
+    location_es: z.string().nullable(),
+    readingIndex: z.number().int(),
+    value: z.number(),
+  })
+  .strict();
+
+export const ReportDetailSchema = ReportListItemSchema.extend({
+  updated_at: z.string(),
+  items: z.array(ReportItemDetailSchema),
+  temperatures: z.array(ReportTemperatureDetailSchema),
+}).strict();
+
+/**
+ * Read a stored selected-product list out of `report_items.selected_products`.
+ *
+ * The column is written only from request input the API already validated, so content that does
+ * not parse means corruption from outside this application. Returning an empty selection keeps the
+ * report readable instead of turning a read into a driver error, which is what an unguarded
+ * `JSON.parse` did here.
+ */
+export function parseSelectedProducts(value: string | null | undefined): string[] | undefined {
+  if (!value) return undefined;
+
+  let decoded: unknown;
+  try {
+    decoded = JSON.parse(value);
+  } catch {
+    return [];
+  }
+
+  const parsed = SelectedProductsSchema.safeParse(decoded);
+  return parsed.success ? parsed.data : [];
 }
 
+// ---- Response Envelopes ----
 
-// ---- Response Types (TypeScript only, not validated) ----
+export const CategoriesResponseSchema = z.object({ categories: z.array(CategoryResponseSchema) }).strict();
+export const ReportsResponseSchema = z.object({ reports: z.array(ReportListItemSchema) }).strict();
+export const ReportResponseSchema = z.object({ report: ReportDetailSchema }).strict();
+export const ReportHistoryResponseSchema = z
+  .object({ items: z.array(ReportListItemSchema), pagination: PaginationSchema })
+  .strict();
+export const TurnoResponseSchema = z.object({ turno: z.enum(['tarde', 'noite']) }).strict();
 
-export interface CategoryResponse {
-  id: number;
-  parent_category_id: number | null;
-  name_pt: string;
-  name_es: string;
-  sort_order: number;
-  tasks: TaskResponse[];
-}
+// The types the services keep importing, derived from the schemas so they cannot drift away from
+// the contract.
+export type CategoryResponse = z.infer<typeof CategoryResponseSchema>;
+export type TaskResponse = z.infer<typeof TaskResponseSchema>;
+export type ReportListItem = z.infer<typeof ReportListItemSchema>;
+export type ReportDetail = z.infer<typeof ReportDetailSchema>;
+export type ReportItemDetail = z.infer<typeof ReportItemDetailSchema>;
+export type ReportTemperatureDetail = z.infer<typeof ReportTemperatureDetailSchema>;
 
-export interface TaskResponse {
-  id: number;
-  category_id: number;
-  name_pt: string;
-  name_es: string;
-  task_type: TaskType;
-  temperature_readings: number;
-  sort_order: number;
-}
-
-export interface ReportListItem {
-  id: number;
-  turno: 'tarde' | 'noite';
-  report_date: string;
-  notes: string | null;
-  created_at: string;
-  isActive?: boolean;
-  readOnly?: boolean;
-  canEdit?: boolean;
-  canDeactivate?: boolean;
-  canDelete?: boolean;
-  user: {
-    id: number;
-    display_name: string;
-  };
-}
-
-export interface ReportDetail extends ReportListItem {
-  updated_at: string;
-  items: ReportItemDetail[];
-  temperatures: ReportTemperatureDetail[];
-}
-
-export interface ReportItemDetail {
-  task_id: number;
-  task_name: string;
-  task_name_es?: string;
-  task_type: string;
-  category_name: string;
-  category_name_es?: string;
-  checked: boolean;
-  selectedProducts?: string[];
-}
-
-export interface ReportTemperatureDetail {
-  location: string;
-  location_es?: string;
-  readingIndex: number;
-  value: number;
-}
+/** Shared with the loading module, so it lives in `contracts/common.schema.ts`. */
+export type HistoryPagination = z.infer<typeof PaginationSchema>;
