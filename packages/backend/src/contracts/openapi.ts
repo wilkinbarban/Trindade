@@ -62,7 +62,14 @@ import {
   TurnoResponseSchema,
   UpdateReportBodySchema,
 } from '../modules/reports/reports.schema.js';
-import { PaginationSchema, SuccessResponseSchema, TextResponseSchema } from './common.schema.js';
+import { DashboardSummarySchema } from '../modules/dashboard/dashboard.schema.js';
+import {
+  HealthResponseSchema,
+  PaginationSchema,
+  SuccessResponseSchema,
+  TextResponseSchema,
+  UserOptionsResponseSchema,
+} from './common.schema.js';
 import { ErrorEnvelopeSchema } from './error.schema.js';
 
 /**
@@ -154,6 +161,9 @@ function buildRegistry(): OpenAPIRegistry {
   registry.register('ReportTemperatureDetail', ReportTemperatureDetailSchema);
   registry.register('ReportUser', ReportUserSchema);
   registry.register('ReportPhoto', PhotoSchema);
+  registry.register('DashboardSummary', DashboardSummarySchema);
+  registry.register('HealthResponse', HealthResponseSchema);
+  registry.register('UserOptionsResponse', UserOptionsResponseSchema);
 
   registry.registerPath({
     method: 'post',
@@ -713,6 +723,61 @@ function buildRegistry(): OpenAPIRegistry {
     responses: {
       200: binaryResponse('The photo bytes'),
       404: errorResponse('No such photo token'),
+    },
+  });
+
+  // ---- dashboard, and the routes that belong to no module ----
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/dashboard/summary',
+    summary: 'Read the operational dashboard summary',
+    description:
+      'Every count is computed server-side, and the date-based ones use the São Paulo day rather than ' +
+      'the device clock.',
+    tags: ['dashboard'],
+    responses: {
+      200: jsonResponse('The summary counts, and the progress pairs for two fixed categories', DashboardSummarySchema),
+      401: UNAUTHORIZED,
+    },
+  });
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/health',
+    summary: 'Report that the process is serving',
+    description:
+      'Liveness only: it does not check the database, so a client uses it to tell a dead host from a ' +
+      'failing request, and nothing more.',
+    tags: ['system'],
+    responses: {
+      200: jsonResponse('The process is serving', HealthResponseSchema),
+    },
+  });
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/users/options',
+    summary: 'List the active users the history filters offer',
+    tags: ['system'],
+    responses: {
+      200: jsonResponse('Active users, ordered by display name', UserOptionsResponseSchema),
+      401: UNAUTHORIZED,
+    },
+  });
+
+  registry.registerPath({
+    method: 'get',
+    path: '/p/{token}',
+    summary: 'Fetch a photo by its short public link',
+    description:
+      'This is the route the WhatsApp exports point at, and the only public photo route that works: the ' +
+      'token is the credential and needs no header, which is what makes it pasteable into a chat.',
+    tags: ['reports'],
+    request: { params: PHOTO_TOKEN_PARAMS },
+    responses: {
+      200: binaryResponse('The photo bytes'),
+      404: errorResponse('No such photo token, or its file is missing from disk'),
     },
   });
 

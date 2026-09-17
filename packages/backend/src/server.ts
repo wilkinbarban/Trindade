@@ -1,4 +1,4 @@
-import { mkdirSync, existsSync } from 'node:fs';
+import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
@@ -6,20 +6,14 @@ import multipart from '@fastify/multipart';
 import { loadRuntimeConfig } from './runtime-config.js';
 import { openDatabase } from './db/index.js';
 import { schemaNoticeForStartup } from './db/schema-notice.js';
-import { authRoutes } from './modules/auth/auth.routes.js';
 import { createAuthenticate } from './modules/auth/auth.middleware.js';
 import {
   createSessionStoreCheck,
   purgeDeadSessions,
   sessionStoreExists,
 } from './modules/auth/auth.sessions.service.js';
-import { dashboardRoutes } from './modules/dashboard/dashboard.routes.js';
-import { reportsRoutes } from './modules/reports/reports.routes.js';
-import { cleanupExpiredPhotos, getPhotoByPublicToken } from './modules/reports/reports.lifecycle.service.js';
-import { loadingRoutes } from './modules/loading/loading.routes.js';
-import { adminRoutes } from './modules/admin/admin.routes.js';
-import { auditRoutes } from './modules/audit/audit.routes.js';
-import { bootstrapRoutes } from './modules/auth/bootstrap.routes.js';
+import { cleanupExpiredPhotos } from './modules/reports/reports.lifecycle.service.js';
+import { registerApiRoutes } from './routes.js';
 
 const config = loadRuntimeConfig();
 const db = openDatabase(config.databasePath);
@@ -78,62 +72,16 @@ server.decorate('db', db);
 // Decorate with JWT authenticate (must be at top level, not inside a plugin)
 server.decorate('authenticate', createAuthenticate(config.jwtSecret));
 
-// Register route modules
-await server.register(authRoutes, {
-  prefix: '/api/auth',
+// Every route the API serves, registered from one place so the contract test enumerates the same
+// set this process does.
+await registerApiRoutes(server, {
   jwtSecret: config.jwtSecret,
   refreshTokenTtlDays: config.refreshTokenTtlDays,
   sessionStoreAvailable: sessionStoreCheck,
-});
-await server.register(bootstrapRoutes, { prefix: '/api/auth' });
-await server.register(dashboardRoutes, { prefix: '/api/dashboard' });
-await server.register(reportsRoutes, { prefix: '/api/reports', photosDir: PHOTOS_DIR, publicBaseUrl: PUBLIC_APP_URL });
-await server.register(loadingRoutes, { prefix: '/api/loading' });
-await server.register(adminRoutes, { prefix: '/api/admin' });
-await server.register(auditRoutes, { prefix: '/api/admin' });
-
-// Shortened route for serving public report photos (e.g. for WhatsApp copy-paste links)
-server.get(
-  '/p/:token',
-  async (request, reply) => {
-    const { token } = request.params as { token: string };
-    if (!token || token.length < 8) {
-      return reply.status(404).send({ error: 'Photo not found' });
-    }
-
-    const photo = getPhotoByPublicToken(server.db, token);
-    if (!photo) {
-      return reply.status(404).send({ error: 'Photo not found' });
-    }
-
-    const filePath = join(PHOTOS_DIR, photo.file_path);
-    if (!existsSync(filePath)) {
-      return reply.status(404).send({ error: 'Photo file not found on disk' });
-    }
-
-    const contentType = photo.mime_type || 'image/jpeg';
-    reply.header('Content-Type', contentType);
-    reply.header('Cache-Control', 'public, max-age=31536000, immutable');
-
-    const buffer = await import('node:fs/promises').then(fs => fs.readFile(filePath));
-    return reply.send(buffer);
-  }
-);
-
-
-// Authenticated user options for history filters
-server.get('/api/users/options', { preHandler: [server.authenticate] }, async (_request, reply) => {
-  const users = server.db
-    .prepare('SELECT id, display_name FROM users WHERE is_active = 1 ORDER BY display_name ASC')
-    .all();
-  return reply.send({ users });
+  photosDir: PHOTOS_DIR,
+  publicBaseUrl: PUBLIC_APP_URL,
 });
 
-// Health check
-server.get('/api/health', async () => ({
-  status: 'ok',
-  timestamp: new Date().toISOString(),
-}));
 
 
 // Both cleanups below delete dead data at startup and leave the schema untouched. Each keeps its

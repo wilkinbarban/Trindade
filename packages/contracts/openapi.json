@@ -986,6 +986,104 @@
           "created_at"
         ],
         "additionalProperties": false
+      },
+      "DashboardSummary": {
+        "type": "object",
+        "properties": {
+          "reportsToday": {
+            "type": "integer"
+          },
+          "schedulesTomorrow": {
+            "type": "integer"
+          },
+          "activeUsers": {
+            "type": "integer"
+          },
+          "reportsTotal": {
+            "type": "integer"
+          },
+          "schedulesTotal": {
+            "type": "integer"
+          },
+          "latestReportId": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "higieneDone": {
+            "type": "integer"
+          },
+          "higieneTotal": {
+            "type": "integer"
+          },
+          "recepcionDone": {
+            "type": "integer"
+          },
+          "recepcionTotal": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "reportsToday",
+          "schedulesTomorrow",
+          "activeUsers",
+          "reportsTotal",
+          "schedulesTotal",
+          "latestReportId",
+          "higieneDone",
+          "higieneTotal",
+          "recepcionDone",
+          "recepcionTotal"
+        ],
+        "additionalProperties": false
+      },
+      "HealthResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok"
+            ]
+          },
+          "timestamp": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "timestamp"
+        ],
+        "additionalProperties": false
+      },
+      "UserOptionsResponse": {
+        "type": "object",
+        "properties": {
+          "users": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "display_name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "display_name"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "users"
+        ],
+        "additionalProperties": false
       }
     },
     "parameters": {}
@@ -6395,6 +6493,270 @@
           },
           "404": {
             "description": "No such photo token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/dashboard/summary": {
+      "get": {
+        "summary": "Read the operational dashboard summary",
+        "description": "Every count is computed server-side, and the date-based ones use the São Paulo day rather than the device clock.",
+        "tags": [
+          "dashboard"
+        ],
+        "responses": {
+          "200": {
+            "description": "The summary counts, and the progress pairs for two fixed categories",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "reportsToday": {
+                      "type": "integer"
+                    },
+                    "schedulesTomorrow": {
+                      "type": "integer"
+                    },
+                    "activeUsers": {
+                      "type": "integer"
+                    },
+                    "reportsTotal": {
+                      "type": "integer"
+                    },
+                    "schedulesTotal": {
+                      "type": "integer"
+                    },
+                    "latestReportId": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "higieneDone": {
+                      "type": "integer"
+                    },
+                    "higieneTotal": {
+                      "type": "integer"
+                    },
+                    "recepcionDone": {
+                      "type": "integer"
+                    },
+                    "recepcionTotal": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "reportsToday",
+                    "schedulesTomorrow",
+                    "activeUsers",
+                    "reportsTotal",
+                    "schedulesTotal",
+                    "latestReportId",
+                    "higieneDone",
+                    "higieneTotal",
+                    "recepcionDone",
+                    "recepcionTotal"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/health": {
+      "get": {
+        "summary": "Report that the process is serving",
+        "description": "Liveness only: it does not check the database, so a client uses it to tell a dead host from a failing request, and nothing more.",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "The process is serving",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ok"
+                      ]
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "timestamp"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/options": {
+      "get": {
+        "summary": "List the active users the history filters offer",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "Active users, ordered by display name",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "users": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "display_name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "display_name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "users"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/p/{token}": {
+      "get": {
+        "summary": "Fetch a photo by its short public link",
+        "description": "This is the route the WhatsApp exports point at, and the only public photo route that works: the token is the credential and needs no header, which is what makes it pasteable into a chat.",
+        "tags": [
+          "reports"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "token",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The photo bytes",
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/webp": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such photo token, or its file is missing from disk",
             "content": {
               "application/json": {
                 "schema": {

@@ -16,6 +16,21 @@ export const SuccessResponseSchema = z.object({ success: z.literal(true) }).stri
 /** The `{ text }` envelope used by the server-generated WhatsApp exports. */
 export const TextResponseSchema = z.object({ text: z.string() }).strict();
 
+/**
+ * The liveness answer, which reports whether the process is serving at all. It does not check the
+ * database: a client uses it to tell a dead host from a failing request, and nothing more.
+ */
+export const HealthResponseSchema = z
+  .object({ status: z.literal('ok'), timestamp: z.string() })
+  .strict();
+
+/** The active users the history filters offer, sent as a bare id and display name. */
+export const UserOptionsResponseSchema = z
+  .object({
+    users: z.array(z.object({ id: z.number().int(), display_name: z.string() }).strict()),
+  })
+  .strict();
+
 /** The pagination block returned by the history endpoints. */
 export const PaginationSchema = z
   .object({
