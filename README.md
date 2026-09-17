@@ -38,9 +38,9 @@ migrating, resetting, seeding, or stamping it, and never replaces accounts. The 
 left exactly as it was found, and that much is enforced.
 
 An established installation is **not** byte-frozen, and treating it as frozen would be wrong.
-Startup still performs the documented 30-day photo retention cleanup, which deletes expired
-report photos, and once the server is serving, login and the operational endpoints write
-through the application: audit records, auth sessions, reports, schedules, and photos.
+Startup performs two 30-day retention cleanups — expired report photos, and dead session rows —
+and once the server is serving, login and the operational endpoints write through the
+application: audit records, auth sessions, reports, schedules, and photos.
 Capture the recovery set described below before assuming a startup or a login is
 non-destructive.
 
@@ -195,7 +195,7 @@ Stage one does **not** authorize production mutation or deployment. Before any l
 2. Create a SQLite-consistent online snapshot plus associated files in a non-overlapping protected destination. A raw live database copy is not sufficient.
 3. Verify database integrity, manifest completeness, SHA-256 checksums, storage ACL/encryption, retention, and secret-free evidence.
 4. Restore into an isolated non-production target and verify integrity, schema identity, representative row counts, associated files, and application-level reads.
-5. Compare production database and non-expired associated-file fingerprints captured before and after read-only verification. Policy-expired report photos may be deleted by the 30-day startup retention cleanup; any other difference fails the gate.
+5. Compare production database and non-expired associated-file fingerprints captured before and after read-only verification. Policy-expired report photos and dead session rows may be deleted by the 30-day startup retention cleanups; any other difference fails the gate.
 6. Record the recovery-set ID, restore procedure, rollback triggers, verification commands, approver, and evidence expiry. Obtain explicit approval for the exact future mutation and target.
 
 The repository harness exercises capture and isolated restore only with temporary fixtures:

@@ -20,7 +20,7 @@ This runbook defines the operational procedure for deploying updates to Trindade
   delete production data.
   - Database: `/app/packages/backend/data/trindade.db` (SQLite in WAL mode).
   - Report photos: `/app/packages/backend/data/photos`.
-- **Production Immutability Gate**: Server startup **never** runs automatic migrations, seeds, or table alterations (`openspec/specs/foundation/spec.md`). Existing databases are classified and reported at boot without modification. The schema is what is left untouched; startup does still perform the 30-day photo retention cleanup.
+- **Production Immutability Gate**: Server startup **never** runs automatic migrations, seeds, or table alterations (`openspec/specs/foundation/spec.md`). Existing databases are classified and reported at boot without modification. The schema is what is left untouched; startup does still perform two 30-day retention cleanups, one for expired report photos and one for dead session rows.
 - **Recovery Gate**: Before any production mutation or deployment, a SQLite-consistent online snapshot and asset inventory must be captured and proven via isolated restoration (`README.md` and `openspec/specs/production-data-recovery/spec.md`). A raw file copy is not sufficient because SQLite in WAL mode keeps uncheckpointed pages in the `-wal` sidecar.
 
 ### Deployment order rule

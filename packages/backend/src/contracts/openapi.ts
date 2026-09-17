@@ -47,12 +47,11 @@ import { ErrorEnvelopeSchema } from './error.schema.js';
 /**
  * The machine-readable contract for the API surface the mobile client consumes.
  *
- * This registry is declared by hand, so the risk is that a route exists and is never added
- * here. One mechanism contains that risk today: the generator is a build step, and
- * `scripts/verify-openapi-artifact.sh` fails when the committed artifact is stale. The second
- * mechanism is NOT in place yet — B2.4 adds the coverage test that will compare the registered
- * Fastify routes against this document so an undocumented route fails the suite, and until it
- * lands a route can still escape the contract silently.
+ * This registry is declared by hand, so the risk is that a route exists and is never added here.
+ * The generator is a build step and `scripts/verify-openapi-artifact.sh` fails when the committed
+ * artifact is stale, which keeps the document truthful about what it covers. It does not keep the
+ * document complete: nothing yet compares the routes actually registered against this document,
+ * so a route added without a registry entry still escapes the contract silently.
  *
  * The surface is deliberately scoped to field operations. Admin and audit routes are
  * excluded because no mobile client calls them; they join the same registry when one does.

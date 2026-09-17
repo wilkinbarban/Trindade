@@ -111,7 +111,7 @@ so a caller cannot probe which of them happened.
 (9 new), build clean, on Node 24.21.0.
 
 Shape delivered: `hashRefreshToken`, `issueSession`, `rotateSession`, `revokeSession`,
-`revokeUserSessions`, `purgeExpiredSessions`. Opaque token is
+`revokeUserSessions`, `purgeDeadSessions`. Opaque token is
 `randomBytes(32).toString('base64url')`; only its `sha256` hex is persisted. Expiry is
 decided in SQL (`expires_at <= datetime('now')`), never by parsing the SQLite datetime in
 JavaScript, and lifetimes are applied through `datetime('now', ?)` so one clock computes
@@ -158,7 +158,7 @@ typecheck, backend suite, schema CLI verification, 53/53 Playwright E2E).
 
 #### A2.3. Wire session purge into startup
 
-A2.1 ships the tested `purgeExpiredSessions`; this slice decides and implements when it
+A2.1 ships the tested `purgeDeadSessions`; this slice decides and implements when it
 runs. Purging expired session rows is a write to an existing database at startup, the same
 class of act as the photo-retention cleanup that already runs there, so it must be
 evaluated against the Production Immutability Gate rather than slipped in with the auth

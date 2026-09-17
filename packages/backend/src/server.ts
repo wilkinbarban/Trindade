@@ -129,9 +129,15 @@ server.get('/api/health', async () => ({
 }));
 
 
+// Both cleanups below delete dead data at startup and leave the schema untouched. Each keeps its
+// own window because photos and sessions are pruned for different reasons, but neither is a magic
+// number buried in a call.
+const PHOTO_RETENTION_DAYS = 30;
+const SESSION_RETENTION_DAYS = 30;
+
 function runPhotoRetentionCleanup() {
   try {
-    const result = cleanupExpiredPhotos(db, PHOTOS_DIR, 30);
+    const result = cleanupExpiredPhotos(db, PHOTOS_DIR, PHOTO_RETENTION_DAYS);
     if (result.deleted > 0 || result.errors > 0) {
       server.log.info({ result }, 'Report photo retention cleanup finished');
     }
@@ -144,11 +150,8 @@ runPhotoRetentionCleanup();
 const photoRetentionInterval = setInterval(runPhotoRetentionCleanup, 24 * 60 * 60 * 1000);
 photoRetentionInterval.unref?.();
 
-// Same shape and the same justification as the photo retention cleanup above: dead rows are
-// deleted at startup and the schema itself is left untouched. Guarded by the session-store check
-// because the table only exists once an operator has migrated, and startup must never create it.
-const SESSION_RETENTION_DAYS = 30;
-
+// Same shape as the photo retention cleanup above. Guarded by the session-store check because the
+// table only exists once an operator has migrated, and startup must never create it.
 function runSessionRetentionCleanup() {
   if (!sessionStoreAvailable) return;
   try {

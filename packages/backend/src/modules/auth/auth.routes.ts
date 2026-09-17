@@ -391,11 +391,17 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRoutesOp
         });
       }
 
-      // Ends only the session this client is holding. Other devices stay logged in, which
-      // is why this is not `revokeUserSessions`: logging out on a phone must not end the
-      // desktop's session.
-      if (parse.data.refreshToken && sessionStoreAvailable) {
-        revokeSession(fastify.db, parse.data.refreshToken);
+      // Ends only the session this client is holding. Other devices stay logged in, which is why
+      // this is not `revokeUserSessions`: logging out on a phone must not end the desktop's session.
+      if (parse.data.refreshToken) {
+        if (sessionStoreAvailable) {
+          revokeSession(fastify.db, parse.data.refreshToken);
+        } else {
+          // Nothing to revoke without the table, so the caller still gets a success: the state it
+          // wants already holds. The skip is logged rather than silent, because a client that
+          // believes it signed out should not leave an operator with no trace of the opposite.
+          request.log.warn('Logout skipped session revocation: this database has no session store');
+        }
       }
 
       auditLog(fastify.db, {
