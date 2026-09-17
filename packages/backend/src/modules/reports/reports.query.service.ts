@@ -1,6 +1,6 @@
 import type Database from 'better-sqlite3';
 import type { CategoryResponse, TaskResponse, ReportQuery, ReportListItem, ReportDetail, ReportItemDetail, ReportTemperatureDetail, TaskType } from './reports.schema.js';
-import { parseSelectedProducts } from './reports.schema.js';
+import { parseSelectedProducts, TaskTypeSchema } from './reports.schema.js';
 import { projectHistoryPermissions, type HistoryActor } from '../history-permissions.js';
 import { getSaoPauloDateString } from '../../utils/date.js';
 
@@ -62,6 +62,23 @@ interface ReportItemRow {
   category_name_es: string;
   checked: number;
   selected_products: string | null;
+}
+
+/**
+ * Narrow a stored category type to the enum the response declares.
+ *
+ * The column carries a CHECK constraint over these same four values, so a mismatch means the
+ * database was changed outside this application. There is no honest fallback: every alternative
+ * would misreport which element type the task is, and the response schema admits only the four. So
+ * this fails loudly rather than substituting one, and the enum in `ReportItemDetailSchema` is what
+ * a contract test proves against real rows.
+ */
+function narrowTaskType(value: string): TaskType {
+  const parsed = TaskTypeSchema.safeParse(value);
+  if (!parsed.success) {
+    throw new Error(`report_items row carries an unknown task type: ${value}`);
+  }
+  return parsed.data;
 }
 
 interface ReportRow {
@@ -183,8 +200,7 @@ function enrichReport(db: Database.Database, row: ReportRow, actor?: HistoryActo
     task_id: r.task_id,
     task_name: r.task_name,
     task_name_es: r.task_name_es,
-    // A CHECK constraint holds this column to the same four values the response schema enumerates.
-    task_type: r.task_type as TaskType,
+    task_type: narrowTaskType(r.task_type),
     category_name: r.category_name,
     category_name_es: r.category_name_es,
     checked: Boolean(r.checked),

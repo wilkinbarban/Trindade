@@ -13,8 +13,6 @@ import {
 import { buildTestApp, buildTemperatureReadings, type TestFixtures } from '../test-helper.js';
 import { TextResponseSchema } from './common.schema.js';
 
-const REPORT_DATE = '2026-04-20';
-
 function expectMatch<T extends z.ZodTypeAny>(schema: T, body: string): z.infer<T> {
   const parsed = schema.safeParse(JSON.parse(body));
   assert.ok(parsed.success, `response does not match its schema: ${JSON.stringify(parsed.error?.issues)}`);
@@ -169,6 +167,29 @@ describe('reports responses match their declared schemas', () => {
     assert.ok(
       body.report.items.some((item) => item.task_type === 'temperature'),
       'the temperature task did not come back with its type',
+    );
+  });
+
+  // `location_es` is resolved through a LEFT JOIN, so it is the one `_es` field the schema declares
+  // nullable. A reading whose location matches no task is what produces the null, and this is the
+  // only place that path is exercised. Placed last because it adds a reading the export tests above
+  // would otherwise see.
+  it('returns a null Spanish name for a reading whose location matches no task', async () => {
+    db.prepare('INSERT INTO report_temperatures (report_id, location, reading_index, value) VALUES (?,?,?,?)')
+      .run(reportId, 'Câmara Sem Tarefa Correspondente', 1, -5);
+
+    const res = await app.inject({ method: 'GET', url: `/api/reports/${reportId}`, headers: auth });
+    assert.strictEqual(res.statusCode, 200, res.body);
+
+    const body = expectMatch(ReportResponseSchema, res.body);
+    const orphan = body.report.temperatures.find(
+      (reading) => reading.location === 'Câmara Sem Tarefa Correspondente',
+    );
+    assert.ok(orphan, 'the orphaned reading is missing from the response');
+    assert.strictEqual(orphan.location_es, null, 'location_es must be null when no task matches');
+    assert.ok(
+      body.report.temperatures.some((reading) => reading.location_es !== null),
+      'a reading that DOES match a task must still carry its Spanish name',
     );
   });
 });
