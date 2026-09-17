@@ -156,17 +156,30 @@ versioning — while `outdated`, `newer`, and `incompatible` are logged as warni
 on the production database (335 KB plus a 4 MB WAL): 8.8 ms for the whole notice, 6.0 ms of
 which is the integrity check.
 
-### Certificate renewal and TLS
+### Deployment topology, certificate renewal and TLS
 
-Trindade supports both standalone VPS deployment and shared reverse proxy topologies:
+**Production runs behind a shared reverse proxy.** The web container joins the external Docker
+network `portafolio_default`, and that project's Nginx reaches it **by container name**
+(`proxy_pass http://trindade-web-1:80`). Name resolution only works across a shared network, so
+the attachment is a requirement of the running installation rather than a preference. Both the
+network and the data volume are declared `external: true`.
 
-1. **Standalone VPS (Host Nginx + Certbot)**:
-   - Configure host Nginx using the two-step template in `docker/nginx-standalone-host.conf.example`.
-   - Host Nginx terminates HTTPS for `trindademasas.duckdns.org` and proxies to loopback `127.0.0.1:8080` (configured via `WEB_PORT=8080`), avoiding TCP port 80 collisions.
-   - `scripts/renew-certbot.sh` automatically detects host `certbot` and reloads Nginx.
+The volume carries a fixed `name:` (`trindade_sqlite_data`) for a related reason: Compose then
+refuses to start when the volume is missing instead of silently creating an empty database, and
+`docker compose down -v` cannot delete production data.
 
-2. **Shared Proxy**:
-   - If running behind a shared multi-tenant proxy (e.g. `PORTAFOLIO_DIR`), `scripts/renew-certbot.sh` falls back to renewing certificates inside that Compose project.
+Certificate renewal follows whichever proxy terminates TLS:
+
+- **Shared proxy (production)**: `scripts/renew-certbot.sh` renews inside the proxy's Compose
+  project (`PORTAFOLIO_DIR`, default `/home/wilkin/proyectos/Portafolio`) and reloads it.
+- **Standalone (alternative)**: a host Nginx terminates TLS and proxies to loopback
+  `127.0.0.1:8080` (`WEB_PORT`), using the template in
+  `docker/nginx-standalone-host.conf.example`. `scripts/renew-certbot.sh` uses the host
+  `certbot` when `PORTAFOLIO_DIR` is absent, or `FORCE_HOST_CERTBOT=1` is set.
+
+Moving to the standalone topology is a migration, not a configuration change: it also requires
+removing the `portafolio_default` attachment from `docker-compose.yml`, because Compose still
+insists that network exist. See `docs/deployment.md` Section 10.
 
 Validate renewal without touching certificates:
 
