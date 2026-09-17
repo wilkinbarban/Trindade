@@ -335,6 +335,11 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRoutesOp
         });
       }
 
+      // Guarded for the same reason as login and refresh, and placed before the password UPDATE
+      // on purpose: without it the handler would change the credential and only then throw on the
+      // missing session table, leaving the password replaced with no session revoked.
+      if (!sessionStoreAvailable) return refuseWithoutSessionStore(request, reply);
+
       const { currentPassword, newPassword } = parse.data;
       const userId = request.user!.sub;
       const db = fastify.db;

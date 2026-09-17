@@ -534,5 +534,25 @@ describe('Auth Routes', () => {
       assert.strictEqual(logout.statusCode, 200, logout.body);
       assert.doesNotMatch(logout.body, /SQLITE/, 'logout surfaced a driver error');
     });
+
+    // The gap three lenses found on the previous pass: the degraded suite covered login, refresh
+    // and logout, so this fourth session-touching path went unproved and shipped without its guard.
+    it('refuses change-password before it can half-change the credential', async () => {
+      const token = await loginAs(app, fixtures.admin.username, fixtures.admin.password);
+
+      const response = await degraded.inject({
+        method: 'POST',
+        url: '/api/auth/change-password',
+        headers: { authorization: `Bearer ${token}` },
+        payload: { currentPassword: fixtures.admin.password, newPassword: 'replacement-password-2026' },
+      });
+
+      assert.strictEqual(response.statusCode, 503, response.body);
+      assert.doesNotMatch(response.body, /SQLITE|auth_sessions/, 'change-password leaked the schema');
+
+      // The refusal has to land before the UPDATE. If it did not, the password would already be
+      // replaced with no session revoked, which is the partial state the review called out.
+      await loginAs(app, fixtures.admin.username, fixtures.admin.password);
+    });
   });
 });
