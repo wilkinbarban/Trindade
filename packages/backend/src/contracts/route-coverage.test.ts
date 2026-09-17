@@ -4,7 +4,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import { createAuthenticate } from '../modules/auth/auth.middleware.js';
 import { registerApiRoutes } from '../routes.js';
 import { buildTestApp } from '../test-helper.js';
-import { documentedPaths } from './openapi.js';
+import { documentedOperations } from './openapi.js';
 
 /**
  * Routes the contract deliberately does not describe, and why.
@@ -19,6 +19,16 @@ const OUT_OF_SCOPE_PREFIXES = ['/api/admin'];
 /** The document writes OpenAPI templates; Fastify registers `:param` routes. Compare in one form. */
 function toFastifyPath(documentPath: string): string {
   return documentPath.replace(/\{([^}]+)\}/g, ':$1');
+}
+
+/**
+ * A method and path in one comparable key.
+ *
+ * Comparing paths alone would let the document name the right path with the wrong verb and still
+ * pass, which is half of the drift this test exists to catch.
+ */
+function routeKey(method: string, url: string): string {
+  return `${method.toUpperCase()} ${url}`;
 }
 
 /** Fastify exposes a HEAD for every GET; the document describes what a client actually calls. */
@@ -62,23 +72,27 @@ describe('the contract covers exactly the routes the server serves', () => {
     closeDatabases();
   });
 
-  it('describes every registered route outside the declared out-of-scope set', () => {
+  it('describes every registered route, method included, outside the declared out-of-scope set', () => {
     assert.ok(registered.length > 0, 'no routes were registered, so this proves nothing');
 
-    const documented = new Set(documentedPaths().map(toFastifyPath));
+    const documented = new Set(
+      documentedOperations().map((operation) => routeKey(operation.method, toFastifyPath(operation.path))),
+    );
     const undescribed = registered
       .filter((route) => !OUT_OF_SCOPE_PREFIXES.some((prefix) => route.url.startsWith(prefix)))
-      .filter((route) => !documented.has(route.url))
-      .map((route) => `${route.method} ${route.url}`);
+      .filter((route) => !documented.has(routeKey(route.method, route.url)))
+      .map((route) => routeKey(route.method, route.url));
 
-    assert.deepStrictEqual(undescribed, [], 'these routes are served but not described');
+    assert.deepStrictEqual(undescribed, [], 'these routes are served but not described with that verb');
   });
 
-  it('describes no route the server does not serve', () => {
-    const served = new Set(registered.map((route) => route.url));
-    const phantom = documentedPaths().filter((path) => !served.has(toFastifyPath(path)));
+  it('describes no operation the server does not serve', () => {
+    const served = new Set(registered.map((route) => routeKey(route.method, route.url)));
+    const phantom = documentedOperations()
+      .map((operation) => routeKey(operation.method, toFastifyPath(operation.path)))
+      .filter((key) => !served.has(key));
 
-    assert.deepStrictEqual(phantom, [], 'the document describes routes that do not exist');
+    assert.deepStrictEqual(phantom, [], 'the document describes operations that do not exist');
   });
 
   // The exclusion is a scope decision, so it is asserted rather than assumed: if admin or audit

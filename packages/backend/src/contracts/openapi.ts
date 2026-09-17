@@ -806,3 +806,25 @@ export function documentedPaths(): string[] {
   const document = buildOpenApiDocument();
   return Object.keys(document.paths ?? {}).sort();
 }
+
+/** The HTTP methods an OpenAPI path item may carry, which is also every method this document uses. */
+const OPERATION_METHODS = ['get', 'post', 'put', 'patch', 'delete'] as const;
+
+/**
+ * Every operation this contract describes, as a method and path pair.
+ *
+ * A path alone is not enough to compare against a server. A document can name the right path with
+ * the wrong verb, and a comparison that looked only at paths would call that a match.
+ */
+export function documentedOperations(): { method: string; path: string }[] {
+  const document = buildOpenApiDocument();
+  return Object.entries(document.paths ?? {})
+    .flatMap(([path, pathItem]) => {
+      const item = (pathItem ?? {}) as Record<string, unknown>;
+      return OPERATION_METHODS.filter((method) => method in item).map((method) => ({
+        method: method.toUpperCase(),
+        path,
+      }));
+    })
+    .sort((a, b) => `${a.method} ${a.path}`.localeCompare(`${b.method} ${b.path}`));
+}
