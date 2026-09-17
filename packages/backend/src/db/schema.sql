@@ -1,8 +1,9 @@
 -- ============================================================
 -- Trindade Massas Operações — Database Schema
--- 14 user tables: the approved schema after the admin-refactor-loading-rules change
+-- 15 user tables: the approved schema after the admin-refactor-loading-rules change
 -- dropped report_products and report_quantities, whose data report_items carries in
--- selected_products as JSON. The PRD listed 16 tables; the refactor superseded two.
+-- selected_products as JSON, and schema revision 2 added auth_sessions. The PRD listed
+-- 16 tables; the refactor superseded two and revision 2 added one.
 -- Changing this file needs a matching SCHEMA_VERSION bump in schema-version.ts and an
 -- approved migration path: a fresh installation stamps PRAGMA user_version, and an
 -- existing database is never migrated, reset, seeded, or stamped by startup.
@@ -32,6 +33,22 @@ CREATE TABLE IF NOT EXISTS users (
   is_active      INTEGER NOT NULL DEFAULT 1,
   created_at     TEXT    NOT NULL DEFAULT (datetime('now')),
   updated_at     TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+
+-- ============================================================
+-- Auth Sessions (refresh-token persistence)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS auth_sessions (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash   TEXT    NOT NULL UNIQUE,   -- sha256 hex of the refresh token; never the raw value
+  family_id    TEXT    NOT NULL,          -- rotation family, for reuse detection
+  expires_at   TEXT    NOT NULL,
+  revoked_at   TEXT,
+  replaced_by  TEXT,                      -- token_hash of the successor
+  created_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+  last_used_at TEXT,
+  ip_address   TEXT
 );
 
 -- ============================================================
@@ -204,3 +221,5 @@ CREATE INDEX IF NOT EXISTS idx_report_items_report_id ON report_items(report_id)
 CREATE INDEX IF NOT EXISTS idx_report_temperatures_report_id ON report_temperatures(report_id);
 CREATE INDEX IF NOT EXISTS idx_report_photos_report_id ON report_photos(report_id);
 CREATE INDEX IF NOT EXISTS idx_report_categories_parent ON report_categories(parent_category_id);
+CREATE INDEX IF NOT EXISTS idx_auth_sessions_user_id   ON auth_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_auth_sessions_family_id ON auth_sessions(family_id);

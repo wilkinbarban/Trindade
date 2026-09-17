@@ -1,4 +1,5 @@
 import type Database from 'better-sqlite3';
+import { migrateAuthSessions } from './auth-sessions-migration.js';
 import { migrateLegacyReportTemperatures } from './report-temperatures-migration.js';
 import { SCHEMA_VERSION, readSchemaReport, stampSchemaVersion, type SchemaReport } from './schema-version.js';
 
@@ -18,14 +19,14 @@ export type MigrateResult =
  * - `newer` is refused: this build knows nothing about that revision and must never
  *   downgrade it.
  * - `incompatible` (failed integrity or missing tables) is refused without writing.
- * - `unversioned` applies the one migration that predates versioning — the legacy
- *   `report_temperatures` rebuild — and then stamps the revision. The rebuild is
- *   idempotent (it no-ops once `reading_index` exists), and the stamp lands after it,
- *   so a crash between the two leaves a migrated-but-unversioned database that this
- *   path repairs on the next run.
+ * - `unversioned` (revision 0) runs every step in order and ends stamped at the
+ *   supported revision.
+ * - `outdated` (a lower stamped revision) runs only the steps above its revision.
  *
- * When a second schema revision exists, the single rebuild is replaced by a stepwise
- * list driven by `before.version`.
+ * Each step declares the revision it produces, runs only when the observed revision is
+ * below it, is idempotent, and stamps its own revision afterwards. Stamping each step
+ * separately means a crash between steps resumes from the next pending one instead of
+ * re-running already-applied work.
  */
 export function migrateDatabase(db: Database.Database): MigrateResult {
   const before = readSchemaReport(db);
@@ -44,8 +45,46 @@ export function migrateDatabase(db: Database.Database): MigrateResult {
     return { outcome: 'already-current', report: before };
   }
 
-  const rebuiltTemperatures = migrateLegacyReportTemperatures(db);
-  stampSchemaVersion(db);
+  let rebuiltTemperatures = false;
+
+  // Steps are ordered oldest-first. `apply` is only invoked when `before.version`
+  // is below the revision the step produces, so a revision 1 database skips the
+  // legacy rebuild entirely and runs only the additive 1 → 2 step.
+  const steps: ReadonlyArray<{ to: number; apply: () => void }> = [
+    {
+      to: 1,
+      apply: () => {
+        rebuiltTemperatures = migrateLegacyReportTemperatures(db);
+        stampSchemaVersion(db, 1);
+      },
+    },
+    {
+      to: 2,
+      apply: () => {
+        migrateAuthSessions(db);
+        stampSchemaVersion(db, 2);
+      },
+    },
+  ];
+
+  for (const step of steps) {
+    if (before.version < step.to) {
+      step.apply();
+    }
+  }
+
+  // Guard the step list against drifting from the revision this build claims to support:
+  // bumping SCHEMA_VERSION without extending the list would otherwise leave every
+  // migrated database stamped below what the build advertises, and the post-migration
+  // report would then be refused on every run. This compares declared constants only,
+  // so it cannot fire because of database state.
+  const highestStep = steps.length > 0 ? steps[steps.length - 1].to : 0;
+  if (highestStep !== SCHEMA_VERSION) {
+    throw new Error(
+      `migration steps reach revision ${highestStep} but this build supports ${SCHEMA_VERSION}: ` +
+        'the stepwise list and SCHEMA_VERSION must be updated together',
+    );
+  }
 
   const after = readSchemaReport(db);
   if (after.verdict !== 'current') {

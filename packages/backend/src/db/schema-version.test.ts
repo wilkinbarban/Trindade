@@ -7,12 +7,15 @@ import { afterEach, describe, it } from 'node:test';
 import Database from 'better-sqlite3';
 import { openDatabase } from './index.js';
 import {
+  BASELINE_TABLES,
+  REVISION_TWO_TABLES,
   SCHEMA_TABLES,
   SCHEMA_VERSION,
   classifySchema,
   formatReport,
   observeSchema,
   readSchemaReport,
+  requiredTablesFor,
   stampSchemaVersion,
 } from './schema-version.js';
 
@@ -44,7 +47,44 @@ describe('schema revision', () => {
     assert.equal(report.verdict, 'current');
     assert.deepEqual(report.missingTables, []);
     assert.deepEqual(report.unexpectedTables, []);
+    assert.ok(
+      observeSchema(db).tables.includes('auth_sessions'),
+      'a fresh installation must contain the table revision 2 introduces',
+    );
     db.close();
+  });
+
+  // The migrate command refuses an `incompatible` database without ever opening it for
+  // writing, so a table added by a later revision must NOT be required of an earlier one:
+  // requiring `auth_sessions` of a revision 1 database would make the migration that adds
+  // it unreachable.
+  it('requires of a database only the tables its own revision defines', () => {
+    const revisionOne = classifySchema({ version: 1, integrity: 'ok', tables: [...BASELINE_TABLES] });
+    assert.deepEqual(revisionOne.missingTables, []);
+    assert.equal(revisionOne.verdict, 'outdated');
+
+    const revisionTwo = classifySchema({ version: 2, integrity: 'ok', tables: [...SCHEMA_TABLES] });
+    assert.deepEqual(revisionTwo.missingTables, []);
+    assert.equal(revisionTwo.verdict, 'current');
+
+    // A table missing from the revision the database actually claims is still a failure.
+    const damaged = classifySchema({
+      version: 2,
+      integrity: 'ok',
+      tables: [...SCHEMA_TABLES].filter((table) => table !== 'auth_sessions'),
+    });
+    assert.deepEqual(damaged.missingTables, ['auth_sessions']);
+    assert.equal(damaged.verdict, 'incompatible');
+
+    // An unversioned database is held only to the baseline, since nothing more is known.
+    const unversioned = classifySchema({ version: 0, integrity: 'ok', tables: [...BASELINE_TABLES] });
+    assert.deepEqual(unversioned.missingTables, []);
+    assert.equal(unversioned.verdict, 'unversioned');
+
+    // The per-revision inventories must add up to the full current inventory.
+    assert.deepEqual([...requiredTablesFor(SCHEMA_VERSION)].sort(), [...SCHEMA_TABLES].sort());
+    assert.deepEqual([...requiredTablesFor(1)].sort(), [...BASELINE_TABLES].sort());
+    assert.deepEqual([...SCHEMA_TABLES].sort(), [...BASELINE_TABLES, ...REVISION_TWO_TABLES].sort());
   });
 
   it('schema.sql creates exactly the tables the report expects', () => {
@@ -107,16 +147,16 @@ describe('schema revision', () => {
     assert.deepEqual(formatReport('/tmp/fresh.db', classifySchema(observation())), [
       'database: /tmp/fresh.db',
       'integrity: ok',
-      'schema revision: 1 (this build supports 1)',
-      'tables: 14 observed, 0 missing, 0 unexpected',
-      'verdict: current — revision 1; 14 tables present',
+      'schema revision: 2 (this build supports 2)',
+      'tables: 15 observed, 0 missing, 0 unexpected',
+      'verdict: current — revision 2; 15 tables present',
     ]);
 
     const missing = formatReport(
       '/tmp/broken.db',
       classifySchema(observation({ tables: SCHEMA_TABLES.filter((table) => table !== 'reports') })),
     );
-    assert.equal(missing[3], 'tables: 13 observed, 1 missing, 0 unexpected');
+    assert.equal(missing[3], 'tables: 14 observed, 1 missing, 0 unexpected');
     assert.equal(missing[4], 'missing tables: reports');
     assert.match(missing[5], /^verdict: incompatible — missing tables: reports$/);
   });

@@ -9,9 +9,9 @@ import { formatReport, readSchemaReport } from './schema-version.js';
  * This is the only sanctioned write path for an existing database: it is operator-
  * invoked, never part of startup. It first classifies the file read-only and refuses
  * a `newer` or `incompatible` database without ever opening it for writing; only an
- * `unversioned` (or, in a future revision, `outdated`) database is then opened
- * read-write and migrated. Running it against production still requires the recovery-
- * gate evidence (snapshot, isolated restore, approval) recorded in the README.
+ * `unversioned` or `outdated` database is then opened read-write and migrated. Running
+ * it against production still requires the recovery-gate evidence (snapshot, isolated
+ * restore, approval) recorded in the README.
  *
  * Usage: node dist/db/migrate.js [database-path]
  *        DATABASE_PATH=/app/packages/backend/data/trindade.db node dist/db/migrate.js

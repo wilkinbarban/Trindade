@@ -28,6 +28,7 @@ describe('Database Initialization', () => {
     const tables = tableNames(db);
     const expected = [
       'audit_logs',
+      'auth_sessions',
       'drivers',
       'loading_schedules',
       'report_categories',
@@ -50,7 +51,7 @@ describe('Database Initialization', () => {
       );
     }
 
-    assert.strictEqual(tables.length, expected.length, 'Should have exactly 14 user tables');
+    assert.strictEqual(tables.length, expected.length, 'Should have exactly 15 user tables');
     db.close();
   });
 
@@ -89,7 +90,7 @@ describe('Database Initialization', () => {
     }, 'Running schema.sql twice should not error');
 
     const tables = tableNames(db);
-    assert.strictEqual(tables.length, 14, 'Should still have 14 tables after re-run');
+    assert.strictEqual(tables.length, 15, 'Should still have 15 tables after re-run');
     db.close();
   });
 

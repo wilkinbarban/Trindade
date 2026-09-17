@@ -7,18 +7,21 @@ import type Database from 'better-sqlite3';
  * - 1: the schema as of the 2026-06-17 admin-refactor-loading-rules change, which
  *   dropped `report_products` and `report_quantities` (their data is carried by
  *   `report_items.selected_products` as JSON) and left 14 user tables.
+ * - 2: adds `auth_sessions` for refresh-token persistence (token hash, rotation
+ *   family, revocation), bringing the schema to 15 user tables.
  *
  * Databases created before versioning carry `user_version = 0` and are reported as
  * `unversioned`; nothing about them is assumed, and no startup path rewrites them.
  */
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 /**
- * The user tables the approved schema defines. Kept in code because the read-only
- * status report needs an expectation to compare against; the test suite ties this
- * list to the tables `schema.sql` actually creates.
+ * The tables a database created by revision 1 must contain: the baseline the
+ * versioning scheme was introduced with. A table added by a later revision is
+ * deliberately NOT part of it — see `requiredTablesFor` for why that distinction
+ * decides whether a migration is reachable at all.
  */
-export const SCHEMA_TABLES = [
+export const BASELINE_TABLES = [
   'audit_logs',
   'drivers',
   'loading_schedules',
@@ -34,6 +37,32 @@ export const SCHEMA_TABLES = [
   'users',
   'vehicles',
 ] as const;
+
+/** Tables introduced by revision 2: refresh-token session persistence. */
+export const REVISION_TWO_TABLES = ['auth_sessions'] as const;
+
+/**
+ * The user tables the approved schema defines. Kept in code because the read-only
+ * status report needs an expectation to compare against; the test suite ties this
+ * list to the tables `schema.sql` actually creates.
+ */
+export const SCHEMA_TABLES: readonly string[] = [...BASELINE_TABLES, ...REVISION_TWO_TABLES].sort();
+
+/**
+ * The tables a database stamped at `version` is required to contain.
+ *
+ * This is deliberately NOT `SCHEMA_TABLES`. A table introduced by a later revision is
+ * absent from an earlier database by design, and that absence is exactly what the
+ * migration repairs. Requiring it would classify every earlier database
+ * `incompatible`, and because the migrate command refuses that verdict without ever
+ * opening the file for writing, the migration that adds the table could never run.
+ *
+ * An unversioned database is required to satisfy only the baseline, because nothing
+ * further is known about it.
+ */
+export function requiredTablesFor(version: number): readonly string[] {
+  return version >= 2 ? SCHEMA_TABLES : BASELINE_TABLES;
+}
 
 export type SchemaObservation = {
   version: number;
@@ -71,15 +100,22 @@ export type SchemaReport = {
  * else, then a database stamped with a newer revision (it was written by a build
  * this one knows nothing about, so missing tables would be misleading), then
  * missing tables, then the revision comparison.
+ *
+ * Missing tables are judged against the tables the database's OWN revision requires
+ * (`requiredTablesFor`), not against everything the current build understands. A
+ * revision 1 database legitimately lacks `auth_sessions`, and treating that as missing
+ * would refuse the migration that adds it. Unexpected tables are still judged against
+ * the full current inventory, because a table this build does not know cannot be
+ * something an older revision was supposed to have.
  */
 export function classifySchema(
   observation: SchemaObservation,
   expectedVersion: number = SCHEMA_VERSION,
 ): SchemaReport {
   const tables = [...observation.tables].sort();
-  const expected: readonly string[] = SCHEMA_TABLES;
-  const missingTables = expected.filter((table) => !tables.includes(table));
-  const unexpectedTables = tables.filter((table) => !expected.includes(table));
+  const required = requiredTablesFor(observation.version);
+  const missingTables = required.filter((table) => !tables.includes(table));
+  const unexpectedTables = tables.filter((table) => !SCHEMA_TABLES.includes(table));
 
   let verdict: SchemaVerdict;
   if (observation.integrity !== 'ok') verdict = 'incompatible';
@@ -162,10 +198,11 @@ export function formatReport(databasePath: string, report: SchemaReport): string
 }
 
 /**
- * Stamp the supported revision into a database this process just created. Only the
- * fresh-installation path may call this: an existing production database is never
- * stamped, migrated, or otherwise written by startup.
+ * Stamp a revision into a database. The fresh-installation path calls this with the
+ * supported revision inside its creation transaction; the stepwise migration calls it
+ * with each intermediate revision it produces. An existing production database is
+ * never stamped, migrated, or otherwise written by startup.
  */
-export function stampSchemaVersion(db: Database.Database): void {
-  db.pragma(`user_version = ${SCHEMA_VERSION}`);
+export function stampSchemaVersion(db: Database.Database, version: number = SCHEMA_VERSION): void {
+  db.pragma(`user_version = ${version}`);
 }

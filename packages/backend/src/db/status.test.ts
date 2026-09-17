@@ -46,7 +46,7 @@ describe('schema status command', () => {
     const { code, output } = await runStatus(databasePath);
     assert.equal(code, 0, output);
     assert.match(output, /integrity: ok/);
-    assert.match(output, /schema revision: 1 \(this build supports 1\)/);
+    assert.match(output, /schema revision: 2 \(this build supports 2\)/);
     assert.match(output, /verdict: current/);
   });
 
@@ -60,8 +60,8 @@ describe('schema status command', () => {
 
     const { code, output } = await runStatus(databasePath);
     assert.equal(code, 1, output);
-    assert.match(output, /schema revision: 0 \(this build supports 1\)/);
-    assert.match(output, /tables: 14 observed, 0 missing, 0 unexpected/);
+    assert.match(output, /schema revision: 0 \(this build supports 2\)/);
+    assert.match(output, /tables: 15 observed, 0 missing, 0 unexpected/);
     assert.match(output, /verdict: unversioned/);
     assert.equal(digest(databasePath), before, 'the status command modified the database');
 
