@@ -72,18 +72,25 @@ The system MUST allow all authenticated users, including Administradores and Tra
 - THEN the system MUST show the newest 30 reports first with pagination metadata
 
 ### Requirement: Edit Window Validation
-The system MUST allow report edits only for the creator during the first hour after creation. All other users and expired creator sessions MUST be read-only.
+The system MUST allow report edits only for the creator, while the report belongs to the current São Paulo day or the previous one. All other users, and reports older than that, MUST be read-only.
+The system MUST decide this by comparing the São Paulo date of the report rather than elapsed time, so that a report created at 22:00 is not treated as belonging to the following day.
 The system MUST keep the photo management UI aligned with that read-only state so that photo add/remove actions are only available when edits are allowed.
-(Previously: The system restricted edits to the current day and previous day only.)
+(Previously: The system allowed edits only during the first hour after creation.)
 
-#### Scenario: Valid Edit Window
-- GIVEN a report was created by the current user less than one hour ago
+#### Scenario: Valid edit window on the current day
+- GIVEN a report was created by the current user earlier the same São Paulo day
 - WHEN the user attempts to edit the report
 - THEN the system MUST allow the edit to proceed
 - AND photo management actions MUST be available
 
-#### Scenario: Expired Edit Window
-- GIVEN a report was created by the current user at least one hour ago
+#### Scenario: Valid edit window on the previous day
+- GIVEN a report was created by the current user on the previous São Paulo day
+- WHEN the user attempts to edit the report
+- THEN the system MUST allow the edit to proceed
+- AND photo management actions MUST be available
+
+#### Scenario: Expired edit window
+- GIVEN a report was created by the current user two or more São Paulo days ago
 - WHEN the user attempts to edit the report
 - THEN the system MUST block the edit and expose read-only state
 - AND photo management actions MUST be disabled
@@ -93,6 +100,11 @@ The system MUST keep the photo management UI aligned with that read-only state s
 - WHEN the current user opens or updates the report
 - THEN the system MUST deny mutation and expose read-only state
 - AND photo management actions MUST be disabled
+
+#### Scenario: Future timestamp fails closed
+- GIVEN a report whose stored creation timestamp is later than the current time
+- WHEN the user attempts to edit the report
+- THEN the system MUST treat the report as read-only
 
 ### Requirement: Report Photo Controls
 The system MUST expose optional photo controls in report creation and editing flows.

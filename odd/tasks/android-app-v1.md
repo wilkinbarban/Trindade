@@ -430,18 +430,55 @@ operations that do not exist`). Before the fix that same mutation passed.
 
 ### C1. Reports edit window: current day + previous day
 
-`history-permissions.ts` currently computes
-`canEdit = active && user_id === actor.sub && within 1 hour of created_at`.
-Decision D6 replaces this with a date-based window (current São Paulo day plus
-the previous day), matching PRD §16.
+**The complication, found before writing code.** `history-permissions.ts` is shared between the
+reports and loading domains, and loading has its own one-hour window with its own approved
+requirement. `projectHistoryPermissions` is called from seven production sites -- four reports,
+three loading -- so replacing `isWithinOneHour` in place would silently re-write the loading
+rule, which this slice is explicitly forbidden to touch.
 
-Before implementing: read the OpenSpec reports and advanced-editing specs for an
-edit-window requirement and amend it the same way as C2.
+The shared helper therefore gets an explicit, **required** window parameter instead of a default.
+A default would let a new call site inherit whichever rule happened to be the default, which is
+the same class of failure as the cast in F9: the code would agree with itself and nothing else
+would be able to tell the difference. Required means every call site states its domain, and the
+compiler refuses a new one that does not.
 
-**Do not touch** the loading-schedule 1-hour window. It is a separate capability
-with its own approved requirement
-(`openspec/specs/loading-schedule/spec.md`, "Loading Schedule Ownership and Edit
-Window") and was not part of decision D6.
+**Design decided:**
+
+- `EditWindow` is a named union, exported: `'one-hour'` (loading) and
+  `'sao-paulo-current-and-previous-day'` (reports).
+- `isWithinOneHour` keeps its name and behavior, because it still describes what loading does.
+- A new `isWithinReportsEditWindow` compares the São Paulo **date** of `created_at` against today
+  and yesterday, using the existing `getSaoPauloDateString`.
+- The future-timestamp guard stays in both. It has to: under a date-based rule a future timestamp
+  lands on today's date and would otherwise pass as editable, so the existing fail-closed test
+  would silently start passing for the wrong reason.
+- Stored `created_at` is UTC (`datetime('now')`), so the comparison is between São Paulo date
+  strings, never between raw timestamps.
+
+**Also in scope, because the day window makes them wrong:** the three 403 messages that say
+"durante a primeira hora" (`reports.command.service.ts:135`, `reports.routes.ts:370` and `:425`),
+and the requirement text in `report-generation`, `advanced-editing` and `report-photo-management`.
+`report-generation/spec.md:77` currently records the *opposite* migration -- its
+`(Previously: ...)` line says the system used to use the day window. Reverting to the day window
+means that line must now record the one-hour rule as the superseded behavior.
+
+**Not in scope:** anything under `loading`, and `openspec/specs/loading-schedule/spec.md`.
+
+**This is a revert, and it is recorded as one.** PRD §16 states the day window outright -- "Puede
+editarse: Día actual, Día anterior" -- so D6 restores the document's rule rather than inventing a
+new one. The part worth writing down is that the one-hour window was not an accident either: the
+archived change `2026-06-18-histories-under-loading-schedule` introduced it deliberately, with the
+rationale "Matches new business rule and removes client-side date guessing", and explicitly
+flagged it as "a breaking business-rule change [that] will invalidate current tests/specs".
+
+That business rule was never written down anywhere, which is why the two artifacts still disagree
+and why the revert rests on the PRD and on the decision recorded above rather than on a
+superseded-spec entry. The archived change is left untouched: an archive records what was decided
+then, and rewriting it would destroy the evidence this note depends on.
+
+The client-side concern does not argue for either window. The server returns `canEdit` and
+`readOnly` itself and both the history and detail views render those flags, so no client computes
+a boundary under either rule.
 
 ### C2. Document the fletero quota as deliberate indicative behavior
 
@@ -463,6 +500,24 @@ be corrected, because they are the reason this was confusing in the first place:
   visible, and expects the indicator to read `4/3` plus a warning. Rename it to
   describe the informative behavior.
 - The loading-schedule spec requirement itself, as above.
+
+**Two more places, found by mapping before writing.** Both overstate a rule that does not exist:
+
+- `openspec/specs/advanced-editing/spec.md:22-37`, "Loading Schedule Editing and Quota
+  Revalidation", is a **second** max-3 requirement -- this one for the edit path, requiring the
+  update to be rejected and the transaction rolled back. The backend rejects neither; the only
+  things it enforces in that transaction are driver- and vehicle-uniqueness per date. This
+  requirement has to move with the other one or the spec keeps contradicting itself in two
+  files.
+- `packages/frontend/src/__e2e__/admin-edit-export.spec.ts:153-177` carries comments asserting a
+  `409` rejection for a 4th fletero, citing test names and line numbers (`loading.routes.test.ts
+  line 307`, `line 568`) that do not exist. The assertions are gone; only the claims remain. False
+  comments are worse than none, so they go.
+
+**Confirmed before documenting it:** no backend production code enforces the limit. The "3"
+lives only in the SPA as a display and a warning, and `openapi.ts:324-327` already documents the
+informative behavior. Six backend tests assert the 4th fletero is accepted; none asserts a
+rejection. Documenting "no enforcement" is therefore accurate rather than aspirational.
 
 ---
 

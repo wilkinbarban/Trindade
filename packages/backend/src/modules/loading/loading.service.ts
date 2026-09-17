@@ -206,7 +206,7 @@ export function update(
     return { error: 'Schedule entry not found', status: 404 };
   }
 
-  const permissions = projectHistoryPermissions(actor, existing);
+  const permissions = projectHistoryPermissions(actor, existing, 'one-hour');
   if (!permissions.canEdit) {
     return { error: 'Registro somente leitura. Apenas o criador pode editar durante a primeira hora.', status: 403 };
   }
@@ -371,7 +371,7 @@ export function removeBatch(db: Database.Database, date: string): boolean {
 }
 
 function projectScheduleRow(row: ScheduleRow & { creator_name?: string | null; is_active?: number }, actor?: HistoryActor): ScheduleRow {
-  const permissions = actor ? projectHistoryPermissions(actor, { user_id: row.user_id ?? null, created_at: row.created_at ?? '', is_active: row.is_active }) : {};
+  const permissions = actor ? projectHistoryPermissions(actor, { user_id: row.user_id ?? null, created_at: row.created_at ?? '', is_active: row.is_active }, 'one-hour') : {};
   return {
     ...row,
     ...(permissions as Partial<ScheduleRow>),
@@ -448,11 +448,15 @@ export function listScheduleHistory(
   }>;
 
   const items = rows.map((row) => {
-    const permissions = projectHistoryPermissions(actor, {
-      user_id: row.user_id,
-      created_at: row.created_at ?? '',
-      is_active: row.is_active,
-    });
+    const permissions = projectHistoryPermissions(
+      actor,
+      {
+        user_id: row.user_id,
+        created_at: row.created_at ?? '',
+        is_active: row.is_active,
+      },
+      'one-hour',
+    );
 
     return {
       batch_date: row.batch_date,

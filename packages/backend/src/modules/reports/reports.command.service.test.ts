@@ -36,6 +36,6 @@ describe('reports command service characterization', () => {
     assert.ok(!('error' in updated));
     if (!('error' in updated)) assert.deepEqual(updated.items[0].selectedProducts, ['Item B']);
     const denied = await updateReport(db, report.id, { notes: 'unchanged' }, { sub: 2, role: 'Trabalhador' });
-    assert.deepEqual(denied, { error: 'Registro somente leitura. Apenas o criador pode editar durante a primeira hora.', status: 403 });
+    assert.deepEqual(denied, { error: 'Registro somente leitura. Apenas o criador pode editar no dia atual ou no dia anterior.', status: 403 });
   });
 });

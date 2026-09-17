@@ -14,7 +14,7 @@ The system MUST allow users to edit existing reports using the same builder form
 - THEN the system MUST update the report successfully
 
 #### Scenario: Edit window enforcement
-- GIVEN an existing report outside the allowed edit window (e.g., older than 24 hours)
+- GIVEN an existing report outside the allowed edit window (i.e., created before the previous São Paulo day)
 - WHEN a user attempts to edit it
 - THEN the system MUST reject the modification
 - AND the UI MUST show the report as read-only

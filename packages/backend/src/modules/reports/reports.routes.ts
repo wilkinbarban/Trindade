@@ -367,7 +367,7 @@ export async function reportsRoutes(fastify: FastifyInstance, opts: ReportsRoute
 
       // Enforce edit-window
       if (lifecycle.isReportReadOnly(fastify.db, photo.report_id, request.user!)) {
-        return reply.status(403).send({ error: 'Registro somente leitura. Fotos só podem ser alteradas pelo criador durante a primeira hora.' });
+        return reply.status(403).send({ error: 'Registro somente leitura. Fotos só podem ser alteradas pelo criador no dia atual ou no dia anterior.' });
       }
 
       const filePath = join(photosDir, photo.file_path);
@@ -422,7 +422,7 @@ export async function reportsRoutes(fastify: FastifyInstance, opts: ReportsRoute
 
       // Enforce edit-window
       if (lifecycle.isReportReadOnly(fastify.db, reportId, request.user!)) {
-        return reply.status(403).send({ error: 'Registro somente leitura. Fotos só podem ser alteradas pelo criador durante a primeira hora.' });
+        return reply.status(403).send({ error: 'Registro somente leitura. Fotos só podem ser alteradas pelo criador no dia atual ou no dia anterior.' });
       }
 
       // Parse multipart file

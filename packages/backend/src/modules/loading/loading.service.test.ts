@@ -151,6 +151,28 @@ describe('loading service direct persistence contract', () => {
     assert.equal(rows[1].readOnly, true);
   });
 
+  it('keeps the one-hour window at every loading entry point', () => {
+    // The counterpart to the reports window, which allows this very timestamp. Five hours old is
+    // outside a one-hour window and inside a current-or-previous-day one, so each of these three
+    // assertions fails if a loading call site is ever pointed at the reports rule. Without them the
+    // suite stays green through that change, because every other loading fixture is either fresh or
+    // in the future -- the two cases where the rules agree.
+    const db = buildDb();
+    const own = driver(db, 'Own');
+    const fiveHoursAgo = new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString();
+    const id = schedule(db, { driverId: own, userId: 1, createdAt: fiveHoursAgo });
+
+    const rows = loading.listByDate(db, '2026-08-25', { sub: 1, role: 'Trabalhador' });
+    assert.equal(rows[0].canEdit, false, 'a five-hour-old schedule is outside the loading window');
+    assert.equal(rows[0].readOnly, true);
+
+    const denied = loading.update(db, id, {}, { sub: 1, role: 'Trabalhador' });
+    assert.equal((denied as { status: number }).status, 403, 'the update path enforces the same window');
+
+    const history = loading.listScheduleHistory(db, { month: '2026-08', page: 1, pageSize: 30 }, { sub: 1, role: 'Trabalhador' });
+    assert.equal(history.items[0]?.canEdit, false, 'the history path enforces the same window');
+  });
+
   it('removes/deactivates single and batch targets and returns false for missing targets', () => {
     const db = buildDb();
     const id = schedule(db, { driverId: driver(db, 'F') });

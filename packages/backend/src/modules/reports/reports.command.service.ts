@@ -130,9 +130,9 @@ export async function updateReport(
     return { error: 'Report not found', status: 404 };
   }
 
-  const permissions = projectHistoryPermissions(actor, report);
+  const permissions = projectHistoryPermissions(actor, report, 'sao-paulo-current-and-previous-day');
   if (!permissions.canEdit) {
-    return { error: 'Registro somente leitura. Apenas o criador pode editar durante a primeira hora.', status: 403 };
+    return { error: 'Registro somente leitura. Apenas o criador pode editar no dia atual ou no dia anterior.', status: 403 };
   }
 
   if (body.temperatures !== undefined) {

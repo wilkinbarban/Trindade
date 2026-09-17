@@ -493,10 +493,11 @@ describe('Reports Routes', () => {
   // ---- Edit Window ----
 
   it('PATCH /:id blocks edit for old reports (403)', async () => {
-    // Insert an old report directly into the DB
+    // Two days back, not two hours: under the day-based window a report from this morning is still
+    // editable, so a two-hour-old report no longer proves anything about this rule.
     db.prepare(
       `INSERT INTO reports (id, user_id, turno, report_date, notes, created_at)
-       VALUES (999, 1, 'tarde', '2020-01-01', 'Old report', datetime('now', '-2 hours'))`
+       VALUES (999, 1, 'tarde', '2020-01-01', 'Old report', datetime('now', '-2 days'))`
     ).run();
 
     const res = await app.inject({
@@ -515,6 +516,49 @@ describe('Reports Routes', () => {
     assert.ok(
       body.error.includes('somente leitura'),
       'Error should mention edit window'
+    );
+  });
+
+  it('PATCH /:id allows editing a report created earlier the same day', async () => {
+    // The point of the day-based window, asserted positively: five hours old is outside the loading
+    // window and inside the reports one, so this is the case D6 changed.
+    db.prepare(
+      `INSERT INTO reports (id, user_id, turno, report_date, notes, created_at)
+       VALUES (998, 1, 'tarde', '2020-01-01', 'Same-day report', datetime('now', '-5 hours'))`
+    ).run();
+
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/api/reports/998',
+      headers: { authorization: `Bearer ${token}` },
+      payload: { notes: 'Should be allowed' },
+    });
+
+    assert.strictEqual(
+      res.statusCode,
+      200,
+      `Expected 200 for a report from earlier today, got ${res.statusCode}: ${res.body}`
+    );
+  });
+
+  it('PATCH /:id allows editing a report created the previous day', async () => {
+    // Inserted directly, like the block above: this is about the window, not about report creation.
+    db.prepare(
+      `INSERT INTO reports (id, user_id, turno, report_date, notes, created_at)
+       VALUES (995, 1, 'tarde', '2020-01-01', 'Yesterday report', datetime('now', '-1 day'))`
+    ).run();
+
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/api/reports/995',
+      headers: { authorization: `Bearer ${token}` },
+      payload: { notes: 'Edited the next day' },
+    });
+
+    assert.strictEqual(
+      res.statusCode,
+      200,
+      `Expected 200 for a previous-day report, got ${res.statusCode}: ${res.body}`
     );
   });
 
@@ -740,10 +784,10 @@ describe('Reports Routes', () => {
   });
 
   it('POST /:id/photos blocks upload when edit window expired (403)', async () => {
-    // Insert an old report directly
+    // Two days back, not two hours: see the note on the PATCH block above.
     db.prepare(
       `INSERT INTO reports (id, user_id, turno, report_date, notes, created_at)
-       VALUES (996, 1, 'tarde', '2020-01-01', 'Old report for photo test', datetime('now', '-2 hours'))`
+       VALUES (996, 1, 'tarde', '2020-01-01', 'Old report for photo test', datetime('now', '-2 days'))`
     ).run();
 
     const { body, boundary } = multipartBody('file', 'test.jpg', 'image/jpeg', fakeJpeg);
@@ -909,10 +953,10 @@ describe('Reports Routes', () => {
   });
 
   it('DELETE /photos/:photoId blocks deletion when edit window expired (403)', async () => {
-    // Insert old report + photo
+    // Two days back, not two hours: see the note on the PATCH block above.
     db.prepare(
       `INSERT INTO reports (id, user_id, turno, report_date, notes, created_at)
-       VALUES (997, 1, 'tarde', '2020-01-01', 'Old report', datetime('now', '-2 hours'))`
+       VALUES (997, 1, 'tarde', '2020-01-01', 'Old report', datetime('now', '-2 days'))`
     ).run();
     db.prepare(
       `INSERT INTO report_photos (id, report_id, file_path, file_size, mime_type)
