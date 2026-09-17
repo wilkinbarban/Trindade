@@ -1,12 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import bcrypt from 'bcryptjs';
-import { z } from 'zod';
-
-const setupSchema = z.object({
-  username: z.string().trim().min(1),
-  displayName: z.string().trim().min(1),
-  password: z.string().min(8, 'Password must be at least 8 characters long'),
-}).strict();
+import { setupSchema } from './auth.schema.js';
 
 function setupRequired(fastify: FastifyInstance): boolean {
   return (fastify.db.prepare('SELECT COUNT(*) FROM users').pluck().get() as number) === 0;

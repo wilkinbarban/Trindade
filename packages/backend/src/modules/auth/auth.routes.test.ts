@@ -1,5 +1,6 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert';
+import bcrypt from 'bcryptjs';
 import type { FastifyInstance } from 'fastify';
 import type Database from 'better-sqlite3';
 
@@ -317,6 +318,151 @@ describe('Auth Routes', () => {
         payload: { currentPassword: fixtures.worker.password, newPassword: 'newpassword' },
       });
       assert.strictEqual(changeRes.statusCode, 401);
+    });
+  });
+
+  // --- Session refresh and revocation ---
+
+  describe('Session refresh and revocation', () => {
+    async function loginWithSession(username: string, password: string) {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/auth/login',
+        payload: { username, password },
+      });
+      assert.strictEqual(res.statusCode, 200, res.body);
+      const body = JSON.parse(res.body);
+      return {
+        token: body.token as string,
+        refreshToken: body.refreshToken as string,
+        expiresIn: body.expiresIn as number,
+      };
+    }
+
+    function refresh(refreshToken: string) {
+      return app.inject({ method: 'POST', url: '/api/auth/refresh', payload: { refreshToken } });
+    }
+
+    it('login returns a refresh token, its lifetime, and never stores the raw token', async () => {
+      const session = await loginWithSession(fixtures.admin.username, fixtures.admin.password);
+
+      assert.strictEqual(typeof session.refreshToken, 'string');
+      assert.ok(session.refreshToken.length >= 32, 'the refresh token is too short to be high entropy');
+      assert.strictEqual(session.expiresIn, 900);
+
+      const stored = db
+        .prepare('SELECT token_hash FROM auth_sessions WHERE user_id = ?')
+        .pluck()
+        .all(fixtures.admin.id) as string[];
+      assert.ok(stored.length > 0, 'no session was persisted');
+      assert.ok(!stored.includes(session.refreshToken), 'the raw refresh token was persisted');
+    });
+
+    it('refreshes a session without any Authorization header', async () => {
+      const session = await loginWithSession(fixtures.admin.username, fixtures.admin.password);
+
+      const res = await refresh(session.refreshToken);
+      assert.strictEqual(res.statusCode, 200, res.body);
+
+      const body = JSON.parse(res.body);
+      assert.strictEqual(typeof body.token, 'string');
+      assert.strictEqual(typeof body.refreshToken, 'string');
+      assert.notStrictEqual(body.refreshToken, session.refreshToken, 'the refresh token was not rotated');
+      assert.strictEqual(body.expiresIn, 900);
+    });
+
+    it('rejects a refresh token that was already rotated away', async () => {
+      const session = await loginWithSession(fixtures.admin.username, fixtures.admin.password);
+      assert.strictEqual((await refresh(session.refreshToken)).statusCode, 200);
+
+      const replay = await refresh(session.refreshToken);
+      assert.strictEqual(replay.statusCode, 401);
+      assert.strictEqual(JSON.parse(replay.body).error, 'Invalid or expired session');
+    });
+
+    it('rejects a malformed refresh payload with 400', async () => {
+      const res = await app.inject({ method: 'POST', url: '/api/auth/refresh', payload: {} });
+      assert.strictEqual(res.statusCode, 400);
+      assert.strictEqual(JSON.parse(res.body).error, 'Invalid input');
+    });
+
+    it('logout ends only the session whose refresh token was presented', async () => {
+      const phone = await loginWithSession(fixtures.admin.username, fixtures.admin.password);
+      const desktop = await loginWithSession(fixtures.admin.username, fixtures.admin.password);
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/auth/logout',
+        headers: { authorization: `Bearer ${phone.token}` },
+        payload: { refreshToken: phone.refreshToken },
+      });
+      assert.strictEqual(res.statusCode, 200, res.body);
+
+      assert.strictEqual((await refresh(phone.refreshToken)).statusCode, 401);
+      assert.strictEqual(
+        (await refresh(desktop.refreshToken)).statusCode,
+        200,
+        'logging out one device ended another session',
+      );
+    });
+
+    it('logout still succeeds with no body at all, the way the web client sends it', async () => {
+      const session = await loginWithSession(fixtures.admin.username, fixtures.admin.password);
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/auth/logout',
+        headers: { authorization: `Bearer ${session.token}` },
+      });
+      assert.strictEqual(res.statusCode, 200, res.body);
+      assert.deepStrictEqual(JSON.parse(res.body), { success: true });
+    });
+
+    it('changing the password ends every session of that user', async () => {
+      const first = await loginWithSession(fixtures.worker.username, fixtures.worker.password);
+      const second = await loginWithSession(fixtures.worker.username, fixtures.worker.password);
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/auth/change-password',
+        headers: { authorization: `Bearer ${first.token}` },
+        payload: { currentPassword: fixtures.worker.password, newPassword: 'changed-password-2026' },
+      });
+      assert.strictEqual(res.statusCode, 200, res.body);
+
+      assert.strictEqual((await refresh(first.refreshToken)).statusCode, 401);
+      assert.strictEqual((await refresh(second.refreshToken)).statusCode, 401);
+
+      // Restore the fixture credential so tests declared elsewhere in this file keep working.
+      const restore = await app.inject({
+        method: 'POST',
+        url: '/api/auth/change-password',
+        headers: { authorization: `Bearer ${first.token}` },
+        payload: { currentPassword: 'changed-password-2026', newPassword: fixtures.worker.password },
+      });
+      assert.strictEqual(restore.statusCode, 200, restore.body);
+    });
+
+    it('refuses to refresh a session whose user was deactivated', async () => {
+      const username = `deactivated-${Date.now()}`;
+      const password = 'deactivated-password-2026';
+      const roleId = db.prepare("SELECT id FROM roles WHERE name = 'Trabalhador'").pluck().get() as number;
+      const userId = Number(
+        db
+          .prepare('INSERT INTO users (username, password_hash, display_name, role_id, is_active) VALUES (?,?,?,?,1)')
+          .run(username, await bcrypt.hash(password, 4), username, roleId).lastInsertRowid,
+      );
+
+      const session = await loginWithSession(username, password);
+      db.prepare('UPDATE users SET is_active = 0 WHERE id = ?').run(userId);
+
+      const res = await refresh(session.refreshToken);
+      assert.strictEqual(res.statusCode, 401);
+      assert.strictEqual(
+        db.prepare('SELECT COUNT(*) FROM auth_sessions WHERE user_id = ? AND revoked_at IS NULL').pluck().get(userId),
+        0,
+        'the deactivated user kept a live session',
+      );
     });
   });
 });

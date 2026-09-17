@@ -1,28 +1,35 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { z } from 'zod';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { log as auditLog } from '../audit/audit.service.js';
+import {
+  changePasswordSchema,
+  loginSchema,
+  logoutSchema,
+  refreshSessionSchema,
+  updateProfileSchema,
+} from './auth.schema.js';
+import {
+  issueSession,
+  revokeSession,
+  revokeUserSessions,
+  rotateSession,
+} from './auth.sessions.service.js';
 
-const JWT_EXPIRY = '15m';
+/**
+ * Access-token lifetime in seconds. Short by design: an access token is stateless and
+ * cannot be revoked, so the refresh token carries the session and this short lifetime caps
+ * how long a leaked access token stays useful.
+ */
+const ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
+
+const DEFAULT_REFRESH_TOKEN_TTL_DAYS = 30;
 
 export interface AuthRoutesOptions {
   jwtSecret: string;
+  /** Refresh-token lifetime in days. Optional because test helpers register without it. */
+  refreshTokenTtlDays?: number;
 }
-
-const loginSchema = z.object({
-  username: z.string().min(1, 'Username is required'),
-  password: z.string().min(1, 'Password is required'),
-});
-
-const changePasswordSchema = z.object({
-  currentPassword: z.string().min(1, 'Current password is required'),
-  newPassword: z.string().min(8, 'New password must be at least 8 characters long'),
-});
-
-const updateProfileSchema = z.object({
-  display_name: z.string().min(1, 'Display name is required').optional(),
-}).strict();
 
 interface UserRow {
   id: number;
@@ -34,6 +41,8 @@ interface UserRow {
 }
 
 export async function authRoutes(fastify: FastifyInstance, options: AuthRoutesOptions) {
+  const refreshTokenTtlDays = options.refreshTokenTtlDays ?? DEFAULT_REFRESH_TOKEN_TTL_DAYS;
+
   fastify.post(
     '/login',
     async (request: FastifyRequest, reply: FastifyReply) => {
@@ -72,8 +81,10 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRoutesOp
       const token = jwt.sign(
         { sub: user.id, username: user.username, role: user.role },
         options.jwtSecret,
-        { expiresIn: JWT_EXPIRY }
+        { expiresIn: ACCESS_TOKEN_TTL_SECONDS }
       );
+
+      const refreshToken = issueSession(db, user.id, refreshTokenTtlDays, request.ip);
 
       try {
         auditLog(fastify.db, {
@@ -88,11 +99,82 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRoutesOp
 
       return reply.send({
         token,
+        refreshToken,
+        expiresIn: ACCESS_TOKEN_TTL_SECONDS,
         user: {
           id: user.id,
           username: user.username,
           role: user.role,
         },
+      });
+    }
+  );
+
+  // POST /api/auth/refresh — exchange a refresh token for a new session pair.
+  //
+  // Deliberately unauthenticated: a client refreshes precisely because its access token
+  // has expired, so demanding a valid one would make the endpoint unusable.
+  fastify.post(
+    '/refresh',
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const parse = refreshSessionSchema.safeParse(request.body);
+
+      if (!parse.success) {
+        return reply.status(400).send({
+          error: 'Invalid input',
+          details: parse.error.flatten(),
+        });
+      }
+
+      const result = rotateSession(fastify.db, parse.data.refreshToken, refreshTokenTtlDays, request.ip);
+
+      if (result.outcome !== 'rotated') {
+        // Every failure answers identically so a caller cannot probe whether a token
+        // existed, had expired, or had been revoked. The reason is logged, not written to
+        // the audit table: this path is unauthenticated, and persisting a row per attempt
+        // would let one leaked token amplify into unbounded writes.
+        request.log.warn({ outcome: result.outcome }, 'Refresh token rejected');
+
+        return reply.status(401).send({ error: 'Invalid or expired session' });
+      }
+
+      const user = fastify.db
+        .prepare(
+          `SELECT u.id, u.username, r.name AS role
+           FROM users u
+           JOIN roles r ON u.role_id = r.id
+           WHERE u.id = ?`
+        )
+        .get(result.userId) as { id: number; username: string; role: string } | undefined;
+
+      if (!user) {
+        return reply.status(401).send({ error: 'Invalid or expired session' });
+      }
+
+      const token = jwt.sign(
+        { sub: user.id, username: user.username, role: user.role },
+        options.jwtSecret,
+        { expiresIn: ACCESS_TOKEN_TTL_SECONDS }
+      );
+
+      try {
+        auditLog(fastify.db, {
+          userId: user.id,
+          action: 'refresh',
+          entityType: 'auth',
+          ipAddress: request.ip,
+        });
+      } catch (err) {
+        request.log.warn(
+          { err, userId: user.id },
+          'Session refreshed but its audit record could not be persisted'
+        );
+      }
+
+      return reply.send({
+        token,
+        refreshToken: result.refreshToken,
+        expiresIn: ACCESS_TOKEN_TTL_SECONDS,
       });
     }
   );
@@ -242,6 +324,11 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRoutesOp
       const newHash = bcrypt.hashSync(newPassword, 10);
       db.prepare("UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?").run(newHash, userId);
 
+      // The credential changed, so every session established with the old one ends. Other
+      // devices must re-authenticate instead of riding a token minted under the password
+      // that was just replaced.
+      revokeUserSessions(db, userId);
+
       auditLog(fastify.db, {
         userId: userId,
         action: 'update',
@@ -254,11 +341,27 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRoutesOp
     }
   );
 
-  // POST /api/auth/logout — record the logout event for audit trail
+  // POST /api/auth/logout — end this session and record the logout event.
   fastify.post(
     '/logout',
     { preHandler: [fastify.authenticate] },
     async (request: FastifyRequest, reply: FastifyReply) => {
+      // A body is optional: the web client sends none at all.
+      const parse = logoutSchema.safeParse(request.body ?? {});
+      if (!parse.success) {
+        return reply.status(400).send({
+          error: 'Invalid input',
+          details: parse.error.flatten(),
+        });
+      }
+
+      // Ends only the session this client is holding. Other devices stay logged in, which
+      // is why this is not `revokeUserSessions`: logging out on a phone must not end the
+      // desktop's session.
+      if (parse.data.refreshToken) {
+        revokeSession(fastify.db, parse.data.refreshToken);
+      }
+
       auditLog(fastify.db, {
         userId: request.user!.sub,
         action: 'logout',

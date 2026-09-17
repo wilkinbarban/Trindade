@@ -61,7 +61,11 @@ server.decorate('db', db);
 server.decorate('authenticate', createAuthenticate(config.jwtSecret));
 
 // Register route modules
-await server.register(authRoutes, { prefix: '/api/auth', jwtSecret: config.jwtSecret });
+await server.register(authRoutes, {
+  prefix: '/api/auth',
+  jwtSecret: config.jwtSecret,
+  refreshTokenTtlDays: config.refreshTokenTtlDays,
+});
 await server.register(bootstrapRoutes, { prefix: '/api/auth' });
 await server.register(dashboardRoutes, { prefix: '/api/dashboard' });
 await server.register(reportsRoutes, { prefix: '/api/reports', photosDir: PHOTOS_DIR, publicBaseUrl: PUBLIC_APP_URL });
