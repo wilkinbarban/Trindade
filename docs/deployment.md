@@ -60,7 +60,7 @@ rather than degrade.
    - Clean-checkout proof on `node:24-bookworm-slim`.
    - Zero deprecation or `install-scripts` warnings.
    - `found 0 vulnerabilities`.
-   - All backend tests passing (291 tests).
+   - All backend tests passing (296 tests).
    - Built schema CLIs verified (`scripts/verify-schema-clis.sh`).
    - The committed API contract matches the schemas it is generated from
      (`scripts/verify-openapi-artifact.sh`).

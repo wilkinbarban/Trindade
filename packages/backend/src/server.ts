@@ -8,7 +8,7 @@ import { openDatabase } from './db/index.js';
 import { schemaNoticeForStartup } from './db/schema-notice.js';
 import { authRoutes } from './modules/auth/auth.routes.js';
 import { createAuthenticate } from './modules/auth/auth.middleware.js';
-import { sessionStoreExists } from './modules/auth/auth.sessions.service.js';
+import { purgeDeadSessions, sessionStoreExists } from './modules/auth/auth.sessions.service.js';
 import { dashboardRoutes } from './modules/dashboard/dashboard.routes.js';
 import { reportsRoutes } from './modules/reports/reports.routes.js';
 import { cleanupExpiredPhotos, getPhotoByPublicToken } from './modules/reports/reports.lifecycle.service.js';
@@ -143,6 +143,27 @@ function runPhotoRetentionCleanup() {
 runPhotoRetentionCleanup();
 const photoRetentionInterval = setInterval(runPhotoRetentionCleanup, 24 * 60 * 60 * 1000);
 photoRetentionInterval.unref?.();
+
+// Same shape and the same justification as the photo retention cleanup above: dead rows are
+// deleted at startup and the schema itself is left untouched. Guarded by the session-store check
+// because the table only exists once an operator has migrated, and startup must never create it.
+const SESSION_RETENTION_DAYS = 30;
+
+function runSessionRetentionCleanup() {
+  if (!sessionStoreAvailable) return;
+  try {
+    const deleted = purgeDeadSessions(db, SESSION_RETENTION_DAYS);
+    if (deleted > 0) {
+      server.log.info({ deleted }, 'Session retention cleanup finished');
+    }
+  } catch (err) {
+    server.log.warn({ err }, 'Session retention cleanup failed');
+  }
+}
+
+runSessionRetentionCleanup();
+const sessionRetentionInterval = setInterval(runSessionRetentionCleanup, 24 * 60 * 60 * 1000);
+sessionRetentionInterval.unref?.();
 
 // Start server
 const port = parseInt(process.env.PORT || '3000', 10);

@@ -38,6 +38,11 @@ export type RotateSessionResult =
  * How long after a rotation the previous token may still be a retry rather than a leak: a lost
  * response and a replay are the same event at the same instant, and only age separates them.
  * Short enough to be useless to an attacker, long enough to cover a mobile round trip.
+ *
+ * The accepted cost, stated rather than implied: inside the window a replayed token is refused
+ * but its family is NOT revoked, so a theft replayed within those seconds is neither exploitable
+ * — the caller still gets a 401 — nor treated as theft. The route logs that case at warn level,
+ * and any replay older than the window is revoked exactly as before.
  */
 const ROTATION_RETRY_GRACE_SECONDS = 60;
 
@@ -212,12 +217,15 @@ export function revokeUserSessions(db: Database.Database, userId: number): numbe
  * Delete sessions that are already dead — revoked, or expired — and whose creation is
  * older than the retention window, returning how many rows were deleted.
  *
+ * The name says dead rather than expired on purpose: revocation is the other half of what it
+ * deletes, and a name covering only one of them would hide the rest of its job.
+ *
  * Age alone never deletes anything: a session that is still live is kept however old it
  * is, so a long-lived session is not silently destroyed by housekeeping. The retention
  * window keeps recently dead rows around briefly instead of erasing the evidence that a
  * session ended.
  */
-export function purgeExpiredSessions(db: Database.Database, retentionDays: number): number {
+export function purgeDeadSessions(db: Database.Database, retentionDays: number): number {
   return db
     .prepare(
       `DELETE FROM auth_sessions

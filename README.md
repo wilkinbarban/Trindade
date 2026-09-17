@@ -286,7 +286,7 @@ compiles, neither the API image nor the gate container installs `build-essential
 `python3`; the runner used to install python3 claiming better-sqlite3 needed it at
 runtime, which was never true. A missing prebuild fails the build loudly instead of
 quietly compiling a binary against the running Node headers. Measured on the declared
-engine: 280/280 backend tests and zero native assertions, installed and built
+engine: 296/296 backend tests and zero native assertions, installed and built
 on Node.js 24.21.0 with no compiler and no python3 present; `npm ci` reports no
 deprecation warnings and `npm audit` reports no vulnerabilities. Node.js 24 remains the
 declared target: the container images and `engines.node` both require it, so the
@@ -338,7 +338,7 @@ Trindade/
   - Pruned production container images (zero test or E2E artifacts, 146 dist files).
   - Docker container log rotation (json-file, 10m max-size, 3 files max).
   - Automatic TLS renewal daily cron with zero-downtime Nginx reload and heartbeat.
-  - Automated CI gate: 280 backend unit tests + 53 Playwright E2E tests + 9 schema CLI checks + generated API contract freshness.
+  - Automated CI gate: 296 backend unit tests + 53 Playwright E2E tests + 9 schema CLI checks + generated API contract freshness.
   - Dynamic, zero-fragility clean-checkout verification (`make ci-clone`).
 - **Android prerequisites (in progress)**: refresh-token sessions with rotation and revocation
   (schema revision 2), and a generated OpenAPI contract for the field-operations surface.

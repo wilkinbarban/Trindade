@@ -7,7 +7,7 @@ import { REFERENCE_DATASET, verifyReferencePrerequisites } from '../../db/refere
 import {
   hashRefreshToken,
   issueSession,
-  purgeExpiredSessions,
+  purgeDeadSessions,
   revokeSession,
   revokeUserSessions,
   rotateSession,
@@ -187,7 +187,7 @@ describe('auth session service', () => {
     // Aged far beyond the window, but still live: age alone must never delete a session.
     age(live, -365);
 
-    assert.equal(purgeExpiredSessions(db, 30), 2);
+    assert.equal(purgeDeadSessions(db, 30), 2);
 
     const remaining = db.prepare('SELECT token_hash FROM auth_sessions').pluck().all() as string[];
     assert.deepEqual(remaining.sort(), [hashRefreshToken(live), hashRefreshToken(recentDead)].sort());
