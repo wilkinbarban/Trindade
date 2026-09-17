@@ -937,6 +937,45 @@ documented local default, so the same source can point at a deployment that does
   module. It belongs with D2, the first slice that actually needs a type from
   `packages/contracts/openapi.json`.
 
+**Review outcomes, and what they cost.** D1 needed two reviews, both approved on the first pass with
+no correction, and both came back at **high tier with all four lenses** for reasons worth recording:
+
+- `review-bede9994afd438d7` (the skeleton) was escalated by an **executable permission change**:
+  `packages/android/gradlew` going from `000000` to `100755`. Committing any new executable script
+  promotes a candidate to the four-lens tier, which is a lot of review for a skeleton but not an
+  unreasonable signal. Nine advisories, all informational.
+- `review-eebff4f384b7d82b` (the fixes) was escalated by **`hot_path`/`security`** on
+  `network_security_config.xml`. Touching a network security config is security-relevant by
+  construction, so the escalation is the system working. Seven advisories.
+
+The first review's convergence was the valuable part: **four lenses independently landed on one
+line**, `app/build.gradle.kts:26`, the local default base URL. That was not four complaints but one
+defect with four faces -- risk saw cleartext, reliability an unvalidated value, resilience a default
+with no failure path -- and it was right twice over, because the cleartext default was also
+non-functional under `targetSdk 35`.
+
+**Outstanding advisories, none blocking, none fixed.** Recorded deliberately rather than collapsed
+into the fixes, because two of them describe the fragility of the fix I chose:
+
+- **`R3-release-guard-uncovered` (WARNING) and `R3-release-guard-task-scope` (SUGGESTION)**, both on
+  `app/build.gradle.kts:69`. The release guard matches the task names `assembleRelease` and
+  `bundleRelease` exactly, so any other release-producing task -- `publishReleaseBundle`,
+  `installRelease`, a future flavoured variant -- bypasses it silently. This is the price of moving
+  the check to execution time, and it is the right complaint: name matching is a weaker guarantee
+  than the configuration-time `require` I had to abandon. A robust version would hook the release
+  variants through `androidComponents` instead of matching task names.
+- **`R3-build-validation-incomplete` (WARNING)** on `app/build.gradle.kts:32`: the shape check
+  verifies a scheme prefix and a trailing slash, not that the URL is otherwise well formed, so
+  values like `http://` or one containing a space still pass.
+- **`R4-001` (WARNING)** on `gradle-wrapper.properties:4-5`: the raised timeout and retries still do
+  not cover every distribution-download failure mode.
+- **`R2-001` (WARNING)** on `app/build.gradle.kts:69`, **`R2-002` (SUGGESTION)** on
+  `ApiConfigurationTest.kt:44`, **`R2-003` (SUGGESTION)** on `AndroidManifest.xml:8`: readability
+  notes on the same guard and on the comments this slice added.
+
+**Also still outstanding from D1**: the Android CI lane (the canonical gate image has no JDK), and
+the deferred decision about where the client's API types come from.
+
 - **D1** Project skeleton: Gradle Kotlin DSL, version catalog, Compose + Material 3,
   Hilt, Retrofit + OkHttp + kotlinx.serialization, module in the monorepo with a
   CI lane that has a JDK (the canonical gate image has none).
