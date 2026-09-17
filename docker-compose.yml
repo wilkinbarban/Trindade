@@ -51,6 +51,9 @@ services:
     depends_on:
       - api
     restart: unless-stopped
+    networks:
+      - default
+      - portafolio_default
     logging:
       driver: "json-file"
       options:
@@ -65,4 +68,10 @@ services:
 
 volumes:
   sqlite_data:
+    name: trindade_sqlite_data
+    external: true
 
+networks:
+  default:
+  portafolio_default:
+    external: true
