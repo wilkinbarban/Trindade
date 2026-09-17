@@ -976,6 +976,55 @@ into the fixes, because two of them describe the fragility of the fix I chose:
 **Also still outstanding from D1**: the Android CI lane (the canonical gate image has no JDK), and
 the deferred decision about where the client's API types come from.
 
+### D2 prerequisite: where the client's types come from — DECIDED
+
+Not implemented yet. This section exists so the next person executes the decision instead of
+re-opening it.
+
+**Decision**: generate the Kotlin and **version it**, with the Android lane regenerating and failing
+on any difference. That is deliberately the same shape the repository already uses for
+`packages/contracts/openapi.json`, whose README gives the reason in the client author's own terms:
+the artifact is committed so a client author can work without building the backend. The reasoning
+transfers unchanged, and the freshness check is an idiom this repo already trusts rather than a new
+mechanism to invent. The alternative — codegen during every Gradle build — was rejected because it
+hides the generated code from review, which is the lesson `R3-double-plus-nan` taught about the JSON
+artifact.
+
+**Scope**: models only. The Retrofit client is written by hand, narrow, exposing only the
+field-operations surfaces. The mechanical and drift-prone part is generated; the part a human reads
+better stays hand-written. Numbers measured against the real contract, not estimated:
+
+| scope | `.kt` files | contents |
+|---|---|---|
+| full client | 188 | all 41 operations, plus generated tests and scaffolding |
+| models only | **97** (484K) | the DTOs plus ~14 serialization infrastructure files |
+
+**The generator, and the reason it is not a Gradle plugin**: `openapi-generator` is a Java tool.
+`@openapitools/openapi-generator-cli` exists on npm (Apache-2.0, 2.41.0) but it is a wrapper around
+the same JAR, so it needs a JVM regardless — and no single image in this project has both Node and
+Java. The working invocation therefore uses the JAR directly with the JDK the Android SDK image
+already carries (7.25.0, a 31 MB download), which also means the freshness check can run in the
+Android lane where Java is guaranteed:
+
+```
+java -jar openapi-generator-cli-7.25.0.jar generate \
+  -i packages/contracts/openapi.json -g kotlin -o <nested output dir> \
+  --library jvm-retrofit2 --additional-properties=serializationLibrary=kotlinx_serialization \
+  --global-property models,modelDocs=false,modelTests=false,supportingFiles=
+```
+
+**A trap to respect in the layout**: the generator writes `gradle/wrapper/gradle-wrapper.jar`,
+`gradle-wrapper.properties` and `proguard-rules.pro` into its output directory. Pointed at
+`packages/android` it would overwrite this module's own Gradle wrapper. The output must go to a
+nested directory, and the freshness check must catch any change outside it as well.
+
+**Still to choose while implementing**: the package name (currently `org.openapitools.client`, which
+should become something under `com.trindade.app`), and whether the generation step lives as a script
+run by hand plus a check in `scripts/ci-android.sh`, which is the shape the decision implies.
+
+The verified output uses `kotlinx.serialization` correctly — `@Serializable`, `@SerialName`,
+`@Contextual` — so it composes with the serialization dependency the D1 skeleton already carries.
+
 - **D1** Project skeleton: Gradle Kotlin DSL, version catalog, Compose + Material 3,
   Hilt, Retrofit + OkHttp + kotlinx.serialization, module in the monorepo with a
   CI lane that has a JDK (the canonical gate image has none).
