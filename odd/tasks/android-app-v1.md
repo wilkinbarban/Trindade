@@ -548,6 +548,23 @@ states them. That is the mirror image of this slice: not a spec overstating the 
 behavior no spec describes. It belongs with whoever next touches scheduling, and it was left out
 rather than expanded into this slice's scope.
 
+**Two advisories from the review, both about text and not behaviour.** `review-195244109ee1f0f8`
+approved C2 on the first pass and left two SUGGESTIONs. Both hit claims made *by this slice* -- the
+failure mode C2 exists to remove, reproduced twice in miniature -- so they are worth recording
+rather than quietly absorbing.
+
+- `R3-admin-edit-nondiscriminating` (`admin-edit-export.spec.ts`): the comment added here claimed
+  the add-button assertion is where a future blocking rule would start failing. It is not. That
+  test never fills a slot, so the button would be visible under a blocking rule too. Fixed by
+  replacing the claim with what the test actually covers, and pointing at test 4.2, which does
+  discriminate because it fills a slot past the limit first.
+- `R3-advedit-indicator-unproven` (`advanced-editing/spec.md`): the new requirement asserts the
+  edit interface MUST show the count and an indication that the quota was exceeded. Checked against
+  the code instead of accepted on faith: `LoadingEditPage.tsx:228-234` renders `(N/3)` plus the
+  quota warning once the count exceeds 3, so the requirement is **true**. What is missing is a test
+  -- no E2E asserts that label. The requirement is kept, because softening a true requirement to
+  match its test coverage is the wrong direction; the gap is recorded here instead.
+
 ---
 
 ## Findings recorded during A1

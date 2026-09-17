@@ -164,11 +164,14 @@ test.describe('Admin Edit & Export (Phase 4)', () => {
     await expect(quota04).toBeVisible();
     await expect(quota04).toContainText('/3 fleteros');
 
-    // The add action stays available, which is what "indicative" means in the interface.
+    // The add action is present, but this assertion is not evidence about the limit: this test
+    // never creates an over-quota slot, so the button would be visible under a blocking rule too.
+    // The assertion that does discriminate lives in loading-schedule.spec.ts ("4.2 allows a 4th
+    // fletero and shows the exceeded quota as a warning"), which fills a slot past the limit and
+    // then checks that the add action is still offered. Read this one as grid smoke coverage.
     const addBtn = page.locator('[data-testid="add-fletero-04-00"]');
     await expect(addBtn).toBeVisible();
 
-    // Nothing here asserts a rejection, because there is none to assert. If a later change makes
-    // the limit blocking, this expectation is where it should start failing.
+    // Nothing here asserts a rejection, because there is none to assert.
   });
 });
