@@ -2,7 +2,7 @@ import type Database from 'better-sqlite3';
 import { existsSync, unlinkSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { join } from 'node:path';
-import type { HistoryQuery, HistoryPagination, ReportListItem } from './reports.schema.js';
+import type { HistoryQuery, HistoryPagination, ReportListItem, ReportPhoto } from './reports.schema.js';
 import { projectHistoryPermissions, type HistoryActor } from '../history-permissions.js';
 
 interface ReportRow {
@@ -18,17 +18,7 @@ interface ReportRow {
 }
 
 
-export interface ReportPhoto {
-  id: number;
-  report_id: number;
-  file_path: string;
-  file_size: number;
-  mime_type: string;
-  public_token: string;
-  created_at: string;
-  url?: string;
-  publicUrl?: string;
-}
+export type { ReportPhoto };
 
 export const MAX_REPORT_PHOTOS = 5;
 

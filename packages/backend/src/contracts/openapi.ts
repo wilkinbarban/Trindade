@@ -41,6 +41,27 @@ import {
   VehicleSchema,
   VehiclesResponseSchema,
 } from '../modules/loading/loading.schema.js';
+import {
+  CategoriesResponseSchema,
+  CategoryResponseSchema,
+  CreateReportBodySchema,
+  HistoryQuerySchema as ReportHistoryQuerySchema,
+  PhotoResponseSchema,
+  PhotoSchema,
+  PhotosResponseSchema,
+  ReportDetailSchema,
+  ReportHistoryResponseSchema,
+  ReportItemDetailSchema,
+  ReportListItemSchema,
+  ReportQuerySchema,
+  ReportResponseSchema,
+  ReportTemperatureDetailSchema,
+  ReportUserSchema,
+  ReportsResponseSchema,
+  TaskResponseSchema,
+  TurnoResponseSchema,
+  UpdateReportBodySchema,
+} from '../modules/reports/reports.schema.js';
 import { PaginationSchema, SuccessResponseSchema, TextResponseSchema } from './common.schema.js';
 import { ErrorEnvelopeSchema } from './error.schema.js';
 
@@ -69,6 +90,22 @@ function errorResponse(description: string): ResponseConfig {
   return jsonResponse(description, ErrorEnvelopeSchema);
 }
 
+/**
+ * A stored photo served as raw bytes rather than JSON. The three media types are the ones the
+ * upload endpoint accepts, and the content type of any given response comes from the stored MIME
+ * type rather than from a header this document can pin.
+ */
+function binaryResponse(description: string): ResponseConfig {
+  // Annotated so the literals below stay 'string' and 'binary' instead of widening, which is what
+  // the schema type requires.
+  const content: NonNullable<ResponseConfig['content']> = {
+    'image/jpeg': { schema: { type: 'string', format: 'binary' } },
+    'image/png': { schema: { type: 'string', format: 'binary' } },
+    'image/webp': { schema: { type: 'string', format: 'binary' } },
+  };
+  return { description, content };
+}
+
 const UNAUTHORIZED = errorResponse('Missing, invalid, or expired credentials');
 const INVALID_INPUT = errorResponse('The request body failed validation');
 const USER_NOT_FOUND = errorResponse('The authenticated user no longer exists');
@@ -85,6 +122,9 @@ const USER_NOT_FOUND = errorResponse('The authenticated user no longer exists');
 // Fastify actually registered.
 const BATCH_DATE_PARAMS = z.object({ date: z.string() });
 const SCHEDULE_ID_PARAMS = z.object({ id: z.string() });
+const REPORT_ID_PARAMS = z.object({ id: z.string() });
+const PHOTO_ID_PARAMS = z.object({ photoId: z.string() });
+const PHOTO_TOKEN_PARAMS = z.object({ token: z.string() });
 
 function buildRegistry(): OpenAPIRegistry {
   const registry = new OpenAPIRegistry();
@@ -106,6 +146,14 @@ function buildRegistry(): OpenAPIRegistry {
   registry.register('LoadingBatchHistoryItem', LoadingBatchHistoryItemSchema);
   registry.register('Driver', DriverSchema);
   registry.register('Vehicle', VehicleSchema);
+  registry.register('ReportCategory', CategoryResponseSchema);
+  registry.register('ReportTask', TaskResponseSchema);
+  registry.register('ReportListItem', ReportListItemSchema);
+  registry.register('ReportDetail', ReportDetailSchema);
+  registry.register('ReportItemDetail', ReportItemDetailSchema);
+  registry.register('ReportTemperatureDetail', ReportTemperatureDetailSchema);
+  registry.register('ReportUser', ReportUserSchema);
+  registry.register('ReportPhoto', PhotoSchema);
 
   registry.registerPath({
     method: 'post',
@@ -422,6 +470,249 @@ function buildRegistry(): OpenAPIRegistry {
     responses: {
       200: jsonResponse('The configured slots in ascending order', TimeSlotsResponseSchema),
       401: UNAUTHORIZED,
+    },
+  });
+
+  // ---- reports: catalogs, reports, photos ----
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/reports/categories',
+    summary: 'List the active report categories with their tasks',
+    tags: ['reports'],
+    responses: {
+      200: jsonResponse('Active categories, each carrying its active tasks', CategoriesResponseSchema),
+      401: UNAUTHORIZED,
+    },
+  });
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/reports',
+    summary: 'List reports within a period',
+    tags: ['reports'],
+    request: { query: ReportQuerySchema },
+    responses: {
+      200: jsonResponse(
+        'Reports in the period, newest first. This endpoint passes no actor, so its items carry no lifecycle flags.',
+        ReportsResponseSchema,
+      ),
+      400: errorResponse('The query parameters failed validation'),
+      401: UNAUTHORIZED,
+    },
+  });
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/reports',
+    summary: 'Create a report',
+    tags: ['reports'],
+    request: { body: { content: { [JSON_MEDIA_TYPE]: { schema: CreateReportBodySchema } } } },
+    responses: {
+      201: jsonResponse('The created report', ReportResponseSchema),
+      400: errorResponse('The body failed validation, or a report already exists for that shift and date'),
+      401: UNAUTHORIZED,
+    },
+  });
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/reports/history',
+    summary: 'List report history with pagination and filters',
+    tags: ['reports'],
+    request: { query: ReportHistoryQuerySchema },
+    responses: {
+      200: jsonResponse('History items, each with its server-computed lifecycle flags', ReportHistoryResponseSchema),
+      400: errorResponse('The query parameters failed validation'),
+      401: UNAUTHORIZED,
+    },
+  });
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/reports/turno',
+    summary: 'Report the shift the server detects from its own clock',
+    description:
+      'Detected in São Paulo time: 18:30 onwards is the tarde shift, and 06:00 onwards the noite shift. A ' +
+      'client must ask rather than compute this, so a device with a wrong clock still agrees with the server.',
+    tags: ['reports'],
+    responses: {
+      200: jsonResponse('The detected shift', TurnoResponseSchema),
+      401: UNAUTHORIZED,
+    },
+  });
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/reports/{id}',
+    summary: 'Read one report with its items and temperature readings',
+    tags: ['reports'],
+    request: { params: REPORT_ID_PARAMS },
+    responses: {
+      200: jsonResponse('The report, with lifecycle flags when the caller is allowed to change it', ReportResponseSchema),
+      400: errorResponse('The identifier is not a number'),
+      401: UNAUTHORIZED,
+      404: errorResponse('No such report'),
+    },
+  });
+
+  registry.registerPath({
+    method: 'patch',
+    path: '/api/reports/{id}',
+    summary: 'Replace the contents of a report',
+    tags: ['reports'],
+    request: {
+      params: REPORT_ID_PARAMS,
+      body: { content: { [JSON_MEDIA_TYPE]: { schema: UpdateReportBodySchema } } },
+    },
+    responses: {
+      200: jsonResponse('The updated report', ReportResponseSchema),
+      400: errorResponse('The identifier is not a number, or the body failed validation'),
+      401: UNAUTHORIZED,
+      403: errorResponse('The report is outside its edit window, or belongs to another user'),
+      404: errorResponse('No such report'),
+    },
+  });
+
+  registry.registerPath({
+    method: 'delete',
+    path: '/api/reports/{id}',
+    summary: 'Delete a report',
+    description: 'Administrador only.',
+    tags: ['reports'],
+    request: { params: REPORT_ID_PARAMS },
+    responses: {
+      204: { description: 'The report was deleted' },
+      400: errorResponse('The identifier is not a number'),
+      401: UNAUTHORIZED,
+      403: errorResponse('Administrador only'),
+      404: errorResponse('No such report'),
+    },
+  });
+
+  registry.registerPath({
+    method: 'patch',
+    path: '/api/reports/{id}/deactivate',
+    summary: 'Deactivate a report',
+    description: 'Administrador only.',
+    tags: ['reports'],
+    request: { params: REPORT_ID_PARAMS },
+    responses: {
+      200: jsonResponse('The report was deactivated', SuccessResponseSchema),
+      400: errorResponse('The identifier is not a number'),
+      401: UNAUTHORIZED,
+      403: errorResponse('Administrador only'),
+      404: errorResponse('No such report'),
+    },
+  });
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/reports/{id}/export',
+    summary: 'Render the WhatsApp text for one report',
+    description:
+      'Formatted on the server in Brazilian Portuguese. A client must fetch this text rather than ' +
+      'reimplement the format.',
+    tags: ['reports'],
+    request: { params: REPORT_ID_PARAMS },
+    responses: {
+      200: jsonResponse('The ready-to-send text', TextResponseSchema),
+      400: errorResponse('The report does not carry every temperature reading its catalog requires'),
+      401: UNAUTHORIZED,
+      404: errorResponse('No such report'),
+    },
+  });
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/reports/{id}/photos',
+    summary: 'List the photos attached to a report',
+    tags: ['reports'],
+    request: { params: REPORT_ID_PARAMS },
+    responses: {
+      200: jsonResponse('The attached photos', PhotosResponseSchema),
+      401: UNAUTHORIZED,
+      404: errorResponse('No such report'),
+    },
+  });
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/reports/{id}/photos',
+    summary: 'Attach a photo to a report',
+    description:
+      'Multipart with the file in a field named "file". Only JPEG, PNG and WebP are accepted, the declared ' +
+      'type must match the file content, and a report accepts at most five photos.',
+    tags: ['reports'],
+    request: {
+      params: REPORT_ID_PARAMS,
+      body: {
+        content: {
+          'multipart/form-data': {
+            schema: {
+              type: 'object',
+              properties: { file: { type: 'string', format: 'binary' } },
+              required: ['file'],
+            },
+          },
+        },
+      },
+    },
+    responses: {
+      201: jsonResponse('The stored photo, with its authenticated and its public URL', PhotoResponseSchema),
+      400: errorResponse('No file was sent, or the file was empty'),
+      401: UNAUTHORIZED,
+      403: errorResponse('The report is outside its edit window'),
+      404: errorResponse('No such report'),
+      409: errorResponse('The report already carries five photos'),
+      413: errorResponse('The file exceeds the 5 MB limit'),
+      415: errorResponse('The file is not JPEG, PNG or WebP, or its content does not match the declared type'),
+    },
+  });
+
+  registry.registerPath({
+    method: 'delete',
+    path: '/api/reports/photos/{photoId}',
+    summary: 'Delete one attached photo',
+    tags: ['reports'],
+    request: { params: PHOTO_ID_PARAMS },
+    responses: {
+      200: jsonResponse('The photo was deleted', SuccessResponseSchema),
+      401: UNAUTHORIZED,
+      403: errorResponse('The report is outside its edit window'),
+      404: errorResponse('No such photo'),
+    },
+  });
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/reports/photos/{photoId}',
+    summary: 'Fetch one photo',
+    description:
+      'Requires the Bearer token, so a native client has to attach it. Prefer the public link when the ' +
+      'photo is meant to be pasted into a chat.',
+    tags: ['reports'],
+    request: { params: PHOTO_ID_PARAMS },
+    responses: {
+      200: binaryResponse('The photo bytes'),
+      401: UNAUTHORIZED,
+      404: errorResponse('No such photo, or its file is missing from disk'),
+    },
+  });
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/reports/photos/public/{token}',
+    summary: 'Fetch a photo by its public token, without authentication',
+    description:
+      'Documented as implemented, not as intended: this route requires a token of at least sixteen ' +
+      + 'characters while the server issues twelve-hex-character tokens, so it answers 404 in practice. The ' +
+      'short route `/p/{token}` is the one that works and is what `publicUrl` points at.',
+    tags: ['reports'],
+    request: { params: PHOTO_TOKEN_PARAMS },
+    responses: {
+      200: binaryResponse('The photo bytes'),
+      404: errorResponse('No such photo token'),
     },
   });
 

@@ -173,6 +173,22 @@ export function parseSelectedProducts(value: string | null | undefined): string[
   return parsed.success ? parsed.data : [];
 }
 
+export const PhotoSchema = z
+  .object({
+    id: z.number().int(),
+    report_id: z.number().int(),
+    file_path: z.string(),
+    file_size: z.number().int(),
+    mime_type: z.string(),
+    public_token: z.string(),
+    created_at: z.string(),
+    // Built by the projection rather than stored in the table, so the retention cleanup and the
+    // delete path, which read rows straight from the table, do not carry them.
+    url: z.string().optional(),
+    publicUrl: z.string().optional(),
+  })
+  .strict();
+
 // ---- Response Envelopes ----
 
 export const CategoriesResponseSchema = z.object({ categories: z.array(CategoryResponseSchema) }).strict();
@@ -182,6 +198,8 @@ export const ReportHistoryResponseSchema = z
   .object({ items: z.array(ReportListItemSchema), pagination: PaginationSchema })
   .strict();
 export const TurnoResponseSchema = z.object({ turno: z.enum(['tarde', 'noite']) }).strict();
+export const PhotosResponseSchema = z.object({ photos: z.array(PhotoSchema) }).strict();
+export const PhotoResponseSchema = z.object({ photo: PhotoSchema }).strict();
 
 // The types the services keep importing, derived from the schemas so they cannot drift away from
 // the contract.
@@ -191,6 +209,7 @@ export type ReportListItem = z.infer<typeof ReportListItemSchema>;
 export type ReportDetail = z.infer<typeof ReportDetailSchema>;
 export type ReportItemDetail = z.infer<typeof ReportItemDetailSchema>;
 export type ReportTemperatureDetail = z.infer<typeof ReportTemperatureDetailSchema>;
+export type ReportPhoto = z.infer<typeof PhotoSchema>;
 
 /** Shared with the loading module, so it lives in `contracts/common.schema.ts`. */
 export type HistoryPagination = z.infer<typeof PaginationSchema>;

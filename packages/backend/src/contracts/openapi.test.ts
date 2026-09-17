@@ -12,7 +12,7 @@ import { SuccessResponseSchema } from './common.schema.js';
 import { ErrorEnvelopeSchema } from './error.schema.js';
 import { buildOpenApiDocument, documentedPaths } from './openapi.js';
 
-/** The surface this contract currently claims to describe: auth plus the loading module. */
+/** The surface this contract currently claims to describe: auth, loading and reports. */
 const EXPECTED_PATHS = [
   '/api/auth/change-password',
   '/api/auth/login',
@@ -32,6 +32,16 @@ const EXPECTED_PATHS = [
   '/api/loading/schedules/{id}/deactivate',
   '/api/loading/time-slots',
   '/api/loading/vehicles',
+  '/api/reports',
+  '/api/reports/categories',
+  '/api/reports/history',
+  '/api/reports/photos/public/{token}',
+  '/api/reports/photos/{photoId}',
+  '/api/reports/turno',
+  '/api/reports/{id}',
+  '/api/reports/{id}/deactivate',
+  '/api/reports/{id}/export',
+  '/api/reports/{id}/photos',
 ];
 
 describe('API contract', () => {

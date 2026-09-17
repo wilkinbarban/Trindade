@@ -511,6 +511,481 @@
           "license_plate"
         ],
         "additionalProperties": false
+      },
+      "ReportCategory": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "parent_category_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "name_pt": {
+            "type": "string"
+          },
+          "name_es": {
+            "type": "string"
+          },
+          "sort_order": {
+            "type": "integer"
+          },
+          "category_type": {
+            "type": "string",
+            "enum": [
+              "check",
+              "temperature",
+              "check_assai",
+              "check_normal"
+            ]
+          },
+          "tasks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "category_id": {
+                  "type": "integer"
+                },
+                "name_pt": {
+                  "type": "string"
+                },
+                "name_es": {
+                  "type": "string"
+                },
+                "task_type": {
+                  "type": "string",
+                  "enum": [
+                    "check",
+                    "temperature",
+                    "check_assai",
+                    "check_normal"
+                  ]
+                },
+                "temperature_readings": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "category_id",
+                "name_pt",
+                "name_es",
+                "task_type",
+                "temperature_readings"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "id",
+          "parent_category_id",
+          "name_pt",
+          "name_es",
+          "sort_order",
+          "category_type",
+          "tasks"
+        ],
+        "additionalProperties": false
+      },
+      "ReportTask": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "category_id": {
+            "type": "integer"
+          },
+          "name_pt": {
+            "type": "string"
+          },
+          "name_es": {
+            "type": "string"
+          },
+          "task_type": {
+            "type": "string",
+            "enum": [
+              "check",
+              "temperature",
+              "check_assai",
+              "check_normal"
+            ]
+          },
+          "temperature_readings": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "category_id",
+          "name_pt",
+          "name_es",
+          "task_type",
+          "temperature_readings"
+        ],
+        "additionalProperties": false
+      },
+      "ReportListItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "turno": {
+            "type": "string",
+            "enum": [
+              "tarde",
+              "noite"
+            ]
+          },
+          "report_date": {
+            "type": "string"
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "user": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "display_name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "display_name"
+            ],
+            "additionalProperties": false
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "readOnly": {
+            "type": "boolean"
+          },
+          "canEdit": {
+            "type": "boolean"
+          },
+          "canDeactivate": {
+            "type": "boolean"
+          },
+          "canDelete": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "turno",
+          "report_date",
+          "notes",
+          "created_at",
+          "user"
+        ],
+        "additionalProperties": false
+      },
+      "ReportDetail": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "turno": {
+            "type": "string",
+            "enum": [
+              "tarde",
+              "noite"
+            ]
+          },
+          "report_date": {
+            "type": "string"
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "user": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "display_name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "display_name"
+            ],
+            "additionalProperties": false
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "readOnly": {
+            "type": "boolean"
+          },
+          "canEdit": {
+            "type": "boolean"
+          },
+          "canDeactivate": {
+            "type": "boolean"
+          },
+          "canDelete": {
+            "type": "boolean"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "task_id": {
+                  "type": "integer"
+                },
+                "task_name": {
+                  "type": "string"
+                },
+                "task_name_es": {
+                  "type": "string"
+                },
+                "task_type": {
+                  "type": "string",
+                  "enum": [
+                    "check",
+                    "temperature",
+                    "check_assai",
+                    "check_normal"
+                  ]
+                },
+                "category_name": {
+                  "type": "string"
+                },
+                "category_name_es": {
+                  "type": "string"
+                },
+                "checked": {
+                  "type": "boolean"
+                },
+                "selectedProducts": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "task_id",
+                "task_name",
+                "task_name_es",
+                "task_type",
+                "category_name",
+                "category_name_es",
+                "checked"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "temperatures": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "location": {
+                  "type": "string"
+                },
+                "location_es": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "readingIndex": {
+                  "type": "integer"
+                },
+                "value": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "location",
+                "location_es",
+                "readingIndex",
+                "value"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "id",
+          "turno",
+          "report_date",
+          "notes",
+          "created_at",
+          "user",
+          "updated_at",
+          "items",
+          "temperatures"
+        ],
+        "additionalProperties": false
+      },
+      "ReportItemDetail": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "integer"
+          },
+          "task_name": {
+            "type": "string"
+          },
+          "task_name_es": {
+            "type": "string"
+          },
+          "task_type": {
+            "type": "string",
+            "enum": [
+              "check",
+              "temperature",
+              "check_assai",
+              "check_normal"
+            ]
+          },
+          "category_name": {
+            "type": "string"
+          },
+          "category_name_es": {
+            "type": "string"
+          },
+          "checked": {
+            "type": "boolean"
+          },
+          "selectedProducts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "task_id",
+          "task_name",
+          "task_name_es",
+          "task_type",
+          "category_name",
+          "category_name_es",
+          "checked"
+        ],
+        "additionalProperties": false
+      },
+      "ReportTemperatureDetail": {
+        "type": "object",
+        "properties": {
+          "location": {
+            "type": "string"
+          },
+          "location_es": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "readingIndex": {
+            "type": "integer"
+          },
+          "value": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "location",
+          "location_es",
+          "readingIndex",
+          "value"
+        ],
+        "additionalProperties": false
+      },
+      "ReportUser": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "display_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "display_name"
+        ],
+        "additionalProperties": false
+      },
+      "ReportPhoto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "report_id": {
+            "type": "integer"
+          },
+          "file_path": {
+            "type": "string"
+          },
+          "file_size": {
+            "type": "integer"
+          },
+          "mime_type": {
+            "type": "string"
+          },
+          "public_token": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "publicUrl": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "report_id",
+          "file_path",
+          "file_size",
+          "mime_type",
+          "public_token",
+          "created_at"
+        ],
+        "additionalProperties": false
       }
     },
     "parameters": {}
@@ -3416,6 +3891,2510 @@
           },
           "401": {
             "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reports/categories": {
+      "get": {
+        "summary": "List the active report categories with their tasks",
+        "tags": [
+          "reports"
+        ],
+        "responses": {
+          "200": {
+            "description": "Active categories, each carrying its active tasks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "categories": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "parent_category_id": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "name_pt": {
+                            "type": "string"
+                          },
+                          "name_es": {
+                            "type": "string"
+                          },
+                          "sort_order": {
+                            "type": "integer"
+                          },
+                          "category_type": {
+                            "type": "string",
+                            "enum": [
+                              "check",
+                              "temperature",
+                              "check_assai",
+                              "check_normal"
+                            ]
+                          },
+                          "tasks": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "integer"
+                                },
+                                "category_id": {
+                                  "type": "integer"
+                                },
+                                "name_pt": {
+                                  "type": "string"
+                                },
+                                "name_es": {
+                                  "type": "string"
+                                },
+                                "task_type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "check",
+                                    "temperature",
+                                    "check_assai",
+                                    "check_normal"
+                                  ]
+                                },
+                                "temperature_readings": {
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "category_id",
+                                "name_pt",
+                                "name_es",
+                                "task_type",
+                                "temperature_readings"
+                              ],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "parent_category_id",
+                          "name_pt",
+                          "name_es",
+                          "sort_order",
+                          "category_type",
+                          "tasks"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "categories"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reports": {
+      "get": {
+        "summary": "List reports within a period",
+        "tags": [
+          "reports"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "today",
+                "yesterday",
+                "7days",
+                "30days",
+                "custom"
+              ],
+              "default": "today"
+            },
+            "required": false,
+            "name": "period",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "required": false,
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "required": false,
+            "name": "to",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reports in the period, newest first. This endpoint passes no actor, so its items carry no lifecycle flags.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "reports": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "turno": {
+                            "type": "string",
+                            "enum": [
+                              "tarde",
+                              "noite"
+                            ]
+                          },
+                          "report_date": {
+                            "type": "string"
+                          },
+                          "notes": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "created_at": {
+                            "type": "string"
+                          },
+                          "user": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "integer"
+                              },
+                              "display_name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "display_name"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "isActive": {
+                            "type": "boolean"
+                          },
+                          "readOnly": {
+                            "type": "boolean"
+                          },
+                          "canEdit": {
+                            "type": "boolean"
+                          },
+                          "canDeactivate": {
+                            "type": "boolean"
+                          },
+                          "canDelete": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "turno",
+                          "report_date",
+                          "notes",
+                          "created_at",
+                          "user"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "reports"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The query parameters failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a report",
+        "tags": [
+          "reports"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "turno": {
+                    "type": "string",
+                    "enum": [
+                      "tarde",
+                      "noite"
+                    ]
+                  },
+                  "notes": {
+                    "type": "string"
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "taskId": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0
+                        },
+                        "checked": {
+                          "type": "boolean"
+                        },
+                        "selectedProducts": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "taskId",
+                        "checked"
+                      ]
+                    },
+                    "default": []
+                  },
+                  "temperatures": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "location": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "readingIndex": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 3,
+                          "default": 1
+                        },
+                        "value": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "location",
+                        "value"
+                      ]
+                    },
+                    "default": []
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "report": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "turno": {
+                          "type": "string",
+                          "enum": [
+                            "tarde",
+                            "noite"
+                          ]
+                        },
+                        "report_date": {
+                          "type": "string"
+                        },
+                        "notes": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "created_at": {
+                          "type": "string"
+                        },
+                        "user": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "integer"
+                            },
+                            "display_name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "display_name"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "isActive": {
+                          "type": "boolean"
+                        },
+                        "readOnly": {
+                          "type": "boolean"
+                        },
+                        "canEdit": {
+                          "type": "boolean"
+                        },
+                        "canDeactivate": {
+                          "type": "boolean"
+                        },
+                        "canDelete": {
+                          "type": "boolean"
+                        },
+                        "updated_at": {
+                          "type": "string"
+                        },
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "task_id": {
+                                "type": "integer"
+                              },
+                              "task_name": {
+                                "type": "string"
+                              },
+                              "task_name_es": {
+                                "type": "string"
+                              },
+                              "task_type": {
+                                "type": "string",
+                                "enum": [
+                                  "check",
+                                  "temperature",
+                                  "check_assai",
+                                  "check_normal"
+                                ]
+                              },
+                              "category_name": {
+                                "type": "string"
+                              },
+                              "category_name_es": {
+                                "type": "string"
+                              },
+                              "checked": {
+                                "type": "boolean"
+                              },
+                              "selectedProducts": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "task_id",
+                              "task_name",
+                              "task_name_es",
+                              "task_type",
+                              "category_name",
+                              "category_name_es",
+                              "checked"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "temperatures": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "location": {
+                                "type": "string"
+                              },
+                              "location_es": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "readingIndex": {
+                                "type": "integer"
+                              },
+                              "value": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "location",
+                              "location_es",
+                              "readingIndex",
+                              "value"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "turno",
+                        "report_date",
+                        "notes",
+                        "created_at",
+                        "user",
+                        "updated_at",
+                        "items",
+                        "temperatures"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "report"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body failed validation, or a report already exists for that shift and date",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reports/history": {
+      "get": {
+        "summary": "List report history with pagination and filters",
+        "tags": [
+          "reports"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "required": false,
+            "name": "date",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}$"
+            },
+            "required": false,
+            "name": "month",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            },
+            "required": false,
+            "name": "userId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 100,
+              "default": 30
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "History items, each with its server-computed lifecycle flags",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "turno": {
+                            "type": "string",
+                            "enum": [
+                              "tarde",
+                              "noite"
+                            ]
+                          },
+                          "report_date": {
+                            "type": "string"
+                          },
+                          "notes": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "created_at": {
+                            "type": "string"
+                          },
+                          "user": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "integer"
+                              },
+                              "display_name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "display_name"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "isActive": {
+                            "type": "boolean"
+                          },
+                          "readOnly": {
+                            "type": "boolean"
+                          },
+                          "canEdit": {
+                            "type": "boolean"
+                          },
+                          "canDeactivate": {
+                            "type": "boolean"
+                          },
+                          "canDelete": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "turno",
+                          "report_date",
+                          "notes",
+                          "created_at",
+                          "user"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "pagination": {
+                      "type": "object",
+                      "properties": {
+                        "page": {
+                          "type": "integer"
+                        },
+                        "pageSize": {
+                          "type": "integer"
+                        },
+                        "total": {
+                          "type": "integer"
+                        },
+                        "totalPages": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "page",
+                        "pageSize",
+                        "total",
+                        "totalPages"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "pagination"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The query parameters failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reports/turno": {
+      "get": {
+        "summary": "Report the shift the server detects from its own clock",
+        "description": "Detected in São Paulo time: 18:30 onwards is the tarde shift, and 06:00 onwards the noite shift. A client must ask rather than compute this, so a device with a wrong clock still agrees with the server.",
+        "tags": [
+          "reports"
+        ],
+        "responses": {
+          "200": {
+            "description": "The detected shift",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "turno": {
+                      "type": "string",
+                      "enum": [
+                        "tarde",
+                        "noite"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "turno"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reports/{id}": {
+      "get": {
+        "summary": "Read one report with its items and temperature readings",
+        "tags": [
+          "reports"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The report, with lifecycle flags when the caller is allowed to change it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "report": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "turno": {
+                          "type": "string",
+                          "enum": [
+                            "tarde",
+                            "noite"
+                          ]
+                        },
+                        "report_date": {
+                          "type": "string"
+                        },
+                        "notes": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "created_at": {
+                          "type": "string"
+                        },
+                        "user": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "integer"
+                            },
+                            "display_name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "display_name"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "isActive": {
+                          "type": "boolean"
+                        },
+                        "readOnly": {
+                          "type": "boolean"
+                        },
+                        "canEdit": {
+                          "type": "boolean"
+                        },
+                        "canDeactivate": {
+                          "type": "boolean"
+                        },
+                        "canDelete": {
+                          "type": "boolean"
+                        },
+                        "updated_at": {
+                          "type": "string"
+                        },
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "task_id": {
+                                "type": "integer"
+                              },
+                              "task_name": {
+                                "type": "string"
+                              },
+                              "task_name_es": {
+                                "type": "string"
+                              },
+                              "task_type": {
+                                "type": "string",
+                                "enum": [
+                                  "check",
+                                  "temperature",
+                                  "check_assai",
+                                  "check_normal"
+                                ]
+                              },
+                              "category_name": {
+                                "type": "string"
+                              },
+                              "category_name_es": {
+                                "type": "string"
+                              },
+                              "checked": {
+                                "type": "boolean"
+                              },
+                              "selectedProducts": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "task_id",
+                              "task_name",
+                              "task_name_es",
+                              "task_type",
+                              "category_name",
+                              "category_name_es",
+                              "checked"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "temperatures": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "location": {
+                                "type": "string"
+                              },
+                              "location_es": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "readingIndex": {
+                                "type": "integer"
+                              },
+                              "value": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "location",
+                              "location_es",
+                              "readingIndex",
+                              "value"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "turno",
+                        "report_date",
+                        "notes",
+                        "created_at",
+                        "user",
+                        "updated_at",
+                        "items",
+                        "temperatures"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "report"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The identifier is not a number",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Replace the contents of a report",
+        "tags": [
+          "reports"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "turno": {
+                    "type": "string",
+                    "enum": [
+                      "tarde",
+                      "noite"
+                    ]
+                  },
+                  "notes": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "taskId": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0
+                        },
+                        "checked": {
+                          "type": "boolean"
+                        },
+                        "selectedProducts": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "taskId",
+                        "checked"
+                      ]
+                    }
+                  },
+                  "temperatures": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "location": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "readingIndex": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 3,
+                          "default": 1
+                        },
+                        "value": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "location",
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "report": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "turno": {
+                          "type": "string",
+                          "enum": [
+                            "tarde",
+                            "noite"
+                          ]
+                        },
+                        "report_date": {
+                          "type": "string"
+                        },
+                        "notes": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "created_at": {
+                          "type": "string"
+                        },
+                        "user": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "integer"
+                            },
+                            "display_name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "display_name"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "isActive": {
+                          "type": "boolean"
+                        },
+                        "readOnly": {
+                          "type": "boolean"
+                        },
+                        "canEdit": {
+                          "type": "boolean"
+                        },
+                        "canDeactivate": {
+                          "type": "boolean"
+                        },
+                        "canDelete": {
+                          "type": "boolean"
+                        },
+                        "updated_at": {
+                          "type": "string"
+                        },
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "task_id": {
+                                "type": "integer"
+                              },
+                              "task_name": {
+                                "type": "string"
+                              },
+                              "task_name_es": {
+                                "type": "string"
+                              },
+                              "task_type": {
+                                "type": "string",
+                                "enum": [
+                                  "check",
+                                  "temperature",
+                                  "check_assai",
+                                  "check_normal"
+                                ]
+                              },
+                              "category_name": {
+                                "type": "string"
+                              },
+                              "category_name_es": {
+                                "type": "string"
+                              },
+                              "checked": {
+                                "type": "boolean"
+                              },
+                              "selectedProducts": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "task_id",
+                              "task_name",
+                              "task_name_es",
+                              "task_type",
+                              "category_name",
+                              "category_name_es",
+                              "checked"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "temperatures": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "location": {
+                                "type": "string"
+                              },
+                              "location_es": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "readingIndex": {
+                                "type": "integer"
+                              },
+                              "value": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "location",
+                              "location_es",
+                              "readingIndex",
+                              "value"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "turno",
+                        "report_date",
+                        "notes",
+                        "created_at",
+                        "user",
+                        "updated_at",
+                        "items",
+                        "temperatures"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "report"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The identifier is not a number, or the body failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The report is outside its edit window, or belongs to another user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a report",
+        "description": "Administrador only.",
+        "tags": [
+          "reports"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The report was deleted"
+          },
+          "400": {
+            "description": "The identifier is not a number",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Administrador only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reports/{id}/deactivate": {
+      "patch": {
+        "summary": "Deactivate a report",
+        "description": "Administrador only.",
+        "tags": [
+          "reports"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The report was deactivated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The identifier is not a number",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Administrador only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reports/{id}/export": {
+      "get": {
+        "summary": "Render the WhatsApp text for one report",
+        "description": "Formatted on the server in Brazilian Portuguese. A client must fetch this text rather than reimplement the format.",
+        "tags": [
+          "reports"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The ready-to-send text",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "text": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "text"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The report does not carry every temperature reading its catalog requires",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reports/{id}/photos": {
+      "get": {
+        "summary": "List the photos attached to a report",
+        "tags": [
+          "reports"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The attached photos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "photos": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "report_id": {
+                            "type": "integer"
+                          },
+                          "file_path": {
+                            "type": "string"
+                          },
+                          "file_size": {
+                            "type": "integer"
+                          },
+                          "mime_type": {
+                            "type": "string"
+                          },
+                          "public_token": {
+                            "type": "string"
+                          },
+                          "created_at": {
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": "string"
+                          },
+                          "publicUrl": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "report_id",
+                          "file_path",
+                          "file_size",
+                          "mime_type",
+                          "public_token",
+                          "created_at"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "photos"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Attach a photo to a report",
+        "description": "Multipart with the file in a field named \"file\". Only JPEG, PNG and WebP are accepted, the declared type must match the file content, and a report accepts at most five photos.",
+        "tags": [
+          "reports"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                },
+                "required": [
+                  "file"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The stored photo, with its authenticated and its public URL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "photo": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "report_id": {
+                          "type": "integer"
+                        },
+                        "file_path": {
+                          "type": "string"
+                        },
+                        "file_size": {
+                          "type": "integer"
+                        },
+                        "mime_type": {
+                          "type": "string"
+                        },
+                        "public_token": {
+                          "type": "string"
+                        },
+                        "created_at": {
+                          "type": "string"
+                        },
+                        "url": {
+                          "type": "string"
+                        },
+                        "publicUrl": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "report_id",
+                        "file_path",
+                        "file_size",
+                        "mime_type",
+                        "public_token",
+                        "created_at"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "photo"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No file was sent, or the file was empty",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The report is outside its edit window",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The report already carries five photos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The file exceeds the 5 MB limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "The file is not JPEG, PNG or WebP, or its content does not match the declared type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reports/photos/{photoId}": {
+      "delete": {
+        "summary": "Delete one attached photo",
+        "tags": [
+          "reports"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "photoId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The photo was deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The report is outside its edit window",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such photo",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "Fetch one photo",
+        "description": "Requires the Bearer token, so a native client has to attach it. Prefer the public link when the photo is meant to be pasted into a chat.",
+        "tags": [
+          "reports"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "photoId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The photo bytes",
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/webp": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such photo, or its file is missing from disk",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {},
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reports/photos/public/{token}": {
+      "get": {
+        "summary": "Fetch a photo by its public token, without authentication",
+        "description": "Documented as implemented, not as intended: this route requires a token of at least sixteen NaNshort route `/p/{token}` is the one that works and is what `publicUrl` points at.",
+        "tags": [
+          "reports"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "token",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The photo bytes",
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/webp": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such photo token",
             "content": {
               "application/json": {
                 "schema": {
