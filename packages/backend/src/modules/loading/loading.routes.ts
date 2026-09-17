@@ -105,7 +105,7 @@ export async function loadingRoutes(fastify: FastifyInstance) {
         });
       }
 
-      const result = service.create(fastify.db, parse.data, request.user!.sub);
+      const result = service.create(fastify.db, parse.data, request.user!);
 
       if ('error' in result) {
         const langHeader = request.headers['accept-language'] || 'pt-BR';

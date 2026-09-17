@@ -4,9 +4,13 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import Database from 'better-sqlite3';
 
+import type { HistoryActor } from '../history-permissions.js';
 import * as loading from './loading.service.js';
 
 const databases: Database.Database[] = [];
+
+/** The actor a route would pass: `create` needs it to project permissions. */
+const ADMIN: HistoryActor = { sub: 1, role: 'Administrador' };
 
 function buildDb(): Database.Database {
   const db = new Database(':memory:');
@@ -54,12 +58,12 @@ describe('loading service direct persistence contract', () => {
     const db = buildDb();
     const ids = Array.from({ length: 5 }, (_, index) => driver(db, `F${index}`));
     for (const id of ids.slice(0, 3)) {
-      assert.ok('id' in loading.create(db, { schedule_date: '2026-08-25', time_slot: '04:00', driver_type: 'fletero', driver_id: id }, 1));
+      assert.ok('id' in loading.create(db, { schedule_date: '2026-08-25', time_slot: '04:00', driver_type: 'fletero', driver_id: id }, ADMIN));
     }
-    const fourth = loading.create(db, { schedule_date: '2026-08-25', time_slot: '04:30', driver_type: 'fletero', driver_id: ids[3] }, 1);
+    const fourth = loading.create(db, { schedule_date: '2026-08-25', time_slot: '04:30', driver_type: 'fletero', driver_id: ids[3] }, ADMIN);
     assert.ok('id' in fourth, 'fourth rolling-window fletero remains permitted');
     loading.deactivate(db, (fourth as { id: number }).id);
-    assert.ok('id' in loading.create(db, { schedule_date: '2026-08-25', time_slot: '04:30', driver_type: 'fletero', driver_id: ids[4] }, 1));
+    assert.ok('id' in loading.create(db, { schedule_date: '2026-08-25', time_slot: '04:30', driver_type: 'fletero', driver_id: ids[4] }, ADMIN));
     assert.equal((db.prepare('SELECT COUNT(*) AS count FROM loading_schedules').get() as { count: number }).count, 5);
   });
 
@@ -70,24 +74,24 @@ describe('loading service direct persistence contract', () => {
     const inactive = driver(db, 'I', 'fletero', 0);
     const van = vehicle(db, 'Van');
     const inactiveVan = vehicle(db, 'Old', 0);
-    assert.equal((loading.create(db, { schedule_date: '2026-08-25', time_slot: '04:00', driver_type: 'casa', driver_id: fletero, vehicle_id: van }, 1) as { status: number }).status, 400);
-    assert.equal((loading.create(db, { schedule_date: '2026-08-25', time_slot: '04:00', driver_type: 'fletero', driver_id: casa }, 1) as { status: number }).status, 400);
-    assert.equal((loading.create(db, { schedule_date: '2026-08-25', time_slot: '04:00', driver_type: 'fletero', driver_id: inactive }, 1) as { status: number }).status, 400);
-    assert.equal((loading.create(db, { schedule_date: '2026-08-25', time_slot: '04:00', driver_type: 'casa', driver_id: casa, vehicle_id: inactiveVan }, 1) as { status: number }).status, 400);
-    const created = loading.create(db, { schedule_date: '2026-08-25', time_slot: '04:00', driver_type: 'fletero', driver_id: fletero }, 1);
+    assert.equal((loading.create(db, { schedule_date: '2026-08-25', time_slot: '04:00', driver_type: 'casa', driver_id: fletero, vehicle_id: van }, ADMIN) as { status: number }).status, 400);
+    assert.equal((loading.create(db, { schedule_date: '2026-08-25', time_slot: '04:00', driver_type: 'fletero', driver_id: casa }, ADMIN) as { status: number }).status, 400);
+    assert.equal((loading.create(db, { schedule_date: '2026-08-25', time_slot: '04:00', driver_type: 'fletero', driver_id: inactive }, ADMIN) as { status: number }).status, 400);
+    assert.equal((loading.create(db, { schedule_date: '2026-08-25', time_slot: '04:00', driver_type: 'casa', driver_id: casa, vehicle_id: inactiveVan }, ADMIN) as { status: number }).status, 400);
+    const created = loading.create(db, { schedule_date: '2026-08-25', time_slot: '04:00', driver_type: 'fletero', driver_id: fletero }, ADMIN);
     assert.ok('id' in created);
-    assert.equal((loading.create(db, { schedule_date: '2026-08-25', time_slot: '05:00', driver_type: 'fletero', driver_id: fletero }, 1) as { status: number }).status, 409);
-    const activeCasa = loading.create(db, { schedule_date: '2026-08-27', time_slot: '04:00', driver_type: 'casa', driver_id: casa, vehicle_id: van }, 1);
+    assert.equal((loading.create(db, { schedule_date: '2026-08-25', time_slot: '05:00', driver_type: 'fletero', driver_id: fletero }, ADMIN) as { status: number }).status, 409);
+    const activeCasa = loading.create(db, { schedule_date: '2026-08-27', time_slot: '04:00', driver_type: 'casa', driver_id: casa, vehicle_id: van }, ADMIN);
     assert.ok('id' in activeCasa);
     const anotherCasa = driver(db, 'C2', 'casa');
     assert.equal(
-      (loading.create(db, { schedule_date: '2026-08-27', time_slot: '05:00', driver_type: 'casa', driver_id: anotherCasa, vehicle_id: van }, 1) as { status: number }).status,
+      (loading.create(db, { schedule_date: '2026-08-27', time_slot: '05:00', driver_type: 'casa', driver_id: anotherCasa, vehicle_id: van }, ADMIN) as { status: number }).status,
       409
     );
     schedule(db, { date: '2026-08-26', driverId: casa, vehicleId: van, active: 0 });
     db.prepare('UPDATE loading_schedules SET is_active = 0 WHERE schedule_date = ?').run('2026-08-26');
     assert.equal(
-      (loading.create(db, { schedule_date: '2026-08-26', time_slot: '05:00', driver_type: 'casa', driver_id: casa, vehicle_id: van }, 1) as { status: number }).status,
+      (loading.create(db, { schedule_date: '2026-08-26', time_slot: '05:00', driver_type: 'casa', driver_id: casa, vehicle_id: van }, ADMIN) as { status: number }).status,
       400,
       'a date containing only inactive entries remains a closed batch'
     );

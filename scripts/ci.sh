@@ -30,6 +30,7 @@ run_step 'Build all workspaces' npm run build
 run_step 'Typecheck backend and frontend' npm run typecheck
 run_step 'Run backend tests' npm run test --workspace=packages/backend
 run_step 'Verify the built schema CLIs' bash scripts/verify-schema-clis.sh
+run_step 'Verify the generated API contract is current' bash scripts/verify-openapi-artifact.sh
 if [[ "${SKIP_E2E:-}" == "1" ]]; then
   printf '\nSkipping Playwright E2E tests (SKIP_E2E=1)\n'
 else

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { PaginationSchema } from '../../contracts/common.schema.js';
 
 // ---- Query Params ----
 
@@ -64,47 +65,103 @@ export const UpdateScheduleSchema = z.object({
 
 export type UpdateScheduleBody = z.infer<typeof UpdateScheduleSchema>;
 
-// ---- Response Types (TypeScript only, not validated) ----
+// ---- Response Schemas ----
+//
+// Schemas rather than interfaces, so the contract generator can read them and tests can
+// validate what the routes really return. The interfaces these replace marked nearly every
+// schedule field optional, which is exactly what hid the fact that `create` and `update`
+// returned a different shape from `listByDate`: the mutation responses carried neither
+// `creator` nor the permission flags, and casting both to the same type suppressed the
+// difference. Every schema here is `.strict()`, so a route returning an undocumented field
+// fails a test instead of drifting past the document.
 
-export interface LoadingBatchHistoryItem {
-  batch_date: string;
-  loading_date: string;
-  total_loadings: number;
-  created_at: string | null;
-  updated_at: string | null;
-  isActive: boolean;
-  canEdit: boolean;
-  canDeactivate: boolean;
-  canDelete: boolean;
-  readOnly: boolean;
-  creator: { id: number; display_name: string } | null;
-}
+/** The creator summary attached to a schedule and to a loading batch. */
+const CreatorSchema = z.object({ id: z.number().int(), display_name: z.string() }).strict();
 
-export interface ScheduleRow {
-  id: number;
-  schedule_date: string;
-  time_slot: string;
-  driver_type: 'fletero' | 'casa';
-  driver_id: number;
-  driver_name: string | null;
-  license_plate: string | null;
-  vehicle_id: number | null;
-  vehicle_description: string | null;
-  vehicle_plate: string | null;
-  user_id?: number | null;
-  created_at?: string;
-  updated_at?: string;
-  isActive?: boolean;
-  readOnly?: boolean;
-  canEdit?: boolean;
-  canDeactivate?: boolean;
-  canDelete?: boolean;
-  creator?: { id: number; display_name: string } | null;
-}
+export const ScheduleSchema = z
+  .object({
+    id: z.number().int(),
+    schedule_date: z.string(),
+    time_slot: z.string(),
+    driver_type: z.enum(['fletero', 'casa']),
+    driver_id: z.number().int().nullable(),
+    driver_name: z.string().nullable(),
+    license_plate: z.string().nullable(),
+    vehicle_id: z.number().int().nullable(),
+    vehicle_description: z.string().nullable(),
+    vehicle_plate: z.string().nullable(),
+    user_id: z.number().int().nullable(),
+    created_at: z.string(),
+    updated_at: z.string(),
+    // `is_active` and `creator_name` are the raw columns the projection spreads through, and
+    // they duplicate `isActive` and `creator`. They are documented rather than removed:
+    // dropping them would be a breaking response change, and describing the API honestly is a
+    // different task from tightening it.
+    is_active: z.number().int(),
+    creator_name: z.string().nullable(),
+    isActive: z.boolean(),
+    readOnly: z.boolean(),
+    canEdit: z.boolean(),
+    canDeactivate: z.boolean(),
+    canDelete: z.boolean(),
+    creator: CreatorSchema.nullable(),
+  })
+  .strict();
 
-export interface DriverRow {
-  id: number;
-  name: string;
-  license_plate: string | null;
-  driver_type: 'casa' | 'fletero';
-}
+export const LoadingBatchHistoryItemSchema = z
+  .object({
+    batch_date: z.string(),
+    loading_date: z.string(),
+    total_loadings: z.number().int(),
+    created_at: z.string().nullable(),
+    updated_at: z.string().nullable(),
+    isActive: z.boolean(),
+    canEdit: z.boolean(),
+    canDeactivate: z.boolean(),
+    canDelete: z.boolean(),
+    readOnly: z.boolean(),
+    creator: CreatorSchema.nullable(),
+  })
+  .strict();
+
+export const DriverSchema = z
+  .object({
+    id: z.number().int(),
+    name: z.string(),
+    license_plate: z.string().nullable(),
+    driver_type: z.enum(['casa', 'fletero']),
+  })
+  .strict();
+
+export const VehicleSchema = z
+  .object({
+    id: z.number().int(),
+    description: z.string(),
+    license_plate: z.string(),
+  })
+  .strict();
+
+// ---- Response Envelopes ----
+
+export const SchedulesResponseSchema = z.object({ schedules: z.array(ScheduleSchema) }).strict();
+
+export const ScheduleResponseSchema = z.object({ schedule: ScheduleSchema }).strict();
+
+export const ScheduleHistoryResponseSchema = z
+  .object({ items: z.array(LoadingBatchHistoryItemSchema), pagination: PaginationSchema })
+  .strict();
+
+export const DriversResponseSchema = z.object({ drivers: z.array(DriverSchema) }).strict();
+
+export const DriverResponseSchema = z.object({ driver: DriverSchema }).strict();
+
+export const VehiclesResponseSchema = z.object({ vehicles: z.array(VehicleSchema) }).strict();
+
+export const TimeSlotsResponseSchema = z.object({ timeSlots: z.array(z.string()) }).strict();
+
+// The types the service and the routes keep importing, derived from the schemas so they cannot
+// drift away from the contract.
+export type ScheduleRow = z.infer<typeof ScheduleSchema>;
+export type LoadingBatchHistoryItem = z.infer<typeof LoadingBatchHistoryItemSchema>;
+export type DriverRow = z.infer<typeof DriverSchema>;
+export type Vehicle = z.infer<typeof VehicleSchema>;

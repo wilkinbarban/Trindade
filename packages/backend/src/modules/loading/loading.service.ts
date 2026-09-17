@@ -5,6 +5,7 @@ import type {
   UpdateScheduleBody,
   ScheduleRow,
   DriverRow,
+  Vehicle,
   HistoryQuery,
   LoadingBatchHistoryItem,
 } from './loading.schema.js';
@@ -33,7 +34,7 @@ export function listByDate(db: Database.Database, date: string, actor?: HistoryA
 export function create(
   db: Database.Database,
   data: CreateScheduleBody,
-  userId: number
+  actor: HistoryActor
 ): ScheduleRow | { error: string; status: number } {
   const tx = db.transaction(() => {
     // Block creating a new schedule if the date has only inactive entries
@@ -148,7 +149,7 @@ export function create(
         data.driver_id,
         data.vehicle_id ?? null,
         resolvedDriverType,
-        userId
+        actor.sub
       );
 
     return result.lastInsertRowid as number;
@@ -156,19 +157,25 @@ export function create(
 
   try {
     const id = tx();
-    return db
+    // Projected exactly like `listByDate`, so a schedule has one shape wherever it appears.
+    // Returning the raw row here is what made a single declared type mean three different
+    // runtime objects: the mutation responses carried neither `creator` nor the permission
+    // flags, and the cast hid it.
+    const row = db
       .prepare(
         `SELECT ls.id, ls.schedule_date, ls.time_slot, ls.driver_type,
                 ls.driver_id, d.name AS driver_name, d.license_plate,
                 ls.vehicle_id, v.description AS vehicle_description,
-                v.license_plate AS vehicle_plate
+                v.license_plate AS vehicle_plate, ls.user_id, ls.created_at, ls.updated_at,
+                ls.is_active, u.display_name AS creator_name
          FROM loading_schedules ls
          LEFT JOIN drivers d ON ls.driver_id = d.id
          LEFT JOIN vehicles v ON ls.vehicle_id = v.id
          LEFT JOIN users u ON ls.user_id = u.id
          WHERE ls.id = ?`
       )
-      .get(id) as ScheduleRow;
+      .get(id) as ScheduleRow & { creator_name?: string | null };
+    return projectScheduleRow(row, actor);
   } catch (err: unknown) {
     if (err instanceof Error && 'status' in err) {
       return {
@@ -310,8 +317,9 @@ export function update(
     throw err;
   }
 
-  // Return updated row
-  return db
+  // Projected exactly like `listByDate` and `create`, so a schedule has one shape wherever it
+  // appears.
+  const row = db
     .prepare(
       `SELECT ls.id, ls.schedule_date, ls.time_slot, ls.driver_type,
               ls.driver_id, d.name AS driver_name, d.license_plate,
@@ -323,7 +331,8 @@ export function update(
        LEFT JOIN users u ON ls.user_id = u.id
        WHERE ls.id = ?`
     )
-    .get(id) as ScheduleRow;
+    .get(id) as ScheduleRow & { creator_name?: string | null };
+  return projectScheduleRow(row, actor);
 }
 
 export function remove(db: Database.Database, id: number): boolean {
@@ -496,7 +505,7 @@ export function createDriver(
     .get(result.lastInsertRowid as number) as DriverRow;
 }
 
-export function listActiveVehicles(db: Database.Database): { id: number; description: string; license_plate: string }[] {
+export function listActiveVehicles(db: Database.Database): Vehicle[] {
   return db
     .prepare(
       `SELECT id, description, license_plate
@@ -504,7 +513,7 @@ export function listActiveVehicles(db: Database.Database): { id: number; descrip
        WHERE is_active = 1
        ORDER BY description ASC`
     )
-    .all() as { id: number; description: string; license_plate: string }[];
+    .all() as Vehicle[];
 }
 
 // ---- Time Slots ----

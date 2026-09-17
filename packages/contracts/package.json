@@ -1,0 +1,9 @@
+{
+  "name": "@trindade/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Generated machine-readable API contract (OpenAPI 3.1) for Trindade. openapi.json is generated and must never be edited by hand.",
+  "scripts": {
+    "generate": "npm run contracts:generate --workspace=packages/backend"
+  }
+}
