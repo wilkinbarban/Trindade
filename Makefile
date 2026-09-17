@@ -1,6 +1,6 @@
 SHELL := /usr/bin/env bash
 
-.PHONY: install dev build ci ci-clone db-reset db-status db-migrate db-backup db-restore docker-up docker-down
+.PHONY: install dev build ci ci-clone ci-android db-reset db-status db-migrate db-backup db-restore docker-up docker-down
 
 install:
 	npm install
@@ -69,6 +69,33 @@ ci-clone:
 		node:24-bookworm-slim \
 		bash -ceu 'apt-get update -qq >/dev/null; apt-get install -y -qq --no-install-recommends util-linux libglib2.0-0 libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libdbus-1-3 libxcb1 libxkbcommon0 libx11-6 libxcomposite1 libxdamage1 libxext6 libxfixes3 libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2 >/dev/null; install -d -o "$$HOST_UID" -g "$$HOST_GID" "$$HOME" "$$npm_config_cache"; as_host() { setpriv --reuid "$$HOST_UID" --regid "$$HOST_GID" --clear-groups "$$@"; }; if [ ! -d /tmp/trindade-home/.cache/ms-playwright ]; then as_host npx -p @playwright/test@1.60.0 playwright install chromium chromium-headless-shell >/dev/null 2>&1 || true; fi; as_host bash scripts/ci.sh'
 
+
+
+# Run the Android lane in the SDK image. The canonical gate image has no JDK, and a bare host has no
+# Java, Gradle or Android SDK at all, so this lane brings its own toolchain rather than asking a
+# developer to install 3-5 GB. Three details are load-bearing:
+#   * it runs as the INVOKING USER, never as root. Running as root wrote root-owned build output into
+#     the mounted repository, which git ignores and therefore hides, but the ci-clone copy step cannot
+#     read, so the Node gate then died with "Permission denied". Same class of defect as the
+#     npm-cache poisoning documented above.
+#   * GRADLE_USER_HOME is a host directory rather than a named volume, because host directories are
+#     already owned by the invoking user and need no chown.
+#   * the SDK platform is installed into a named volume only when absent. Mounting a volume over the
+#     image's SDK path initialises it from the image, so the first run seeds it and later runs skip
+#     the install; a fresh volume pays for it once.
+ci-android:
+	@set -euo pipefail; \
+	mkdir -p "$$HOME/.cache/trindade-gradle"; \
+	docker run --rm \
+		--user "$$(id -u):$$(id -g)" \
+		--env GRADLE_USER_HOME=/gradle-home \
+		--env HOME=/gradle-home \
+		--volume "$$HOME/.cache/trindade-gradle:/gradle-home" \
+		--volume "trindade-android-sdk:/opt/android-sdk-linux" \
+		--volume "$$(git rev-parse --show-toplevel):/work" \
+		--workdir /work \
+		ghcr.io/cirruslabs/android-sdk:35 \
+		bash -c 'if [ ! -d /opt/android-sdk-linux/platforms/android-37.0 ]; then sdkmanager --install "platforms;android-37.0"; fi; bash scripts/ci-android.sh'
 
 db-reset:
 	rm -f packages/backend/data/trindade.db

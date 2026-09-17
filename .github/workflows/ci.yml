@@ -17,3 +17,28 @@ jobs:
           cache: npm
       - name: Run canonical CI gate
         run: bash scripts/ci.sh
+
+  # A separate job, because the Node gate deliberately refuses to run outside Node 24 and this lane
+  # needs a JDK. The same script runs locally through `make ci-android` inside a container, so the
+  # checks are one implementation rather than two that drift.
+  #
+  # UNVERIFIED AS WRITTEN. The local lane it calls is verified; this job is written from the
+  # documented runner setup and has never executed, because a GitHub runner cannot be run from the
+  # development host. Treat the first push as the test of it, and expect the platform step below to
+  # be the part that needs adjusting.
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Accept the SDK licences
+        run: yes | sdkmanager --licenses >/dev/null 2>&1 || true
+      - name: Ensure the platform the build compiles against is present
+        run: sdkmanager --install "platforms;android-37.0"
+      - name: Run the Android lane
+        run: bash scripts/ci-android.sh
