@@ -61,12 +61,22 @@ kotlin {
 // rather than on a user's device, where the release manifest grants no cleartext exception and the
 // request could not succeed anyway.
 //
-// This is a task action rather than a `require` in the android block, and the difference is not
-// cosmetic. AGP configures every build type before running any task, so a configuration-time check
-// here failed `assembleDebug` as well -- breaking the debug build while trying to guard the release
-// one. Checking at execution time scopes the rule to the two tasks it is actually about.
+// The guard hangs off generateReleaseBuildConfig rather than off the tasks that consume the value,
+// and the placement is the whole point. Two earlier placements were wrong in instructive ways. A
+// require in the android block ran at configuration time, and because AGP configures every build
+// type before running any task, it broke assembleDebug while trying to guard the release build.
+// Matching the task names assembleRelease and bundleRelease fixed that but left every other release
+// producer unguarded: packageReleaseBundle, packageRelease, packageReleaseUniversalApk, and any
+// flavoured variant assembled under a name nobody predicted.
+//
+// Every task that produces a release artifact must generate BuildConfig first, so a guard here
+// cannot be bypassed by choosing a different entry point, and it sits on the very task that
+// produces the value being checked. The remaining assumption is worth stating: this depends on
+// BuildConfig being generated, so turning off buildFeatures.buildConfig would silently remove it.
 val declaredApiBaseUrl = (project.findProperty("apiBaseUrl") as String?) ?: ""
-tasks.matching { it.name == "assembleRelease" || it.name == "bundleRelease" }.configureEach {
+tasks.matching {
+    it.name.startsWith("generate") && it.name.endsWith("BuildConfig") && it.name.contains("Release")
+}.configureEach {
     doFirst {
         require(declaredApiBaseUrl.isNotEmpty()) {
             "A release build requires -PapiBaseUrl=https://<host>/. There is no default, so that a " +
