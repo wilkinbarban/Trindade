@@ -58,6 +58,53 @@ The frontend MUST maintain the user's authentication state across the applicatio
 - WHEN the browser is refreshed
 - THEN the user remains logged in without re-authenticating
 
+### Requirement: Session Refresh and Revocation
+The system MUST issue a refresh token alongside the short-lived access token, MUST persist only a hash of that token, and MUST rotate it on every refresh. Presenting a token that was already rotated away MUST revoke the entire session family. Presenting a token that was explicitly revoked by logout or a password change MUST NOT revoke any other session. Logout MUST end only the presented session. A password change MUST end every session of that user. Every refresh failure MUST answer with an identical error so a caller cannot distinguish an unknown token from an expired or a revoked one.
+
+#### Scenario: Refresh rotates the session
+- GIVEN a signed-in user holding a valid refresh token
+- WHEN the client posts that token to `POST /api/auth/refresh`
+- THEN the system MUST return a new access token and a new refresh token
+- AND the presented refresh token MUST no longer be usable
+
+#### Scenario: A rotated-away token is treated as leaked
+- GIVEN a refresh token that was already rotated
+- WHEN that previous token is presented again
+- THEN the system MUST answer 401
+- AND the system MUST revoke every live session in that family
+
+#### Scenario: An explicitly revoked token is not treated as leaked
+- GIVEN a session that was ended by logout
+- WHEN its refresh token is presented again
+- THEN the system MUST answer 401
+- AND other sessions of the same user MUST remain usable
+
+#### Scenario: Logout ends only the presented session
+- GIVEN a user signed in on two devices
+- WHEN one device logs out with its own refresh token
+- THEN only that device's session MUST end
+
+#### Scenario: Password change ends every session
+- GIVEN a user with active sessions on more than one device
+- WHEN that user changes their password
+- THEN every session of that user MUST be ended
+
+#### Scenario: The raw refresh token is never stored
+- GIVEN any issued refresh token
+- WHEN the session store is read
+- THEN no row MUST contain the raw token, only its SHA-256 hash
+
+#### Scenario: A refresh failure does not disclose why
+- GIVEN an unknown, expired, or revoked refresh token
+- WHEN it is presented
+- THEN the system MUST answer with an identical 401 response in all three cases
+
+#### Scenario: A deactivated user cannot refresh
+- GIVEN a signed-in user whose account was deactivated
+- WHEN their refresh token is presented
+- THEN the system MUST answer 401
+- AND the system MUST revoke that session family
+
 ### Requirement: User Password Change
 The system MUST allow any logged-in user to change their password, enforcing at least 4 characters on the backend, and showing client-side visual recommendations (8+ characters, uppercase letter, digit) without blocking submission. The system MUST also allow users to update only their own name and display name.
 (Previously: Password change existed without explicit self-profile authorization.)

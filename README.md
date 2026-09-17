@@ -27,23 +27,75 @@ Copy `.env.example` to `.env`, generate a unique `JWT_SECRET` with at least 32 U
 
 ### Fresh installation and catalog seeds
 
-When `DATABASE_PATH` has no database or SQLite sidecars, startup creates the approved schema (`schema.sql`) and seeds the complete operational catalogs from `seed.sql`: all 6 categories, all 57 tasks, all 6 company vehicles, and all 30 active drivers/fleteros, stamped atomically to `user_version = 1`.
+When `DATABASE_PATH` has no database or SQLite sidecars, startup creates the approved schema (`schema.sql`) and seeds the complete operational catalogs from `seed.sql`: all 6 categories, all 57 tasks, all 6 company vehicles, and all 30 active drivers/fleteros, stamped atomically to `user_version = 2`.
 
 User credentials, operational reports, schedules, photos, and audit logs are intentionally kept out of source control to protect credentials and personal data. Open the web application upon initial boot to complete the one-time administrator setup. To transfer an existing operational database with users, history, and photos between servers, use the verified backup/restore runbook (`make db-backup` / `make db-restore`).
 
 ### Existing installation
 
-When `DATABASE_PATH` identifies an established SQLite database, stage-one startup opens it read-only. It does not migrate, reset, seed, or replace accounts. Login remains available; endpoints that require persistent writes are intentionally unavailable until a separately approved upgrade passes the recovery gate.
+When `DATABASE_PATH` identifies an established SQLite database, startup opens it without
+migrating, resetting, seeding, or stamping it, and never replaces accounts. The schema is
+left exactly as it was found, and that much is enforced.
+
+An established installation is **not** byte-frozen, and treating it as frozen would be wrong.
+Startup still performs the documented 30-day photo retention cleanup, which deletes expired
+report photos, and once the server is serving, login and the operational endpoints write
+through the application: audit records, auth sessions, reports, schedules, and photos.
+Capture the recovery set described below before assuming a startup or a login is
+non-destructive.
 
 An empty, corrupt, partial, sidecar-only, inaccessible, or otherwise ambiguous target fails closed. Resolve the target identity; do not delete files to force fresh classification.
+
+### Authentication and sessions
+
+Access tokens are short-lived JWTs (15 minutes) and stateless: the server cannot revoke one,
+so its lifetime is what limits how long a leaked access token stays useful. The session itself
+is a **refresh token**, opaque and 256-bit, returned by `POST /api/auth/login` alongside the
+access token.
+
+Refresh tokens are persisted only as a SHA-256 hash, never in the clear, so a database read, a
+stolen backup, or a log line cannot yield a usable credential. Sessions are grouped into a
+**family**, and every refresh rotates the token:
+
+| Request | Behaviour |
+| --- | --- |
+| `POST /api/auth/refresh` | Exchanges a refresh token for a new access token and a new refresh token, revoking the one presented. Unauthenticated by design, because a client refreshes precisely when its access token has expired. |
+| `POST /api/auth/logout` | Ends only the session whose refresh token is presented, so logging out on a phone leaves the desktop signed in. The body is optional; the web client sends none. |
+| `POST /api/auth/change-password` | Ends every session of that user, so other devices must authenticate again. |
+
+A refresh token can be dead in two different ways, and they are deliberately not the same:
+
+- **Rotated away.** The legitimate client already holds the successor, so whoever presents it
+  is not that client: the token leaked. The whole family is revoked.
+- **Explicitly revoked**, by logout or a password change. The session simply ended, so the
+  family is left alone. A client retrying after its own logout must not cost the user's other
+  devices.
+
+Every failure on the refresh path answers with the same 401 message, so a caller cannot probe
+whether a token existed, had expired, or had been revoked. Failures are logged with their
+reason rather than written to the audit table: the path is unauthenticated, and persisting a
+row per rejected attempt would let one leaked token amplify into unbounded writes.
+
+Deactivating a user (`is_active = 0`) ends their sessions at the next refresh, and the
+authentication middleware rejects their access tokens immediately. `REFRESH_TOKEN_TTL_DAYS`
+sets the session lifetime and defaults to 30 days.
 
 ### Schema revision and status
 
 A fresh installation stamps the approved schema revision into `PRAGMA user_version`
-(currently **1**) inside the same transaction that seeds reference data. An existing
-database is never migrated, reset, seeded, or stamped by startup, so a database created
-before versioning keeps reporting revision **0** until an explicit approved operation
-changes it — even when its tables happen to match.
+(currently **2**) inside the same transaction that seeds reference data. Revision **2** adds
+`auth_sessions`, which persists refresh-token sessions; revision **1** is the schema as of
+the admin-refactor-loading-rules change. An existing database is never migrated, reset,
+seeded, or stamped by startup, so a database created before versioning keeps reporting
+revision **0** until an explicit approved operation changes it — even when its tables happen
+to match.
+
+Missing tables are judged against the tables the revision a database reports actually
+requires, not against everything this build understands. A revision 1 database legitimately
+lacks `auth_sessions`, so it is reported `outdated` and can be migrated; requiring a table
+its own revision never had would report it `incompatible` instead, and the migration command
+refuses that verdict without ever opening the file for writing, which would leave every
+revision 1 installation permanently unmigratable.
 
 Ask whether a database is up to date with the read-only status command. It prints the
 revision, integrity, table inventory, and verdict; it exits non-zero unless the verdict
@@ -79,11 +131,19 @@ docker exec trindade-api-1 node packages/backend/dist/db/migrate.js   # in the r
 
 The migration command reports the before state read-only, refuses a `newer` or
 `incompatible` database without ever opening it for writing, and only then opens an
-`unversioned` database read-write. The one migration that predates versioning is the legacy
-`report_temperatures` rebuild, which is idempotent: it no-ops once `reading_index` exists and
-then the revision is stamped. Because it writes, run it only after the recovery-gate
-evidence recorded above (snapshot, isolated restore, approval) against the exact target you
-authorized — it is a change to an existing production database, not an inspection.
+`unversioned` or `outdated` database read-write. Migrations are a stepwise list driven by the
+revision the database reports, and each step stamps the revision it produces, so a crash
+between steps resumes at the next pending one instead of re-applying finished work:
+
+| Step | What it does |
+| --- | --- |
+| 0 → 1 | Rebuilds the legacy `report_temperatures` table into the `reading_index` shape. Idempotent: it no-ops once `reading_index` exists. |
+| 1 → 2 | Additive only: creates `auth_sessions` and its indexes with `IF NOT EXISTS`. No rebuild and no data movement. |
+
+A revision 1 database therefore runs only the second step and its temperature data is never
+touched. Because migrating writes, run it only after the recovery-gate evidence recorded
+above (snapshot, isolated restore, approval) against the exact target you authorized — it is
+a change to an existing production database, not an inspection.
 
 Startup reports the verdict, and nothing else. The server logs one line at boot with the
 verdict, the observed revision, the revision this build supports, the integrity result, and
@@ -105,7 +165,7 @@ Trindade supports both standalone VPS deployment and shared reverse proxy topolo
    - Host Nginx terminates HTTPS for `trindademasas.duckdns.org` and proxies to loopback `127.0.0.1:8080` (configured via `WEB_PORT=8080`), avoiding TCP port 80 collisions.
    - `scripts/renew-certbot.sh` automatically detects host `certbot` and reloads Nginx.
 
-2. **Legacy Shared Proxy**:
+2. **Shared Proxy**:
    - If running behind a shared multi-tenant proxy (e.g. `PORTAFOLIO_DIR`), `scripts/renew-certbot.sh` falls back to renewing certificates inside that Compose project.
 
 Validate renewal without touching certificates:
@@ -163,8 +223,9 @@ For the complete step-by-step production rollout, pre-flight gate, schema adopti
 
 The canonical CI gate is `scripts/ci.sh`. It requires Node.js 24, installs the
 lockfile dependencies with `npm ci`, builds both workspaces, runs real TypeScript
-checks for both workspaces, runs the complete backend test suite, and verifies the built
-schema commands with `scripts/verify-schema-clis.sh`. It starts
+checks for both workspaces, runs the complete backend test suite, verifies the built
+schema commands with `scripts/verify-schema-clis.sh`, and proves the committed API
+contract matches the schemas it is generated from. It starts
 from a clean dependency tree and refuses to reuse an existing `node_modules`.
 The declared container target is `node:24-bookworm-slim`.
 
@@ -212,7 +273,7 @@ compiles, neither the API image nor the gate container installs `build-essential
 `python3`; the runner used to install python3 claiming better-sqlite3 needed it at
 runtime, which was never true. A missing prebuild fails the build loudly instead of
 quietly compiling a binary against the running Node headers. Measured on the declared
-engine: 240/240 tests across 33 files and zero native assertions, installed and built
+engine: 280/280 backend tests and zero native assertions, installed and built
 on Node.js 24.21.0 with no compiler and no python3 present; `npm ci` reports no
 deprecation warnings and `npm audit` reports no vulnerabilities. Node.js 24 remains the
 declared target: the container images and `engines.node` both require it, so the
@@ -221,11 +282,18 @@ host's Node.js 22 is the anomaly, not the target.
 ## Testing
 
 ```bash
-# Backend unit tests
+# Backend unit tests. The build is a prerequisite, not an optimisation: db/index.test.ts
+# spawns the built server, so a stale or absent dist/ fails tests unrelated to your change.
+npm run build --workspace=packages/backend
 npm run test --workspace=packages/backend
 
 # Frontend Playwright E2E tests (automatically starts backend + frontend test servers)
 npm run test:e2e --workspace=packages/frontend
+
+# Regenerate the machine-readable API contract, then prove it is current
+npm run contracts:generate --workspace=packages/backend
+bash scripts/verify-openapi-artifact.sh
+bash scripts/verify-schema-clis.sh
 ```
 
 ## Project Structure
@@ -233,29 +301,35 @@ npm run test:e2e --workspace=packages/frontend
 ```
 Trindade/
 ├── packages/
-│   ├── backend/         # Fastify API server
-│   │   └── src/db/      # Schema, seed data, and DB init
-│   └── frontend/        # React SPA
-│       └── src/__e2e__/ # Playwright E2E tests
-├── openspec/            # SDD change artifacts
-├── docker/              # Docker configuration
+│   ├── backend/           # Fastify API server
+│   │   ├── src/db/        # Schema, seed data, and DB init
+│   │   └── src/contracts/ # OpenAPI document, registry, and contract tests
+│   ├── frontend/          # React SPA
+│   │   └── src/__e2e__/   # Playwright E2E tests
+│   └── contracts/         # Generated openapi.json (never edited by hand)
+├── openspec/              # SDD change artifacts
+├── odd/                   # Organic Driven Development task documents
+├── docker/                # Docker configuration
 ├── docker-compose.yml
 ├── Makefile
-└── PRD_Trindade.md      # Product Requirements Document
+└── PRD_Trindade.md        # Product Requirements Document
 ```
 
 ## Milestones and Status
 
 - **Stage 1 (Production Hardening & Operations)**: **Complete**
-  - Schema revision management (`user_version = 1`, `db:status`, `db:migrate`).
+  - Schema revision management (`user_version = 2`, `db:status`, `db:migrate`).
   - Node 24 ABI compatibility (`better-sqlite3@13.0.3` prebuilt N-API).
-  - Production immutability gate (zero automatic startup mutation, strict recovery proofs).
+  - Production immutability gate (zero automatic schema mutation, strict recovery proofs).
   - Operator recovery tooling (`make db-backup`, `make db-restore`, WAL sidecar cleanup).
   - Pruned production container images (zero test or E2E artifacts, 146 dist files).
   - Docker container log rotation (json-file, 10m max-size, 3 files max).
   - Automatic TLS renewal daily cron with zero-downtime Nginx reload and heartbeat.
-  - Automated CI gate: 244 backend unit tests + 53 Playwright E2E tests + 9 schema CLI checks.
+  - Automated CI gate: 280 backend unit tests + 53 Playwright E2E tests + 9 schema CLI checks + generated API contract freshness.
   - Dynamic, zero-fragility clean-checkout verification (`make ci-clone`).
+- **Android prerequisites (in progress)**: refresh-token sessions with rotation and revocation
+  (schema revision 2), and a generated OpenAPI contract for the field-operations surface.
+  Tracked in `odd/tasks/android-app-v1.md`.
 - **Stage 2 (Publishing & Distribution)**: **Prepared**
   - First tagged release: `v0.1.0`.
   - Canonical GitHub Actions CI workflow (`.github/workflows/ci.yml`) prepared for remote push.
