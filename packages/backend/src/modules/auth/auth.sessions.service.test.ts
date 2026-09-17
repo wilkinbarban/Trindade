@@ -11,6 +11,7 @@ import {
   revokeSession,
   revokeUserSessions,
   rotateSession,
+  sessionStoreExists,
 } from './auth.sessions.service.js';
 
 const schema = readFileSync(join(import.meta.dirname, '../../db/schema.sql'), 'utf8');
@@ -77,14 +78,46 @@ describe('auth session service', () => {
     assert.equal(previous.replaced_by, hashRefreshToken(result.refreshToken));
   });
 
-  it('revokes the whole family when an already-rotated token is presented', () => {
+  it('revokes the whole family when a token rotated long ago is presented', () => {
     const first = issueSession(db, adminId, 30);
     const rotated = rotateSession(db, first, 30);
     if (rotated.outcome !== 'rotated') assert.fail('the first rotation did not succeed');
     assert.equal(liveSessionCount(db), 1);
 
+    // Age the rotation past the grace window. At that point a replay is evidence of theft rather
+    // than a lost response, which is the case this branch exists for.
+    db.prepare("UPDATE auth_sessions SET revoked_at = datetime('now', '-1 hour') WHERE token_hash = ?")
+      .run(hashRefreshToken(first));
+
     assert.deepEqual(rotateSession(db, first, 30), { outcome: 'reused' });
     assert.equal(liveSessionCount(db), 0, 'reuse detection left a live session in the family');
+  });
+
+  // A refresh whose response never reached the client, and a replayed token, produce the same
+  // state at the same instant. Only age separates them, and treating the retry as theft would
+  // sign the user out of every device because of one lost packet.
+  it('treats a token rotated seconds ago as a retry and leaves the family alive', () => {
+    const first = issueSession(db, adminId, 30);
+    const rotated = rotateSession(db, first, 30);
+    if (rotated.outcome !== 'rotated') assert.fail('the first rotation did not succeed');
+
+    assert.deepEqual(rotateSession(db, first, 30), { outcome: 'reused-within-grace' });
+    assert.equal(liveSessionCount(db), 1, 'a retry signed the user out of their other devices');
+    assert.equal(
+      rotateSession(db, rotated.refreshToken, 30).outcome,
+      'rotated',
+      'the legitimate successor must still work after a retry',
+    );
+  });
+
+  // The guard the routes consume is fed by this check, so it is proven against a database in the
+  // shape the previous build produced: no session table at all.
+  it('detects a database with no session table', () => {
+    assert.equal(sessionStoreExists(db), true);
+
+    db.exec('DROP TABLE auth_sessions');
+
+    assert.equal(sessionStoreExists(db), false);
   });
 
   it('treats an explicitly revoked token as ended, not as reuse', () => {

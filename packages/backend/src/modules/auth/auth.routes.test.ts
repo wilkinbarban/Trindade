@@ -1,9 +1,12 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert';
 import bcrypt from 'bcryptjs';
+import Fastify from 'fastify';
 import type { FastifyInstance } from 'fastify';
 import type Database from 'better-sqlite3';
 
+import { authRoutes } from './auth.routes.js';
+import { createAuthenticate } from './auth.middleware.js';
 import { buildAuthTestApp, type TestFixtures } from './auth-test-helper.js';
 
 async function loginAs(
@@ -463,6 +466,73 @@ describe('Auth Routes', () => {
         0,
         'the deactivated user kept a live session',
       );
+    });
+  });
+
+  // A database written by the previous build has no session table. The server still boots and says
+  // so; what these cover is that the session endpoints refuse clearly instead of letting a driver
+  // error escape — and on the unauthenticated refresh path, escape to an anonymous caller.
+  describe('A database without the session table', () => {
+    let degraded: FastifyInstance;
+
+    before(async () => {
+      // Same database and secret as the main app, so a token issued there is valid here: the
+      // subject is the missing session store, not a different installation. In server.ts this flag
+      // is fed by `sessionStoreExists`, whose detection the service suite proves directly against
+      // a table-less database.
+      degraded = Fastify({ logger: false });
+      degraded.decorate('db', db);
+      degraded.decorate('authenticate', createAuthenticate(fixtures.jwtSecret));
+      await degraded.register(authRoutes, {
+        prefix: '/api/auth',
+        jwtSecret: fixtures.jwtSecret,
+        sessionStoreAvailable: false,
+      });
+      await degraded.ready();
+    });
+
+    after(async () => {
+      await degraded.close();
+    });
+
+    it('answers 503 with an operator-facing reason instead of a driver error', async () => {
+      const response = await degraded.inject({
+        method: 'POST',
+        url: '/api/auth/login',
+        payload: { username: fixtures.admin.username, password: fixtures.admin.password },
+      });
+
+      assert.strictEqual(response.statusCode, 503, response.body);
+      assert.match(JSON.parse(response.body).error, /db:migrate/);
+      assert.doesNotMatch(response.body, /auth_sessions|SQLITE/, 'the response leaked the schema');
+    });
+
+    it('refuses the unauthenticated refresh path the same way, never with a 500', async () => {
+      const refresh = await degraded.inject({
+        method: 'POST',
+        url: '/api/auth/refresh',
+        payload: { refreshToken: 'any-token-at-all' },
+      });
+
+      assert.strictEqual(refresh.statusCode, 503, refresh.body);
+      assert.doesNotMatch(refresh.body, /SQLITE/, 'an anonymous caller saw a driver error');
+    });
+
+    it('lets logout succeed without touching the session store', async () => {
+      const token = await loginAs(app, fixtures.admin.username, fixtures.admin.password);
+
+      const logout = await degraded.inject({
+        method: 'POST',
+        url: '/api/auth/logout',
+        headers: { authorization: `Bearer ${token}` },
+      });
+
+      // Logout is idempotent and the state it wants already holds when there is no session store:
+      // there is no session to end. Answering 503 would tell a client its logout failed and invite
+      // a retry, so the requirement here is narrower — it must not fail, and must not surface a
+      // driver error.
+      assert.strictEqual(logout.statusCode, 200, logout.body);
+      assert.doesNotMatch(logout.body, /SQLITE/, 'logout surfaced a driver error');
     });
   });
 });

@@ -16,7 +16,8 @@ import type Database from 'better-sqlite3';
  *
  * - **Rotated away** (`replaced_by` set): the client that consumed it already holds its
  *   successor, so whoever presents it is not that client. The token leaked, and the
- *   whole family is revoked.
+ *   whole family is revoked — unless the rotation is recent enough that a lost response is
+ *   the more likely explanation, in which case only the caller is turned away.
  * - **Explicitly revoked** (logout, password change): the session simply ended. A client
  *   retrying after a logout must not be treated as an attacker, so the family is left
  *   alone.
@@ -29,8 +30,16 @@ export type RotateSessionResult =
   | { outcome: 'unknown' }
   | { outcome: 'expired' }
   | { outcome: 'reused' }
+  | { outcome: 'reused-within-grace' }
   | { outcome: 'revoked' }
   | { outcome: 'inactive-user' };
+
+/**
+ * How long after a rotation the previous token may still be a retry rather than a leak: a lost
+ * response and a replay are the same event at the same instant, and only age separates them.
+ * Short enough to be useless to an attacker, long enough to cover a mobile round trip.
+ */
+const ROTATION_RETRY_GRACE_SECONDS = 60;
 
 type SessionRow = {
   id: number;
@@ -39,6 +48,7 @@ type SessionRow = {
   revoked_at: string | null;
   replaced_by: string | null;
   is_expired: number;
+  is_recently_rotated: number;
 };
 
 /** Stable digest of a refresh token. The only form that is ever persisted. */
@@ -57,6 +67,11 @@ function newRefreshToken(): string {
  */
 function dayModifier(days: number): string {
   return `${days < 0 ? '-' : '+'}${Math.abs(days)} days`;
+}
+
+/** Same idea as `dayModifier`, for windows shorter than a day. */
+function secondModifier(seconds: number): string {
+  return `${seconds < 0 ? '-' : '+'}${Math.abs(seconds)} seconds`;
 }
 
 function insertSession(
@@ -121,17 +136,21 @@ export function rotateSession(
     const row = db
       .prepare(
         `SELECT id, user_id, family_id, revoked_at, replaced_by,
-                (expires_at <= datetime('now')) AS is_expired
+                (expires_at <= datetime('now')) AS is_expired,
+                (replaced_by IS NOT NULL AND revoked_at > datetime('now', ?)) AS is_recently_rotated
          FROM auth_sessions
          WHERE token_hash = ?`,
       )
-      .get(tokenHash) as SessionRow | undefined;
+      .get(secondModifier(-ROTATION_RETRY_GRACE_SECONDS), tokenHash) as SessionRow | undefined;
 
     if (!row) return { outcome: 'unknown' };
 
-    // Dead because it was rotated away: its successor already exists, so presenting this
-    // one means the token leaked. Treat the whole family as compromised.
+    // Dead because it was rotated away: its successor already exists, so whoever presents this one
+    // is normally not the client that consumed it. But a response that never arrived, or a
+    // double-submitted refresh, produces this same state, and only age separates a retry from a
+    // replay. Inside the window the caller re-authenticates and every other device keeps working.
     if (row.revoked_at !== null && row.replaced_by !== null) {
+      if (row.is_recently_rotated) return { outcome: 'reused-within-grace' };
       revokeFamily(db, row.family_id);
       return { outcome: 'reused' };
     }
@@ -206,4 +225,15 @@ export function purgeExpiredSessions(db: Database.Database, retentionDays: numbe
          AND created_at < datetime('now', ?)`,
     )
     .run(dayModifier(-retentionDays)).changes;
+}
+
+/**
+ * Whether this database has the session table. Checked against the object the code needs rather
+ * than a schema verdict: a future revision could be `outdated` for a reason unrelated to sessions,
+ * and gating on the verdict would then refuse requests that work perfectly well.
+ */
+export function sessionStoreExists(db: Database.Database): boolean {
+  return Boolean(
+    db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'auth_sessions'").get(),
+  );
 }

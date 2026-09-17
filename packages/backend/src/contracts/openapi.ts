@@ -99,7 +99,6 @@ function buildRegistry(): OpenAPIRegistry {
   registry.register('SuccessResponse', SuccessResponseSchema);
   registry.register('SetupStatusResponse', SetupStatusResponseSchema);
   registry.register('SetupResponse', SetupResponseSchema);
-  registry.register('SuccessResponse', SuccessResponseSchema);
   registry.register('TextResponse', TextResponseSchema);
   registry.register('Pagination', PaginationSchema);
   registry.register('Schedule', ScheduleSchema);

@@ -8,6 +8,7 @@ import { openDatabase } from './db/index.js';
 import { schemaNoticeForStartup } from './db/schema-notice.js';
 import { authRoutes } from './modules/auth/auth.routes.js';
 import { createAuthenticate } from './modules/auth/auth.middleware.js';
+import { sessionStoreExists } from './modules/auth/auth.sessions.service.js';
 import { dashboardRoutes } from './modules/dashboard/dashboard.routes.js';
 import { reportsRoutes } from './modules/reports/reports.routes.js';
 import { cleanupExpiredPhotos, getPhotoByPublicToken } from './modules/reports/reports.lifecycle.service.js';
@@ -42,6 +43,16 @@ if (schemaNotice.level === 'warn') {
   server.log.info(schemaNotice.payload, schemaNotice.message);
 }
 
+// The session endpoints need one table that startup deliberately never creates. Check for it once
+// and tell the operator what to do, instead of letting the first sign-in fail with a driver error
+// that names an internal table.
+const sessionStoreAvailable = sessionStoreExists(db);
+if (!sessionStoreAvailable) {
+  server.log.warn(
+    'auth_sessions is missing: sign-in, refresh and logout will answer 503 until an operator runs db:migrate',
+  );
+}
+
 // CORS — allow Vite dev server and any origin in development
 await server.register(cors, {
   origin: true,
@@ -65,6 +76,7 @@ await server.register(authRoutes, {
   prefix: '/api/auth',
   jwtSecret: config.jwtSecret,
   refreshTokenTtlDays: config.refreshTokenTtlDays,
+  sessionStoreAvailable,
 });
 await server.register(bootstrapRoutes, { prefix: '/api/auth' });
 await server.register(dashboardRoutes, { prefix: '/api/dashboard' });

@@ -29,6 +29,11 @@ export interface AuthRoutesOptions {
   jwtSecret: string;
   /** Refresh-token lifetime in days. Optional because test helpers register without it. */
   refreshTokenTtlDays?: number;
+  /**
+   * Whether the database has the session table. Defaults to true so test helpers that register
+   * without it exercise the normal path; `server.ts` always passes the real check.
+   */
+  sessionStoreAvailable?: boolean;
 }
 
 interface UserRow {
@@ -42,6 +47,21 @@ interface UserRow {
 
 export async function authRoutes(fastify: FastifyInstance, options: AuthRoutesOptions) {
   const refreshTokenTtlDays = options.refreshTokenTtlDays ?? DEFAULT_REFRESH_TOKEN_TTL_DAYS;
+  const sessionStoreAvailable = options.sessionStoreAvailable ?? true;
+
+  /**
+   * Refuse a session request with an operator-facing reason instead of letting the driver error
+   * escape: on `/api/auth/refresh`, which is unauthenticated, that error would reach an anonymous
+   * caller and name an internal table.
+   */
+  function refuseWithoutSessionStore(request: FastifyRequest, reply: FastifyReply) {
+    request.log.error(
+      'auth_sessions is missing: refusing a session request instead of surfacing a driver error',
+    );
+    return reply.status(503).send({
+      error: 'This database has no session store yet. Run db:migrate, then sign in again.',
+    });
+  }
 
   fastify.post(
     '/login',
@@ -57,6 +77,8 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRoutesOp
 
       const { username, password } = parse.data;
       const db = fastify.db;
+
+      if (!sessionStoreAvailable) return refuseWithoutSessionStore(request, reply);
 
       const user = db
         .prepare(
@@ -126,9 +148,18 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRoutesOp
         });
       }
 
+      if (!sessionStoreAvailable) return refuseWithoutSessionStore(request, reply);
+
       const result = rotateSession(fastify.db, parse.data.refreshToken, refreshTokenTtlDays, request.ip);
 
       if (result.outcome !== 'rotated') {
+        if (result.outcome === 'reused-within-grace') {
+          // A retry of a rotation whose response was lost, or a double-submitted refresh. The
+          // family is left alone on purpose: this device authenticates again, and no other
+          // device is signed out by a transient network failure.
+          request.log.warn('Refresh token presented shortly after rotation; treated as a retry');
+          return reply.status(401).send({ error: 'Invalid or expired session' });
+        }
         // Every failure answers identically so a caller cannot probe whether a token
         // existed, had expired, or had been revoked. The reason is logged, not written to
         // the audit table: this path is unauthenticated, and persisting a row per attempt
@@ -358,7 +389,7 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRoutesOp
       // Ends only the session this client is holding. Other devices stay logged in, which
       // is why this is not `revokeUserSessions`: logging out on a phone must not end the
       // desktop's session.
-      if (parse.data.refreshToken) {
+      if (parse.data.refreshToken && sessionStoreAvailable) {
         revokeSession(fastify.db, parse.data.refreshToken);
       }
 
