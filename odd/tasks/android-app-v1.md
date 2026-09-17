@@ -275,7 +275,7 @@ and green:
 | B2.1 | harness + `auth` (8 paths / 9 operations) | DONE |
 | B2.2 | `loading` (10 paths / 13 operations) | DONE |
 | B2.3 | `reports` (15 routes) | pending |
-| B2.4 | `dashboard` (1 route) + shared route registration + the coverage test | pending |
+| B2.4 | `dashboard` (1 route) + shared route registration + the coverage test | delivered |
 
 The coverage test lands in B2.4, once every field-operations path is registered and it can
 pass. Until then the CI freshness check still guarantees the artifact matches the schemas,
