@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, it } from 'node:test';
 import Database from 'better-sqlite3';
 import { REFERENCE_DATASET, verifyReferencePrerequisites } from '../../db/reference-data.js';
 import {
+  createSessionStoreCheck,
   hashRefreshToken,
   issueSession,
   purgeDeadSessions,
@@ -118,6 +119,20 @@ describe('auth session service', () => {
     db.exec('DROP TABLE auth_sessions');
 
     assert.equal(sessionStoreExists(db), false);
+  });
+
+  // The asymmetry is deliberate, and it is what keeps a skipped revocation honest: a positive
+  // answer is trusted because a table does not vanish under a live process, while a negative one
+  // is re-checked because a table can APPEAR under it when an operator migrates.
+  it('re-checks the session table only while the boot-time answer was negative', () => {
+    const trusted = createSessionStoreCheck(db, true);
+    assert.equal(trusted(), true);
+    db.exec('DROP TABLE auth_sessions');
+    assert.equal(trusted(), true, 'a positive answer must not be re-queried on every request');
+
+    const late = createSessionStoreCheck(db, false);
+    db.exec('CREATE TABLE auth_sessions (id INTEGER PRIMARY KEY)');
+    assert.equal(late(), true, 'a table that appeared after boot must be seen without a restart');
   });
 
   it('treats an explicitly revoked token as ended, not as reuse', () => {

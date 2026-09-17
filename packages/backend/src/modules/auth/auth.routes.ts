@@ -30,10 +30,12 @@ export interface AuthRoutesOptions {
   /** Refresh-token lifetime in days. Optional because test helpers register without it. */
   refreshTokenTtlDays?: number;
   /**
-   * Whether the database has the session table. Defaults to true so test helpers that register
-   * without it exercise the normal path; `server.ts` always passes the real check.
+   * Resolves whether the database has the session table, called on the paths that need it.
+   * Defaults to a positive answer so test helpers that register without it exercise the normal
+   * path; `server.ts` passes `createSessionStoreCheck`, which cannot answer "absent" for a table
+   * that has since appeared.
    */
-  sessionStoreAvailable?: boolean;
+  sessionStoreAvailable?: () => boolean;
 }
 
 interface UserRow {
@@ -47,7 +49,7 @@ interface UserRow {
 
 export async function authRoutes(fastify: FastifyInstance, options: AuthRoutesOptions) {
   const refreshTokenTtlDays = options.refreshTokenTtlDays ?? DEFAULT_REFRESH_TOKEN_TTL_DAYS;
-  const sessionStoreAvailable = options.sessionStoreAvailable ?? true;
+  const sessionStoreAvailable = options.sessionStoreAvailable ?? (() => true);
 
   /**
    * Refuse a session request with an operator-facing reason instead of letting the driver error
@@ -78,7 +80,7 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRoutesOp
       const { username, password } = parse.data;
       const db = fastify.db;
 
-      if (!sessionStoreAvailable) return refuseWithoutSessionStore(request, reply);
+      if (!sessionStoreAvailable()) return refuseWithoutSessionStore(request, reply);
 
       const user = db
         .prepare(
@@ -148,7 +150,7 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRoutesOp
         });
       }
 
-      if (!sessionStoreAvailable) return refuseWithoutSessionStore(request, reply);
+      if (!sessionStoreAvailable()) return refuseWithoutSessionStore(request, reply);
 
       const result = rotateSession(fastify.db, parse.data.refreshToken, refreshTokenTtlDays, request.ip);
 
@@ -338,7 +340,7 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRoutesOp
       // Guarded for the same reason as login and refresh, and placed before the password UPDATE
       // on purpose: without it the handler would change the credential and only then throw on the
       // missing session table, leaving the password replaced with no session revoked.
-      if (!sessionStoreAvailable) return refuseWithoutSessionStore(request, reply);
+      if (!sessionStoreAvailable()) return refuseWithoutSessionStore(request, reply);
 
       const { currentPassword, newPassword } = parse.data;
       const userId = request.user!.sub;
@@ -394,7 +396,7 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRoutesOp
       // Ends only the session this client is holding. Other devices stay logged in, which is why
       // this is not `revokeUserSessions`: logging out on a phone must not end the desktop's session.
       if (parse.data.refreshToken) {
-        if (sessionStoreAvailable) {
+        if (sessionStoreAvailable()) {
           revokeSession(fastify.db, parse.data.refreshToken);
         } else {
           // Nothing to revoke without the table, so the caller still gets a success: the state it

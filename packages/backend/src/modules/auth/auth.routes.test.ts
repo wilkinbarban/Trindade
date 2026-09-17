@@ -486,7 +486,7 @@ describe('Auth Routes', () => {
       await degraded.register(authRoutes, {
         prefix: '/api/auth',
         jwtSecret: fixtures.jwtSecret,
-        sessionStoreAvailable: false,
+        sessionStoreAvailable: () => false,
       });
       await degraded.ready();
     });

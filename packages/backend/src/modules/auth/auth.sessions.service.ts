@@ -245,3 +245,23 @@ export function sessionStoreExists(db: Database.Database): boolean {
     db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'auth_sessions'").get(),
   );
 }
+
+/**
+ * A session-table check that cannot go stale in the direction that matters.
+ *
+ * A table can APPEAR while a process is running — an operator migrating — but it does not
+ * disappear underneath a live process. So a positive answer is trusted and a negative one is
+ * re-checked. Without that, a server that booted before a migration would keep answering
+ * "absent" forever, and a logout on it would report success while a session created by another
+ * process stayed live: the one way the skip could be a lie rather than a no-op.
+ */
+export function createSessionStoreCheck(
+  db: Database.Database,
+  initiallyAvailable: boolean,
+): () => boolean {
+  let knownAvailable = initiallyAvailable;
+  return () => {
+    if (!knownAvailable) knownAvailable = sessionStoreExists(db);
+    return knownAvailable;
+  };
+}
