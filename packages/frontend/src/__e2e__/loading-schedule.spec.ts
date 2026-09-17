@@ -232,7 +232,7 @@ test.describe('Loading Schedule — Fletero Assignment and Quota', () => {
     await expect(quota).toContainText('/3');
   });
 
-  test('4.2 blocks 4th fletero with quota limit error', async ({ page }) => {
+  test('4.2 allows a 4th fletero and shows the exceeded quota as a warning', async ({ page }) => {
     const date = today();
 
     // Clean up: delete all existing schedules for 04:00 today

@@ -480,7 +480,7 @@ The client-side concern does not argue for either window. The server returns `ca
 `readOnly` itself and both the history and detail views render those flags, so no client computes
 a boundary under either rule.
 
-### C2. Document the fletero quota as deliberate indicative behavior
+### C2. Document the fletero quota as deliberate indicative behavior — DONE
 
 The implementation is informative only, and backend tests explicitly assert a
 4th fletero is accepted. `openspec/specs/loading-schedule/spec.md` currently
@@ -494,11 +494,10 @@ system intentionally does not raise. The Android client shows a counter only.
 The web UI already behaves this way, so nothing in the SPA changes. Two names must
 be corrected, because they are the reason this was confusing in the first place:
 
-- The E2E test `packages/frontend/src/__e2e__/loading-schedule.spec.ts`, currently
-  named `4.2 blocks 4th fletero with quota limit error`, asserts the OPPOSITE of its
-  name: it expects the 4th fletero to return `201`, expects the add buttons to stay
-  visible, and expects the indicator to read `4/3` plus a warning. Rename it to
-  describe the informative behavior.
+- The E2E test `packages/frontend/src/__e2e__/loading-schedule.spec.ts`, which was named `4.2
+  blocks 4th fletero with quota limit error` and asserted the OPPOSITE of its name: it expected the
+  4th fletero to return `201`, expected the add buttons to stay visible, and expected the indicator
+  to read `4/3` plus a warning. Renamed to describe the informative behavior.
 - The loading-schedule spec requirement itself, as above.
 
 **Two more places, found by mapping before writing.** Both overstate a rule that does not exist:
@@ -518,6 +517,36 @@ be corrected, because they are the reason this was confusing in the first place:
 lives only in the SPA as a display and a warning, and `openapi.ts:324-327` already documents the
 informative behavior. Six backend tests assert the 4th fletero is accepted; none asserts a
 rejection. Documenting "no enforcement" is therefore accurate rather than aspirational.
+
+**Delivered.** Seven artifacts, six of which claimed something the system does not do:
+
+- `openspec/specs/loading-schedule/spec.md` -- the Fletero Quota Validation requirement now states
+the limit is indicative, with `(Previously: ...)` recording what it used to require, its rejection
+scenario replaced by an acceptance one, and its repository Purpose line corrected from "quota
+enforcement" to "indicative quota display".
+- `openspec/specs/advanced-editing/spec.md` -- the second requirement, which demanded rejection and
+a rollback on the edit path, now states the opposite and keeps the rollback language scoped to
+"on that ground", so the requirement stops implying the transaction enforces nothing at all.
+- `PRD_Trindade.md` -- section 20 no longer promises an error message the system never raises, and
+the MVP checklist item reads "Regla indicativa de 3 fleteros (no bloquea)".
+- `packages/frontend/src/__e2e__/loading-schedule.spec.ts` -- test 4.2 renamed to what it asserts.
+- `packages/frontend/src/__e2e__/admin-edit-export.spec.ts` -- test 4.3 was named "quota
+enforcement ... rejected at API level" while asserting only that the indicators render, and its
+comments cited two backend tests by name and line number (`loading.routes.test.ts` lines 307 and
+568) that do not exist. Renamed, and the false citations replaced with the tests that do assert
+this behavior.
+- `packages/backend/src/modules/loading/loading.routes.schedules.test.ts` -- a section comment
+reading "Quota Enforcement: Max 3 fleteros" sat above tests asserting acceptance.
+
+Evidence: 326/326 backend tests, typecheck clean, contract artifact unchanged, full gate green in
+a fresh clone including 53/53 Playwright E2E -- the renamed E2E tests still pass under their new
+names, which is the check that a rename did not quietly change what runs.
+
+**Left as an observation, not fixed here.** The edit path's real constraints -- driver and vehicle
+uniqueness per date -- are enforced in the transaction and asserted by tests, but no requirement
+states them. That is the mirror image of this slice: not a spec overstating the code, but a code
+behavior no spec describes. It belongs with whoever next touches scheduling, and it was left out
+rather than expanded into this slice's scope.
 
 ---
 

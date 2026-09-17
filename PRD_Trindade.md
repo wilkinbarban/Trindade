@@ -447,9 +447,13 @@ Características:
 
 # 20. Regla de Capacidad
 
-Máximo:
+Límite indicativo:
 
 3 fleteros por horario.
+
+La regla es orientativa, no un bloqueo. El sistema **no rechaza** al cuarto fletero: lo acepta y
+marca el exceso para que logística lo vea y decida. Responde a la operación real de la empresa,
+no a una validación del software.
 
 Ejemplo:
 
@@ -459,17 +463,15 @@ Ejemplo:
 * José
 * Marcos
 
-Intento de agregar:
+Se agrega:
 
 * Antônio
 
 Resultado:
 
-Error.
+Se acepta.
 
-Mensaje:
-
-"No es posible agregar más fleteros en este horario. El límite máximo es 3."
+La pantalla muestra 4/3 y una advertencia de que se superó el límite indicativo.
 
 ---
 
@@ -628,7 +630,7 @@ Fase 1 obligatoria:
 * Recebimento.
 * Fotos.
 * Horário de carregamento.
-* Regla de 3 fleteros.
+* Regla indicativa de 3 fleteros (no bloquea).
 * Copiar para WhatsApp.
 * Historial.
 * SQLite.

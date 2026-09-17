@@ -20,7 +20,9 @@ The system MUST allow users to edit existing reports using the same builder form
 - AND the UI MUST show the report as read-only
 
 ### Requirement: Loading Schedule Editing and Quota Revalidation
-The system MUST allow editing loading schedules while strictly enforcing the max-3 fleteros per time slot quota within a single database transaction.
+The system MUST allow editing loading schedules within a single database transaction.
+The system MUST NOT enforce the max-3 fleteros per time slot quota on this path. That quota is indicative only, so an edit that exceeds it MUST succeed and MUST NOT roll back for that reason.
+(Previously: The system enforced the max-3 fleteros quota on edit and required the update to be rejected with the transaction rolled back when the target slot already held 3 fleteros.)
 
 #### Scenario: Schedule edit successful
 - GIVEN an existing loading schedule
@@ -29,12 +31,12 @@ The system MUST allow editing loading schedules while strictly enforcing the max
 - AND the new time slot's usage count MUST increment
 - AND the old time slot's usage count MUST decrement
 
-#### Scenario: Schedule edit fails due to quota violation
+#### Scenario: Schedule edit beyond quota is accepted
 - GIVEN an existing loading schedule
-- WHEN a user attempts to change it to a time slot that already has 3 fleteros scheduled
-- THEN the system MUST reject the update
-- AND the database transaction MUST roll back
-- AND the UI MUST display an error message explaining the quota violation
+- WHEN a user changes it to a time slot that already has 3 fleteros scheduled
+- THEN the system MUST update the schedule successfully
+- AND the database transaction MUST NOT roll back on that ground
+- AND the interface MUST show the count and an indication that the quota was exceeded
 
 #### Scenario: Schedule edit fails due to invalid time slot
 - GIVEN an existing loading schedule

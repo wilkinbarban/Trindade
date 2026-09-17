@@ -1,7 +1,7 @@
 # Loading Schedule Specification
 
 ## Purpose
-Core scheduling CRUD, driver assignment, and quota enforcement for daily loading operations.
+Core scheduling CRUD, driver assignment, and indicative quota display for daily loading operations.
 
 ## Requirements
 
@@ -25,18 +25,20 @@ The system MUST manage one active loading batch per creation date. Entries MUST 
 - THEN the system MUST reject the assignment
 
 ### Requirement: Fletero Quota Validation
-The system MUST restrict 'fletero' drivers to maximum 3 in any rolling 60-minute window per date.
-(Previously: Limit was 3 fleteros per discrete slot)
+The system MUST treat the limit of 3 fleteros in a rolling 60-minute window as indicative only. The system MUST accept an assignment that exceeds it and MUST NOT reject, block, or roll back the operation on that ground.
+The system MUST surface the count and an indication that the quota was exceeded, because the limit reflects company logistics practice rather than a constraint the software enforces.
+(Previously: The system restricted 'fletero' drivers to maximum 3 in any rolling 60-minute window per date, and rejected the 4th assignment.)
 
 #### Scenario: Assignment within quota
 - GIVEN 2 active fleteros in a 60-minute window
 - WHEN 3rd fletero scheduled
 - THEN system accepts assignment
 
-#### Scenario: Rejection when quota exceeded
+#### Scenario: Assignment beyond quota is accepted
 - GIVEN 3 active fleteros in a 60-minute window
 - WHEN 4th fletero scheduled
-- THEN system MUST reject the assignment
+- THEN the system MUST accept the assignment
+- AND the interface MUST show the count and an indication that the quota was exceeded
 
 ### Requirement: Driver Listing and Creation
 The system MUST provide capabilities to list and quickly create fleteros. Worker-created fleteros MUST be available as universal scheduling options.

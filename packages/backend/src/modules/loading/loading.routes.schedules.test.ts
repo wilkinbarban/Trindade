@@ -156,7 +156,7 @@ describe('Loading Schedule Routes', () => {
     assert.strictEqual(res.statusCode, 400);
   });
 
-  // ---- Quota Enforcement: Max 3 fleteros ----
+  // ---- Quota is indicative: the max of 3 fleteros is not enforced ----
 
   it('POST /schedules accepts the 3rd fletero (within quota)', async () => {
     const d1 = seedDriver(db, 'Fletero Quota A', 'QTA0001');

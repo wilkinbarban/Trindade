@@ -147,17 +147,13 @@ test.describe('Admin Edit & Export (Phase 4)', () => {
     // tested via backend integration tests.
   });
 
-  test('4.3 quota enforcement — overloading a time slot is rejected at API level', async ({ page }) => {
-    // This test verifies that the quota enforcement for loading schedules
-    // works at the API level (verified via backend integration tests).
-    //
-    // Backend test coverage:
-    // - loading.routes.test.ts line 307: "POST /schedules rejects 4th fletero with 409"
-    // - loading.routes.test.ts line 568: "PATCH /schedules/:id rolls back on quota violation"
-    //
-    // Frontend E2E coverage:
-    // - loading-schedule.spec.ts line 156: "4.2 blocks 4th fletero with quota limit error"
-    //   This test already creates 3 fleteros in a slot and verifies the 4th gets HTTP 409
+  test('4.3 quota is indicative — the slot shows the limit and the add action stays available', async ({ page }) => {
+    // The fletero limit is informative by an explicit business decision, so nothing rejects a 4th
+    // assignment: not this UI, and not the API behind it. This test asserts the indicative half --
+    // that the count an operator reads is present, and that the interface does not withhold the
+    // add action. Acceptance of a 4th fletero is asserted where it actually happens, in
+    // loading-schedule.spec.ts ("4.2 allows a 4th fletero and shows the exceeded quota as a
+    // warning") and in loading.routes.schedules.test.ts.
 
     // Navigate to loading schedule page to verify UI reflects quota
     await goToProtected(page, '/loading');
@@ -168,12 +164,11 @@ test.describe('Admin Edit & Export (Phase 4)', () => {
     await expect(quota04).toBeVisible();
     await expect(quota04).toContainText('/3 fleteros');
 
-    // Verify "add fletero" button exists for empty slots (UI allows adding within quota)
+    // The add action stays available, which is what "indicative" means in the interface.
     const addBtn = page.locator('[data-testid="add-fletero-04-00"]');
     await expect(addBtn).toBeVisible();
 
-    // The actual quota enforcement is tested by loading-schedule.spec.ts
-    // (test "4.2 blocks 4th fletero with quota limit error") which
-    // creates 3 fleteros via API and verifies HTTP 409 on the 4th.
+    // Nothing here asserts a rejection, because there is none to assert. If a later change makes
+    // the limit blocking, this expectation is where it should start failing.
   });
 });
