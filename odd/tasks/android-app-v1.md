@@ -352,21 +352,72 @@ and must not make subtractive ones. That is why `is_active` and `creator_name` �
 the projection spreads through, duplicating `isActive` and `creator` — are documented rather
 than removed.
 
-### B2.3 to B2.4
+### B2.3. The reports surface — DONE (two slices)
 
-B2.3 covers `reports` the same way. It is also where the unguarded
-`JSON.parse(item.selected_products)` (`reports/export.service.ts:136`) and the `as any[]` cast
-in `enrichReport` finally get a schema to validate against, which is the concrete payoff of
-moving responses to Zod. Note that `reports.schema.ts` declares its own `HistoryQuerySchema`
-and `HistoryPagination` alongside loading's; the report slice should reuse
-`contracts/common.schema.ts` rather than adding a third copy.
+**B2.3a** gave `reports` the schemas the plan called for: the response shapes plus a photo
+shape, `parseSelectedProducts()` replacing two unguarded `JSON.parse` calls, and a named row
+shape where an `as any[]` cast had been. Four advisories from an earlier review landed here
+too. `reports.schema.ts` kept its own `HistoryQuerySchema` and `HistoryPagination`; the
+duplication against `contracts/common.schema.ts` is recorded as an open decision rather than
+resolved, because collapsing it belongs with a slice that touches both modules.
 
-B2.4 covers `dashboard` and additionally extracts the production route registration out of
-`server.ts` into a shared function that the contract test also calls. Without that, the
-coverage test would have to compare the document against a test app that registers test-only
-routes, or against a second hand-written list that can drift from what the server actually
-serves. It must also normalise `{param}` back to `:param`, because the registry deliberately
-writes OpenAPI templates while Fastify registers `:param` routes.
+**B2.3b** registered the fifteen reports operations across ten paths, taking the artifact to
+28 paths, 37 operations and 23 components.
+
+Evidence: backend suite 312/312, artifact freshness check current, full canonical gate green
+in a fresh clone.
+
+The review caught the slice's real defect, and it is the one worth remembering:
+`R3-double-plus-nan`. A string concatenation written as `+ + 'string'` parsed as *unary plus*
+and produced `NaN`, which corrupted a description **inside the committed artifact**. Nothing
+typed it, nothing tested it, and the generated JSON is exactly where a human reader is least
+likely to look. The fix added a guard test for degenerate text, and the lesson is that a
+generated artifact is still code that needs a test standing behind it.
+
+### B2.4. The dashboard surface and the coverage harness — DONE
+
+This closes B2c. The contract is now enforced rather than merely written down.
+
+Delivered:
+
+- `registerApiRoutes(fastify, options)` in `src/routes.ts` holds every route the API serves.
+  `server.ts` keeps what is about running a process — configuration, the database handle,
+  CORS, multipart, the startup notices, the retention cleanups and the listener. The
+  extraction is what makes the coverage test possible: had the routes stayed in `server.ts`,
+  the test would have had to repeat the list by hand, and a hand-repeated list is the drift
+  the test exists to catch.
+- `contracts/route-coverage.test.ts` registers the same set on a throwaway instance, collects
+  what Fastify actually accepted through its public `onRoute` hook, and requires every route
+  to appear in the document or in an explicit out-of-scope set. Both directions are asserted:
+  nothing served is undescribed, and nothing described is unserved. Admin and audit are the
+  declared exclusion, with the scope decision written next to it, so a new route forces a
+  decision instead of escaping the contract.
+- `modules/dashboard/dashboard.schema.ts`, so a count the summary never produces cannot pass
+  as one it does.
+
+Evidence: backend suite 315/315 (3 new coverage tests), artifact regenerated to 32 paths, 41
+operations and 26 components, freshness check current, and the full canonical gate green in a
+fresh clone including 53/53 Playwright E2E. Those E2E tests run against `server.ts`, so they
+are also the proof that moving the registration out of it broke nothing at runtime.
+
+**Change to the plan, forced by the harness.** Building the coverage test exposed four routes
+that were served and undescribed, including an error of my own from B2.3b: the document
+described `/api/reports/photos/public/{token}`, which answers 404 in practice, and not
+`/p/{token}`, which is the route that works and the one the WhatsApp exports point at. All
+four are now documented — the dashboard summary, the liveness probe, the user options the
+history filters use, and that short public photo link. The parameter normalisation went as
+planned: the registry writes OpenAPI templates and Fastify registers `:param` routes, so the
+comparison maps one to the other.
+
+**Review outcome.** `review-9ce78fe16bf0bb6f`, medium tier, one consolidated lens
+(`review-reliability`), approved on the first pass with no correction. Its single finding was
+the slice's real weakness: the test compared paths and ignored HTTP methods, so a document
+naming the right path with the wrong verb passed as a match. The reviewer marked it
+non-blocking, and it was fixed as the follow-up commit it asked for rather than as a
+re-review. Proven by negative control instead of assertion: flipping the server's health route
+from GET to POST while the document still said GET made the suite fail with both messages
+(`these routes are served but not described with that verb`, `the document describes
+operations that do not exist`). Before the fix that same mutation passed.
 
 ---
 
