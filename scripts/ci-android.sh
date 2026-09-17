@@ -81,9 +81,16 @@ printf 'cleartext exemption present in debug and absent in release; allowBackup 
 
 # The guard is a rule with no default, so its failure mode deserves a test. Without this, a future
 # refactor could quietly remove the guard and every other check here would still pass.
+#
+# --rerun-tasks is not decoration. The guard is a doFirst on the task that generates BuildConfig, and
+# Gradle skips a task's actions when it considers that task up to date. The release build above ran
+# with a different base URL, which changes that task's inputs and forces it to run, so this check
+# passes without the flag -- but only as a side effect of the step above it. A test whose outcome
+# depends on an undeclared precondition reports success for the wrong reason the day that
+# precondition changes, so the dependence is removed here rather than left implicit.
 section 'Assert a release build refuses to run without a base URL'
 guard_log="$(mktemp)"
-if ./gradlew assembleRelease --no-daemon >"$guard_log" 2>&1; then
+if ./gradlew assembleRelease --rerun-tasks --no-daemon >"$guard_log" 2>&1; then
   printf 'A release build succeeded without -PapiBaseUrl. The guard that stops a release from silently pointing at the development loopback is gone or bypassed.\n' >&2
   exit 1
 fi

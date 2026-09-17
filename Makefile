@@ -73,19 +73,29 @@ ci-clone:
 
 # Run the Android lane in the SDK image. The canonical gate image has no JDK, and a bare host has no
 # Java, Gradle or Android SDK at all, so this lane brings its own toolchain rather than asking a
-# developer to install 3-5 GB. Three details are load-bearing:
-#   * it runs as the INVOKING USER, never as root. Running as root wrote root-owned build output into
-#     the mounted repository, which git ignores and therefore hides, but the ci-clone copy step cannot
-#     read, so the Node gate then died with "Permission denied". Same class of defect as the
-#     npm-cache poisoning documented above.
+# developer to install 3-5 GB. Four details are load-bearing:
+#   * the SDK install runs as ROOT, in its own invocation, and only the build runs as the invoking
+#     user. A named volume mounted over /opt/android-sdk-linux is seeded from the image's SDK
+#     directory, which is root-owned, so a non-root process cannot create platforms/android-37.0 in
+#     it. Seeding the directory is not the same as granting write permission to the host UID, and
+#     conflating the two made the first run on a fresh volume fail -- a state this host could not
+#     reach, because its volume was already populated. The install leaves root-owned files that are
+#     world-readable, and the build only reads them.
+#   * the build runs as the INVOKING USER, never as root. Running as root wrote root-owned build
+#     output into the mounted repository, which git ignores and therefore hides, but the ci-clone
+#     copy step cannot read, so the Node gate then died with "Permission denied". Same class of
+#     defect as the npm-cache poisoning documented above.
 #   * GRADLE_USER_HOME is a host directory rather than a named volume, because host directories are
 #     already owned by the invoking user and need no chown.
-#   * the SDK platform is installed into a named volume only when absent. Mounting a volume over the
-#     image's SDK path initialises it from the image, so the first run seeds it and later runs skip
-#     the install; a fresh volume pays for it once.
+#   * the install is skipped when the platform is already present, so only a fresh volume pays.
 ci-android:
 	@set -euo pipefail; \
 	mkdir -p "$$HOME/.cache/trindade-gradle"; \
+	docker run --rm \
+		--user 0:0 \
+		--volume "trindade-android-sdk:/opt/android-sdk-linux" \
+		ghcr.io/cirruslabs/android-sdk:35 \
+		bash -c 'if [ ! -d /opt/android-sdk-linux/platforms/android-37.0 ]; then sdkmanager --install "platforms;android-37.0"; fi'; \
 	docker run --rm \
 		--user "$$(id -u):$$(id -g)" \
 		--env GRADLE_USER_HOME=/gradle-home \
@@ -95,7 +105,7 @@ ci-android:
 		--volume "$$(git rev-parse --show-toplevel):/work" \
 		--workdir /work \
 		ghcr.io/cirruslabs/android-sdk:35 \
-		bash -c 'if [ ! -d /opt/android-sdk-linux/platforms/android-37.0 ]; then sdkmanager --install "platforms;android-37.0"; fi; bash scripts/ci-android.sh'
+		bash scripts/ci-android.sh
 
 db-reset:
 	rm -f packages/backend/data/trindade.db
