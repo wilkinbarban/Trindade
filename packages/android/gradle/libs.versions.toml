@@ -14,6 +14,9 @@ okhttp = "5.5.0"
 kotlinxSerializationJson = "1.11.0"
 # Needed for runBlocking at the interceptor boundary, and for the test that exercises concurrency.
 coroutines = "1.11.0"
+# Needed to drive viewModelScope in a test: it runs on Dispatchers.Main, which a JVM test has no
+# implementation of until one is installed.
+coroutinesTest = "1.11.0"
 # The 3.x-style MockWebServer artifact, not mockwebserver3: same version, and the API the tests use is
 # the familiar one.
 mockwebserver = "5.5.0"
@@ -35,6 +38,7 @@ okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhtt
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 mockwebserver = { group = "com.squareup.okhttp3", name = "mockwebserver", version.ref = "mockwebserver" }
+kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutinesTest" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 
 [plugins]
