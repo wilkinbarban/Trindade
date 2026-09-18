@@ -1,6 +1,8 @@
 package com.trindade.app.di
 
 import com.trindade.app.BuildConfig
+import com.trindade.app.network.AuthApi
+import com.trindade.app.network.SystemApi
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -43,4 +45,14 @@ object NetworkModule {
             .client(client)
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
+
+    // The hand-written interfaces are the only ones Retrofit is asked to implement. Nothing generated
+    // is exposed here on purpose: the contract supplies the types, and the calls are this client's.
+    @Provides
+    @Singleton
+    fun provideAuthApi(retrofit: Retrofit): AuthApi = retrofit.create(AuthApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideSystemApi(retrofit: Retrofit): SystemApi = retrofit.create(SystemApi::class.java)
 }

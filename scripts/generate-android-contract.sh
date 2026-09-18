@@ -123,4 +123,12 @@ mv "$out_dir" "$out_dir.replaced" 2>/dev/null || true
 mv "$staging_dir" "$out_dir"
 rm -rf "$out_dir.replaced"
 
+# Only the models are wanted. The generator also emits an `infrastructure/` tree whose ApiClient is
+# a complete Retrofit configuration of its own -- with an OkHttp logging interceptor and a scalars
+# converter, two dependencies this app does not carry and should not. This client configures Retrofit
+# itself in NetworkModule, so the generated ApiClient is dead weight that would not even compile.
+# No model imports anything from that tree; if one ever does, the compile fails loudly here rather
+# than silently, which is the right way for this assumption to break.
+rm -rf "$out_dir/src/main/kotlin/com/trindade/app/contract/infrastructure"
+
 printf 'Generated %s Kotlin files into %s\n' "$generated_count" "$out_dir"

@@ -46,8 +46,6 @@ import kotlinx.serialization.Contextual
  * @param createdAt 
  * @param updatedAt 
  * @param isActive 
- * @param creatorName 
- * @param isActive 
  * @param readOnly 
  * @param canEdit 
  * @param canDeactivate 
@@ -96,12 +94,6 @@ data class Schedule (
 
     @SerialName(value = "updated_at")
     val updatedAt: kotlin.String,
-
-    @SerialName(value = "is_active")
-    val isActive: kotlin.Int,
-
-    @SerialName(value = "creator_name")
-    val creatorName: kotlin.String?,
 
     @SerialName(value = "isActive")
     val isActive: kotlin.Boolean,

@@ -54,7 +54,12 @@ android {
     // as a Gradle module so the generated tree stays out of the application's own layout, and so the
     // module root is never the generator's output directory -- it writes a gradle/wrapper/ of its own
     // and would overwrite this module's.
-    sourceSets["main"].kotlin.srcDir("contract/src/main/kotlin")
+    //
+    // Resolved through rootProject because a bare relative path here is relative to this module, i.e.
+    // packages/android/app/, which made it point at a directory that does not exist. Gradle ignores a
+    // source directory that is not there, so the generated types were silently NOT compiled and this
+    // lane stayed green until something finally referenced one of them.
+    sourceSets["main"].kotlin.srcDir(rootProject.file("contract/src/main/kotlin"))
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
