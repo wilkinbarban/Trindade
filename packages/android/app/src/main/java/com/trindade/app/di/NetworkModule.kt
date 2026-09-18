@@ -1,6 +1,7 @@
 package com.trindade.app.di
 
 import com.trindade.app.BuildConfig
+import com.trindade.app.auth.AuthInterceptor
 import com.trindade.app.network.AuthApi
 import com.trindade.app.network.SystemApi
 import dagger.Module
@@ -24,10 +25,15 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(): OkHttpClient =
+    fun provideOkHttpClient(authInterceptor: AuthInterceptor): OkHttpClient =
         OkHttpClient.Builder()
             .connectTimeout(CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .readTimeout(READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            // An APPLICATION interceptor, not a network one. A network interceptor runs after
+            // redirects and retries have been handled and cannot re-issue a request across them;
+            // the whole job here is to observe a 401 and send the request again with a fresh token,
+            // which is only possible above that layer.
+            .addInterceptor(authInterceptor)
             .build()
 
     @Provides
