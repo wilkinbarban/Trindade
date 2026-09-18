@@ -43,6 +43,11 @@ class ContractCoverageTest {
         assertEveryMethodIsDocumented(SystemApi::class.java)
     }
 
+    @Test
+    fun `every loading interface method is documented in the contract`() {
+        assertEveryMethodIsDocumented(LoadingApi::class.java)
+    }
+
     private fun assertEveryMethodIsDocumented(api: Class<*>) {
         val paths = contractPaths()
         val undocumented = api.declaredMethods.mapNotNull { method ->

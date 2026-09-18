@@ -3,6 +3,7 @@ package com.trindade.app.di
 import com.trindade.app.BuildConfig
 import com.trindade.app.auth.AuthInterceptor
 import com.trindade.app.network.AuthApi
+import com.trindade.app.network.LoadingApi
 import com.trindade.app.network.ReportsApi
 import com.trindade.app.network.SystemApi
 import dagger.Module
@@ -66,4 +67,8 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideReportsApi(retrofit: Retrofit): ReportsApi = retrofit.create(ReportsApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideLoadingApi(retrofit: Retrofit): LoadingApi = retrofit.create(LoadingApi::class.java)
 }
