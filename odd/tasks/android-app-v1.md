@@ -1025,6 +1025,37 @@ run by hand plus a check in `scripts/ci-android.sh`, which is the shape the deci
 The verified output uses `kotlinx.serialization` correctly — `@Serializable`, `@SerialName`,
 `@Contextual` — so it composes with the serialization dependency the D1 skeleton already carries.
 
+### D3. Relatórios — sliced into four
+
+The four element types are `check`, `check_assai`, `check_normal` and `temperature`, read from the
+SPA's renderer rather than guessed: `CategorySection.tsx` switches on exactly those four. The
+contract types `task_type` as a bare string with no enum, so the code is where the set lives.
+`selectedProducts` belongs to the assaí variant, and `temperature_readings` on a task is how many
+readings that task expects.
+
+Sliced the same way D2 was, and for the same reason: each slice is verifiable on its own, and the
+whole feature at once would be neither reviewable nor safely editable.
+
+- **D3a — the data layer.** A hand-written `ReportsApi` and a `ReportsRepository`: the categories with
+their tasks, the shift the server detects, reading one report, creating and replacing one, and the
+export text. Narrow on purpose — the history belongs to D5 and is not in this interface.
+- **D3b — the generator screen.** Categories and tasks rendered as the four element types, with the
+  form's state local until it is submitted.
+- **D3c — photos.** Capture, compression **before** upload, and the attach/remove calls.
+- **D3d — the export.** The WhatsApp text comes from the server and is never assembled on the client;
+  this slice is the screen that fetches it and the copy action.
+
+**Verified surface, from the contract**: `GET /api/reports/categories` → `CategoriesResponse`;
+`GET /api/reports/turno` → `TurnoResponse`; `POST /api/reports` takes `CreateReportRequest` and answers
+`ReportResponse`; `GET|PATCH /api/reports/{id}` → `ReportResponse` with `UpdateReportRequest`;
+`GET /api/reports/{id}/export` → `TextResponse`; the three photo operations answer `PhotosResponse`,
+`PhotoResponse` and `SuccessResponse`.
+
+**A note on verifying an interface**: Retrofit paths and verbs are checked at runtime, not at compile
+time, so a hand-written interface that is never called compiles and proves nothing about the contract
+it claims to speak. The repository and a MockWebServer test that asserts the paths are what turn this
+into evidence — the same trap that made a mis-wired source directory look green.
+
 - **D1** Project skeleton: Gradle Kotlin DSL, version catalog, Compose + Material 3,
   Hilt, Retrofit + OkHttp + kotlinx.serialization, module in the monorepo with a
   CI lane that has a JDK (the canonical gate image has none).
