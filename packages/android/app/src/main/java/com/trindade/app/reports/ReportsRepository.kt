@@ -2,6 +2,7 @@ package com.trindade.app.reports
 
 import com.trindade.app.contract.models.CategoriesResponseCategoriesInner
 import com.trindade.app.contract.models.CreateReportRequest
+import com.trindade.app.contract.models.ProductsResponse
 import com.trindade.app.contract.models.ReportResponseReport
 import com.trindade.app.contract.models.UpdateReportRequest
 import com.trindade.app.network.ReportsApi
@@ -26,6 +27,18 @@ import javax.inject.Singleton
 class ReportsRepository @Inject constructor(
     private val api: ReportsApi,
 ) {
+
+    /**
+     * The two product offers, or null when the server cannot be asked.
+     *
+     * Null here is a real absence with a consequence: the generator cannot render a product-check task
+     * without knowing what to offer, so a caller has to decide whether to wait, retry, or say so
+     * rather than render an empty checklist that looks like "no products available".
+     */
+    suspend fun productOffers(): ProductsResponse? =
+        runCatching { api.products() }.getOrNull()
+            ?.takeIf { it.isSuccessful }
+            ?.body()
 
     /**
      * The active categories with their tasks, in the order the server sends them.

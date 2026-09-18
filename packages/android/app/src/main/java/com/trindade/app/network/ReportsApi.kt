@@ -4,6 +4,7 @@ import com.trindade.app.contract.models.CategoriesResponse
 import com.trindade.app.contract.models.CreateReportRequest
 import com.trindade.app.contract.models.PhotoResponse
 import com.trindade.app.contract.models.PhotosResponse
+import com.trindade.app.contract.models.ProductsResponse
 import com.trindade.app.contract.models.ReportResponse
 import com.trindade.app.contract.models.SuccessResponse
 import com.trindade.app.contract.models.TextResponse
@@ -40,6 +41,16 @@ interface ReportsApi {
      */
     @GET("api/reports/categories")
     suspend fun categories(): Response<CategoriesResponse>
+
+    /**
+     * The two product offers, one per product-check element type.
+     *
+     * An offer and not a constraint: a report stores any product name, and this is the list a client
+     * puts in front of an operator. Served by the API so this client does not duplicate the constants
+     * the web client keeps.
+     */
+    @GET("api/reports/products")
+    suspend fun products(): Response<ProductsResponse>
 
     /**
      * The shift the server detects from its own clock.
