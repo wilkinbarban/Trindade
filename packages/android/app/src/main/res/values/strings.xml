@@ -11,4 +11,10 @@
 
     <string name="report_submit">Salvar relatório</string>
     <string name="report_created">Relatório %1$d salvo.</string>
+    <string name="report_back">Voltar</string>
+    <string name="report_photos">Fotos (%1$d/%2$d)</string>
+    <string name="report_photo_add">Tirar foto</string>
+    <string name="report_photo_remove">Remover</string>
+    <string name="report_export_load">Gerar texto do WhatsApp</string>
+    <string name="report_export_copy">Copiar texto</string>
 </resources>

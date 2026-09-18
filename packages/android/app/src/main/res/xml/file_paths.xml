@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The one directory the camera app is allowed to write into on this app's behalf.
+
+  Scoped to the cache rather than the whole app: a capture is a temporary file whose only purpose is
+  to be compressed and uploaded, and granting the camera access to anything else would be handing it
+  the token store's neighbourhood for no reason.
+-->
+<paths>
+    <cache-path name="captures" path="captures/" />
+</paths>

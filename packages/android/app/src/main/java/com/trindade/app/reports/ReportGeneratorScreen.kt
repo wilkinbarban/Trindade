@@ -240,9 +240,16 @@ private fun TemperatureBlock(
 /** The screen with its ViewModel attached. */
 @Composable
 fun ReportGeneratorRoute(
+    onCreated: (Int) -> Unit,
     viewModel: ReportGeneratorViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
+
+    // Fired once per id rather than on every recomposition, so navigating away and back does not
+    // re-enter the detail screen from a result that was already acted on.
+    androidx.compose.runtime.LaunchedEffect(state.createdReportId) {
+        state.createdReportId?.let(onCreated)
+    }
 
     ReportGeneratorScreen(
         state = state,

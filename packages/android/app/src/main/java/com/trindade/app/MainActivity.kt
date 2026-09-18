@@ -12,6 +12,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.trindade.app.auth.AuthRepository
 import com.trindade.app.auth.LoginRoute
+import com.trindade.app.reports.ReportDetailRoute
 import com.trindade.app.reports.ReportGeneratorRoute
 import com.trindade.app.ui.theme.TrindadeTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -33,11 +34,16 @@ class MainActivity : ComponentActivity() {
                 // frame of the wrong screen for a question that can be answered now. When sign-in
                 // gains an asynchronous path this becomes a state flow like any other.
                 var signedIn by remember { mutableStateOf(authRepository.hasSession()) }
+                // Which report the operator is looking at, if any. Null means the generator.
+                var openReportId by remember { mutableStateOf<Int?>(null) }
 
-                if (signedIn) {
-                    ReportGeneratorRoute()
-                } else {
-                    LoginRoute(onSignedIn = { signedIn = true })
+                when {
+                    !signedIn -> LoginRoute(onSignedIn = { signedIn = true })
+                    openReportId != null -> ReportDetailRoute(
+                        reportId = openReportId!!,
+                        onBack = { openReportId = null },
+                    )
+                    else -> ReportGeneratorRoute(onCreated = { openReportId = it })
                 }
             }
         }
