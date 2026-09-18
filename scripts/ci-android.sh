@@ -102,6 +102,8 @@ fi
 printf 'the release guard refuses to build without an https base URL.\n'
 
 section 'Assert the client contract types are current'
-bash scripts/check-android-contract-types.sh
+# Absolute, because this script cd'd into packages/android above and the check lives beside it in the
+# repository root. A relative path here resolved to packages/android/scripts/, which does not exist.
+bash "$repo_root/scripts/check-android-contract-types.sh"
 
 printf '\nAndroid lane passed.\n'
