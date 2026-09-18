@@ -1,3 +1,11 @@
 <resources>
     <string name="app_name">Trindade</string>
+
+    <!-- Portuguese because the operators are: the app's own copy is the only text here that the
+         server did not write, and it is the same language the API answers in. -->
+    <string name="login_title">Trindade Massas</string>
+    <string name="login_username">Usuário</string>
+    <string name="login_password">Senha</string>
+    <string name="login_submit">Entrar</string>
+    <string name="login_unreachable">Sem conexão com o servidor. Verifique a rede e tente de novo.</string>
 </resources>

@@ -1,5 +1,6 @@
 package com.trindade.app.auth
 
+import com.trindade.app.contract.models.ErrorEnvelope
 import com.trindade.app.contract.models.LoginRequest
 import com.trindade.app.contract.models.LogoutRequest
 import com.trindade.app.contract.models.RefreshRequest
@@ -7,6 +8,8 @@ import com.trindade.app.network.AuthApi
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.Json
+import retrofit2.Response
 
 /**
  * Owns the session: signing in, signing out, and rotating.
@@ -20,16 +23,28 @@ import kotlinx.coroutines.runBlocking
 class AuthRepository @Inject constructor(
     private val api: AuthApi,
     private val tokenStore: TokenStore,
+    private val json: Json,
 ) {
 
-    /** Returns whether the session was established. A failure leaves any existing session alone. */
-    suspend fun login(username: String, password: String): Boolean {
+    /**
+     * Signs in, reporting what happened rather than only whether it worked.
+     *
+     * The failure text comes from the server's ErrorEnvelope, because the contract sends one for every
+     * failure and it is the only description of what went wrong that the client cannot invent. An
+     * unreadable or absent envelope falls back to a generic sentence rather than surfacing a parse
+     * error, which would tell the user nothing and look like a client bug.
+     */
+    suspend fun login(username: String, password: String): LoginResult {
         val response = runCatching { api.login(LoginRequest(username = username, password = password)) }.getOrNull()
-        val body = response?.body()
-        if (response?.isSuccessful != true || body == null) return false
+            ?: return LoginResult.Unreachable
 
-        tokenStore.save(body.token, body.refreshToken)
-        return true
+        val body = response.body()
+        if (response.isSuccessful && body != null) {
+            tokenStore.save(body.token, body.refreshToken)
+            return LoginResult.Success
+        }
+
+        return LoginResult.Rejected(message = response.errorMessage() ?: GENERIC_REJECTION)
     }
 
     /**
@@ -70,4 +85,24 @@ class AuthRepository @Inject constructor(
 
     /** The access token the interceptor should attach, or null when there is no session. */
     fun accessToken(): String? = tokenStore.accessToken()
+
+    /** Whether there is a session to resume, which is what decides between the login screen and the app. */
+    fun hasSession(): Boolean = tokenStore.accessToken() != null
+
+    /**
+     * The server's message for a failed call, or null when it sent one this client cannot read.
+     *
+     * Read through the same Json the rest of the app uses, so an unknown field in a future envelope
+     * does not turn a legible refusal into a generic sentence.
+     */
+    private fun Response<*>.errorMessage(): String? {
+        val raw = runCatching { errorBody()?.string() }.getOrNull()
+        if (raw.isNullOrBlank()) return null
+        return runCatching { json.decodeFromString<ErrorEnvelope>(raw).message }.getOrNull()
+            ?.takeIf { it.isNotBlank() }
+    }
+
+    private companion object {
+        const val GENERIC_REJECTION = "Não foi possível entrar. Verifique os dados e tente de novo."
+    }
 }
