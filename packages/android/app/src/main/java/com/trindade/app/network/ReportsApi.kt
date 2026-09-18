@@ -10,12 +10,15 @@ import com.trindade.app.contract.models.SuccessResponse
 import com.trindade.app.contract.models.TextResponse
 import com.trindade.app.contract.models.TurnoResponse
 import com.trindade.app.contract.models.UpdateReportRequest
+import okhttp3.MultipartBody
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.Multipart
 import retrofit2.http.PATCH
 import retrofit2.http.POST
+import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -84,11 +87,18 @@ interface ReportsApi {
     @GET("api/reports/{id}/photos")
     suspend fun photos(@Path("id") id: Int): Response<PhotosResponse>
 
+    /**
+     * Attach one photo.
+     *
+     * Multipart with the file in a field named `file`, which is what the server reads. The declared
+     * content type has to match the actual bytes -- the server sniffs the content and rejects a
+     * mismatch with 415 -- so the part's type comes from the compressor's output rather than from the
+     * file's extension.
+     */
+    @Multipart
+    @POST("api/reports/{id}/photos")
+    suspend fun attachPhoto(@Path("id") id: Int, @Part file: MultipartBody.Part): Response<PhotoResponse>
+
     @DELETE("api/reports/photos/{photoId}")
     suspend fun deletePhoto(@Path("photoId") photoId: Int): Response<SuccessResponse>
-
-    // The attach operation takes multipart form data and is not declared here: Retrofit needs a
-    // MultipartBody.Part built from the compressed bytes, and the compression that produces them is
-    // its own slice. Declaring a signature before the code that fills it would fix a shape that has
-    // not been thought through yet.
 }
