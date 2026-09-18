@@ -101,4 +101,7 @@ if ! grep -q 'A release build requires' "$guard_log"; then
 fi
 printf 'the release guard refuses to build without an https base URL.\n'
 
+section 'Assert the client contract types are current'
+bash scripts/check-android-contract-types.sh
+
 printf '\nAndroid lane passed.\n'
