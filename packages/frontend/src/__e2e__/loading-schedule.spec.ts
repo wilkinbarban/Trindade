@@ -52,10 +52,26 @@ function today(): string {
   return `${y}-${m}-${day}`;
 }
 
-function tomorrowDisplay(): string {
+/**
+ * The date the export labels itself with, as dd/mm/yyyy.
+ *
+ * Deliberately not "tomorrow". The server renders the NEXT LOADING DAY, and `nextLoadingDate` in
+ * `loading.export.service.ts` moves a Friday batch to the following Monday because nothing loads over
+ * the weekend. This helper mirrors that rule, so the two must change together -- and the assertion
+ * that uses it is what notices when they do not.
+ *
+ * It did not notice for as long as it took to write this: the helper was `tomorrowDisplay()`, it was
+ * written on a day when tomorrow happened to be a loading day, and it passed. On a Friday the export
+ * correctly said Monday while the helper still said Saturday, and the gate went red against code that
+ * was right. A test that encodes a rule has to encode the rule.
+ *
+ * Duplicated rather than shared because the rule lives in the server and this runs in the browser;
+ * nothing exposes it. Mirrored here with the source named so the duplication is visible.
+ */
+function nextLoadingDayDisplay(): string {
   const [y, m, d] = today().split('-').map(Number);
   const date = new Date(Date.UTC(y, m - 1, d));
-  date.setUTCDate(date.getUTCDate() + 1);
+  date.setUTCDate(date.getUTCDate() + (date.getUTCDay() === 5 ? 3 : 1));
   const day = String(date.getUTCDate()).padStart(2, '0');
   const month = String(date.getUTCMonth() + 1).padStart(2, '0');
   const year = date.getUTCFullYear();
@@ -360,7 +376,7 @@ test.describe('Loading Schedule — Export Modal', () => {
 
     const text = await textContent.textContent();
     expect(text).toContain('CRONOGRAMA DE CARREGAMENTO'); // Portuguese header
-    expect(text).toContain(tomorrowDisplay());
+    expect(text).toContain(nextLoadingDayDisplay());
     expect(text).toContain('━━━━━━━━━━━━━━');
     expect(text).toContain('📌 Total de carregamentos:');
     expect(text).toContain('✅ Bom trabalho a todos!')
@@ -373,7 +389,7 @@ test.describe('Loading Schedule — Export Modal', () => {
     await page.waitForSelector('[data-testid="loading-export-text"]', { timeout: 10000 });
 
     const text = await page.locator('[data-testid="loading-export-text"]').textContent();
-    expect(text).toContain(tomorrowDisplay());
+    expect(text).toContain(nextLoadingDayDisplay());
     expect(page.url()).toContain('date=2099-12-31');
   });
 });
