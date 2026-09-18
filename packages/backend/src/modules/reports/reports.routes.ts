@@ -3,7 +3,7 @@ import { writeFile, unlink, readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { CreateReportBodySchema, UpdateReportBodySchema, ReportQuerySchema, HistoryQuerySchema } from './reports.schema.js';
+import { ASSAI_PRODUCTS, NORMAL_PRODUCTS, CreateReportBodySchema, UpdateReportBodySchema, ReportQuerySchema, HistoryQuerySchema } from './reports.schema.js';
 import * as query from './reports.query.service.js';
 import * as command from './reports.command.service.js';
 import * as lifecycle from './reports.lifecycle.service.js';
@@ -47,6 +47,22 @@ export async function reportsRoutes(fastify: FastifyInstance, opts: ReportsRoute
     async (_request: FastifyRequest, reply: FastifyReply) => {
       const categories = query.getCategories(fastify.db);
       return reply.send({ categories });
+    }
+  );
+
+  // ---- Product offers ----
+
+  // The lists a client puts in front of an operator, served from here so a second client does not have
+  // to duplicate the SPA's constants and drift from them.
+  //
+  // Not a constraint on what a report may store: the server accepts any product name, and the suite
+  // asserts exactly that with names belonging to no list. This endpoint is the offer, and a report's
+  // `selectedProducts` stays an array of strings for that reason.
+  fastify.get(
+    '/products',
+    { preHandler: [fastify.authenticate] },
+    async (_request: FastifyRequest, reply: FastifyReply) => {
+      return reply.send({ assai: ASSAI_PRODUCTS, normal: NORMAL_PRODUCTS });
     }
   );
 

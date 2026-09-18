@@ -49,6 +49,7 @@ import {
   PhotoResponseSchema,
   PhotoSchema,
   PhotosResponseSchema,
+  ProductsResponseSchema,
   ReportDetailSchema,
   ReportHistoryResponseSchema,
   ReportItemDetailSchema,
@@ -208,6 +209,7 @@ function buildRegistry(): OpenAPIRegistry {
   registerComponent(registry, 'Driver', DriverSchema);
   registerComponent(registry, 'Vehicle', VehicleSchema);
   registerComponent(registry, 'ReportCategory', CategoryResponseSchema);
+  registerComponent(registry, 'ProductsResponse', ProductsResponseSchema);
   registerComponent(registry, 'ReportTask', TaskResponseSchema);
   registerComponent(registry, 'ReportListItem', ReportListItemSchema);
   registerComponent(registry, 'ReportDetail', ReportDetailSchema);
@@ -580,6 +582,21 @@ function buildRegistry(): OpenAPIRegistry {
   });
 
   // ---- reports: catalogs, reports, photos ----
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/reports/products',
+    summary: 'List the products each product-check element type offers',
+    description:
+      'The offer, not a constraint. A report stores any product name -- the server echoes what it is ' +
+      'given -- so this is the list a client puts in front of an operator, served here so a second ' +
+      'client does not have to duplicate the constants the SPA keeps.',
+    tags: ['reports'],
+    responses: {
+      200: jsonResponse('The two lists, one per product-check element type', ProductsResponseSchema),
+      401: UNAUTHORIZED,
+    },
+  });
 
   registry.registerPath({
     method: 'get',

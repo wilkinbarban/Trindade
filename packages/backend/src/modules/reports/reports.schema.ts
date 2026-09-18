@@ -71,6 +71,61 @@ export type HistoryQuery = z.infer<typeof HistoryQuerySchema>;
 /** The four element types a category can define. Reused from the request-side list above. */
 export const TaskTypeSchema = z.enum(TASK_TYPES);
 
+/**
+ * The products the two product-check element types offer.
+ *
+ * These lived only in the SPA, as constants in `productTemplates.ts`, and nowhere else. The server
+ * stores whatever names it is sent -- `selected_products` is a JSON array of names -- so these are
+ * NOT a constraint on stored data and must not be used to type a report's `selectedProducts`, which
+ * would reject the arbitrary names already in the database and in the tests.
+ *
+ * They are an offer: the list a client puts in front of an operator. That is why this endpoint exists
+ * and why the lists live here rather than in each client -- a second client had no honest way to
+ * learn them, and duplicating them would have created copies that drift with nothing to notice.
+ *
+ * The values are copied verbatim from the SPA, including `Disgo 500g`, which looks like a typo for
+ * "Disco" and is not treated as one: reports already stored hold these exact strings, so correcting
+ * the spelling here would make new reports disagree with old ones. If it is a typo it is a data
+ * migration rather than an edit.
+ */
+export const ASSAI_PRODUCTS = [
+  'Nhoque Kg',
+  'Quadrada',
+  'Rolo 500',
+  'Rolo kg',
+  'Rolo 2kg',
+  'Lashana',
+  'Disco 200g',
+  'Disco 400g',
+  'Disgo 500g',
+] as const;
+
+export const NORMAL_PRODUCTS = ['Nhoque 400g', 'Nhoque Kg', 'Quadrada'] as const;
+
+export const AssaiProductSchema = z.enum(ASSAI_PRODUCTS);
+export const NormalProductSchema = z.enum(NORMAL_PRODUCTS);
+
+/**
+ * The two offers, one per product-check element type.
+ *
+ * Two fields rather than one merged list because the lists are not interchangeable: a client has to
+ * know which belongs to `check_assai` and which to `check_normal`, and one array would say the names
+ * are all valid for both.
+ */
+export const ProductsResponseSchema = z
+  .object({
+    assai: z.array(AssaiProductSchema),
+    normal: z.array(NormalProductSchema),
+  })
+  .strict();
+
+/**
+ * A product name as STORED, which is any string.
+ *
+ * Deliberately not narrowed to the two offers above. The server stores what it is given, and the
+ * suite asserts that with names like `Item A` that belong to no list; narrowing this would reject
+ * those reports and any already in the database that predate the current lists.
+ */
 export const SelectedProductsSchema = z.array(z.string());
 
 export const TaskResponseSchema = z
