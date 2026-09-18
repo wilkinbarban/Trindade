@@ -372,8 +372,12 @@ export function removeBatch(db: Database.Database, date: string): boolean {
 
 function projectScheduleRow(row: ScheduleRow & { creator_name?: string | null; is_active?: number }, actor?: HistoryActor): ScheduleRow {
   const permissions = actor ? projectHistoryPermissions(actor, { user_id: row.user_id ?? null, created_at: row.created_at ?? '', is_active: row.is_active }, 'one-hour') : {};
+  // The raw columns are this projection's input, not its output. Dropping them here is what lets a
+  // generated client exist at all: `is_active` and `isActive` differ only by case, so a generator
+  // that camelCases the JSON names would emit the same property twice.
+  const { creator_name: _creatorName, is_active: _isActive, ...projected } = row;
   return {
-    ...row,
+    ...projected,
     ...(permissions as Partial<ScheduleRow>),
     creator: row.user_id ? { id: row.user_id, display_name: row.creator_name ?? '' } : null,
   };

@@ -93,12 +93,13 @@ export const ScheduleSchema = z
     user_id: z.number().int().nullable(),
     created_at: z.string(),
     updated_at: z.string(),
-    // `is_active` and `creator_name` are the raw columns the projection spreads through, and
-    // they duplicate `isActive` and `creator`. They are documented rather than removed:
-    // dropping them would be a breaking response change, and describing the API honestly is a
-    // different task from tightening it.
-    is_active: z.number().int(),
-    creator_name: z.string().nullable(),
+    // The raw `is_active` and `creator_name` columns are deliberately NOT part of this response.
+    // They used to be, because the projection spreads the row through, and they were kept for a
+    // while as documented duplication. They are gone because they make the contract unusable for a
+    // generated client: `is_active` and `isActive` differ only by case, so a generator that converts
+    // snake_case to camelCase emits two properties with the same name, and Kotlin -- like Java --
+    // cannot declare both. The first consumer that tried turned a tolerated wart into a blocker.
+    // The projection still reads them as input; it no longer returns them.
     isActive: z.boolean(),
     readOnly: z.boolean(),
     canEdit: z.boolean(),
