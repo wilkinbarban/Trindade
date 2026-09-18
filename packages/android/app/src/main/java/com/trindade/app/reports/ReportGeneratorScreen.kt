@@ -8,9 +8,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -21,12 +24,14 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.trindade.app.contract.models.CategoriesResponseCategoriesInner
 import com.trindade.app.contract.models.ReportCategoryTasksInner
+import com.trindade.app.R
 
 /**
  * The report generator, stateless.
@@ -44,6 +49,7 @@ fun ReportGeneratorScreen(
     onCheckChange: (Int, Boolean) -> Unit,
     onProductToggle: (Int, String, Boolean) -> Unit,
     onTemperatureChange: (Int, Int, String) -> Unit,
+    onSubmit: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -60,6 +66,18 @@ fun ReportGeneratorScreen(
             }
         }
 
+        // Shown once the server has answered with an id, because that id is the one thing the next
+        // screen needs and a form that just stops being submittable would look like a failure.
+        state.createdReportId?.let { id ->
+            item {
+                Text(
+                    text = stringResource(R.string.report_created, id),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+
         items(state.categories.filter { it.parentCategoryId == null }) { category ->
             CategoryBlock(
                 category = category,
@@ -68,6 +86,20 @@ fun ReportGeneratorScreen(
                 onProductToggle = onProductToggle,
                 onTemperatureChange = onTemperatureChange,
             )
+        }
+
+        item {
+            Button(
+                onClick = onSubmit,
+                enabled = state.canSubmit,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            ) {
+                if (state.submitting) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                } else {
+                    Text(stringResource(R.string.report_submit))
+                }
+            }
         }
     }
 }
@@ -217,5 +249,6 @@ fun ReportGeneratorRoute(
         onCheckChange = viewModel::onCheckChange,
         onProductToggle = viewModel::onProductToggle,
         onTemperatureChange = viewModel::onTemperatureChange,
+        onSubmit = viewModel::submit,
     )
 }

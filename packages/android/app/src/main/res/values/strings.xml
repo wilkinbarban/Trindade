@@ -8,4 +8,7 @@
     <string name="login_password">Senha</string>
     <string name="login_submit">Entrar</string>
     <string name="login_unreachable">Sem conexão com o servidor. Verifique a rede e tente de novo.</string>
+
+    <string name="report_submit">Salvar relatório</string>
+    <string name="report_created">Relatório %1$d salvo.</string>
 </resources>
