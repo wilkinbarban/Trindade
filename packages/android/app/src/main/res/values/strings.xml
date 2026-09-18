@@ -17,4 +17,9 @@
     <string name="report_photo_remove">Remover</string>
     <string name="report_export_load">Gerar texto do WhatsApp</string>
     <string name="report_export_copy">Copiar texto</string>
+
+    <string name="nav_reports">Relatórios</string>
+    <string name="nav_loading">Horários</string>
+    <string name="loading_title">Cronograma de carregamento</string>
+    <string name="loading_fleteros">%1$d/%2$d fleteros</string>
 </resources>
