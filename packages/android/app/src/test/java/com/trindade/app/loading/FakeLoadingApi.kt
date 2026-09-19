@@ -4,6 +4,7 @@ import com.trindade.app.contract.models.CreateDriverRequest
 import com.trindade.app.contract.models.CreateScheduleRequest
 import com.trindade.app.contract.models.DriverResponse
 import com.trindade.app.contract.models.DriversResponse
+import com.trindade.app.contract.models.DriversResponseDriversInner
 import com.trindade.app.contract.models.ScheduleResponse
 import com.trindade.app.contract.models.SchedulesResponse
 import com.trindade.app.contract.models.SchedulesResponseSchedulesInner
@@ -12,6 +13,7 @@ import com.trindade.app.contract.models.TextResponse
 import com.trindade.app.contract.models.TimeSlotsResponse
 import com.trindade.app.contract.models.UpdateScheduleRequest
 import com.trindade.app.contract.models.VehiclesResponse
+import com.trindade.app.contract.models.VehiclesResponseVehiclesInner
 import com.trindade.app.network.LoadingApi
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.ResponseBody.Companion.toResponseBody
@@ -28,9 +30,20 @@ import retrofit2.Response
 class FakeLoadingApi(
     private val schedulesToReturn: List<SchedulesResponseSchedulesInner>? = emptyList(),
     private val timeSlotsToReturn: List<String>? = listOf("04:00", "04:30", "05:00"),
+    private val driversToReturn: List<DriversResponseDriversInner> = defaultDrivers(),
+    private val vehiclesToReturn: List<VehiclesResponseVehiclesInner> = defaultVehicles(),
+    private val createResponse: Response<ScheduleResponse>? = null,
+    private val deleteSucceeds: Boolean = true,
 ) : LoadingApi {
 
     var lastSchedulesDate: String? = null
+        private set
+
+    /** What the last create carried, which is how the payload rules below are asserted. */
+    var createdBody: CreateScheduleRequest? = null
+        private set
+
+    var deletedIds = mutableListOf<Int>()
         private set
 
     override suspend fun schedules(date: String): Response<SchedulesResponse> {
@@ -44,12 +57,23 @@ class FakeLoadingApi(
         return Response.success(TimeSlotsResponse(timeSlots = slots))
     }
 
-    override suspend fun drivers(): Response<DriversResponse> = error(NOT_USED)
-    override suspend fun vehicles(): Response<VehiclesResponse> = error(NOT_USED)
-    override suspend fun createDriver(body: CreateDriverRequest): Response<DriverResponse> = error(NOT_USED)
-    override suspend fun createSchedule(body: CreateScheduleRequest): Response<ScheduleResponse> = error(NOT_USED)
+    override suspend fun drivers(): Response<DriversResponse> = Response.success(DriversResponse(drivers = driversToReturn))
+    override suspend fun vehicles(): Response<VehiclesResponse> = Response.success(VehiclesResponse(vehicles = vehiclesToReturn))
+    override suspend fun createDriver(body: CreateDriverRequest): Response<DriverResponse> =
+        Response.success(DriverResponse(driver = DriversResponseDriversInner(id = 99, name = body.name, licensePlate = body.licensePlate, driverType = DriversResponseDriversInner.DriverType.fletero)))
+
+    override suspend fun createSchedule(body: CreateScheduleRequest): Response<ScheduleResponse> {
+        createdBody = body
+        createResponse?.let { return it }
+        return Response.success(ScheduleResponse(schedule = entry(id = 500, slot = body.timeSlot, type = SchedulesResponseSchedulesInner.DriverType.fletero)))
+    }
+
+    override suspend fun deleteSchedule(id: Int): Response<Unit> {
+        deletedIds.add(id)
+        return if (deleteSucceeds) Response.success(Unit) else Response.error(403, EMPTY_BODY)
+    }
+
     override suspend fun updateSchedule(id: Int, body: UpdateScheduleRequest): Response<ScheduleResponse> = error(NOT_USED)
-    override suspend fun deleteSchedule(id: Int): Response<Unit> = error(NOT_USED)
     override suspend fun deactivateSchedule(id: Int): Response<SuccessResponse> = error(NOT_USED)
     override suspend fun deactivateBatch(date: String): Response<SuccessResponse> = error(NOT_USED)
     override suspend fun deleteBatch(date: String): Response<Unit> = error(NOT_USED)
@@ -58,7 +82,21 @@ class FakeLoadingApi(
     companion object {
         const val NOT_USED = "this fake does not implement that call; add it when a test needs it"
 
+        const val CASA_DRIVER_ID = 10
+        const val FLETERO_DRIVER_ID = 11
+        const val VEHICLE_ID = 20
+
         val EMPTY_BODY: okhttp3.ResponseBody = "{}".toResponseBody("application/json".toMediaType())
+
+        /** One company driver and one external, which is the pairing the vehicle rule turns on. */
+        fun defaultDrivers() = listOf(
+            DriversResponseDriversInner(id = CASA_DRIVER_ID, name = "Carlos", licensePlate = null, driverType = DriversResponseDriversInner.DriverType.casa),
+            DriversResponseDriversInner(id = FLETERO_DRIVER_ID, name = "Fletero", licensePlate = "ABC1234", driverType = DriversResponseDriversInner.DriverType.fletero),
+        )
+
+        fun defaultVehicles() = listOf(
+            VehiclesResponseVehiclesInner(id = VEHICLE_ID, description = "Fiorino", licensePlate = "XYZ9876"),
+        )
 
         /** One entry, with the field list the contract requires spelled out once. */
         fun entry(

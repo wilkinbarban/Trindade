@@ -22,4 +22,9 @@
     <string name="nav_loading">Horários</string>
     <string name="loading_title">Cronograma de carregamento</string>
     <string name="loading_fleteros">%1$d/%2$d fleteros</string>
+    <string name="loading_add_entry">Adicionar</string>
+    <string name="loading_pick_driver">Motorista</string>
+    <string name="loading_pick_vehicle">Veículo</string>
+    <string name="loading_confirm">Confirmar</string>
+    <string name="loading_cancel">Cancelar</string>
 </resources>

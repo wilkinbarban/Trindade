@@ -12,6 +12,7 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import retrofit2.Response
 
 /**
  * The loading grid's state.
@@ -129,5 +130,116 @@ class LoadingViewModelTest {
         val today = LoadingViewModel.saoPauloToday()
 
         assertTrue("expected an ISO date, got $today", Regex("""\d{4}-\d{2}-\d{2}""").matches(today))
+    }
+
+    @Test
+    fun `takes the driver type from the chosen driver rather than asking for it`() {
+        val api = FakeLoadingApi()
+        val model = viewModel(api)
+        model.startAdding("04:00")
+        model.onDriverSelected(FakeLoadingApi.FLETERO_DRIVER_ID)
+        model.confirmAdd()
+
+        // The request cannot contradict the driver it names, because there is no control that could
+        // disagree with it.
+        assertEquals("fletero", api.createdBody!!.driverType.value)
+        assertEquals(FakeLoadingApi.FLETERO_DRIVER_ID, api.createdBody!!.driverId)
+        assertEquals(model.state.value.date, api.createdBody!!.scheduleDate)
+        assertEquals("04:00", api.createdBody!!.timeSlot)
+    }
+
+    @Test
+    fun `requires a vehicle for a company driver`() {
+        val api = FakeLoadingApi()
+        val model = viewModel(api)
+        model.startAdding("04:00")
+        model.onDriverSelected(FakeLoadingApi.CASA_DRIVER_ID)
+
+        // The server rejects a casa assignment without one, so the form follows the same rule instead
+        // of letting the operator discover it as a 400.
+        assertTrue(model.state.value.needsVehicle)
+        assertFalse(model.state.value.canConfirm)
+
+        model.onVehicleSelected(FakeLoadingApi.VEHICLE_ID)
+        assertTrue(model.state.value.canConfirm)
+        model.confirmAdd()
+
+        assertEquals("casa", api.createdBody!!.driverType.value)
+        assertEquals(FakeLoadingApi.VEHICLE_ID, api.createdBody!!.vehicleId)
+    }
+
+    @Test
+    fun `does not send a vehicle for an external driver`() {
+        val api = FakeLoadingApi()
+        val model = viewModel(api)
+        model.startAdding("04:00")
+        model.onDriverSelected(FakeLoadingApi.CASA_DRIVER_ID)
+        model.onVehicleSelected(FakeLoadingApi.VEHICLE_ID)
+
+        // Switching to an external driver has to drop the vehicle, or the request would carry a
+        // pairing the operator stopped meaning and the server would take it seriously.
+        model.onDriverSelected(FakeLoadingApi.FLETERO_DRIVER_ID)
+        assertFalse(model.state.value.needsVehicle)
+        model.confirmAdd()
+
+        assertEquals(null, api.createdBody!!.vehicleId)
+    }
+
+    @Test
+    fun `closes the form and reloads after a successful add`() {
+        val model = viewModel(FakeLoadingApi())
+        model.startAdding("04:00")
+        model.onDriverSelected(FakeLoadingApi.FLETERO_DRIVER_ID)
+        model.confirmAdd()
+
+        assertEquals(null, model.state.value.addingToSlot)
+        assertFalse(model.state.value.busy)
+    }
+
+    @Test
+    fun `keeps the form open and explains a refused add`() {
+        val api = FakeLoadingApi(createResponse = Response.error(409, FakeLoadingApi.EMPTY_BODY))
+        val model = viewModel(api)
+        model.startAdding("04:00")
+        model.onDriverSelected(FakeLoadingApi.FLETERO_DRIVER_ID)
+        model.confirmAdd()
+
+        // A duplicate is the operator's to resolve, so the form stays open with what they chose still
+        // in it rather than discarding their work.
+        assertEquals("04:00", model.state.value.addingToSlot)
+        assertNotNull(model.state.value.message)
+        assertFalse(model.state.value.busy)
+    }
+
+    @Test
+    fun `removes an entry and reloads`() {
+        val api = FakeLoadingApi(schedulesToReturn = listOf(FakeLoadingApi.entry(7, "04:00")))
+        val model = viewModel(api)
+        model.deleteEntry(7)
+
+        assertEquals(listOf(7), api.deletedIds)
+    }
+
+    @Test
+    fun `explains a refused delete rather than reporting a general failure`() {
+        val api = FakeLoadingApi(schedulesToReturn = listOf(FakeLoadingApi.entry(7, "04:00")), deleteSucceeds = false)
+        val model = viewModel(api)
+        model.deleteEntry(7)
+
+        // 403 means the entry belongs to someone else, which is a different thing to say than "it
+        // failed" -- one is a rule, the other is a problem to report.
+        assertTrue(model.state.value.message!!.lowercase().contains("próprios"))
+    }
+
+    @Test
+    fun `offers the newly quick-added driver and selects it`() {
+        val model = viewModel(FakeLoadingApi())
+        model.startAdding("04:00")
+        model.quickAddDriver("Novo", "QQQ1111")
+
+        // Selected, because the operator added it in order to use it; leaving them to find it in the
+        // list again would be the kind of small friction that makes a form feel broken.
+        assertEquals("Novo", model.state.value.selectedDriver?.name)
+        assertEquals(3, model.state.value.drivers.size)
     }
 }

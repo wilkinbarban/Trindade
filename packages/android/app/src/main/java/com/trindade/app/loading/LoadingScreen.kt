@@ -8,13 +8,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -37,6 +40,12 @@ import com.trindade.app.contract.models.SchedulesResponseSchedulesInner
 fun LoadingScreen(
     state: LoadingViewModel.UiState,
     onBack: () -> Unit,
+    onStartAdding: (String) -> Unit,
+    onCancelAdding: () -> Unit,
+    onDriverSelected: (Int) -> Unit,
+    onVehicleSelected: (Int) -> Unit,
+    onConfirmAdd: () -> Unit,
+    onDelete: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -68,6 +77,13 @@ fun LoadingScreen(
                 entries = state.entriesIn(slot),
                 fleteroCount = state.fleteroCountIn(slot),
                 exceeded = state.isExceeded(slot),
+                state = state,
+                onStartAdding = onStartAdding,
+                onCancelAdding = onCancelAdding,
+                onDriverSelected = onDriverSelected,
+                onVehicleSelected = onVehicleSelected,
+                onConfirmAdd = onConfirmAdd,
+                onDelete = onDelete,
             )
         }
     }
@@ -79,6 +95,13 @@ private fun SlotBlock(
     entries: List<SchedulesResponseSchedulesInner>,
     fleteroCount: Int,
     exceeded: Boolean,
+    state: LoadingViewModel.UiState,
+    onStartAdding: (String) -> Unit,
+    onCancelAdding: () -> Unit,
+    onDriverSelected: (Int) -> Unit,
+    onVehicleSelected: (Int) -> Unit,
+    onConfirmAdd: () -> Unit,
+    onDelete: (Int) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -98,13 +121,85 @@ private fun SlotBlock(
         }
 
         entries.forEach { entry ->
-            Text(
-                text = describe(entry),
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.padding(start = 8.dp),
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = describe(entry),
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(start = 8.dp),
+                )
+                TextButton(onClick = { onDelete(entry.id) }, enabled = !state.busy) {
+                    Text(stringResource(R.string.report_photo_remove))
+                }
+            }
+        }
+
+        if (state.addingToSlot == slot) {
+            AddEntryForm(
+                state = state,
+                onDriverSelected = onDriverSelected,
+                onVehicleSelected = onVehicleSelected,
+                onConfirm = onConfirmAdd,
+                onCancel = onCancelAdding,
             )
+        } else {
+            // Offered even when the window is exceeded. The limit is a display, and withholding this
+            // would turn it into a rule the server does not enforce.
+            TextButton(onClick = { onStartAdding(slot) }, enabled = !state.busy) {
+                Text(stringResource(R.string.loading_add_entry))
+            }
         }
         HorizontalDivider()
+    }
+}
+
+@Composable
+private fun AddEntryForm(
+    state: LoadingViewModel.UiState,
+    onDriverSelected: (Int) -> Unit,
+    onVehicleSelected: (Int) -> Unit,
+    onConfirm: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxWidth().padding(start = 8.dp)) {
+        Text(text = stringResource(R.string.loading_pick_driver), style = MaterialTheme.typography.labelLarge)
+
+        state.drivers.forEach { driver ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RadioButton(
+                    selected = state.selectedDriverId == driver.id,
+                    onClick = { onDriverSelected(driver.id) },
+                )
+                Text(text = driver.name, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+
+        // Only for a company driver: an external one brings their own vehicle, and the server rejects
+        // a casa assignment without one.
+        if (state.needsVehicle) {
+            Text(text = stringResource(R.string.loading_pick_vehicle), style = MaterialTheme.typography.labelLarge)
+            state.vehicles.forEach { vehicle ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(
+                        selected = state.selectedVehicleId == vehicle.id,
+                        onClick = { onVehicleSelected(vehicle.id) },
+                    )
+                    Text(
+                        text = "${vehicle.description} · ${vehicle.licensePlate}",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            }
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = onConfirm, enabled = state.canConfirm) {
+                Text(stringResource(R.string.loading_confirm))
+            }
+            TextButton(onClick = onCancel) { Text(stringResource(R.string.loading_cancel)) }
+        }
     }
 }
 
@@ -129,5 +224,14 @@ fun LoadingRoute(
 ) {
     val state by viewModel.state.collectAsState()
 
-    LoadingScreen(state = state, onBack = onBack)
+    LoadingScreen(
+        state = state,
+        onBack = onBack,
+        onStartAdding = viewModel::startAdding,
+        onCancelAdding = viewModel::cancelAdding,
+        onDriverSelected = viewModel::onDriverSelected,
+        onVehicleSelected = viewModel::onVehicleSelected,
+        onConfirmAdd = viewModel::confirmAdd,
+        onDelete = viewModel::deleteEntry,
+    )
 }
