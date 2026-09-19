@@ -1104,6 +1104,99 @@ and D4d adds its own rather than inheriting a green lane as evidence for behavio
 screen, because the SPA's loading page also fixes the date to today in São Paulo (`todayDate()` in
 `LoadingSchedulePage.tsx`). A date picker is a product change, not a gap in the client.
 
+### D5. Historial, perfil y cambio de contraseña — sliced into four
+
+The surfaces, read from the backend, the contract and the SPA rather than inferred:
+`GET /api/reports/history` and `GET /api/loading/schedules/history` (same `HistoryQuerySchema` shape:
+optional `date`, `month`, `userId`; `page` default 1; `pageSize` default 30, max 100), plus
+`GET|PATCH /api/auth/profile` (`display_name` is the only writable field, and the body is `.strict()`),
+`POST /api/auth/change-password` and `POST /api/auth/logout`.
+
+- **D5a. The history data layer.** `ReportsApi.history` and `LoadingApi.history` — both deliberately absent
+  since D3 and D4, whose comments say so — with the repository methods, the paging and filter arguments,
+  and `ContractCoverageTest` extended to reflect over both new calls. The same slice carries the
+  **refusal-text fix**: most backend refusals answer `{error}` with **no `message`**, and
+  `AuthRepository.errorMessage()` decodes only `message`, so every one of them collapses to the generic
+  sentence. Decode `message ?: error` and test it, because that is the difference between "the server said
+  why" and "it failed".
+- **D5b. The reports history screen.** Columns: date (`dd/mm/yyyy`), the turno, an inactive badge, the
+  author's `display_name`, and `notes` truncated at 60 characters. Actions: open the report's **detail
+  screen, which already exists** from D3 — so editability is decided there, from the detail payload, and not
+  recomputed from the list item.
+- **D5c. The loading history screen.** One row per **batch date** (the endpoint groups by `schedule_date`),
+  showing the batch date, the computed `loading_date`, `total_loadings`, the creator and the inactive badge.
+  The row opens the **existing grid for that date**, which is what finally gives `LoadingViewModel`'s
+  `onDateChange` its first caller — a control arrives through history rather than through a picker, which is
+  the same conclusion D4 recorded from the other side.
+- **D5d. Profile and change-password.** `display_name` read and edited, `username` and `role` shown
+  read-only, the password change, and a **logout that sends the refresh token** — the one place the Android
+  client is better placed than the SPA, which stores no refresh token and therefore passes no body and
+  revokes nothing server-side.
+
+**Three product decisions, taken with the user rather than assumed**:
+1. **A successful password change signs the operator out and returns to login.** The server revokes **every**
+   live session of that user (`revokeUserSessions`) and does not spare the current one; access tokens are
+   stateless 15-minute JWTs, so keeping the session would only buy up to fifteen minutes before the first
+   401 tries a refresh that is now dead. The SPA keeps going and takes that confusing detour. **The client
+   follows the server's rule instead of the SPA's habit.**
+2. **Profile and password belong to whoever is signed in**, whatever the role. The endpoint serves both, and
+   hiding a security action is worse than showing it: the SPA's worker-only tab leaves an Administrator
+   unable to change their password from the phone.
+3. **Filters are date and month only** (mutually exclusive, as the SPA), with server paging. The `userId`
+   filter is desktop work: it adds `/users/options`, another control, and it is the filter under which the
+   loading counts behave inconsistently (see the finding below).
+
+**Findings recorded, deliberately not fixed here** (they are backend or contract work, and a slice that
+fixes its neighbours is a slice nobody can review):
+- **`canDelete` is overstated for a `Trabalhador`** on the batch and report routes:
+  `history-permissions.ts` grants it to admin **or** worker, while `reports.routes.ts` and
+  `loading.routes.ts` require `Administrador` for those routes. The SPA therefore renders a delete button
+  that answers 403. **The client follows the flag and gives the refusal its own sentence** rather than
+  hardcoding a role — the flag is server-owned, and fixing it there fixes every client at once.
+- **The report-history contract is looser than the code**: the five lifecycle flags
+  (`isActive`, `readOnly`, `canEdit`, `canDeactivate`, `canDelete`) are **optional** in
+  `ReportHistoryResponse` while the loading one requires all eleven of its item fields. The server always
+  sends them. The generated DTO gives them as `Boolean? = null`, so the client tests `canEdit == true` —
+  the shape `ReportDetailViewModel` already uses — and never treats null as permission.
+- **`role` is still a bare `string`** in the contract while the database has exactly two values. The same
+  class of looseness as the old bare `task_type`, and the only one of that class left.
+- **`POST /api/auth/change-password` can answer 503** when the database has no session store, and the
+  contract documents only 200/400/401/404.
+- **`total_loadings` and `isActive` are computed over the rows surviving the filters while `creator` is
+  not**, so a future `userId` filter would show inconsistent numbers. Leaving that filter out of v1 keeps
+  the inconsistency out of the screen.
+- **A deactivated batch opens an empty grid**: `/api/loading/schedules` filters `is_active = 1`, so the
+  history row invites a tap that lands on a day with no entries. This is the SPA's behaviour too, recorded
+  as parity rather than discovered as a defect.
+- **`readOnly` is exactly `!canEdit`** and is dropped from the client's model. Keeping both invites a
+  contradiction that cannot exist on the server.
+- **THE SERVER CONTRADICTS ITSELF ABOUT A FRIDAY BATCH, and both sides are pinned by tests.** The
+  history says the loading happens on the **Friday itself** (`loading.service.ts`: `CASE strftime('%w',
+  schedule_date) WHEN '5' THEN schedule_date ELSE date(schedule_date, '+1 day') END`, and `%w` 5 is
+  Friday). The WhatsApp export says the **following Monday** (`loading.export.service.ts`: `if (utcDay
+  === 5) date.setUTCDate(getUTCDate() + 3)`, rendered in the message header). So the same batch is
+  described as Friday on the history screen and as Monday in the text the operator sends to the group.
+  Both are asserted in `loading.routes.export-history.test.ts`, and the browser carries a **third copy**
+  of the export's rule in `nextLoadingDayDisplay()`. Verified independently, not inferred. **The client
+  renders what it is given and re-derives nothing**, so D5c must not try to reconcile the two: this is
+  backend work with a product decision behind it, and inventing the answer in a phone would hide it.
+  Recorded beside it: the export special-cases **only Friday** (`=== 5 → +3`), so a Sunday batch also
+  moves to Monday through the ordinary `+1`, which is a separate oddity of the same rule.
+- **`ContractCoverageTest` is automatic here, and the verification named what it does not cover**: it
+  reflects over verb and path, so the two new history calls were covered with no edit — and a **typo in a
+  `@Query` name would pass it**. The query names were checked by hand against the contract and the zod
+  schemas instead (`date`, `month`, `page`, `pageSize`).
+- **Two premises of my own corrected by the verifier**, because a project that keeps its mistakes keeps
+  them usefully: the Android build does **not** treat deprecation as an error (there is no
+  `allWarningsAsErrors`; deprecations compile as `w:`), which is the opposite of what an earlier slice
+  recorded from a single compile error; and `LoginViewModelTest` carries three unused imports
+  (`AuthProfile`, `AuthUser`, `assertTrue`) that are **pre-existing at the parent commit**, not a habit of
+  this slice.
+
+**Naming to respect**: the generated DTOs carry orphan duplicates (`ReportListItem`, `LoadingBatchHistoryItem`,
+`AuthProfile`) beside the classes the live schemas actually reference (`ReportsResponseReportsInner`,
+`ScheduleHistoryResponseItemsInner`, `ProfileResponseUser`). Bind to the live ones.
+
 ---
 
 ## Open decisions

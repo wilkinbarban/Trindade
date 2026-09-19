@@ -5,6 +5,7 @@ import com.trindade.app.contract.models.CreateReportRequest
 import com.trindade.app.contract.models.PhotoResponse
 import com.trindade.app.contract.models.PhotosResponse
 import com.trindade.app.contract.models.ProductsResponse
+import com.trindade.app.contract.models.ReportHistoryResponse
 import com.trindade.app.contract.models.ReportResponse
 import com.trindade.app.contract.models.SuccessResponse
 import com.trindade.app.contract.models.TextResponse
@@ -27,8 +28,9 @@ import retrofit2.http.Query
  *
  * Written by hand like [AuthApi], and narrow for the same reasons: a generated client would expose
  * every operation including the admin ones, and it would fix a call shape that belongs to this
- * client. The history operations are deliberately absent — they belong to the history screen, and an
- * endpoint nothing calls compiles without proving anything about the contract it claims to speak.
+ * client. A method arrives with the screen that calls it rather than with the contract that defines
+ * it: an endpoint nothing calls compiles without proving anything about the contract it claims to
+ * speak.
  *
  * Every call returns [Response] so a caller can tell a refusal from an absence, which matters here
  * because the same status can mean different things: a 403 on a write is the server saying the report
@@ -64,6 +66,37 @@ interface ReportsApi {
      */
     @GET("api/reports/turno")
     suspend fun turno(): Response<TurnoResponse>
+
+    /**
+     * One page of the report history, filtered by one date, one month, or neither.
+     *
+     * The four filters are nullable because absent and empty are different requests to this server.
+     * Retrofit omits a null `@Query` and sends an empty one as `date=`, and the server validates
+     * `date` against `^\d{4}-\d{2}-\d{2}$` in `reports.schema.ts`, so an empty string is a 400
+     * answering a client that meant "no filter". A null `page` or `pageSize` asks for the server's
+     * default -- 1 and 30 -- rather than for zero; `pageSize` is capped at 100.
+     *
+     * The five lifecycle flags on each item -- `isActive`, `readOnly`, `canEdit`, `canDeactivate`,
+     * `canDelete` -- are the server's own projection, from `projectHistoryPermissions`, which is the
+     * only party that knows the caller's role and where the edit window has landed; `readOnly` there
+     * is exactly `!canEdit`. Those five are optional in the contract while the handler always emits
+     * them, so the generated type carries them as `Boolean? = null`, and a caller tests
+     * `canEdit == true` instead of reading a null as permission.
+     *
+     * Two naming traps come with this response and neither of them is about this endpoint. Its items
+     * are typed `ReportsResponseReportsInner` and its pagination `ScheduleHistoryResponsePagination`,
+     * because the document inlines both schemas here and each one is identical to the reports list's
+     * items and to the loading history's pagination -- one class was emitted per shape and named after
+     * the other place it appears. And the document also declares a `ReportListItem` component that
+     * nothing references, which is the type this endpoint looks like it should use and does not.
+     */
+    @GET("api/reports/history")
+    suspend fun history(
+        @Query("date") date: String?,
+        @Query("month") month: String?,
+        @Query("page") page: Int?,
+        @Query("pageSize") pageSize: Int?,
+    ): Response<ReportHistoryResponse>
 
     @GET("api/reports/{id}")
     suspend fun report(@Path("id") id: Int): Response<ReportResponse>

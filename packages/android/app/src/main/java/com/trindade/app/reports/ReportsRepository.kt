@@ -4,6 +4,7 @@ import com.trindade.app.contract.models.CategoriesResponseCategoriesInner
 import com.trindade.app.contract.models.CreateReportRequest
 import com.trindade.app.contract.models.PhotosResponsePhotosInner
 import com.trindade.app.contract.models.ProductsResponse
+import com.trindade.app.contract.models.ReportHistoryResponse
 import com.trindade.app.contract.models.ReportResponseReport
 import com.trindade.app.contract.models.UpdateReportRequest
 import com.trindade.app.network.ReportsApi
@@ -72,6 +73,26 @@ class ReportsRepository @Inject constructor(
             ?.body()
             ?.turno
             ?.value
+
+    /**
+     * One page of the report history, or null when the server cannot be asked.
+     *
+     * The envelope rather than an unwrapped list like the reads above, because the pagination is half
+     * the answer. A list alone leaves the screen unable to tell a full page from the last one, so it
+     * cannot know whether to offer another page, and it cannot show a total. `date` and `month` are
+     * nullable on purpose and pass through as they arrived: null means the caller asked for no filter
+     * and the empty string means the caller asked for the empty value, which the server refuses with
+     * a 400. A null `page` or `pageSize` takes the server's default.
+     */
+    suspend fun history(
+        date: String?,
+        month: String?,
+        page: Int?,
+        pageSize: Int?,
+    ): ReportHistoryResponse? =
+        runCatching { api.history(date = date, month = month, page = page, pageSize = pageSize) }.getOrNull()
+            ?.takeIf { it.isSuccessful }
+            ?.body()
 
     suspend fun report(id: Int): ReportResponseReport? =
         runCatching { api.report(id) }.getOrNull()

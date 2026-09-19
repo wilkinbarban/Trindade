@@ -5,6 +5,9 @@ import com.trindade.app.contract.models.CreateScheduleRequest
 import com.trindade.app.contract.models.DriverResponse
 import com.trindade.app.contract.models.DriversResponse
 import com.trindade.app.contract.models.DriversResponseDriversInner
+import com.trindade.app.contract.models.ScheduleHistoryResponse
+import com.trindade.app.contract.models.ScheduleHistoryResponseItemsInner
+import com.trindade.app.contract.models.ScheduleHistoryResponsePagination
 import com.trindade.app.contract.models.ScheduleResponse
 import com.trindade.app.contract.models.SchedulesResponse
 import com.trindade.app.contract.models.SchedulesResponseSchedulesInner
@@ -29,6 +32,8 @@ import retrofit2.Response
  */
 class FakeLoadingApi(
     private val schedulesToReturn: List<SchedulesResponseSchedulesInner>? = emptyList(),
+    /** Null makes the history call fail, the same convention as [schedulesToReturn] and for the same reason. */
+    private val historyToReturn: ScheduleHistoryResponse? = defaultHistory(),
     private val timeSlotsToReturn: List<String>? = listOf("04:00", "04:30", "05:00"),
     private val driversToReturn: List<DriversResponseDriversInner> = defaultDrivers(),
     private val vehiclesToReturn: List<VehiclesResponseVehiclesInner> = defaultVehicles(),
@@ -39,6 +44,16 @@ class FakeLoadingApi(
 ) : LoadingApi {
 
     var lastSchedulesDate: String? = null
+        private set
+
+    /**
+     * The filters the last history call carried, all four at once.
+     *
+     * Grouped rather than four loose fields because the assertion these exist for is about the whole
+     * query: an absent filter has to arrive as null and an empty one has to arrive empty, and four
+     * separate fields let a test pin three of them and miss the one that moved.
+     */
+    var lastHistoryQuery: LoadingHistoryQuery? = null
         private set
 
     var lastExportDate: String? = null
@@ -57,12 +72,24 @@ class FakeLoadingApi(
         return Response.success(SchedulesResponse(schedules = schedules))
     }
 
+    override suspend fun history(
+        date: String?,
+        month: String?,
+        page: Int?,
+        pageSize: Int?,
+    ): Response<ScheduleHistoryResponse> {
+        lastHistoryQuery = LoadingHistoryQuery(date = date, month = month, page = page, pageSize = pageSize)
+        val history = historyToReturn ?: return Response.error(500, EMPTY_BODY)
+        return Response.success(history)
+    }
+
     override suspend fun timeSlots(): Response<TimeSlotsResponse> {
         val slots = timeSlotsToReturn ?: return Response.error(500, EMPTY_BODY)
         return Response.success(TimeSlotsResponse(timeSlots = slots))
     }
 
     override suspend fun drivers(): Response<DriversResponse> = Response.success(DriversResponse(drivers = driversToReturn))
+
     override suspend fun vehicles(): Response<VehiclesResponse> = Response.success(VehiclesResponse(vehicles = vehiclesToReturn))
     override suspend fun createDriver(body: CreateDriverRequest): Response<DriverResponse> =
         Response.success(DriverResponse(driver = DriversResponseDriversInner(id = 99, name = body.name, licensePlate = body.licensePlate, driverType = DriversResponseDriversInner.DriverType.fletero)))
@@ -110,6 +137,43 @@ class FakeLoadingApi(
             VehiclesResponseVehiclesInner(id = VEHICLE_ID, description = "Fiorino", licensePlate = "XYZ9876"),
         )
 
+        /** One batch and a one-page pagination, which is the smallest complete answer. */
+        fun defaultHistory() = ScheduleHistoryResponse(
+            items = listOf(historyItem()),
+            pagination = ScheduleHistoryResponsePagination(page = 1, pageSize = 30, total = 1, totalPages = 1),
+        )
+
+        /**
+         * One batch, carrying both dates the server computes.
+         *
+         * Both are arguments and the defaults make them differ by one day, which is the ordinary case.
+         * A test for the Friday rule passes the same value twice, which is what the server does when
+         * the batch date falls on a Friday.
+         *
+         * `readOnly` is written as `!canEdit` rather than passed in, because that is what the server
+         * computes; a fake that could send a contradiction would let a test pass against a combination
+         * the backend cannot produce.
+         */
+        fun historyItem(
+            batchDate: String = "2026-09-18",
+            loadingDate: String = "2026-09-19",
+            totalLoadings: Int = 2,
+            isActive: Boolean = true,
+            canEdit: Boolean = true,
+        ) = ScheduleHistoryResponseItemsInner(
+            batchDate = batchDate,
+            loadingDate = loadingDate,
+            totalLoadings = totalLoadings,
+            createdAt = "2026-09-18T10:00:00Z",
+            updatedAt = "2026-09-18T10:00:00Z",
+            isActive = isActive,
+            canEdit = canEdit,
+            canDeactivate = true,
+            canDelete = true,
+            readOnly = !canEdit,
+            creator = null,
+        )
+
         /** One entry, with the field list the contract requires spelled out once. */
         fun entry(
             id: Int,
@@ -138,3 +202,18 @@ class FakeLoadingApi(
         )
     }
 }
+
+/**
+ * The four filters one history call carried, as the API received them.
+ *
+ * Values are nullable because that is the distinction under test rather than an oversight: null is
+ * "the caller asked for no filter" and the empty string is "the caller asked for the empty value".
+ * They are different requests -- the server answers the second with a 400 -- and the difference is
+ * invisible at the call site, so this is where it has to be visible instead.
+ */
+data class LoadingHistoryQuery(
+    val date: String?,
+    val month: String?,
+    val page: Int?,
+    val pageSize: Int?,
+)

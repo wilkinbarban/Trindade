@@ -3,6 +3,7 @@ package com.trindade.app.loading
 import com.trindade.app.contract.models.CreateDriverRequest
 import com.trindade.app.contract.models.CreateScheduleRequest
 import com.trindade.app.contract.models.DriversResponseDriversInner
+import com.trindade.app.contract.models.ScheduleHistoryResponse
 import com.trindade.app.contract.models.SchedulesResponseSchedulesInner
 import com.trindade.app.contract.models.UpdateScheduleRequest
 import com.trindade.app.contract.models.VehiclesResponseVehiclesInner
@@ -32,6 +33,30 @@ class LoadingRepository @Inject constructor(
             ?.takeIf { it.isSuccessful }
             ?.body()
             ?.schedules
+
+    /**
+     * One page of the loading history, or null when the server cannot be asked.
+     *
+     * The envelope rather than an unwrapped list like the reads above, because the pagination is half
+     * the answer. A list alone leaves the screen unable to tell a full page from the last one, so it
+     * cannot know whether to offer another page, and it cannot show a total. `date` and `month` are
+     * nullable on purpose and pass through as they arrived: null means the caller asked for no filter
+     * and the empty string means the caller asked for the empty value, which the server refuses with
+     * a 400. A null `page` or `pageSize` takes the server's default.
+     *
+     * Each item's `loadingDate` is the server's own computation and is passed on untouched; this
+     * layer does not re-derive it from `batchDate`, because the rule belongs to the server and a
+     * second implementation here would be a second thing to keep in agreement with the first.
+     */
+    suspend fun history(
+        date: String?,
+        month: String?,
+        page: Int?,
+        pageSize: Int?,
+    ): ScheduleHistoryResponse? =
+        runCatching { api.history(date = date, month = month, page = page, pageSize = pageSize) }.getOrNull()
+            ?.takeIf { it.isSuccessful }
+            ?.body()
 
     suspend fun timeSlots(): List<String>? =
         runCatching { api.timeSlots() }.getOrNull()

@@ -10,9 +10,12 @@ import com.trindade.app.contract.models.ProductsResponse
 import com.trindade.app.contract.models.ReportCategoryTasksInner
 import com.trindade.app.contract.models.ReportDetailItemsInner
 import com.trindade.app.contract.models.ReportDetailTemperaturesInner
+import com.trindade.app.contract.models.ReportHistoryResponse
 import com.trindade.app.contract.models.ReportListItemUser
 import com.trindade.app.contract.models.ReportResponse
 import com.trindade.app.contract.models.ReportResponseReport
+import com.trindade.app.contract.models.ReportsResponseReportsInner
+import com.trindade.app.contract.models.ScheduleHistoryResponsePagination
 import com.trindade.app.contract.models.SuccessResponse
 import com.trindade.app.contract.models.TextResponse
 import com.trindade.app.contract.models.TurnoResponse
@@ -45,6 +48,8 @@ class FakeReportsApi(
     private val turnoValue: String? = DEFAULT_TURNO,
     private val createResponse: Response<ReportResponse> = Response.success(ReportResponse(report = createdReport())),
     private val reportToReturn: ReportResponseReport? = createdReport(),
+    /** Null makes the history call fail, the same convention as [turnoValue] and for the same reason. */
+    private val historyToReturn: ReportHistoryResponse? = defaultHistory(),
     private val photosToReturn: List<PhotosResponsePhotosInner> = emptyList(),
     private val exportToReturn: String = "CRONOGRAMA DE CARREGAMENTO",
     private val attachResponse: Response<PhotoResponse> = Response.success(PhotoResponse(photo = aPhoto())),
@@ -52,6 +57,16 @@ class FakeReportsApi(
 
     /** What the last create carried, which is the whole point of most of these tests. */
     var createdBody: CreateReportRequest? = null
+        private set
+
+    /**
+     * The filters the last history call carried, all four at once.
+     *
+     * Grouped rather than four loose fields because the assertion these exist for is about the whole
+     * query: an absent filter has to arrive as null and an empty one has to arrive empty, and four
+     * separate fields let a test pin three of them and miss the one that moved.
+     */
+    var lastHistoryQuery: ReportsHistoryQuery? = null
         private set
 
     override suspend fun categories(): Response<CategoriesResponse> = Response.success(CategoriesResponse(categories))
@@ -75,6 +90,17 @@ class FakeReportsApi(
     override suspend fun report(id: Int): Response<ReportResponse> =
         reportToReturn?.let { Response.success(ReportResponse(report = it)) }
             ?: Response.error(404, EMPTY_BODY)
+
+    override suspend fun history(
+        date: String?,
+        month: String?,
+        page: Int?,
+        pageSize: Int?,
+    ): Response<ReportHistoryResponse> {
+        lastHistoryQuery = ReportsHistoryQuery(date = date, month = month, page = page, pageSize = pageSize)
+        val history = historyToReturn ?: return Response.error(500, EMPTY_BODY)
+        return Response.success(history)
+    }
 
     override suspend fun photos(id: Int): Response<PhotosResponse> = Response.success(PhotosResponse(photos = photosToReturn))
 
@@ -146,6 +172,38 @@ class FakeReportsApi(
             normal = listOf(ProductsResponse.Normal.entries.first()),
         )
 
+        /** One item and a one-page pagination, which is the smallest complete answer. */
+        fun defaultHistory() = ReportHistoryResponse(
+            items = listOf(historyItem()),
+            pagination = ScheduleHistoryResponsePagination(page = 1, pageSize = 30, total = 1, totalPages = 1),
+        )
+
+        /**
+         * One history item, with all five flags the server's projection always emits.
+         *
+         * `readOnly` is written as `!canEdit` rather than passed in, because that is what the server
+         * computes; a fake that could send a contradiction would let a test pass against a combination
+         * the backend cannot produce.
+         */
+        fun historyItem(
+            id: Int = 1,
+            reportDate: String = "2026-09-18",
+            isActive: Boolean = true,
+            canEdit: Boolean = true,
+        ) = ReportsResponseReportsInner(
+            id = id,
+            turno = ReportsResponseReportsInner.Turno.entries.first { it.value == DEFAULT_TURNO },
+            reportDate = reportDate,
+            notes = null,
+            createdAt = "2026-09-18T10:00:00Z",
+            user = ReportListItemUser(id = 1, displayName = "admin"),
+            isActive = isActive,
+            readOnly = !canEdit,
+            canEdit = canEdit,
+            canDeactivate = true,
+            canDelete = true,
+        )
+
         fun createdReport(id: Int = 42) = ReportResponseReport(
             id = id,
             turno = ReportResponseReport.Turno.entries.first { it.value == DEFAULT_TURNO },
@@ -172,3 +230,18 @@ class FakeReportsApi(
         )
     }
 }
+
+/**
+ * The four filters one history call carried, as the API received them.
+ *
+ * Values are nullable because that is the distinction under test rather than an oversight: null is
+ * "the caller asked for no filter" and the empty string is "the caller asked for the empty value".
+ * They are different requests -- the server answers the second with a 400 -- and the difference is
+ * invisible at the call site, so this is where it has to be visible instead.
+ */
+data class ReportsHistoryQuery(
+    val date: String?,
+    val month: String?,
+    val page: Int?,
+    val pageSize: Int?,
+)
