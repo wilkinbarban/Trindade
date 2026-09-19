@@ -124,6 +124,49 @@ class LoginViewModelTest {
     }
 
     @Test
+    fun `a consumed sign-in leaves the next one visible again`() {
+        val store = FakeTokenStore()
+        val model = LoginViewModel(AuthRepository(FakeAuthApi(), store, json()))
+        model.onUsernameChange("ana")
+        model.onPasswordChange("segredo")
+        model.submit()
+        assertEquals(true, model.state.value.signedIn)
+
+        // What the login screen does with the event as soon as the app has acted on it.
+        model.consumeSignIn()
+        assertEquals(false, model.state.value.signedIn)
+
+        // The second sign-in of one process -- the one a password change sends the operator through, and
+        // the flagship flow of this slice. The flag has to rise again here. Asserted as a change rather
+        // than as a value, because a value is what the defect got right: without the consumption the flag
+        // would already be true, this line would still read true, and the effect keyed on it would never
+        // run again -- the operator left on the form with a live session in the store and every retry
+        // minting another one on the server.
+        model.onPasswordChange("nova")
+        model.submit()
+        assertEquals(true, model.state.value.signedIn)
+        // The session itself is not what consuming touches: the operator is signed in until they say
+        // otherwise, and only the report that they just did it is spent.
+        assertEquals("token", store.accessToken())
+    }
+
+    @Test
+    fun `consuming a sign-in that never happened changes nothing`() {
+        val store = FakeTokenStore()
+        val model = LoginViewModel(AuthRepository(FakeAuthApi(), store, json()))
+        model.onUsernameChange("ana")
+
+        model.consumeSignIn()
+
+        // Consuming is the app saying "I have seen it". A form nobody has submitted has nothing to hand
+        // over, so this reports no session, invents no message, and leaves what was typed where it was.
+        assertEquals(false, model.state.value.signedIn)
+        assertEquals("ana", model.state.value.username)
+        assertNull(model.state.value.message)
+        assertNull(store.accessToken())
+    }
+
+    @Test
     fun `clears a stale refusal as the operator types`() {
         val api = FakeAuthApi(loginResponse = Response.error(401, refusalBody("Usuário inativo")))
         val model = LoginViewModel(AuthRepository(api, FakeTokenStore(), json()))

@@ -60,4 +60,22 @@ class LoginViewModel @Inject constructor(
             }
         }
     }
+
+    /**
+     * Consumes `signedIn`, to be called once the app has acted on it.
+     *
+     * A successful sign-in is an event, not a state: it is true only until somebody acts on it, and the
+     * thing that acts on it is an effect keyed on the flag, so a value left standing is a report no one
+     * is left to hear twice. Reading it is not enough, and the two reasons are worth naming. The event
+     * has to be consumed because a flag that only ever goes one way makes the *second* sign-in of one
+     * process invisible: `submit()` sets it to the value it already had, the effect's key does not
+     * change, the effect never runs again, and the operator is left on the login form holding a live
+     * session, with every retry minting another one on the server. And it has to be consumed here rather
+     * than assumed away by the caller, because this view model is scoped to the activity's store: it
+     * outlives the login screen, so it is still true when the operator signs out and the form comes
+     * back. Clearing it makes the next real sign-in a false -> true transition again.
+     */
+    fun consumeSignIn() {
+        _state.update { it.copy(signedIn = false) }
+    }
 }
