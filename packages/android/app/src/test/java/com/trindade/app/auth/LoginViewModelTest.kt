@@ -76,6 +76,26 @@ class LoginViewModelTest {
     }
 
     @Test
+    fun `repeats a refusal that carries only the error field`() {
+        // The shape most of this backend's refusals have. `auth.routes.ts` sends `error` for every one
+        // of them and never a `message` at all -- the wrong-current-password refusal is
+        // `{ error: 'Invalid current password' }` and nothing more -- so a client that reads `message`
+        // alone answers the generic sentence to all of them, and the operator is told that signing in
+        // failed instead of why.
+        val api = FakeAuthApi(loginResponse = Response.error(401, errorOnlyBody("Invalid credentials")))
+        val model = LoginViewModel(AuthRepository(api, FakeTokenStore(), json()))
+        model.onUsernameChange("ana")
+        model.onPasswordChange("segredo")
+        model.submit()
+
+        // Asserted as an equality against a different sentence than the fallback: if the envelope
+        // failed to decode, this reads GENERIC_REJECTION and the test fails loudly rather than
+        // measuring the fallback and calling it the behaviour.
+        assertEquals(LoginMessage.FromServer("Invalid credentials"), model.state.value.message)
+        assertEquals(false, model.state.value.signedIn)
+    }
+
+    @Test
     fun `says the server is unreachable rather than blaming the credentials`() {
         val api = FakeAuthApi(failWithTransport = true)
         val model = LoginViewModel(AuthRepository(api, FakeTokenStore(), json()))
@@ -176,11 +196,25 @@ private fun json() = kotlinx.serialization.json.Json { ignoreUnknownKeys = true 
 private fun String.toResponseBody() = this.toResponseBody("application/json".toMediaType())
 
 /**
- * A failure body shaped like the contract's, which requires `error`.
+ * A refusal shaped like the contract's envelope, which requires `error`.
  *
  * The first version of this carried only `message` and the tests failed for the wrong reason: the
  * envelope could not be decoded, the repository fell back to its generic sentence, and the assertion
- * about repeating the server's own words was measuring a fallback instead.
+ * about repeating the server's own words was measuring a fallback instead. `error` is therefore always
+ * present here, so a body this helper produces is always one the client can read.
+ *
+ * The two fields are both carried on purpose, because a refusal that has a `message` is the case where
+ * the client must prefer it; [errorOnlyBody] is the other case, and it is the common one.
  */
 private fun refusalBody(message: String) =
     """{"error":"Unauthorized","message":"$message"}""".toResponseBody()
+
+/**
+ * The shape most refusals actually have: `error` alone, with no `message` to prefer.
+ *
+ * This is not a malformed body and must not be mistaken for one. Every refusal on `auth.routes.ts` is
+ * this shape, so a client that decodes `message` only reads null here and reports the generic
+ * sentence, which is the defect this body exists to catch.
+ */
+private fun errorOnlyBody(error: String) =
+    """{"error":"$error"}""".toResponseBody()

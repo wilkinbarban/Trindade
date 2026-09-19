@@ -29,10 +29,11 @@ class AuthRepository @Inject constructor(
     /**
      * Signs in, reporting what happened rather than only whether it worked.
      *
-     * The failure text comes from the server's ErrorEnvelope, because the contract sends one for every
-     * failure and it is the only description of what went wrong that the client cannot invent. An
-     * unreadable or absent envelope falls back to a generic sentence rather than surfacing a parse
-     * error, which would tell the user nothing and look like a client bug.
+     * The failure text comes from the server's own refusal body, because the contract sends one for
+     * every failure and it is the only description of what went wrong that the client cannot invent:
+     * wrong credentials, an inactive account, or something unanticipated. An unreadable or absent
+     * envelope falls back to a generic sentence rather than surfacing a parse error, which would tell
+     * the user nothing and look like a client bug.
      */
     suspend fun login(username: String, password: String): LoginResult {
         val response = runCatching { api.login(LoginRequest(username = username, password = password)) }.getOrNull()
@@ -92,14 +93,22 @@ class AuthRepository @Inject constructor(
     /**
      * The server's message for a failed call, or null when it sent one this client cannot read.
      *
+     * `message` first and `error` after it, because this backend uses one or the other and the two
+     * are not interchangeable. `auth.routes.ts` sends `error` for every refusal it has and never a
+     * `message` at all -- the wrong-current-password refusal is `{ error: 'Invalid current password' }`
+     * and nothing more -- so decoding `message` alone turned each of them into the generic sentence,
+     * which tells the operator that signing in failed and nothing about why.
+     *
+     * Both candidates are blank-tested, because an empty string is not a message either.
+     *
      * Read through the same Json the rest of the app uses, so an unknown field in a future envelope
      * does not turn a legible refusal into a generic sentence.
      */
     private fun Response<*>.errorMessage(): String? {
         val raw = runCatching { errorBody()?.string() }.getOrNull()
         if (raw.isNullOrBlank()) return null
-        return runCatching { json.decodeFromString<ErrorEnvelope>(raw).message }.getOrNull()
-            ?.takeIf { it.isNotBlank() }
+        val envelope = runCatching { json.decodeFromString<ErrorEnvelope>(raw) }.getOrNull() ?: return null
+        return envelope.message?.takeIf { it.isNotBlank() } ?: envelope.error.takeIf { it.isNotBlank() }
     }
 
     private companion object {
