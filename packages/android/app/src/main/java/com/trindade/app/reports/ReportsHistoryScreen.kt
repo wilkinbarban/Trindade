@@ -69,6 +69,16 @@ fun ReportsHistoryScreen(
     val context = LocalContext.current
     var pickingMonth by remember { mutableStateOf(false) }
 
+    /**
+     * The report a delete is waiting to be confirmed for, or null when nothing is.
+     *
+     * The delete is irreversible on the server -- the row leaves the history for everyone, not just for
+     * this screen -- and the button sits next to the deactivate one in a row an operator taps with gloves
+     * on. A confirmation is the difference between a mis-tap and a lost report, and it is deliberately
+     * the only action here that asks twice.
+     */
+    var confirmingDelete by remember { mutableStateOf<Int?>(null) }
+
     LazyColumn(
         modifier = modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -151,7 +161,7 @@ fun ReportsHistoryScreen(
                 busy = state.busy,
                 onOpen = { onOpenReport(report.id) },
                 onDeactivate = { onDeactivate(report.id) },
-                onDelete = { onDelete(report.id) },
+                onDelete = { confirmingDelete = report.id },
             )
         }
 
@@ -230,6 +240,29 @@ fun ReportsHistoryScreen(
             },
             confirmButton = {
                 TextButton(onClick = { pickingMonth = false }) { Text(stringResource(R.string.loading_cancel)) }
+            },
+        )
+    }
+
+    confirmingDelete?.let { reportId ->
+        AlertDialog(
+            onDismissRequest = { confirmingDelete = null },
+            title = { Text(stringResource(R.string.history_delete_confirm_title)) },
+            text = { Text(stringResource(R.string.history_delete_confirm_body)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        // Closed first: the dialog is about the tap that is already being acted on, and
+                        // leaving it open over a request in flight would invite a second one.
+                        confirmingDelete = null
+                        onDelete(reportId)
+                    },
+                ) {
+                    Text(stringResource(R.string.history_delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmingDelete = null }) { Text(stringResource(R.string.loading_cancel)) }
             },
         )
     }

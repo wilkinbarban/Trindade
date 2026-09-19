@@ -75,6 +75,18 @@ class ReportsHistoryViewModel @Inject constructor(
     private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state.asStateFlow()
 
+    /**
+     * Identifies the newest page request, so a response to an older one cannot overwrite it.
+     *
+     * Two requests really can be in the air at once: the paging buttons are withheld during a load but
+     * the filter buttons are not, so choosing a month while a page is arriving starts a second request.
+     * Without this, whichever answer lands last wins, and the older one landing last would draw the
+     * previous filter's page under the new filter's name -- which reads exactly like the server
+     * answering with the wrong rows. The fake answers immediately, so no test saw it; a device on a slow
+     * network is where it would have been seen first.
+     */
+    private var newestLoad = 0
+
     init {
         load()
     }
@@ -114,6 +126,7 @@ class ReportsHistoryViewModel @Inject constructor(
      */
     fun load(page: Int = state.value.page) {
         val filters = state.value
+        val load = ++newestLoad
         _state.update { it.copy(loading = true, message = null) }
 
         viewModelScope.launch {
@@ -123,6 +136,11 @@ class ReportsHistoryViewModel @Inject constructor(
                 page = page,
                 pageSize = null,
             )
+
+            // A superseded answer is dropped whole: not the items, not the page, not the message. Half of
+            // it written over a newer answer would be worse than none, because the page and the list would
+            // then describe different requests.
+            if (load != newestLoad) return@launch
 
             if (history == null) {
                 // Null is "the server did not answer", not "there are no reports". An empty list drawn

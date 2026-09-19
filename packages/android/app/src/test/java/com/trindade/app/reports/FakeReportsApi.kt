@@ -20,6 +20,7 @@ import com.trindade.app.contract.models.SuccessResponse
 import com.trindade.app.contract.models.TextResponse
 import com.trindade.app.contract.models.TurnoResponse
 import com.trindade.app.contract.models.UpdateReportRequest
+import kotlinx.coroutines.CompletableDeferred
 import com.trindade.app.network.ReportsApi
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
@@ -59,6 +60,15 @@ class FakeReportsApi(
      * step-back exists for, where deleting the last report on the last page leaves that page empty.
      */
     private val historyItemCount: Int? = null,
+    /**
+     * When true, every history call waits on its own gate before answering, so a test can hold two of them
+     * in the air at once and choose which one lands last.
+     *
+     * The gate is released *before* the answer is built, on purpose: the state the fake reads is the state
+     * at release time, which is how a test reproduces what the code could not otherwise see -- a stale
+     * response arriving after a newer one, carrying rows the operator is no longer asking for.
+     */
+    private val gateHistory: Boolean = false,
     private val photosToReturn: List<PhotosResponsePhotosInner> = emptyList(),
     private val exportToReturn: String = "CRONOGRAMA DE CARREGAMENTO",
     private val attachResponse: Response<PhotoResponse> = Response.success(PhotoResponse(photo = aPhoto())),
@@ -97,6 +107,9 @@ class FakeReportsApi(
     /** The report ids the two lifecycle calls were made with, in the order they were made. */
     val deactivatedIds = mutableListOf<Int>()
     val deletedIds = mutableListOf<Int>()
+
+    /** One gate per history call held open by [gateHistory], in the order the calls were made. */
+    val historyGates = mutableListOf<CompletableDeferred<Unit>>()
 
     /**
      * How many reports the live history holds, counting down as deletions succeed.
@@ -139,6 +152,12 @@ class FakeReportsApi(
         val query = ReportsHistoryQuery(date = date, month = month, page = page, pageSize = pageSize)
         lastHistoryQuery = query
         historyQueries += query
+
+        if (gateHistory) {
+            val gate = CompletableDeferred<Unit>()
+            historyGates += gate
+            gate.await()
+        }
 
         val history = if (historyItemCount != null) {
             liveHistory(page ?: 1)

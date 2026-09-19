@@ -37,6 +37,9 @@
     <string name="history_inactive">Inativo</string>
     <string name="history_deactivate">Desativar</string>
     <string name="history_delete">Excluir</string>
+    <!-- The only action on this screen that asks twice: the deletion is irreversible on the server. -->
+    <string name="history_delete_confirm_title">Excluir este relatório?</string>
+    <string name="history_delete_confirm_body">Não dá para desfazer: ele sai para todo mundo, não só desta tela.</string>
     <string name="history_empty">Nenhum relatório encontrado para este período.</string>
     <string name="history_pagination">Página %1$d de %2$d (%3$d registros)</string>
     <string name="history_previous">Anterior</string>

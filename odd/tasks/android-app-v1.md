@@ -1198,6 +1198,24 @@ fixes its neighbours is a slice nobody can review):
 `AuthProfile`) beside the classes the live schemas actually reference (`ReportsResponseReportsInner`,
 `ScheduleHistoryResponseItemsInner`, `ProfileResponseUser`). Bind to the live ones.
 
+**The D5b review left five advisories, and their dispositions are recorded here rather than lost**:
+
+- **The page could be overwritten by the answer that arrived late — FIXED.** Two history requests can be
+  in the air at once (the filter buttons are not withheld during a load), and without a token the older
+  answer landing last draws the previous filter's rows under the new filter's name. A request token now
+  makes a superseded answer a no-op in full. **The test that pins it exists only because the fake learned
+  to hold an answer open, and the negative experiment is the evidence**: with the guard disabled, exactly
+  one test fails and it is that one. A green suite walked past this for a whole slice.
+- **The delete was irreversible with no confirmation — FIXED.** It is the only action on the screen that
+  asks twice, and it departs from the SPA on purpose: parity with a desktop workflow is not worth a lost
+  report from a phone in the yard.
+- **`runCatching` swallows `CancellationException` — OWN SLICE, by the user's decision.** The idiom is in
+  every repository in this app (Loading, Reports, Auth), so it is a project decision and not a patch to
+  one slice.
+- **Nothing proves the two lifecycle calls' response types on the wire — RECORDED.** `ContractCoverageTest`
+  compares verb and path only, and the fake's "204" is really a 200 with a body.
+- **The `Unreachable` and non-403/404 refusal branches are unexercised — RECORDED.**
+
 ---
 
 ## Open decisions

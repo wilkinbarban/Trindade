@@ -223,6 +223,37 @@ class ReportsHistoryViewModelTest {
     }
 
     @Test
+    fun `a superseded page does not overwrite the newer one`() {
+        // Two requests really can be in the air at once: the paging buttons are withheld during a load
+        // but the filter buttons are not, so choosing a month while a page is arriving starts a second
+        // request. Without the token the older answer landing last draws the previous filter's rows under
+        // the new filter's name, which reads exactly like the server answering with the wrong reports.
+        //
+        // The gate is what makes the race reachable at all: an immediate fake cannot produce it, which is
+        // why no test saw this before an independent verifier read the code.
+        val api = FakeReportsApi(historyItemCount = 31, gateHistory = true)
+        val model = viewModel(api)
+
+        model.onMonthSelected("2026-08")
+        assertEquals("one request per load", 2, api.historyGates.size)
+
+        // The newer request answers first, and the superseded one answers after it with rows that are no
+        // longer there for anybody.
+        api.historyGates[1].complete(Unit)
+        assertEquals(31, model.state.value.total)
+        assertEquals(30, model.state.value.items.size)
+
+        api.remainingHistoryItems = 0
+        api.historyGates[0].complete(Unit)
+
+        // Nothing of the stale answer: not the rows, not the count, not the loading flag.
+        assertEquals(31, model.state.value.total)
+        assertEquals(30, model.state.value.items.size)
+        assertEquals("2026-08", model.state.value.month)
+        assertEquals(false, model.state.value.loading)
+    }
+
+    @Test
     fun `a read that never answered claims no page`() {
         // The footer and the empty sentence are statements about a history that was read. On a first read
         // that failed there is no page: printing "Página 1 de 1 (0 registros)" under the unreachable
