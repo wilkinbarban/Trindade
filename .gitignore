@@ -6,6 +6,16 @@
 # SDD local artifacts
 .atl/
 
+# Android release signing. keystore.properties holds the store password in plain text and the
+# keystore is the one file that can never be regenerated, so neither may ever be tracked at any depth;
+# the unanchored rules follow the convention at the top of this file. Ignoring a keystore is not
+# permission to keep one in the tree: docs/release-android.md keeps it outside the repository.
+keystore.properties
+*.jks
+*.keystore
+*.p12
+*.pfx
+
 # Local recovery and diagnostic artifacts
 .git-index-safety/
 

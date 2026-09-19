@@ -21,6 +21,14 @@ printf 'Android lane project root: %s\n' "$android_dir"
 # that cannot accidentally reach a real host is the right default for a build check.
 release_base_url="${CI_ANDROID_RELEASE_BASE_URL:-https://ci.invalid/}"
 
+# A release build also needs a version, enforced by a guard of the same shape, because the real release
+# is built by the tag workflow and its version comes from the tag. These two are the lane's own
+# placeholders: this lane is not a release, it only proves that a release builds. The encoding is the
+# documented one (major * 10000 + minor * 100 + patch), so 0.0.1 is versionCode 1 and the pair here is
+# consistent rather than merely present.
+release_version_name="${CI_ANDROID_RELEASE_VERSION_NAME:-0.0.1}"
+release_version_code="${CI_ANDROID_RELEASE_VERSION_CODE:-1}"
+
 if ! command -v java >/dev/null 2>&1; then
   printf 'The Android lane needs a JDK on PATH and found none. Install one, or run it in a container with: make ci-android\n' >&2
   exit 1
@@ -53,8 +61,17 @@ section 'Build the debug APK and run its unit tests'
 
 # The release build earns its place twice: it is the only path that exercises the base-URL guard, and
 # its merged manifest is what the security assertions below read.
+#
+# Signing is deliberately left unconfigured, and that is the lane's whole posture towards the keystore:
+# this lane has none and must not have one. The build therefore produces app-release-unsigned.apk on
+# purpose, which is what keeps the unsigned path exercised -- -PrequireSigned=true, which the release
+# workflow passes, is what turns an absent keystore into a failure there.
 section 'Build the release APK'
-./gradlew assembleRelease "-PapiBaseUrl=$release_base_url" --no-daemon
+./gradlew assembleRelease \
+  "-PapiBaseUrl=$release_base_url" \
+  "-PversionName=$release_version_name" \
+  "-PversionCode=$release_version_code" \
+  --no-daemon
 
 # The cleartext exemption is a debug-only overlay, and that is a security property rather than a
 # detail: a release APK must carry no exemption at all, so the platform default -- cleartext
@@ -82,20 +99,33 @@ printf 'cleartext exemption present in debug and absent in release; allowBackup 
 # The guard is a rule with no default, so its failure mode deserves a test. Without this, a future
 # refactor could quietly remove the guard and every other check here would still pass.
 #
-# --rerun-tasks is not decoration. The guard is a doFirst on the task that generates BuildConfig, and
-# Gradle skips a task's actions when it considers that task up to date. The release build above ran
-# with a different base URL, which changes that task's inputs and forces it to run, so this check
-# passes without the flag -- but only as a side effect of the step above it. A test whose outcome
-# depends on an undeclared precondition reports success for the wrong reason the day that
-# precondition changes, so the dependence is removed here rather than left implicit.
+# --rerun-tasks stays, but it is no longer what makes this check correct. The guard used to be a doFirst on
+# the task that generates BuildConfig, and Gradle skips a task's actions when it considers that task up to
+# date, so this check passed only because the step above ran with a different base URL and forced the task
+# to run again. The guard is now its own task with no declared outputs, which is never up to date, so the
+# outcome no longer depends on the previous step; the flag is kept because a release build that Gradle
+# skipped entirely would be a weaker thing to assert about than one that actually ran.
+#
+# The version properties are passed here and the grep below is pinned to the base-URL guard's own
+# sentence, and both halves are deliberate. The release build now has three rules and two of them open with
+# the words "A release build requires", so a grep on that prefix would also be satisfied by a build that
+# failed because no version was given -- a test passing for a reason it does not name. Passing the versions
+# removes that ambiguity at its source, and the longer prefix makes the claim this section makes the only
+# one that can satisfy it.
 section 'Assert a release build refuses to run without a base URL'
 guard_log="$(mktemp)"
-if ./gradlew assembleRelease --rerun-tasks --no-daemon >"$guard_log" 2>&1; then
+# The log is read on both the success and the failure path below, so it is removed on exit rather than
+# after the last read: a failed check exits early, and that is exactly when a stray /tmp file would be
+# left behind. Same shape as the other temporary handling in this repository.
+trap 'rm -f "$guard_log"' EXIT
+if ./gradlew assembleRelease --rerun-tasks --no-daemon \
+  "-PversionName=$release_version_name" \
+  "-PversionCode=$release_version_code" >"$guard_log" 2>&1; then
   printf 'A release build succeeded without -PapiBaseUrl. The guard that stops a release from silently pointing at the development loopback is gone or bypassed.\n' >&2
   exit 1
 fi
-if ! grep -q 'A release build requires' "$guard_log"; then
-  printf 'A release build failed without a base URL, but not for the reason this lane expects. Failing for an unknown reason is not the same as the guard working.\n' >&2
+if ! grep -q 'A release build requires -PapiBaseUrl=' "$guard_log"; then
+  printf 'A release build failed without a base URL, but not with the sentence the base-URL guard prints ("A release build requires -PapiBaseUrl="). Failing for an unknown reason is not the same as the guard working.\n' >&2
   tail -20 "$guard_log" >&2
   exit 1
 fi

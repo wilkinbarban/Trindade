@@ -1,3 +1,8 @@
+// Imported rather than qualified as java.util.Properties: inside a Kotlin build script the name `java`
+// resolves to the Java plugin's project extension, not to the package, so the qualified form does not
+// compile here.
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -11,6 +16,78 @@ plugins {
     alias(libs.plugins.hilt)
 }
 
+// -------------------------------------------------------------------------------------------------
+// What this build declares about itself
+//
+// The values below are resolved at configuration time from three sources, in the order a caller would
+// expect to override them: a Gradle property (-P), then the environment, then a gitignored
+// keystore.properties beside the module. The names are the same in all three places, so a value set
+// anywhere is the same knob, and the release signing values are only ever the operator's -- nothing in
+// this file holds a password.
+// -------------------------------------------------------------------------------------------------
+
+// keystore.properties is the local, non-CI source for the signing values. Both plausible locations are
+// read rather than one being guessed: the module directory and the Gradle root beside it. A file that
+// is silently ignored is the exact failure this slice exists to remove, and picking the wrong one of two
+// reasonable locations produces precisely that.
+val keystorePropertiesFile = listOf(
+    project.file("keystore.properties"),
+    rootProject.file("keystore.properties"),
+).firstOrNull { it.isFile }
+val keystoreProperties = Properties().apply {
+    keystorePropertiesFile?.inputStream()?.use { load(it) }
+}
+
+fun declaredValue(propertyName: String, environmentName: String, keystoreKey: String? = null): String? =
+    (project.findProperty(propertyName) as String?)?.takeIf { it.isNotBlank() }
+        ?: System.getenv(environmentName)?.takeIf { it.isNotBlank() }
+        ?: keystoreKey?.let { keystoreProperties.getProperty(it) }?.takeIf { it.isNotBlank() }
+
+// The version is declared by whoever builds rather than hand-edited here: the tag workflow computes it
+// from the tag (see .github/workflows/android-release.yml and docs/release-android.md). Debug keeps a
+// placeholder so a local build needs no properties at all; a release does not, and the guard further
+// down is what enforces that.
+val declaredVersionName = declaredValue("versionName", "TRINDADE_VERSION_NAME")
+val declaredVersionCodeText = declaredValue("versionCode", "TRINDADE_VERSION_CODE")
+val declaredVersionCode = declaredVersionCodeText?.toIntOrNull()
+
+// Computed once, and used for both defaultConfig and the BuildConfig fields below. Two computations of
+// the same value is how "installed 0.3.0, displays 0.2.0" happens.
+val effectiveVersionName = declaredVersionName ?: "0.1.0"
+val effectiveVersionCode = declaredVersionCode ?: 1
+
+// The release signing values, as four separate knobs. Nothing here is required to configure a build:
+// an absent keystore means an unsigned release APK, which is what the CI lane builds on purpose.
+val releaseKeystorePath = declaredValue("trindadeKeystorePath", "TRINDADE_KEYSTORE_PATH", "trindadeKeystorePath")
+val releaseKeystorePassword =
+    declaredValue("trindadeKeystorePassword", "TRINDADE_KEYSTORE_PASSWORD", "trindadeKeystorePassword")
+val releaseKeyAlias = declaredValue("trindadeKeyAlias", "TRINDADE_KEY_ALIAS", "trindadeKeyAlias")
+// One password is the normal case: a PKCS12 store built with keytool uses the same password for the store
+// and for the key inside it, so the key password only has to be given for the other kind of store.
+val releaseKeyPassword = declaredValue("trindadeKeyPassword", "TRINDADE_KEY_PASSWORD", "trindadeKeyPassword")
+    ?: releaseKeystorePassword
+
+// The path is resolved through project.file, so both an absolute path outside the repository (which is
+// where the keystore lives) and a path relative to this module work.
+val releaseKeystoreFile = releaseKeystorePath?.let { project.file(it) }?.takeIf { it.isFile }
+val missingSigningSettings = buildList {
+    if (releaseKeystorePath == null) add("trindadeKeystorePath")
+    if (releaseKeystorePassword == null) add("trindadeKeystorePassword")
+    if (releaseKeyAlias == null) add("trindadeKeyAlias")
+    if (releaseKeystorePath != null && releaseKeystoreFile == null) {
+        add("a readable keystore at '$releaseKeystorePath'")
+    }
+}
+val releaseSigningConfigured = missingSigningSettings.isEmpty()
+// Any one of the three settings being present counts as an attempt. That distinction is what lets the
+// guard tell "this project has no keystore, build unsigned" apart from "someone tried to sign this build
+// and got it half right", which produce the same artifact and must not produce the same silence.
+val releaseSigningStarted = listOf(releaseKeystorePath, releaseKeystorePassword, releaseKeyAlias).any { it != null }
+
+// Opt-in, and only the release workflow opts in. The CI lane deliberately has no keystore and builds an
+// unsigned release, which is how that lane proves the release path still builds at all.
+val requireSigned = (project.findProperty("requireSigned") as String?)?.equals("true", ignoreCase = true) == true
+
 android {
     namespace = "com.trindade.app"
     // The pinned androidx/OkHttp versions (Compose 1.12.x, OkHttp 5.5.0) require API 37;
@@ -22,8 +99,8 @@ android {
         // Android 8.0 is a deliberate floor: field devices still on Oreo remain common.
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = effectiveVersionCode
+        versionName = effectiveVersionName
 
         // The base URL is configuration, never a constant: the same build must be able to point at a
         // deployment that does not exist yet. The default targets the emulator host loopback, which
@@ -42,6 +119,37 @@ android {
                 "Got '$apiBaseUrl'."
         }
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
+
+        // The app's own copy of the version, from the same single computation that filled versionCode and
+        // versionName above, which is what makes what the operator reads on the Perfil screen the value
+        // that was packaged rather than a second, drifting one. The field names are this build's
+        // (APP_VERSION_*) rather than AGP's generated VERSION_NAME/VERSION_CODE so the screen reads a name
+        // this project owns, and so nothing here collides with what AGP writes into the same class.
+        buildConfigField("String", "APP_VERSION_NAME", "\"$effectiveVersionName\"")
+        buildConfigField("int", "APP_VERSION_CODE", effectiveVersionCode.toString())
+    }
+
+    // Signing is configured only when a keystore was fully resolved. No keystore is not an error by
+    // itself: AGP then produces app-release-unsigned.apk, which is exactly what scripts/ci-android.sh
+    // builds and what proves the release path works without a key. -PrequireSigned=true is what turns
+    // the absence into a failure, and the release workflow is the only caller that passes it.
+    signingConfigs {
+        if (releaseSigningConfigured) {
+            create("release") {
+                storeFile = releaseKeystoreFile
+                storePassword = releaseKeystorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            if (releaseSigningConfigured) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+        }
     }
 
     buildFeatures {
@@ -78,36 +186,96 @@ kotlin {
     }
 }
 
-// A release build must carry an https base URL, and there is deliberately no default: shipping
-// against the emulator loopback is not a configuration anyone chooses on purpose, so it fails here
-// rather than on a user's device, where the release manifest grants no cleartext exception and the
-// request could not succeed anyway.
-//
-// The guard hangs off generateReleaseBuildConfig rather than off the tasks that consume the value,
-// and the placement is the whole point. Two earlier placements were wrong in instructive ways. A
-// require in the android block ran at configuration time, and because AGP configures every build
-// type before running any task, it broke assembleDebug while trying to guard the release build.
-// Matching the task names assembleRelease and bundleRelease fixed that but left every other release
-// producer unguarded: packageReleaseBundle, packageRelease, packageReleaseUniversalApk, and any
-// flavoured variant assembled under a name nobody predicted.
-//
-// Every task that produces a release artifact must generate BuildConfig first, so a guard here
-// cannot be bypassed by choosing a different entry point, and it sits on the very task that
-// produces the value being checked. The remaining assumption is worth stating: this depends on
-// BuildConfig being generated, so turning off buildFeatures.buildConfig would silently remove it.
+// A release build must carry an https base URL, a version, and -- when it is asked for -- a signature.
+// Shipping against the emulator loopback is not a configuration anyone chooses on purpose, so it fails
+// here rather than on a user's device, where the release manifest grants no cleartext exception and the
+// request could not succeed anyway. The version has no default for the same class of reason: an APK whose
+// version the build invented cannot be told apart from an older one when an operator asks whether an
+// update landed.
 val declaredApiBaseUrl = (project.findProperty("apiBaseUrl") as String?) ?: ""
+
+fun assertReleaseBuildDeclarations() {
+    // Local copies, because a smart cast does not survive on a script-level val and the checks below need
+    // to narrow these to non-null before use.
+    val versionName = declaredVersionName
+    val versionCode = declaredVersionCode
+    val versionCodeText = declaredVersionCodeText
+
+    // Order is load-bearing in one direction. The base-URL check runs first, so a release build that was
+    // given neither property fails with the base-URL sentence; scripts/ci-android.sh asserts that exact
+    // sentence, because that guard is the one whose removal a green lane would hide.
+    require(declaredApiBaseUrl.isNotEmpty()) {
+        "A release build requires -PapiBaseUrl=https://<host>/. There is no default, so that a " +
+            "release can never silently point at the development loopback."
+    }
+    require(declaredApiBaseUrl.startsWith("https://")) {
+        "A release build requires an https apiBaseUrl, but got '$declaredApiBaseUrl'."
+    }
+
+    // The version, which the tag workflow derives from the tag. Both properties are required because half a
+    // version is worse than none: a versionCode that disagrees with the tag makes Android treat the install
+    // as an update when it is not, or refuse one that is.
+    require(versionName != null) {
+        "A release build requires -PversionName=<x.y.z> and -PversionCode=<n>. There is no default, so " +
+            "that a release can never be published carrying a version the build invented instead of the " +
+            "one its tag declares."
+    }
+    require(versionName.matches(Regex("[0-9]+(\\.[0-9]+)*"))) {
+        "A release build requires a versionName of digits separated by dots, for example 1.2.3, but got " +
+            "'$versionName'. The git tag carries the leading 'v'; the version does not."
+    }
+    require(versionCode != null && versionCode > 0) {
+        "A release build requires a positive -PversionCode, but got '${versionCodeText ?: "nothing"}'. " +
+            "versionCode is the number Android compares to decide whether an install is an update."
+    }
+
+    // The signature, only when the caller asked for it. A missing keystore is not an error by itself -- the
+    // CI lane builds an unsigned release on purpose -- but a release build that was asked to be signed and
+    // produced an unsigned APK instead is the one failure nobody would notice until an operator tries to
+    // install the update.
+    if (!releaseSigningConfigured) {
+        require(!requireSigned) {
+            "A release build with -PrequireSigned=true requires a keystore, and none could be resolved. " +
+                "Provide trindadeKeystorePath, trindadeKeystorePassword and trindadeKeyAlias as -P " +
+                "properties, as TRINDADE_KEYSTORE_PATH, TRINDADE_KEYSTORE_PASSWORD and " +
+                "TRINDADE_KEY_ALIAS in the environment, or in keystore.properties. A published APK that " +
+                "cannot be verified as coming from this project is worse than no APK."
+        }
+        require(!releaseSigningStarted) {
+            "A release build found part of a signing configuration, so it would produce an unsigned APK " +
+                "that looks exactly like a signed one until someone checks it. Missing: " +
+                "${missingSigningSettings.joinToString(", ")}."
+        }
+    }
+}
+
+// The guards live on their own task, and that placement is the whole point in two directions.
+//
+// First, every task that produces a release artifact must generate BuildConfig first, so wiring this task
+// as a dependency of generate*Release*BuildConfig covers all of them: assembleRelease, bundleRelease,
+// packageReleaseBundle, packageRelease, packageReleaseUniversalApk, and any flavoured variant assembled
+// under a name nobody predicted. An earlier version of the base-URL guard hung off assembleRelease and
+// bundleRelease by name and left those other producers unguarded.
+//
+// Second, and this is why it is a task rather than a doFirst: Gradle skips a task's actions, doFirst
+// included, when it considers the task up to date. As a doFirst the guard therefore did not run on a
+// second release build at all -- with -PrequireSigned=true and no keystore it printed nothing, and
+// packageRelease, whose signing configuration had changed, quietly produced an unsigned APK. A task with
+// no declared outputs is never up to date, so this one is evaluated on every release build, including the
+// ones Gradle otherwise skips.
+//
+// The remaining assumption is worth stating: this depends on BuildConfig being generated, so turning off
+// buildFeatures.buildConfig would silently remove it.
+val verifyReleaseBuildDeclarations = tasks.register("verifyReleaseBuildDeclarations") {
+    group = "verification"
+    description = "Checks the base URL, the version and the signature a release build declares."
+    doLast { assertReleaseBuildDeclarations() }
+}
+
 tasks.matching {
     it.name.startsWith("generate") && it.name.endsWith("BuildConfig") && it.name.contains("Release")
 }.configureEach {
-    doFirst {
-        require(declaredApiBaseUrl.isNotEmpty()) {
-            "A release build requires -PapiBaseUrl=https://<host>/. There is no default, so that a " +
-                "release can never silently point at the development loopback."
-        }
-        require(declaredApiBaseUrl.startsWith("https://")) {
-            "A release build requires an https apiBaseUrl, but got '$declaredApiBaseUrl'."
-        }
-    }
+    dependsOn(verifyReleaseBuildDeclarations)
 }
 
 dependencies {

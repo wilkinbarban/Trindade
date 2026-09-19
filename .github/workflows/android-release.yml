@@ -1,0 +1,267 @@
+name: Android release
+
+# Tag-triggered, and only tag-triggered. The version an APK carries is derived from the tag rather than
+# hand-edited anywhere (the rule is in docs/release-android.md), so a build that is not a tag has no
+# version to derive and is not a release. Pushing a `v<major>.<minor>.<patch>` tag is the whole procedure.
+on:
+  push:
+    tags:
+      - 'v*'
+
+# Read-only by default. The publish job asks for the one write it needs and nothing else, so a failure
+# anywhere in the signing steps cannot touch the repository.
+permissions:
+  contents: read
+
+jobs:
+  # The build runs inside the same SDK container CI and the local lane use (`make ci-android`), which is
+  # what makes a third-party setup-android action unnecessary: the toolchain is the one this project
+  # already builds with on a development host. The JVM suite is not re-run here -- a tag points at a
+  # commit whose pull request already ran it in ci.yml -- because this job exists to sign and to verify
+  # the signature, and apksigner is the check it adds.
+  #
+  # UNVERIFIED AS WRITTEN. A GitHub-hosted runner cannot be run from the development host, so this
+  # workflow has never executed and the first tag push is its test. The commands in the build and verify
+  # steps below were run by hand inside this same image before they were written here (docs/release-android.md
+  # records that); the tag-to-version step, the artifact hand-off and the gh call have not been run anywhere.
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/cirruslabs/android-sdk:35
+    # A container job runs its steps with sh unless told otherwise, and the tag parsing below is bash.
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out the tagged commit
+        uses: actions/checkout@v4
+
+      - name: Derive the version from the tag
+        # The encoding is major * 10000 + minor * 100 + patch, which is why it is checked here rather than
+        # assumed: 1.100.0 and 2.0.0 would both encode to 20000, so a tag whose minor or patch is above 99
+        # has to be refused instead of silently producing an APK Android treats as an update to a version
+        # it is not.
+        run: |
+          set -euo pipefail
+          tag="$GITHUB_REF_NAME"
+          if [[ ! "$tag" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            printf 'The tag %s is not of the form v<major>.<minor>.<patch>. The version an APK carries comes from the tag, so a tag that cannot be read as one cannot be released.\n' "$tag" >&2
+            exit 1
+          fi
+          major="${BASH_REMATCH[1]}"
+          minor="${BASH_REMATCH[2]}"
+          patch="${BASH_REMATCH[3]}"
+          if (( minor > 99 || patch > 99 )); then
+            printf 'The tag %s carries a minor or patch above 99, which the versionCode encoding cannot hold without colliding with the next major version.\n' "$tag" >&2
+            exit 1
+          fi
+          version_name="${major}.${minor}.${patch}"
+          version_code=$(( major * 10000 + minor * 100 + patch ))
+          printf 'Tag %s -> versionName %s, versionCode %s\n' "$tag" "$version_name" "$version_code"
+          {
+            printf 'VERSION_NAME=%s\n' "$version_name"
+            printf 'VERSION_CODE=%s\n' "$version_code"
+            printf 'APK_NAME=trindade-%s.apk\n' "$version_name"
+          } >> "$GITHUB_ENV"
+
+      - name: Decode the release keystore
+        # The keystore is a repository secret and lives only for the length of this job. It is written to
+        # the runner's temporary directory and never into the workspace, so nothing that inspects, uploads
+        # or commits the checkout can pick it up.
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          for secret in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS; do
+            if [[ -z "${!secret:-}" ]]; then
+              printf 'The repository secret %s is not configured. docs/release-android.md lists the secrets this workflow needs and the command that produces each one.\n' "$secret" >&2
+              exit 1
+            fi
+          done
+          keystore="$RUNNER_TEMP/trindade-release.jks"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$keystore"
+          if [[ ! -s "$keystore" ]]; then
+            printf 'Decoding ANDROID_KEYSTORE_BASE64 produced an empty file, so that secret does not hold a base64-encoded keystore.\n' >&2
+            exit 1
+          fi
+          printf 'TRINDADE_KEYSTORE_PATH=%s\n' "$keystore" >> "$GITHUB_ENV"
+
+      - name: Build the signed release APK
+        working-directory: packages/android
+        env:
+          # A repository variable with this project's own production host as the default, because the base
+          # URL a release points at is configuration and never a constant, and a release built against a
+          # placeholder host is the silent mistake the build's own guard exists to catch.
+          RELEASE_API_BASE_URL: ${{ vars.ANDROID_API_BASE_URL || 'https://trindademasas.duckdns.org/' }}
+          TRINDADE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          TRINDADE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          # Optional: a PKCS12 store built with keytool uses one password for the store and the key inside
+          # it, and the build falls back to the store password when this is not set.
+          TRINDADE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          # Every value the build requires is passed explicitly, and -PrequireSigned=true is the one that
+          # makes a keystore which failed to resolve a failure rather than an unsigned APK that would install
+          # and then never accept an update from this project again.
+          ./gradlew :app:assembleRelease --no-daemon \
+            "-PapiBaseUrl=${RELEASE_API_BASE_URL}" \
+            "-PversionName=${VERSION_NAME}" \
+            "-PversionCode=${VERSION_CODE}" \
+            -PrequireSigned=true
+
+      - name: Locate the SDK build tools
+        # apksigner and aapt2 are not on PATH in this image, and pinning a build-tools version here would
+        # break the next time the image moves. The newest installed one is the toolchain AGP just built with.
+        run: |
+          set -euo pipefail
+          sdk="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
+          if [[ -z "$sdk" || ! -d "$sdk/build-tools" ]]; then
+            printf 'Neither ANDROID_SDK_ROOT nor ANDROID_HOME points at an SDK with build-tools; got "%s".\n' "$sdk" >&2
+            exit 1
+          fi
+          build_tools="$(find "$sdk/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          if [[ -z "$build_tools" ]]; then
+            printf 'No build-tools directory found under %s/build-tools.\n' "$sdk" >&2
+            exit 1
+          fi
+          printf 'Using %s\n' "$build_tools"
+          printf 'BUILD_TOOLS=%s\n' "$build_tools" >> "$GITHUB_ENV"
+
+      - name: Verify the APK is signed by this project's key
+        # Nothing is published before this passes. The last assertion is the one that matters: a signed APK
+        # is not enough, it has to be signed by *this* project's release key, because Android refuses to
+        # install an APK over an existing install when the signing key differs -- so an APK signed by the
+        # wrong key is not a bad release, it is no release at all, discovered on the crew's phones.
+        env:
+          # The public fingerprint of the release certificate. A fingerprint is not a secret: it is what
+          # anyone installing the APK can compare against, and pinning it here is what turns "the APK is
+          # signed" into "the APK is signed by the key whose fingerprint we published".
+          EXPECTED_CERT_SHA256: 'EE:0E:40:4B:21:10:52:B3:11:AE:0E:07:30:60:6E:9C:7D:55:54:31:54:63:D0:2F:9E:F3:3C:95:73:C4:31:F6'
+        run: |
+          set -euo pipefail
+          unsigned="packages/android/app/build/outputs/apk/release/app-release-unsigned.apk"
+          if [[ -f "$unsigned" ]]; then
+            printf 'The build produced %s, which means no keystore was configured. An unsigned release was assembled while this workflow requires a signed one.\n' "$unsigned" >&2
+            exit 1
+          fi
+          apk="packages/android/app/build/outputs/apk/release/app-release.apk"
+          if [[ ! -f "$apk" ]]; then
+            printf 'No APK at %s, so there is nothing to verify or publish.\n' "$apk" >&2
+            exit 1
+          fi
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$apk"
+          digest="$("$BUILD_TOOLS/apksigner" verify --print-certs "$apk" | awk -F': ' '/certificate SHA-256 digest/ { print $2; exit }')"
+          if [[ -z "$digest" ]]; then
+            printf 'apksigner reported no signer certificate SHA-256 digest for %s.\n' "$apk" >&2
+            exit 1
+          fi
+          # apksigner prints the digest without separators, while the fingerprint in the documentation and in
+          # every conversation about keys is the colon-separated form, so both sides are normalised to bare
+          # uppercase hex before they are compared.
+          got="$(printf '%s' "$digest" | tr -d ':' | tr '[:lower:]' '[:upper:]')"
+          want="$(printf '%s' "$EXPECTED_CERT_SHA256" | tr -d ':' | tr '[:lower:]' '[:upper:]')"
+          if [[ "$got" != "$want" ]]; then
+            printf 'The APK is signed, but not by this project release key.\n  expected: %s\n  got:      %s\n' "$want" "$got" >&2
+            exit 1
+          fi
+          printf 'Signed by the project release key: %s\n' "$got"
+
+      - name: Assert the APK carries the version the tag declares
+        # The version is passed into the build from the tag, and this is the assertion that it arrived: the
+        # numbers in the manifest are the ones Android compares when it decides whether an install is an
+        # update. It reads aapt2's badging line, the only place the packaged values are visible without an
+        # emulator.
+        run: |
+          set -euo pipefail
+          apk="packages/android/app/build/outputs/apk/release/app-release.apk"
+          # The whole badging output is captured and the first line taken with a parameter expansion rather
+          # than by piping into `head`: under `set -o pipefail` a tool that is killed by SIGPIPE when head
+          # closes the pipe makes the whole pipeline fail with 141, and this step would report a version
+          # mismatch that does not exist.
+          badging="$("$BUILD_TOOLS/aapt2" dump badging "$apk")"
+          package_line="${badging%%$'\n'*}"
+          printf '%s\n' "$package_line"
+          case "$package_line" in
+            *"versionCode='$VERSION_CODE'"*) ;;
+            *)
+              printf 'The APK does not carry versionCode %s, so the tag, the property and the manifest disagree.\n' "$VERSION_CODE" >&2
+              exit 1
+              ;;
+          esac
+          case "$package_line" in
+            *"versionName='$VERSION_NAME'"*) ;;
+            *)
+              printf 'The APK does not carry versionName %s, so the tag, the property and the manifest disagree.\n' "$VERSION_NAME" >&2
+              exit 1
+              ;;
+          esac
+          printf 'The packaged version matches the tag: %s (versionCode %s).\n' "$VERSION_NAME" "$VERSION_CODE"
+
+      - name: Stage the release asset
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets
+          cp packages/android/app/build/outputs/apk/release/app-release.apk "release-assets/$APK_NAME"
+          ls -l "release-assets/$APK_NAME"
+
+      - name: Upload the verified APK
+        # actions/upload-artifact is GitHub-owned: no third-party action is handed the signed artifact. The
+        # uploaded copy exists only to carry the APK to the publish job, which runs outside the container
+        # because gh is preinstalled on the runner and is not in the SDK image.
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-release
+          path: release-assets/*.apk
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Remove the decoded keystore
+        # Scoped to the one file this job decoded, under the runner's temporary directory: a long-lived or
+        # self-hosted runner would otherwise keep a copy of the release key on disk after the job.
+        if: always()
+        run: |
+          set -euo pipefail
+          rm -f "$RUNNER_TEMP/trindade-release.jks"
+          printf 'Decoded keystore removed from the runner.\n'
+
+  # Publishing runs on the runner rather than inside the container for one reason: gh is preinstalled there
+  # and is not in the SDK image. The alternatives -- a third-party release action, or installing gh inside
+  # the build container -- would add either a third party to trust or network work for no gain.
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download the verified APK
+        uses: actions/download-artifact@v4
+        with:
+          name: android-release
+          path: release-assets
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # This job has no checkout, so gh cannot infer the repository from a remote. GH_REPO is the
+          # documented way to name it, and it covers all three commands below.
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          assets=(release-assets/*.apk)
+          if (( ${#assets[@]} != 1 )); then
+            printf 'Expected exactly one verified APK to publish, found %d.\n' "${#assets[@]}" >&2
+            exit 1
+          fi
+          # Re-running a failed publish is a normal operator action, so an existing release for the tag is
+          # updated in place instead of failing with "release already exists".
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" --clobber "${assets[@]}"
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              --title "Trindade Android $GITHUB_REF_NAME" \
+              --generate-notes \
+              "${assets[@]}"
+          fi
