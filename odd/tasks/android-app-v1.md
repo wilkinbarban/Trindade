@@ -1129,10 +1129,17 @@ optional `date`, `month`, `userId`; `page` default 1; `pageSize` default 30, max
   The row opens the **existing grid for that date**, which is what finally gives `LoadingViewModel`'s
   `onDateChange` its first caller — a control arrives through history rather than through a picker, which is
   the same conclusion D4 recorded from the other side.
-- **D5d. Profile and change-password.** `display_name` read and edited, `username` and `role` shown
-  read-only, the password change, and a **logout that sends the refresh token** — the one place the Android
-  client is better placed than the SPA, which stores no refresh token and therefore passes no body and
-  revokes nothing server-side.
+- **D5d. Profile and change-password — DONE** (commits `072d2a0` and `6d08ecc`). `display_name` read and
+  edited, `username` and `role` shown read-only, the password change, and a sign-out action.
+  **A claim this line used to make was wrong and is corrected here**: it said the logout was "the one place
+  the Android client is better placed than the SPA, which stores no refresh token and therefore passes no
+  body and revokes nothing server-side". The client did put the refresh token in the body — but it cleared
+  the token store **before** making the call, and the interceptor reads the Authorization header from that
+  same store, so the request went out unauthenticated, the server answered 401 from its `authenticate`
+  preHandler, the revoking handler was never entered, and **the session stayed alive on the server: exactly
+  the SPA's outcome.** The intent was right and the order defeated it, and nothing noticed for several slices
+  because no screen called it. The order is fixed in D5d, and the negative experiment is the evidence:
+  restoring the old order turns the sign-out test red.
 
 **Three product decisions, taken with the user rather than assumed**:
 1. **A successful password change signs the operator out and returns to login.** The server revokes **every**
@@ -1263,6 +1270,27 @@ verifiers.
 Also corrected: "unreachable" was an overclaim. `runBlocking` **does** react to a JVM thread interrupt by
 cancelling its coroutine, so the accurate statement is "not reachable by any cancellation this app can
 produce" — nothing interrupts the OkHttp dispatcher thread today.
+
+**The D5d review by an independent verifier found two defects in code that had already shipped, and both
+are recorded here because that is what they are worth**:
+
+- **The logout revoked nothing — FIXED** (see D5d above). The lesson is the order of two local calls, and
+  that a client which *reads* a token before clearing the store has still not used it.
+- **The second sign-in of a process was swallowed — FIXED, and the interesting one.** `LoginViewModel` is
+  activity-scoped, so its `signedIn` flag outlived the login screen, and the route's effect was keyed on that
+  flag: after a sign-out the flag was still true, so signing in again stored the tokens without the key ever
+  changing and the effect never fired. **An event was modelled as state.** There is now a consumer, the effect
+  reports and then consumes, and the `hasSession()` gate that had been compensating for the sticky flag is
+  gone — its false branch was reachable only through the bug it was papering over.
+- **A residual on the logout, recorded rather than fixed**: when the access token has expired at sign-out,
+  the interceptor refreshes first, which rotates the session family; the retried request still carries the
+  **old** refresh token in its body, so the presented token dies by rotation while its successor stays live
+  until TTL — discarded by the client and unreachable by anyone. Low risk, same class as the defect above,
+  and the clean fix is server-side: the endpoint could identify the session by the refresh token alone rather
+  than requiring a live access token.
+- **What the suite does not pin, named**: deleting the consumption call from the login route leaves all 149
+  tests green. The view model's contract is pinned; the composition-level wiring is read, not tested, because
+  this module has no Compose or Robolectric host.
 
 ---
 
