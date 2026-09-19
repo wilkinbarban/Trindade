@@ -107,9 +107,9 @@ fun LoginScreen(
 /**
  * The screen with its ViewModel attached and its one navigation event handled.
  *
- * [onSignedIn] fires once per successful sign-in rather than on every recomposition, which is what
- * `LaunchedEffect` keyed on the flag gives: the caller navigates, and this screen is gone from the
- * tree before the flag could be seen twice.
+ * [onSignedIn] fires once per successful sign-in. `signedIn` is an event the view model hands over rather
+ * than a state the caller reads, and this effect consumes it as soon as it has reported it, so the effect
+ * can never be handed the same sign-in twice and the next one is a false -> true change again.
  */
 @Composable
 fun LoginRoute(
@@ -118,7 +118,13 @@ fun LoginRoute(
 ) {
     val state by viewModel.state.collectAsState()
     LaunchedEffect(state.signedIn) {
-        if (state.signedIn) onSignedIn()
+        // The guard is what makes the hand-over below safe. Consuming restarts this effect with a false
+        // key, and the restarted body returns here, before the callback, instead of calling the caller
+        // a second time. Neither call suspends, so there is no point at which this screen tearing down
+        // could strand the flag as true on the way to the next sign-in.
+        if (!state.signedIn) return@LaunchedEffect
+        onSignedIn()
+        viewModel.consumeSignIn()
     }
 
     LoginScreen(

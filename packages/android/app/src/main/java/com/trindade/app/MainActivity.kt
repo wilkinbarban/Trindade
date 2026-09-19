@@ -6,6 +6,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -13,10 +15,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.trindade.app.auth.AuthRepository
 import com.trindade.app.auth.LoginRoute
+import com.trindade.app.auth.ProfileRoute
 import com.trindade.app.loading.LoadingHistoryRoute
 import com.trindade.app.loading.LoadingRoute
 import com.trindade.app.reports.ReportDetailRoute
@@ -47,6 +51,9 @@ class MainActivity : ComponentActivity() {
                 var signedIn by remember { mutableStateOf(authRepository.hasSession()) }
                 // Which report the operator is looking at, if any. Null means the generator.
                 var openReportId by remember { mutableStateOf<Int?>(null) }
+                // Whether the profile is showing instead of the tabs. The account is not one of them: see
+                // the tab row below.
+                var profileOpen by remember { mutableStateOf(false) }
                 // Whether the report history is showing instead of the generator.
                 var historyOpen by remember { mutableStateOf(false) }
                 // Whether the loading history is showing instead of the grid.
@@ -64,8 +71,44 @@ class MainActivity : ComponentActivity() {
                 // Which of the two top-level surfaces is showing. Reports is where a shift starts.
                 var tab by remember { mutableStateOf(Tab.REPORTS) }
 
+                /**
+                 * Leaves the app: the session is over, so nothing may be left armed for the next one.
+                 *
+                 * Every destination this activity keeps is dropped here, not just the one the operator
+                 * was on. They are remembered across the login screen -- the composition that holds them
+                 * stays alive above it -- so an open report, either history, a requested day or the
+                 * profile itself would be re-entered by the next person who signs in, landing them on a
+                 * screen about somebody else's session. The tab goes back to where a shift starts for the
+                 * same reason.
+                 */
+                fun endSession() {
+                    profileOpen = false
+                    openReportId = null
+                    historyOpen = false
+                    loadingHistoryOpen = false
+                    loadingDay = null
+                    loadingDayFromHistory = false
+                    tab = Tab.REPORTS
+                    signedIn = false
+                }
+
                 when {
-                    !signedIn -> LoginRoute(onSignedIn = { signedIn = true })
+                    !signedIn -> LoginRoute(
+                        // Nothing is checked here on purpose. This used to re-read `hasSession()` before
+                        // entering, because login's view model is scoped to the activity and its flag
+                        // never went back to false: the login screen re-enters the composition on a
+                        // sign-out, its effect fired again on that stale flag, and honouring it would
+                        // have put the operator back inside the app with no session at all. That was the
+                        // symptom of a sticky flag, and the sticky flag is what has been fixed -- the
+                        // screen consumes the event now, so one sign-in is reported exactly once and this
+                        // callback runs for it and for nothing else. The gate is gone rather than kept
+                        // beside the fix because two mechanisms for one thing hide each other: while it
+                        // stood, the swallowed second sign-in read as the operator's mistake instead of
+                        // as a bug, and a guard whose false branch is reachable only by that bug is a
+                        // hiding place rather than an invariant. `signedIn` still starts from
+                        // `hasSession()` above, which is the one place the store genuinely decides.
+                        onSignedIn = { signedIn = true },
+                    )
                     // Ahead of both histories, and that order is the whole of this navigation: each
                     // history opens something over itself, so the open thing has to win while the
                     // history's flag is still true -- otherwise closing the detail would land on the
@@ -73,6 +116,17 @@ class MainActivity : ComponentActivity() {
                     openReportId != null -> ReportDetailRoute(
                         reportId = openReportId!!,
                         onBack = { openReportId = null },
+                    )
+                    // The account, above the histories for the same reason the report detail is: it is
+                    // reached from the tab row and belongs to no tab, so it must not be hidden behind a
+                    // history that happens to still be open underneath it. It is below the report detail
+                    // because a report the operator opened is the more specific thing on screen.
+                    profileOpen -> ProfileRoute(
+                        onBack = { profileOpen = false },
+                        // A password change ends the session too, so the same leaving-the-app work is
+                        // done for both paths -- and it is done by the panel's own action, after the
+                        // sentence explaining why has been read.
+                        onSignedOut = { endSession() },
                     )
                     // Then the reports history, then the loading one: neither is a child of the other,
                     // and each is under the detail it can open.
@@ -121,12 +175,20 @@ class MainActivity : ComponentActivity() {
                         onOpenHistory = { loadingHistoryOpen = true },
                     )
                     else -> Column {
-                        // Two surfaces, one row of tabs. A navigation library would be more than this
-                        // app has places to go, and the back action each screen already owns is the
-                        // whole of the routing it needs.
-                        Row {
+                        // Two surfaces, one row of tabs, and the account at the far end of it. The tabs
+                        // are the app's two jobs -- Relatórios and Horários -- and the profile is not a
+                        // third one: it is the operator's own account rather than a surface the app is
+                        // about, so it is set apart from them instead of joining them. A navigation
+                        // library would be more than this app has places to go, and the back action each
+                        // screen already owns is the whole of the routing it needs.
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
                             TextButton(onClick = { tab = Tab.REPORTS }) { Text(stringResource(R.string.nav_reports)) }
                             TextButton(onClick = { tab = Tab.LOADING }) { Text(stringResource(R.string.nav_loading)) }
+                            Spacer(Modifier.weight(1f))
+                            TextButton(onClick = { profileOpen = true }) { Text(stringResource(R.string.profile_title)) }
                         }
                         ReportGeneratorRoute(
                             onCreated = { openReportId = it },

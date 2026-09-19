@@ -66,6 +66,34 @@
 
     <string name="nav_reports">Relatórios</string>
     <string name="nav_loading">Horários</string>
+
+    <!-- The account. Its entry point is not a third tab: it sits at the far end of the tab row, because
+         the two tabs are the app's jobs and this is who the operator is. The labels are the words the
+         desktop screen uses for the same fields, since the operators read both. -->
+    <string name="profile_title">Perfil</string>
+    <string name="profile_account">Conta</string>
+    <string name="profile_username">Usuário</string>
+    <string name="profile_display_name">Nome</string>
+    <string name="profile_role">Função</string>
+    <!-- The two roles the database has. The contract types `role` as a bare string, so an unknown value
+         is shown as it arrived rather than as one of these two. -->
+    <string name="profile_role_administrator">Administrador</string>
+    <string name="profile_role_worker">Trabalhador</string>
+    <string name="profile_save">Salvar</string>
+    <string name="profile_name_saved">Nome atualizado.</string>
+    <!-- One string for the block and for the action that sends it: both name the same thing. -->
+    <string name="profile_change_password">Alterar senha</string>
+    <string name="profile_current_password">Senha atual</string>
+    <string name="profile_new_password">Nova senha</string>
+    <!-- The server's minimum, stated where the password is typed instead of discovered as a 400. The
+         number is the view model's constant, so the rule and the sentence cannot drift apart. -->
+    <string name="profile_password_rule">A nova senha precisa de pelo menos %1$d caracteres.</string>
+    <!-- No confirmation accompanies this action: see the screen for why it does not ask twice. -->
+    <string name="profile_sign_out">Sair da conta</string>
+    <!-- Shown in place of the form once the session has ended. The password change brings its own
+         sentence, because that sign-out is one the operator did not ask for. -->
+    <string name="profile_signed_out">Sessão encerrada.</string>
+    <string name="profile_back_to_login">Entrar de novo</string>
     <string name="loading_title">Cronograma de carregamento</string>
     <string name="loading_fleteros">%1$d/%2$d fleteros</string>
     <string name="loading_add_entry">Adicionar</string>
