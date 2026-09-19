@@ -34,6 +34,16 @@ class LoadingViewModel @Inject constructor(
         val selectedVehicleId: Int? = null,
         val busy: Boolean = false,
         val message: String? = null,
+        /**
+         * The WhatsApp text the server rendered for [date], or null when there is nothing to copy.
+         *
+         * Null covers both "not asked for yet" and "asked for and the server could not render it", and
+         * that is deliberate: the operator sees the same thing either way -- the action, ready to be
+         * tried -- while the reason lives in [message] for the second case. A separate flag would exist
+         * only to distinguish two states nothing on the screen treats differently.
+         */
+        val exportText: String? = null,
+        val loadingExport: Boolean = false,
     ) {
         /**
          * The slots to draw: the configured ones, plus any slot an entry already sits in.
@@ -81,7 +91,10 @@ class LoadingViewModel @Inject constructor(
     }
 
     fun load(date: String = state.value.date) {
-        _state.update { it.copy(date = date, loading = true, message = null) }
+        // The export text is dropped on every reload, and that includes the one a successful mutation
+        // triggers: the text describes the day's entries, so leaving it on screen after they changed
+        // would hand the operator a message about a day that no longer exists. It is one tap away.
+        _state.update { it.copy(date = date, loading = true, message = null, exportText = null) }
 
         viewModelScope.launch {
             val schedules = repository.schedules(date)
@@ -175,6 +188,31 @@ class LoadingViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Fetches the server-rendered WhatsApp text for the day on screen. Never assembled here.
+     *
+     * The date is the grid's own, not a second control, so the text and the entries below it cannot
+     * describe different days. Fetched on demand rather than with the grid, because it is one more call
+     * the operator may not want and the grid is the point of the screen.
+     */
+    fun loadExport() {
+        if (state.value.loadingExport) return
+        _state.update { it.copy(loadingExport = true, message = null) }
+
+        viewModelScope.launch {
+            val text = repository.exportText(state.value.date)
+            _state.update {
+                it.copy(
+                    loadingExport = false,
+                    exportText = text,
+                    // 400 is the only refusal the server has here and it answers a malformed date, which
+                    // this client cannot send; what is left is an absent answer, and saying so is honest.
+                    message = if (text == null) EXPORT_FAILED else null,
+                )
+            }
+        }
+    }
+
     /** Quick-add for a driver who is not in the list yet. Always a `fletero`, per the contract. */
     fun quickAddDriver(name: String, licensePlate: String?) {
         if (name.isBlank() || state.value.busy) return
@@ -222,6 +260,7 @@ class LoadingViewModel @Inject constructor(
     companion object {
         const val UNREACHABLE = "Sem conexão com o servidor. Verifique a rede e tente de novo."
         const val GENERIC = "Não foi possível concluir. Tente de novo."
+        const val EXPORT_FAILED = "Não foi possível gerar o texto agora. Tente de novo."
 
         /**
          * Today in São Paulo, not on the device.

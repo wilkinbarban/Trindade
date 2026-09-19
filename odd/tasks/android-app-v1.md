@@ -1072,6 +1072,38 @@ Shared rules for every Android slice: WhatsApp export text is only ever fetched
 from the server (`/api/reports/:id/export`, `/api/loading/export?date=`), never
 reformatted on the client. Send `Accept-Language`. Never hardcode the base URL.
 
+### D4. Horários — sliced into four
+
+Sliced the way D2 and D3 were: each slice verifiable on its own, and the whole feature at once
+neither reviewable nor safely editable.
+
+- **D4a. Data layer — DONE.** Commit `e227518`. A hand-written `LoadingApi` with twelve endpoints and a
+  `LoadingRepository`. The payoff to name: `ContractCoverageTest` grew from 3 tests to 4 and now
+  reflects over `LoadingApi` too, so its twelve paths are **verified against `openapi.json` rather
+  than asserted** — the first slice where a new interface got that verification with no extra work.
+  Two facts stated in the interface where a caller meets them: the fletero limit is **informative**
+  (nothing returns an error for exceeding it, decision D5), and a schedule belongs to a **date**, not
+  a week.
+- **D4b. The grid — DONE.** Commits `3681cf8` (logic + counter) and `af25a7f` (screen). The date is
+  **today in São Paulo, not on the device**; the slots drawn are the configured ones **union** the
+  ones an entry already occupies, because a slot removed from settings would otherwise hide entries
+  that still exist on the server. The counter is **strictly-less-than-60-minutes**, ported from the
+  SPA rather than inferred: a `<=` would silently show a four where the product shows a three.
+- **D4c. Mutations — DONE.** Commit `86be1a1`. Create, delete and quick-add. The driver type comes
+  **from the chosen driver** rather than from a control, so the request cannot contradict the driver
+  it names; the vehicle is required only for a `casa` driver, and switching to an external one clears
+  it.
+- **D4d. The export — THIS SLICE.** The server-rendered WhatsApp text for the day on screen, fetched
+  on demand and copied verbatim.
+
+**Coverage carried with the slices.** `LoadingViewModel` arrived after the ViewModel test gap was
+closed, so it was covered one slice later (`8dbdebc`); the standard is 65 JVM tests before this slice,
+and D4d adds its own rather than inheriting a green lane as evidence for behaviour no test exercises.
+
+**Not in D4, and named rather than omitted**: `LoadingViewModel.onDateChange` has no control on the
+screen, because the SPA's loading page also fixes the date to today in São Paulo (`todayDate()` in
+`LoadingSchedulePage.tsx`). A date picker is a product change, not a gap in the client.
+
 ---
 
 ## Open decisions

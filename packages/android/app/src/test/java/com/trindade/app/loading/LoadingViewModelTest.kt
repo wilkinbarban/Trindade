@@ -26,6 +26,11 @@ import retrofit2.Response
  * device's date, and a test that computed the expected value the same way the code does would agree
  * with a bug; what is checked here is that it is a date, and the timezone behaviour is named as
  * untestable without an injected clock.
+ *
+ * The export assertions are about what the operator would get wrong: the text is the server's and is
+ * copied verbatim, it is asked for only when wanted, and it is **dropped when the day's entries
+ * change**, because the failure mode of leaving it on screen is a WhatsApp message sent with a driver
+ * that was just removed.
  */
 class LoadingViewModelTest {
 
@@ -241,5 +246,58 @@ class LoadingViewModelTest {
         // list again would be the kind of small friction that makes a form feel broken.
         assertEquals("Novo", model.state.value.selectedDriver?.name)
         assertEquals(3, model.state.value.drivers.size)
+    }
+
+    @Test
+    fun `does not ask the server for the export until it is requested`() {
+        val api = FakeLoadingApi()
+        val model = viewModel(api)
+
+        // The export is the one thing on the screen the operator may not want, and it is a call of its
+        // own; fetching it with the grid would make every visit pay for it.
+        assertEquals(null, model.state.value.exportText)
+        assertEquals(null, api.lastExportDate)
+    }
+
+    @Test
+    fun `renders the export for the day on screen, verbatim`() {
+        val api = FakeLoadingApi()
+        val model = viewModel(api)
+        model.loadExport()
+
+        // The grid's own date rather than a second control, so the text and the entries below it cannot
+        // describe different days. Verbatim because the text is the product's output: a client that
+        // reformatted it would be a second implementation to keep in agreement with the first.
+        assertEquals(model.state.value.date, api.lastExportDate)
+        assertEquals(FakeLoadingApi.EXPORT_TEXT, model.state.value.exportText)
+        assertFalse(model.state.value.loadingExport)
+    }
+
+    @Test
+    fun `says so when the server cannot render the export`() {
+        val api = FakeLoadingApi(exportToReturn = null)
+        val model = viewModel(api)
+        model.loadExport()
+
+        // Nothing to copy and nothing shown: an empty copy button would be a silent failure. The date is
+        // the only refusable input here and this client always sends a well-formed one, so what is left
+        // is an answer that never arrived.
+        assertEquals(null, model.state.value.exportText)
+        assertNotNull(model.state.value.message)
+    }
+
+    @Test
+    fun `drops the rendered export once the day's entries change`() {
+        val api = FakeLoadingApi(schedulesToReturn = listOf(FakeLoadingApi.entry(7, "04:00")))
+        val model = viewModel(api)
+        model.loadExport()
+        assertNotNull(model.state.value.exportText)
+
+        model.deleteEntry(7)
+
+        // The text describes the day's entries, so after they change it describes a day that no longer
+        // exists -- and the failure mode of leaving it on screen is a WhatsApp message sent with a
+        // driver that was just removed. It is one tap away, and the tap is the point.
+        assertEquals(null, model.state.value.exportText)
     }
 }

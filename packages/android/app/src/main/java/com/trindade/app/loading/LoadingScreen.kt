@@ -6,11 +6,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -19,7 +22,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.trindade.app.R
@@ -35,6 +40,10 @@ import com.trindade.app.contract.models.SchedulesResponseSchedulesInner
  * The counter next to each slot is the three-fletero indication. It is a display: the server accepts a
  * fourth, so it never withholds anything, and when the window is exceeded the slot says so rather than
  * refusing.
+ *
+ * The export lives with the day's header rather than at the end of the grid. The grid is long enough to
+ * scroll, and the action is about the whole day, so it would otherwise sit behind every slot it
+ * describes.
  */
 @Composable
 fun LoadingScreen(
@@ -46,8 +55,11 @@ fun LoadingScreen(
     onVehicleSelected: (Int) -> Unit,
     onConfirmAdd: () -> Unit,
     onDelete: (Int) -> Unit,
+    onLoadExport: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val clipboard = LocalClipboardManager.current
+
     LazyColumn(
         modifier = modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -57,8 +69,21 @@ fun LoadingScreen(
         }
 
         item {
-            Text(text = stringResource(R.string.loading_title), style = MaterialTheme.typography.titleLarge)
-            Text(text = state.date, style = MaterialTheme.typography.bodyMedium)
+            Column {
+                Text(text = stringResource(R.string.loading_title), style = MaterialTheme.typography.titleLarge)
+                Text(text = state.date, style = MaterialTheme.typography.bodyMedium)
+                OutlinedButton(
+                    onClick = onLoadExport,
+                    enabled = !state.loadingExport,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    if (state.loadingExport) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    } else {
+                        Text(stringResource(R.string.export_load))
+                    }
+                }
+            }
         }
 
         state.message?.let { message ->
@@ -68,6 +93,20 @@ fun LoadingScreen(
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodyMedium,
                 )
+            }
+        }
+
+        // The server's own text, shown verbatim and copied as it stands. It is the product's output, so
+        // there is nothing here to assemble and nothing to reformat for a narrower screen.
+        state.exportText?.let { text ->
+            item {
+                Text(text = text, style = MaterialTheme.typography.bodyMedium)
+                Button(
+                    onClick = { clipboard.setText(AnnotatedString(text)) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.export_copy))
+                }
             }
         }
 
@@ -233,5 +272,6 @@ fun LoadingRoute(
         onVehicleSelected = viewModel::onVehicleSelected,
         onConfirmAdd = viewModel::confirmAdd,
         onDelete = viewModel::deleteEntry,
+        onLoadExport = viewModel::loadExport,
     )
 }

@@ -165,7 +165,7 @@ fun ReportDetailScreen(
                 if (state.loadingExport) {
                     CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                 } else {
-                    Text(stringResource(R.string.report_export_load))
+                    Text(stringResource(R.string.export_load))
                 }
             }
         }
@@ -178,7 +178,7 @@ fun ReportDetailScreen(
                     onClick = { clipboard.setText(AnnotatedString(text)) },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text(stringResource(R.string.report_export_copy))
+                    Text(stringResource(R.string.export_copy))
                 }
             }
         }

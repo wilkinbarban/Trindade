@@ -24,7 +24,7 @@ import retrofit2.Response
  * is a plain Kotlin interface, so the repository under test is the real one and only the network is
  * replaced.
  *
- * The methods D4c and D4d will need throw rather than returning a plausible default, so a test cannot
+ * The methods no slice has needed yet throw rather than returning a plausible default, so a test cannot
  * pass while calling something it never meant to.
  */
 class FakeLoadingApi(
@@ -34,9 +34,14 @@ class FakeLoadingApi(
     private val vehiclesToReturn: List<VehiclesResponseVehiclesInner> = defaultVehicles(),
     private val createResponse: Response<ScheduleResponse>? = null,
     private val deleteSucceeds: Boolean = true,
+    /** Null is the server refusing to render the text, which is the only failure the export has. */
+    private val exportToReturn: String? = EXPORT_TEXT,
 ) : LoadingApi {
 
     var lastSchedulesDate: String? = null
+        private set
+
+    var lastExportDate: String? = null
         private set
 
     /** What the last create carried, which is how the payload rules below are asserted. */
@@ -77,10 +82,17 @@ class FakeLoadingApi(
     override suspend fun deactivateSchedule(id: Int): Response<SuccessResponse> = error(NOT_USED)
     override suspend fun deactivateBatch(date: String): Response<SuccessResponse> = error(NOT_USED)
     override suspend fun deleteBatch(date: String): Response<Unit> = error(NOT_USED)
-    override suspend fun export(date: String): Response<TextResponse> = error(NOT_USED)
+    override suspend fun export(date: String): Response<TextResponse> {
+        lastExportDate = date
+        val text = exportToReturn ?: return Response.error(500, EMPTY_BODY)
+        return Response.success(TextResponse(text = text))
+    }
 
     companion object {
         const val NOT_USED = "this fake does not implement that call; add it when a test needs it"
+
+        /** The shape of the server's message, including the line the operator copies. */
+        const val EXPORT_TEXT = "Segunda-feira • 21/09/2026\nCarregamento:\n04:00 - Fletero"
 
         const val CASA_DRIVER_ID = 10
         const val FLETERO_DRIVER_ID = 11

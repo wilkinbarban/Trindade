@@ -15,8 +15,10 @@
     <string name="report_photos">Fotos (%1$d/%2$d)</string>
     <string name="report_photo_add">Tirar foto</string>
     <string name="report_photo_remove">Remover</string>
-    <string name="report_export_load">Gerar texto do WhatsApp</string>
-    <string name="report_export_copy">Copiar texto</string>
+    <!-- Shared by both export surfaces: the text is the server's WhatsApp message either way, so the
+         sentence lives once and neither screen owns the other's name. -->
+    <string name="export_load">Gerar texto do WhatsApp</string>
+    <string name="export_copy">Copiar texto</string>
 
     <string name="nav_reports">Relatórios</string>
     <string name="nav_loading">Horários</string>
