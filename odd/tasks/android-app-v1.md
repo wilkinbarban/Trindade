@@ -1216,6 +1216,18 @@ fixes its neighbours is a slice nobody can review):
   compares verb and path only, and the fake's "204" is really a 200 with a body.
 - **The `Unreachable` and non-403/404 refusal branches are unexercised — RECORDED.**
 
+**The fix slice's own review left two more, and the first one is worth a decision later**:
+
+- **A confirmed delete can silently do nothing** (WARNING, `ReportsHistoryScreen.kt:247-268`). The view
+  model's gate returns without a message when the row is no longer in the loaded page or a call is already
+  in flight, and the dialog's confirm button is not gated on `busy` the way every row button is. So the
+  operator can confirm and see nothing happen, with no sentence explaining it. Narrow -- the dialog is
+  modal, so the list cannot change under it by a tap -- but "nothing happened" is the one answer this
+  screen never gives anywhere else.
+- **A suggestion on the request token itself** (`ReportsHistoryViewModel.kt:143`). Recorded with its
+  location because the provider surfaces ids and lines, not prose, and inventing the sentence would be
+  worse than saying so.
+
 ---
 
 ## Open decisions
