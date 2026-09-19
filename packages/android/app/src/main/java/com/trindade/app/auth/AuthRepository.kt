@@ -5,6 +5,7 @@ import com.trindade.app.contract.models.LoginRequest
 import com.trindade.app.contract.models.LogoutRequest
 import com.trindade.app.contract.models.RefreshRequest
 import com.trindade.app.network.AuthApi
+import com.trindade.app.network.runCatchingCancellable
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.runBlocking
@@ -36,7 +37,7 @@ class AuthRepository @Inject constructor(
      * the user nothing and look like a client bug.
      */
     suspend fun login(username: String, password: String): LoginResult {
-        val response = runCatching { api.login(LoginRequest(username = username, password = password)) }.getOrNull()
+        val response = runCatchingCancellable { api.login(LoginRequest(username = username, password = password)) }.getOrNull()
             ?: return LoginResult.Unreachable
 
         val body = response.body()
@@ -60,7 +61,7 @@ class AuthRepository @Inject constructor(
         val refreshToken = tokenStore.refreshToken()
         tokenStore.clear()
         if (refreshToken != null) {
-            runCatching { api.logout(LogoutRequest(refreshToken = refreshToken)) }
+            runCatchingCancellable { api.logout(LogoutRequest(refreshToken = refreshToken)) }
         }
     }
 
@@ -68,7 +69,7 @@ class AuthRepository @Inject constructor(
     suspend fun refresh(): Boolean {
         val refreshToken = tokenStore.refreshToken() ?: return false
 
-        val response = runCatching { api.refresh(RefreshRequest(refreshToken = refreshToken)) }.getOrNull()
+        val response = runCatchingCancellable { api.refresh(RefreshRequest(refreshToken = refreshToken)) }.getOrNull()
         val body = response?.body()
         if (response?.isSuccessful != true || body == null) return false
 

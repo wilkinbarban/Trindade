@@ -52,6 +52,15 @@ class FakeReportsApi(
     /** Null makes the history call fail, the same convention as [turnoValue] and for the same reason. */
     private val historyToReturn: ReportHistoryResponse? = defaultHistory(),
     /**
+     * When set, the history call throws it instead of answering at all.
+     *
+     * A refused read and an abandoned one are different answers, and [historyToReturn]'s null can only
+     * produce the first, because a repository that captured a cancellation would still hand the caller
+     * a null either way. This hook is what lets a test give the repository a cancellation and check that
+     * it is rethrown instead, which is the state the two failures must not be confused in.
+     */
+    private val historyFailure: Throwable? = null,
+    /**
      * When set, the history is this many reports at the server's default page size, and the lifecycle
      * calls really change it: a deletion removes one and a deactivation does not.
      *
@@ -149,6 +158,8 @@ class FakeReportsApi(
         page: Int?,
         pageSize: Int?,
     ): Response<ReportHistoryResponse> {
+        historyFailure?.let { throw it }
+
         val query = ReportsHistoryQuery(date = date, month = month, page = page, pageSize = pageSize)
         lastHistoryQuery = query
         historyQueries += query

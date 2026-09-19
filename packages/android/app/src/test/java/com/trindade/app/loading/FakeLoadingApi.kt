@@ -34,6 +34,15 @@ class FakeLoadingApi(
     private val schedulesToReturn: List<SchedulesResponseSchedulesInner>? = emptyList(),
     /** Null makes the history call fail, the same convention as [schedulesToReturn] and for the same reason. */
     private val historyToReturn: ScheduleHistoryResponse? = defaultHistory(),
+    /**
+     * When set, the history call throws it instead of answering at all.
+     *
+     * A refused read and an abandoned one are different answers, and [historyToReturn]'s null can only
+     * produce the first, because a repository that captured a cancellation would still hand the caller
+     * a null either way. This hook is what lets a test give the repository a cancellation and check that
+     * it is rethrown instead, which is the state the two failures must not be confused in.
+     */
+    private val historyFailure: Throwable? = null,
     private val timeSlotsToReturn: List<String>? = listOf("04:00", "04:30", "05:00"),
     private val driversToReturn: List<DriversResponseDriversInner> = defaultDrivers(),
     private val vehiclesToReturn: List<VehiclesResponseVehiclesInner> = defaultVehicles(),
@@ -78,6 +87,8 @@ class FakeLoadingApi(
         page: Int?,
         pageSize: Int?,
     ): Response<ScheduleHistoryResponse> {
+        historyFailure?.let { throw it }
+
         lastHistoryQuery = LoadingHistoryQuery(date = date, month = month, page = page, pageSize = pageSize)
         val history = historyToReturn ?: return Response.error(500, EMPTY_BODY)
         return Response.success(history)

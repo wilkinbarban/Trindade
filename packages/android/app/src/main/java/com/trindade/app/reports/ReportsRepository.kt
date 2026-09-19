@@ -8,6 +8,7 @@ import com.trindade.app.contract.models.ReportHistoryResponse
 import com.trindade.app.contract.models.ReportResponseReport
 import com.trindade.app.contract.models.UpdateReportRequest
 import com.trindade.app.network.ReportsApi
+import com.trindade.app.network.runCatchingCancellable
 import javax.inject.Inject
 import javax.inject.Singleton
 import okhttp3.MediaType.Companion.toMediaType
@@ -41,7 +42,7 @@ class ReportsRepository @Inject constructor(
      * rather than render an empty checklist that looks like "no products available".
      */
     suspend fun productOffers(): ProductsResponse? =
-        runCatching { api.products() }.getOrNull()
+        runCatchingCancellable { api.products() }.getOrNull()
             ?.takeIf { it.isSuccessful }
             ?.body()
 
@@ -56,7 +57,7 @@ class ReportsRepository @Inject constructor(
      * because this is where the next reader will meet it.
      */
     suspend fun categories(): List<CategoriesResponseCategoriesInner>? =
-        runCatching { api.categories() }.getOrNull()
+        runCatchingCancellable { api.categories() }.getOrNull()
             ?.takeIf { it.isSuccessful }
             ?.body()
             ?.categories
@@ -68,7 +69,7 @@ class ReportsRepository @Inject constructor(
      * distinguish that from the server saying the current time is outside every shift.
      */
     suspend fun detectedTurno(): String? =
-        runCatching { api.turno() }.getOrNull()
+        runCatchingCancellable { api.turno() }.getOrNull()
             ?.takeIf { it.isSuccessful }
             ?.body()
             ?.turno
@@ -90,7 +91,7 @@ class ReportsRepository @Inject constructor(
         page: Int?,
         pageSize: Int?,
     ): ReportHistoryResponse? =
-        runCatching { api.history(date = date, month = month, page = page, pageSize = pageSize) }.getOrNull()
+        runCatchingCancellable { api.history(date = date, month = month, page = page, pageSize = pageSize) }.getOrNull()
             ?.takeIf { it.isSuccessful }
             ?.body()
 
@@ -118,7 +119,7 @@ class ReportsRepository @Inject constructor(
      * modelled them separately would hand the screen two types for one decision.
      */
     private suspend fun lifecycle(call: suspend () -> retrofit2.Response<*>): ReportLifecycleResult {
-        val response = runCatching { call() }.getOrNull() ?: return ReportLifecycleResult.Unreachable
+        val response = runCatchingCancellable { call() }.getOrNull() ?: return ReportLifecycleResult.Unreachable
         return if (response.isSuccessful) {
             ReportLifecycleResult.Changed
         } else {
@@ -127,7 +128,7 @@ class ReportsRepository @Inject constructor(
     }
 
     suspend fun report(id: Int): ReportResponseReport? =
-        runCatching { api.report(id) }.getOrNull()
+        runCatchingCancellable { api.report(id) }.getOrNull()
             ?.takeIf { it.isSuccessful }
             ?.body()
             ?.report
@@ -144,7 +145,7 @@ class ReportsRepository @Inject constructor(
      * and a second implementation would be a second thing to keep in agreement with the first.
      */
     suspend fun exportText(id: Int): String? =
-        runCatching { api.export(id) }.getOrNull()
+        runCatchingCancellable { api.export(id) }.getOrNull()
             ?.takeIf { it.isSuccessful }
             ?.body()
             ?.text
@@ -163,7 +164,7 @@ class ReportsRepository @Inject constructor(
             body = jpeg.toRequestBody("image/jpeg".toMediaType()),
         )
 
-        val response = runCatching { api.attachPhoto(reportId, part) }.getOrNull()
+        val response = runCatchingCancellable { api.attachPhoto(reportId, part) }.getOrNull()
             ?: return PhotoAttachResult.Unreachable
         val photo = response.body()?.photo
         if (response.isSuccessful && photo != null) return PhotoAttachResult.Saved(photo)
@@ -172,20 +173,20 @@ class ReportsRepository @Inject constructor(
 
     /** The photos already attached, or null when the server cannot be asked. */
     suspend fun photos(reportId: Int): List<PhotosResponsePhotosInner>? =
-        runCatching { api.photos(reportId) }.getOrNull()
+        runCatchingCancellable { api.photos(reportId) }.getOrNull()
             ?.takeIf { it.isSuccessful }
             ?.body()
             ?.photos
 
     /** Removes one photo. [ReportWriteResult] is not reused because a photo has no report to return. */
     suspend fun deletePhoto(photoId: Int): PhotoDeleteResult {
-        val response = runCatching { api.deletePhoto(photoId) }.getOrNull()
+        val response = runCatchingCancellable { api.deletePhoto(photoId) }.getOrNull()
             ?: return PhotoDeleteResult.Unreachable
         return if (response.isSuccessful) PhotoDeleteResult.Deleted else PhotoDeleteResult.Refused(response.code())
     }
 
     private suspend fun submit(call: suspend () -> retrofit2.Response<com.trindade.app.contract.models.ReportResponse>): ReportWriteResult {
-        val response = runCatching { call() }.getOrNull() ?: return ReportWriteResult.Unreachable
+        val response = runCatchingCancellable { call() }.getOrNull() ?: return ReportWriteResult.Unreachable
         val report = response.body()?.report
         if (response.isSuccessful && report != null) return ReportWriteResult.Saved(report)
         return ReportWriteResult.Refused(response.code())

@@ -1228,6 +1228,42 @@ fixes its neighbours is a slice nobody can review):
   location because the provider surfaces ids and lines, not prose, and inventing the sentence would be
   worse than saying so.
 
+### The cancellation idiom, app-wide — DONE
+
+`kotlin.runCatching` catches `Throwable`, and `CancellationException` is one, so every repository in this
+app turned a cancelled call into an ordinary failure: the caller got `null` or `Unreachable`, and — the
+half that matters more — **the coroutine reported success instead of cancelled**, which breaks structured
+concurrency and loses the real cause. One helper now fixes all 26 sites at once
+(`network/Cancellation.kt`, `runCatchingCancellable`, rethrowing the cancellation and otherwise behaving
+exactly like its namesake), applied to the 12 + 11 + 3 call sites that wrap a suspend call in
+`LoadingRepository`, `ReportsRepository` and `AuthRepository`. Six `runCatching` uses survive on purpose and
+are named: they wrap blocking or pure work with no suspension point (`errorMessage`'s body read and JSON
+parse, the EXIF read in `AndroidPhotoCompressor`, the two date parses in `ReportsHistoryScreen`, the
+Keystore decrypt).
+
+**The wiring is proven per repository, not only the helper**, because a correct helper nothing calls fixes
+nothing: three tests drive the real repositories with a fake whose call throws and **fail if the call returns
+at all**, which is the only assertion that can tell "rethrew" from "returned a failed Result".
+
+**The interceptor boundary, and a correction to my own first answer.** `AuthInterceptor` clears the dead
+token and answers 401 when the refresh answers `false`; an exception escaping `refreshSession()` skips both.
+My first response was to catch the cancellation inside `refreshBlocking()` and answer `false` there, and an
+independent verifier refuted it on three counts, all of which hold: `refresh()`'s only consumer is
+`refreshBlocking()`, so the refresh path already answers `false` on every path reachable today and my catch
+was **dead code**; in the shape where it would matter — a future context or timeout — `runBlocking`
+**rethrews the cancellation cause even though the block returned `false`**, so the safety net would not have
+caught anything; and it left two opposite rules inside one call chain, on a `public` method of a singleton.
+**The lesson is where the swallow belongs**: if that boundary ever needs to be total, the place for it is the
+interceptor that must produce a response, not the repository it calls. It was reverted, and the test that
+came with it went too, because it **could not fail on the defect either** — with plain `runCatching` at that
+site `refresh()` returns `false` anyway, so it pinned my own addition rather than the bug. A test that cannot
+fail on the thing it names is worse than no test, which is the same standard this project applies to
+verifiers.
+
+Also corrected: "unreachable" was an overclaim. `runBlocking` **does** react to a JVM thread interrupt by
+cancelling its coroutine, so the accurate statement is "not reachable by any cancellation this app can
+produce" — nothing interrupts the OkHttp dispatcher thread today.
+
 ---
 
 ## Open decisions

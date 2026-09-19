@@ -8,6 +8,7 @@ import com.trindade.app.contract.models.SchedulesResponseSchedulesInner
 import com.trindade.app.contract.models.UpdateScheduleRequest
 import com.trindade.app.contract.models.VehiclesResponseVehiclesInner
 import com.trindade.app.network.LoadingApi
+import com.trindade.app.network.runCatchingCancellable
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -29,7 +30,7 @@ class LoadingRepository @Inject constructor(
 ) {
 
     suspend fun schedules(date: String): List<SchedulesResponseSchedulesInner>? =
-        runCatching { api.schedules(date) }.getOrNull()
+        runCatchingCancellable { api.schedules(date) }.getOrNull()
             ?.takeIf { it.isSuccessful }
             ?.body()
             ?.schedules
@@ -54,24 +55,24 @@ class LoadingRepository @Inject constructor(
         page: Int?,
         pageSize: Int?,
     ): ScheduleHistoryResponse? =
-        runCatching { api.history(date = date, month = month, page = page, pageSize = pageSize) }.getOrNull()
+        runCatchingCancellable { api.history(date = date, month = month, page = page, pageSize = pageSize) }.getOrNull()
             ?.takeIf { it.isSuccessful }
             ?.body()
 
     suspend fun timeSlots(): List<String>? =
-        runCatching { api.timeSlots() }.getOrNull()
+        runCatchingCancellable { api.timeSlots() }.getOrNull()
             ?.takeIf { it.isSuccessful }
             ?.body()
             ?.timeSlots
 
     suspend fun drivers(): List<DriversResponseDriversInner>? =
-        runCatching { api.drivers() }.getOrNull()
+        runCatchingCancellable { api.drivers() }.getOrNull()
             ?.takeIf { it.isSuccessful }
             ?.body()
             ?.drivers
 
     suspend fun vehicles(): List<VehiclesResponseVehiclesInner>? =
-        runCatching { api.vehicles() }.getOrNull()
+        runCatchingCancellable { api.vehicles() }.getOrNull()
             ?.takeIf { it.isSuccessful }
             ?.body()
             ?.vehicles
@@ -87,7 +88,7 @@ class LoadingRepository @Inject constructor(
      * say rather than report as a general failure.
      */
     suspend fun deleteSchedule(id: Int): ScheduleDeleteResult {
-        val response = runCatching { api.deleteSchedule(id) }.getOrNull()
+        val response = runCatchingCancellable { api.deleteSchedule(id) }.getOrNull()
             ?: return ScheduleDeleteResult.Unreachable
         return if (response.isSuccessful) ScheduleDeleteResult.Deleted
         else ScheduleDeleteResult.Refused(response.code())
@@ -100,24 +101,24 @@ class LoadingRepository @Inject constructor(
      * server agreed; the screen reloads the date either way and the reload is the real confirmation.
      */
     suspend fun deactivateSchedule(id: Int): Boolean =
-        runCatching { api.deactivateSchedule(id) }.getOrNull()?.isSuccessful == true
+        runCatchingCancellable { api.deactivateSchedule(id) }.getOrNull()?.isSuccessful == true
 
     suspend fun deactivateBatch(date: String): Boolean =
-        runCatching { api.deactivateBatch(date) }.getOrNull()?.isSuccessful == true
+        runCatchingCancellable { api.deactivateBatch(date) }.getOrNull()?.isSuccessful == true
 
     suspend fun deleteBatch(date: String): Boolean =
-        runCatching { api.deleteBatch(date) }.getOrNull()?.isSuccessful == true
+        runCatchingCancellable { api.deleteBatch(date) }.getOrNull()?.isSuccessful == true
 
     /** The WhatsApp text for one date, or null when the server cannot render it. */
     suspend fun exportText(date: String): String? =
-        runCatching { api.export(date) }.getOrNull()
+        runCatchingCancellable { api.export(date) }.getOrNull()
             ?.takeIf { it.isSuccessful }
             ?.body()
             ?.text
 
     /** Quick-add, which always makes a `fletero`: company drivers come from the admin surface. */
     suspend fun createDriver(name: String, licensePlate: String?): DriversResponseDriversInner? =
-        runCatching { api.createDriver(CreateDriverRequest(name = name, licensePlate = licensePlate)) }.getOrNull()
+        runCatchingCancellable { api.createDriver(CreateDriverRequest(name = name, licensePlate = licensePlate)) }.getOrNull()
             ?.takeIf { it.isSuccessful }
             ?.body()
             ?.driver
@@ -125,7 +126,7 @@ class LoadingRepository @Inject constructor(
     private suspend fun scheduleWrite(
         call: suspend () -> retrofit2.Response<com.trindade.app.contract.models.ScheduleResponse>,
     ): ScheduleWriteResult {
-        val response = runCatching { call() }.getOrNull() ?: return ScheduleWriteResult.Unreachable
+        val response = runCatchingCancellable { call() }.getOrNull() ?: return ScheduleWriteResult.Unreachable
         val schedule = response.body()?.schedule
         if (response.isSuccessful && schedule != null) return ScheduleWriteResult.Saved(schedule)
         return ScheduleWriteResult.Refused(response.code())
