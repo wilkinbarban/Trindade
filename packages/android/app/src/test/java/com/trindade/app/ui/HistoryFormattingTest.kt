@@ -1,4 +1,4 @@
-package com.trindade.app.reports
+package com.trindade.app.ui
 
 import java.time.LocalDate
 import java.util.TimeZone
@@ -15,7 +15,7 @@ import org.junit.Test
  * they get wrong is not visible in a screenshot: a month list that walks off a year boundary skips or
  * repeats a month, and a note cut in the wrong place either loses a word or shows one that is not there.
  */
-class ReportsHistoryFormattingTest {
+class HistoryFormattingTest {
 
     @Test
     fun `recent months are twelve, newest first, in the shape the server validates`() {

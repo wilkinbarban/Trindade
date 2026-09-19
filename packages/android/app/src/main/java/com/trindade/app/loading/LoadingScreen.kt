@@ -18,6 +18,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -49,6 +50,7 @@ import com.trindade.app.contract.models.SchedulesResponseSchedulesInner
 fun LoadingScreen(
     state: LoadingViewModel.UiState,
     onBack: () -> Unit,
+    onOpenHistory: () -> Unit,
     onStartAdding: (String) -> Unit,
     onCancelAdding: () -> Unit,
     onDriverSelected: (Int) -> Unit,
@@ -70,7 +72,19 @@ fun LoadingScreen(
 
         item {
             Column {
-                Text(text = stringResource(R.string.loading_title), style = MaterialTheme.typography.titleLarge)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(text = stringResource(R.string.loading_title), style = MaterialTheme.typography.titleLarge)
+                    // The history lives on this screen's header rather than in a third tab, and that is
+                    // the deliberate part of the placement: the history lists the batches this grid
+                    // produces, so the way to them is an action on the surface that makes them. The tab
+                    // row stays the app's two jobs, the same choice the report history made on the
+                    // generator.
+                    TextButton(onClick = onOpenHistory) { Text(stringResource(R.string.report_history)) }
+                }
                 Text(text = state.date, style = MaterialTheme.typography.bodyMedium)
                 OutlinedButton(
                     onClick = onLoadExport,
@@ -259,13 +273,40 @@ private fun describe(entry: SchedulesResponseSchedulesInner): String {
 @Composable
 fun LoadingRoute(
     onBack: () -> Unit,
+    onOpenHistory: () -> Unit,
+    date: String? = null,
     viewModel: LoadingViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
 
+    /**
+     * The grid's day, asked for through the view model's own `onDateChange` -- the method that has
+     * existed since D4b with no caller, and this slice is where the history gives it one.
+     *
+     * With a date, that day is loaded. The view model's constructor has already started a load of today
+     * by the time this runs, so the two are briefly in the air together, and what makes the requested
+     * day win is the request token inside the view model rather than an ordering guaranteed here.
+     *
+     * Without a date this is the loading tab, which means today -- and it asks for today only when the
+     * grid is not already showing it. That condition is what keeps the ordinary entry to the tab at one
+     * load rather than two, because the constructor's load is that one. It also covers the return trip:
+     * the view model is scoped to the activity, so coming back from the history after a batch's day
+     * would otherwise render that day under a route that means today, and the grid's back action would
+     * then disagree with the date on the screen.
+     */
+    LaunchedEffect(date) {
+        if (date != null) {
+            viewModel.onDateChange(date)
+        } else {
+            val today = LoadingViewModel.saoPauloToday()
+            if (viewModel.state.value.date != today) viewModel.onDateChange(today)
+        }
+    }
+
     LoadingScreen(
         state = state,
         onBack = onBack,
+        onOpenHistory = onOpenHistory,
         onStartAdding = viewModel::startAdding,
         onCancelAdding = viewModel::cancelAdding,
         onDriverSelected = viewModel::onDriverSelected,

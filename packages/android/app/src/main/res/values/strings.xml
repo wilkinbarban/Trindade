@@ -21,7 +21,12 @@
     <string name="export_copy">Copiar texto</string>
 
     <!-- The history of the reports this surface produces. Its own door is on the generator rather than
-         in a third tab, so the action there is named for where it goes and not for the tab it is not. -->
+         in a third tab, so the action there is named for where it goes and not for the tab it is not.
+         The word is shared with the loading history's own door, which makes the same choice on the
+         grid for the same reason: both histories list what their surface produces, so the way in is an
+         action on that surface. The two screens' filter, paging and lifecycle words are shared below
+         for the same reason, since they name the same controls, while the sentences that name a report
+         or a batch are each screen's own. -->
     <string name="report_history">Histórico</string>
     <string name="history_title">Histórico de relatórios</string>
     <string name="history_all_reports">Todos os relatórios</string>
@@ -44,6 +49,20 @@
     <string name="history_pagination">Página %1$d de %2$d (%3$d registros)</string>
     <string name="history_previous">Anterior</string>
     <string name="history_next">Próxima</string>
+
+    <!-- The loading history. One row is one batch, meaning a day's entries rather than one entry, so
+         the copy that names what a row is belongs to this screen; the words shared with the report
+         history above are the ones that name a control rather than a thing. -->
+    <string name="loading_history_title">Histórico de carregamentos</string>
+    <string name="loading_history_all">Todos os carregamentos</string>
+    <string name="loading_history_filtered">Carregamentos de %1$s</string>
+    <!-- Labelled, because the loading date is not the batch date above it on six days out of seven. -->
+    <string name="loading_history_loading_date">Carregamento: %1$s</string>
+    <string name="loading_history_loadings">%1$d carregamentos</string>
+    <string name="loading_history_empty">Nenhum carregamento encontrado para este período.</string>
+    <!-- The batch's own date, so the confirmation names the day the operator is about to lose. -->
+    <string name="loading_history_delete_confirm_title">Excluir o carregamento de %1$s?</string>
+    <string name="loading_history_delete_confirm_body">Não dá para desfazer: todos os lançamentos desse dia saem para todo mundo, não só desta tela.</string>
 
     <string name="nav_reports">Relatórios</string>
     <string name="nav_loading">Horários</string>

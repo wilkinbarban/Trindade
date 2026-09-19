@@ -1,4 +1,4 @@
-package com.trindade.app.reports
+package com.trindade.app.loading
 
 import android.app.DatePickerDialog
 import android.content.Context
@@ -34,16 +34,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.trindade.app.R
-import com.trindade.app.contract.models.ReportsResponseReportsInner
+import com.trindade.app.contract.models.ScheduleHistoryResponseItemsInner
 import com.trindade.app.ui.displayDate
 import com.trindade.app.ui.displayMonth
-import com.trindade.app.ui.notesPreview
 import com.trindade.app.ui.recentMonths
 import java.time.LocalDate
 import java.util.Locale
 
 /**
- * The report history: one page of reports, filtered by a day or a month.
+ * The loading history: one page of batches, filtered by a day or a month.
  *
  * Stateless like the other screens, with one exception: whether the month dialog is open is screen
  * state by nature -- nothing above it acts on that, and the choice it produces is handed straight to
@@ -53,33 +52,40 @@ import java.util.Locale
  * twelve months rather than the same picker. That distinction is deliberate: the platform picker
  * answers a day, so using it to choose a month would mean asking for a value and then ignoring it, and
  * a control whose answer has no effect is a control that lies about what it does.
+ *
+ * One row is one batch -- a day, not an entry. Both dates it carries are the server's and this screen
+ * recomputes neither: `batch_date` is the day the entries were created under, and `loading_date` is the
+ * day the load happens, which the server answers as the batch date plus one day except on a Friday,
+ * where it answers the batch date itself. The row says which is which rather than showing one of them
+ * and letting the operator guess, because the two differ on six days out of seven.
  */
 @Composable
-fun ReportsHistoryScreen(
-    state: ReportsHistoryViewModel.UiState,
+fun LoadingHistoryScreen(
+    state: LoadingHistoryViewModel.UiState,
     onBack: () -> Unit,
-    onOpenReport: (Int) -> Unit,
+    onOpenBatch: (ScheduleHistoryResponseItemsInner) -> Unit,
     onDateSelected: (String) -> Unit,
     onMonthSelected: (String) -> Unit,
     onClearFilters: () -> Unit,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
-    onDeactivate: (Int) -> Unit,
-    onDelete: (Int) -> Unit,
+    onDeactivate: (String) -> Unit,
+    onDelete: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     var pickingMonth by remember { mutableStateOf(false) }
 
     /**
-     * The report a delete is waiting to be confirmed for, or null when nothing is.
+     * The batch a delete is waiting to be confirmed for, as its date, or null when nothing is.
      *
-     * The delete is irreversible on the server -- the row leaves the history for everyone, not just for
-     * this screen -- and the button sits next to the deactivate one in a row an operator taps with gloves
-     * on. A confirmation is the difference between a mis-tap and a lost report, and it is deliberately
-     * the only action here that asks twice.
+     * The delete is irreversible on the server, and it takes a whole day's entries rather than one row
+     * -- which is the larger of the two mistakes this screen can make with a tap. The button sits next
+     * to the deactivate one in a row an operator taps with gloves on, so the confirmation is the
+     * difference between a mis-tap and a lost day, and it is deliberately the only action here that
+     * asks twice.
      */
-    var confirmingDelete by remember { mutableStateOf<Int?>(null) }
+    var confirmingDelete by remember { mutableStateOf<String?>(null) }
 
     LazyColumn(
         modifier = modifier.fillMaxSize().padding(16.dp),
@@ -91,14 +97,17 @@ fun ReportsHistoryScreen(
 
         item {
             Column {
-                Text(text = stringResource(R.string.history_title), style = MaterialTheme.typography.titleLarge)
+                Text(
+                    text = stringResource(R.string.loading_history_title),
+                    style = MaterialTheme.typography.titleLarge,
+                )
                 Text(
                     // The active filter in words. A day reads as the operators write dates and a month
                     // by name, because `2026-09` is the wire's spelling and not a label.
                     text = when {
-                        state.date != null -> stringResource(R.string.history_filtered, displayDate(state.date))
-                        state.month != null -> stringResource(R.string.history_filtered, displayMonth(state.month))
-                        else -> stringResource(R.string.history_all_reports)
+                        state.date != null -> stringResource(R.string.loading_history_filtered, displayDate(state.date))
+                        state.month != null -> stringResource(R.string.loading_history_filtered, displayMonth(state.month))
+                        else -> stringResource(R.string.loading_history_all)
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -145,25 +154,27 @@ fun ReportsHistoryScreen(
         }
 
         // Only when a read answered. An empty list next to an error sentence would state a failed read
-        // as a fact about the history, and "no reports for this period" is a different sentence from
+        // as a fact about the history, and "no batches for this period" is a different sentence from
         // "the server did not answer".
         if (state.loaded && state.items.isEmpty()) {
             item {
                 Text(
-                    text = stringResource(R.string.history_empty),
+                    text = stringResource(R.string.loading_history_empty),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
 
-        items(state.items, key = { it.id }) { report ->
-            ReportRow(
-                report = report,
+        // Keyed by the batch date, which is the key this endpoint groups by and therefore unique in the
+        // list; there is no id in this answer to key on.
+        items(state.items, key = { it.batchDate }) { batch ->
+            BatchRow(
+                batch = batch,
                 busy = state.busy,
-                onOpen = { onOpenReport(report.id) },
-                onDeactivate = { onDeactivate(report.id) },
-                onDelete = { confirmingDelete = report.id },
+                onOpen = { onOpenBatch(batch) },
+                onDeactivate = { onDeactivate(batch.batchDate) },
+                onDelete = { confirmingDelete = batch.batchDate },
             )
         }
 
@@ -184,7 +195,7 @@ fun ReportsHistoryScreen(
                             state.page,
                             // The server answers `totalPages` 0 for an empty history, and the SPA draws
                             // the same maximum for the same reason: "Página 1 de 0" is a sentence about
-                            // the arithmetic rather than about the reports.
+                            // the arithmetic rather than about the batches.
                             maxOf(1, state.totalPages),
                             state.total,
                         ),
@@ -214,7 +225,8 @@ fun ReportsHistoryScreen(
     if (pickingMonth) {
         // Computed once per opening rather than on every recomposition, and dropped when the dialog
         // leaves the composition -- which is what makes reopening it pick up a month that has since
-        // changed.
+        // changed. The list itself lives in the shared `ui` package, imported rather than copied:
+        // twelve months ending at today is the same twelve months on both screens.
         val months = remember { recentMonths(LocalDate.now()) }
 
         AlertDialog(
@@ -246,18 +258,18 @@ fun ReportsHistoryScreen(
         )
     }
 
-    confirmingDelete?.let { reportId ->
+    confirmingDelete?.let { batchDate ->
         AlertDialog(
             onDismissRequest = { confirmingDelete = null },
-            title = { Text(stringResource(R.string.history_delete_confirm_title)) },
-            text = { Text(stringResource(R.string.history_delete_confirm_body)) },
+            title = { Text(stringResource(R.string.loading_history_delete_confirm_title, displayDate(batchDate))) },
+            text = { Text(stringResource(R.string.loading_history_delete_confirm_body)) },
             confirmButton = {
                 TextButton(
                     onClick = {
                         // Closed first: the dialog is about the tap that is already being acted on, and
                         // leaving it open over a request in flight would invite a second one.
                         confirmingDelete = null
-                        onDelete(reportId)
+                        onDelete(batchDate)
                     },
                 ) {
                     Text(stringResource(R.string.history_delete))
@@ -271,14 +283,15 @@ fun ReportsHistoryScreen(
 }
 
 /**
- * One report in the list: its date, its shift, its author, and what may be done with it.
+ * One batch in the list: the day the entries belong to, the day they load, how many there are, and
+ * what may be done with the whole batch.
  *
- * The block that opens the detail is one tap target and the two lifecycle actions sit outside it, so a
- * tap on "Excluir" is never also a tap on "open this report".
+ * The block that opens the grid is one tap target and the two lifecycle actions sit outside it, so a
+ * tap on "Excluir" is never also a tap on "open this day".
  */
 @Composable
-private fun ReportRow(
-    report: ReportsResponseReportsInner,
+private fun BatchRow(
+    batch: ScheduleHistoryResponseItemsInner,
     busy: Boolean,
     onOpen: () -> Unit,
     onDeactivate: () -> Unit,
@@ -295,12 +308,15 @@ private fun ReportRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(text = displayDate(report.reportDate), style = MaterialTheme.typography.bodyLarge)
-                Text(text = turnoLabel(report.turno), style = MaterialTheme.typography.bodyMedium)
-                // `== false`, and not `!= true`: the badge is a claim that the report is inactive, and
-                // an absent flag is not a claim about anything. The five lifecycle flags are optional in
-                // the contract, so null is a state this screen has to survive without inventing a fact.
-                if (report.isActive == false) {
+                Text(text = displayDate(batch.batchDate), style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    text = stringResource(R.string.loading_history_loadings, batch.totalLoadings),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                // Plain negation rather than the report history's `== false`: this contract declares
+                // `isActive` required, so there is no absent flag to guard against, and `!x` says what
+                // is meant without implying an optionality the server does not have.
+                if (!batch.isActive) {
                     Text(
                         text = stringResource(R.string.history_inactive),
                         style = MaterialTheme.typography.labelMedium,
@@ -309,24 +325,34 @@ private fun ReportRow(
                 }
             }
 
-            val notes = notesPreview(report.notes)
+            // The loading date is labelled, because it is not the date above it on six days out of
+            // seven and an unlabelled second date would read as a duplicate of the first.
             Text(
-                text = if (notes == null) report.user.displayName else "${report.user.displayName} — $notes",
+                text = stringResource(R.string.loading_history_loading_date, displayDate(batch.loadingDate)),
                 style = MaterialTheme.typography.bodyMedium,
             )
+
+            // Drawn only when the server sent a creator. The SPA renders a translation key that reads
+            // "Legado sem criador" in this slot, and an absent creator is not a product term: printing
+            // one here would be inventing vocabulary the app does not have anywhere else.
+            batch.creator?.let { creator ->
+                Text(text = creator.displayName, style = MaterialTheme.typography.bodyMedium)
+            }
         }
 
-        if (offersDeactivate(report) || offersDelete(report)) {
+        if (offersDeactivate(batch) || offersDelete(batch)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 // Each action is drawn only where the server said it would be accepted, which is the
                 // `== true` inside those two predicates rather than a role decided here: this client does
                 // not know the caller's role, and the flag is the server's own answer to that question.
-                if (offersDeactivate(report)) {
+                // `canDelete` is known to overstate a Trabalhador on this route, which is why the refusal
+                // has a sentence of its own rather than being folded into "it failed".
+                if (offersDeactivate(batch)) {
                     TextButton(onClick = onDeactivate, enabled = !busy) {
                         Text(stringResource(R.string.history_deactivate))
                     }
                 }
-                if (offersDelete(report)) {
+                if (offersDelete(batch)) {
                     TextButton(onClick = onDelete, enabled = !busy) {
                         Text(stringResource(R.string.history_delete))
                     }
@@ -367,34 +393,27 @@ private fun openDayPicker(context: Context, selected: String?, onPick: (String) 
 private fun isoDay(year: Int, month: Int, day: Int): String =
     String.format(Locale.ROOT, "%04d-%02d-%02d", year, month, day)
 
-/** The shift as a word, from the generated enum: a third shift would fail to compile here instead. */
-@Composable
-private fun turnoLabel(turno: ReportsResponseReportsInner.Turno): String = when (turno) {
-    // No emoji: the SPA decorates the same word with a sunrise and a moon, and that is the web page's
-    // decoration rather than something this list has to carry.
-    ReportsResponseReportsInner.Turno.tarde -> stringResource(R.string.history_turno_tarde)
-    ReportsResponseReportsInner.Turno.noite -> stringResource(R.string.history_turno_noite)
-}
-
 /** The screen with its ViewModel attached. */
 @Composable
-fun ReportsHistoryRoute(
+fun LoadingHistoryRoute(
     onBack: () -> Unit,
-    onOpenReport: (Int) -> Unit,
-    viewModel: ReportsHistoryViewModel = hiltViewModel(),
+    onOpenDay: (String) -> Unit,
+    viewModel: LoadingHistoryViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
 
-    ReportsHistoryScreen(
+    LoadingHistoryScreen(
         state = state,
         onBack = onBack,
-        onOpenReport = onOpenReport,
+        // The view model picks the date out of the row and hands it back; the route passes it on to
+        // whatever owns navigation, which is not this screen.
+        onOpenBatch = { batch -> viewModel.openBatch(batch, onOpenDay) },
         onDateSelected = viewModel::onDateSelected,
         onMonthSelected = viewModel::onMonthSelected,
         onClearFilters = viewModel::clearFilters,
         onPrevious = viewModel::previous,
         onNext = viewModel::next,
-        onDeactivate = viewModel::deactivate,
-        onDelete = viewModel::delete,
+        onDeactivate = viewModel::deactivateBatch,
+        onDelete = viewModel::deleteBatch,
     )
 }
