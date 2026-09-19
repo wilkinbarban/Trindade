@@ -50,9 +50,25 @@ class FakeReportsApi(
     private val reportToReturn: ReportResponseReport? = createdReport(),
     /** Null makes the history call fail, the same convention as [turnoValue] and for the same reason. */
     private val historyToReturn: ReportHistoryResponse? = defaultHistory(),
+    /**
+     * When set, the history is this many reports at the server's default page size, and the lifecycle
+     * calls really change it: a deletion removes one and a deactivation does not.
+     *
+     * A fixed [historyToReturn] cannot answer a paging test -- asking for page 2 and being handed page 1
+     * is exactly the mistake such a test exists to catch -- and it cannot model the case the screen's
+     * step-back exists for, where deleting the last report on the last page leaves that page empty.
+     */
+    private val historyItemCount: Int? = null,
     private val photosToReturn: List<PhotosResponsePhotosInner> = emptyList(),
     private val exportToReturn: String = "CRONOGRAMA DE CARREGAMENTO",
     private val attachResponse: Response<PhotoResponse> = Response.success(PhotoResponse(photo = aPhoto())),
+    /**
+     * What a deactivation answers. 200 with a body in practice; the fake never reads the body either.
+     */
+    private val deactivateResponse: Response<SuccessResponse> =
+        Response.success(SuccessResponse(success = SuccessResponse.Success.entries.first())),
+    /** What a deletion answers, 204 with no body in practice, and the same convention for a refusal. */
+    private val deleteResponse: Response<Unit> = Response.success(Unit),
 ) : ReportsApi {
 
     /** What the last create carried, which is the whole point of most of these tests. */
@@ -68,6 +84,29 @@ class FakeReportsApi(
      */
     var lastHistoryQuery: ReportsHistoryQuery? = null
         private set
+
+    /**
+     * Every history call, in order, which is what a paging test has to assert on.
+     *
+     * [lastHistoryQuery] is the last one, and the sequence is the only thing that can show what a
+     * step-back did: the pages the view model asked for after a deletion are the behaviour under test,
+     * and the state it settled on could have been reached without asking for the dismissed page at all.
+     */
+    val historyQueries = mutableListOf<ReportsHistoryQuery>()
+
+    /** The report ids the two lifecycle calls were made with, in the order they were made. */
+    val deactivatedIds = mutableListOf<Int>()
+    val deletedIds = mutableListOf<Int>()
+
+    /**
+     * How many reports the live history holds, counting down as deletions succeed.
+     *
+     * Writable on purpose: a test that wants the cascade the view model's step-back rule is recursive
+     * for has to empty more than one page at once, and a deletion cannot do that. Setting this to 0
+     * mid-test is how another operator's change is simulated, and it is the same state the fake serves
+     * pages from, so the arithmetic under test stays the one the server does.
+     */
+    var remainingHistoryItems = historyItemCount ?: 0
 
     override suspend fun categories(): Response<CategoriesResponse> = Response.success(CategoriesResponse(categories))
 
@@ -97,9 +136,52 @@ class FakeReportsApi(
         page: Int?,
         pageSize: Int?,
     ): Response<ReportHistoryResponse> {
-        lastHistoryQuery = ReportsHistoryQuery(date = date, month = month, page = page, pageSize = pageSize)
-        val history = historyToReturn ?: return Response.error(500, EMPTY_BODY)
+        val query = ReportsHistoryQuery(date = date, month = month, page = page, pageSize = pageSize)
+        lastHistoryQuery = query
+        historyQueries += query
+
+        val history = if (historyItemCount != null) {
+            liveHistory(page ?: 1)
+        } else {
+            historyToReturn ?: return Response.error(500, EMPTY_BODY)
+        }
         return Response.success(history)
+    }
+
+    override suspend fun deactivate(id: Int): Response<SuccessResponse> {
+        deactivatedIds += id
+        return deactivateResponse
+    }
+
+    override suspend fun delete(id: Int): Response<Unit> {
+        deletedIds += id
+        // A real server removes the row, so the reload that follows a deletion has to see a smaller
+        // history; a fake that only recorded the id would hand the reload the same page and hide the
+        // step-back from the test that exists to prove it.
+        if (deleteResponse.isSuccessful) remainingHistoryItems -= 1
+        return deleteResponse
+    }
+
+    /**
+     * One page of a history the lifecycle calls shrink, at the server's own page size.
+     *
+     * The arithmetic is the server's: pages of [PAGE_SIZE], `totalPages` rounded up, and a page past the
+     * end answering an empty list with a well-formed pagination rather than an error.
+     */
+    private fun liveHistory(page: Int): ReportHistoryResponse {
+        val total = remainingHistoryItems.coerceAtLeast(0)
+        val start = (page - 1) * PAGE_SIZE
+        val onPage = (total - start).coerceIn(0, PAGE_SIZE)
+
+        return ReportHistoryResponse(
+            items = (0 until onPage).map { historyItem(id = start + it + 1) },
+            pagination = ScheduleHistoryResponsePagination(
+                page = page,
+                pageSize = PAGE_SIZE,
+                total = total,
+                totalPages = (total + PAGE_SIZE - 1) / PAGE_SIZE,
+            ),
+        )
     }
 
     override suspend fun photos(id: Int): Response<PhotosResponse> = Response.success(PhotosResponse(photos = photosToReturn))
@@ -120,6 +202,9 @@ class FakeReportsApi(
     companion object {
         const val NOT_USED = "this fake does not implement that call; add it when a test needs it"
         const val DEFAULT_TURNO = "tarde"
+
+        /** The server's own default, which is what a page of the live history holds. */
+        const val PAGE_SIZE = 30
 
         val EMPTY_BODY: okhttp3.ResponseBody = "{}".toResponseBody("application/json".toMediaType())
 

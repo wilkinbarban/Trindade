@@ -94,6 +94,38 @@ class ReportsRepository @Inject constructor(
             ?.takeIf { it.isSuccessful }
             ?.body()
 
+    /**
+     * Retires a report, or says why the server would not.
+     *
+     * The failure split is the same one the writes above make: a refusal is a business answer the
+     * screen has to explain -- this caller may not do it, or the report is already gone -- while an
+     * unreachable server is something to retry. Nothing below the screen decides which refusal means
+     * what, because the two refusals arrive as different status codes and only the screen knows what
+     * to say about each.
+     */
+    suspend fun deactivate(id: Int): ReportLifecycleResult = lifecycle { api.deactivate(id) }
+
+    /** Removes a report. See [deactivate] for the failure split, which is deliberately the same one. */
+    suspend fun delete(id: Int): ReportLifecycleResult = lifecycle { api.delete(id) }
+
+    /**
+     * The single reading of both lifecycle calls.
+     *
+     * Deactivating answers 200 with a `SuccessResponse` and deleting answers 204 with no body at all,
+     * and neither body is read here. Those two are the same answer to the caller's only question -- did
+     * the server agree -- and the difference between a flag and an empty body is not a distinction the
+     * screen can act on: there is nothing to show and nothing to do differently. A repository that
+     * modelled them separately would hand the screen two types for one decision.
+     */
+    private suspend fun lifecycle(call: suspend () -> retrofit2.Response<*>): ReportLifecycleResult {
+        val response = runCatching { call() }.getOrNull() ?: return ReportLifecycleResult.Unreachable
+        return if (response.isSuccessful) {
+            ReportLifecycleResult.Changed
+        } else {
+            ReportLifecycleResult.Refused(response.code())
+        }
+    }
+
     suspend fun report(id: Int): ReportResponseReport? =
         runCatching { api.report(id) }.getOrNull()
             ?.takeIf { it.isSuccessful }
@@ -171,6 +203,21 @@ sealed interface ReportWriteResult {
     data class Saved(val report: ReportResponseReport) : ReportWriteResult
     data class Refused(val statusCode: Int) : ReportWriteResult
     data object Unreachable : ReportWriteResult
+}
+
+/**
+ * What a lifecycle call produced: a deactivation or a deletion.
+ *
+ * One type for both because they are one question to a caller -- did the server agree, and if not,
+ * why -- and `Changed` covers both successes because the difference between a 200 carrying a flag and
+ * a 204 carrying nothing is not something any screen can act on. The status is carried for the same
+ * reason [ReportWriteResult] carries it: 403 and 404 need different sentences from the operator, and
+ * "it failed" would leave both without anything to do.
+ */
+sealed interface ReportLifecycleResult {
+    data object Changed : ReportLifecycleResult
+    data class Refused(val statusCode: Int) : ReportLifecycleResult
+    data object Unreachable : ReportLifecycleResult
 }
 
 /**

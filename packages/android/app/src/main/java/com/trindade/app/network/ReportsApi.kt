@@ -98,6 +98,34 @@ interface ReportsApi {
         @Query("pageSize") pageSize: Int?,
     ): Response<ReportHistoryResponse>
 
+    /**
+     * Retires a report without losing it: it stays in the history with `isActive` false.
+     *
+     * `PATCH` and no body, because the state change is the server's and this client has nothing to
+     * add to it. Answers 200 with a `SuccessResponse`, and can refuse with 403 for a caller whose role
+     * may not do it and 404 for a report that is gone. The caller's own ability is the item's
+     * `canDeactivate`, which the server computes for the caller's role; this client never decides it
+     * from a role of its own, because it does not have one.
+     */
+    @PATCH("api/reports/{id}/deactivate")
+    suspend fun deactivate(@Path("id") id: Int): Response<SuccessResponse>
+
+    /**
+     * Removes a report for good.
+     *
+     * Answers 204 with no body at all, which is why the response type is `Unit`: this is the one call
+     * here whose success carries nothing to read, and a caller that reached for a body would find
+     * null. It can refuse with 403 and 404 the way the deactivate does.
+     *
+     * The ability is the item's `canDelete`, and that flag overstates what this route accepts: the
+     * server's own projection grants `canDelete` to a `Trabalhador` while the route checks for
+     * `Administrador` and answers 403, so the client follows the flag it is given and gives that
+     * refusal its own sentence instead of hardcoding a role. Anything else would be this client
+     * inventing a permission rule, and a second one to keep in agreement with the server's.
+     */
+    @DELETE("api/reports/{id}")
+    suspend fun delete(@Path("id") id: Int): Response<Unit>
+
     @GET("api/reports/{id}")
     suspend fun report(@Path("id") id: Int): Response<ReportResponse>
 
