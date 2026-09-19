@@ -1124,7 +1124,7 @@ optional `date`, `month`, `userId`; `page` default 1; `pageSize` default 30, max
   author's `display_name`, and `notes` truncated at 60 characters. Actions: open the report's **detail
   screen, which already exists** from D3 — so editability is decided there, from the detail payload, and not
   recomputed from the list item.
-- **D5c. The loading history screen.** One row per **batch date** (the endpoint groups by `schedule_date`),
+- **D5c. The loading history screen — DONE** (commits `1f7bc4c` and `b053380`). One row per **batch date** (the endpoint groups by `schedule_date`),
   showing the batch date, the computed `loading_date`, `total_loadings`, the creator and the inactive badge.
   The row opens the **existing grid for that date**, which is what finally gives `LoadingViewModel`'s
   `onDateChange` its first caller — a control arrives through history rather than through a picker, which is
