@@ -87,12 +87,7 @@ class LoadingRepository @Inject constructor(
      * Removes one entry. A 403 here means the caller may only delete their own, which the screen must
      * say rather than report as a general failure.
      */
-    suspend fun deleteSchedule(id: Int): ScheduleDeleteResult {
-        val response = runCatchingCancellable { api.deleteSchedule(id) }.getOrNull()
-            ?: return ScheduleDeleteResult.Unreachable
-        return if (response.isSuccessful) ScheduleDeleteResult.Deleted
-        else ScheduleDeleteResult.Refused(response.code())
-    }
+    suspend fun deleteSchedule(id: Int): ScheduleLifecycleResult = lifecycle { api.deleteSchedule(id) }
 
     /**
      * Deactivates one entry.
@@ -103,11 +98,35 @@ class LoadingRepository @Inject constructor(
     suspend fun deactivateSchedule(id: Int): Boolean =
         runCatchingCancellable { api.deactivateSchedule(id) }.getOrNull()?.isSuccessful == true
 
-    suspend fun deactivateBatch(date: String): Boolean =
-        runCatchingCancellable { api.deactivateBatch(date) }.getOrNull()?.isSuccessful == true
+    /**
+     * Deactivates every entry of one batch, which is the day the history groups by.
+     *
+     * The refusal is a business answer here, not a network fault: 403 is the administrator-only route
+     * and 404 is a batch that is already gone, and the history screen says each in its own words. The
+     * boolean this used to answer could not carry that, which is why the two batch calls and the
+     * single-entry delete now share one result type.
+     */
+    suspend fun deactivateBatch(date: String): ScheduleLifecycleResult = lifecycle { api.deactivateBatch(date) }
 
-    suspend fun deleteBatch(date: String): Boolean =
-        runCatchingCancellable { api.deleteBatch(date) }.getOrNull()?.isSuccessful == true
+    /** Removes every entry of one batch. See [deactivateBatch] for the refusal split. */
+    suspend fun deleteBatch(date: String): ScheduleLifecycleResult = lifecycle { api.deleteBatch(date) }
+
+    /**
+     * The single reading of the three calls that change a schedule's life.
+     *
+     * Deactivating answers 200 with a `SuccessResponse` and deleting answers 204 with no body at all,
+     * and none of those bodies is read here. They are one answer to the caller's only question -- did
+     * the server agree -- and the difference between a flag and an empty body is not a distinction any
+     * screen can act on: there is nothing to show and nothing to do differently.
+     */
+    private suspend fun lifecycle(call: suspend () -> retrofit2.Response<*>): ScheduleLifecycleResult {
+        val response = runCatchingCancellable { call() }.getOrNull() ?: return ScheduleLifecycleResult.Unreachable
+        return if (response.isSuccessful) {
+            ScheduleLifecycleResult.Changed
+        } else {
+            ScheduleLifecycleResult.Refused(response.code())
+        }
+    }
 
     /** The WhatsApp text for one date, or null when the server cannot render it. */
     suspend fun exportText(date: String): String? =
@@ -139,10 +158,22 @@ sealed interface ScheduleWriteResult {
     data object Unreachable : ScheduleWriteResult
 }
 
-sealed interface ScheduleDeleteResult {
-    data object Deleted : ScheduleDeleteResult
-
-    /** 403 means a Trabalhador tried to delete someone else's entry, which is worth saying. */
-    data class Refused(val statusCode: Int) : ScheduleDeleteResult
-    data object Unreachable : ScheduleDeleteResult
+/**
+ * What a call that changes a schedule's life produced: one entry deleted, or a whole batch
+ * deactivated or deleted.
+ *
+ * One type for all three because they are one question to a caller -- did the server agree, and if
+ * not, why -- and `Changed` covers every success because the difference between a 200 carrying a flag
+ * and a 204 carrying nothing is not something any screen can act on. The status is carried for the
+ * same reason [ScheduleWriteResult] carries it: the two refusals need different words from the
+ * operator, and "it failed" would leave both without anything to do.
+ *
+ * A 403 on the single-entry route means a Trabalhador tried to delete an entry that is not their own;
+ * on the batch routes it means the administrator-only check, and `canDelete` overstates a Trabalhador
+ * there, so the history draws an action whose answer is this 403. 404 is a batch that is already gone.
+ */
+sealed interface ScheduleLifecycleResult {
+    data object Changed : ScheduleLifecycleResult
+    data class Refused(val statusCode: Int) : ScheduleLifecycleResult
+    data object Unreachable : ScheduleLifecycleResult
 }

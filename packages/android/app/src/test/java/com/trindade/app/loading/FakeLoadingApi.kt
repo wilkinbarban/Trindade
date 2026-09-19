@@ -18,6 +18,9 @@ import com.trindade.app.contract.models.UpdateScheduleRequest
 import com.trindade.app.contract.models.VehiclesResponse
 import com.trindade.app.contract.models.VehiclesResponseVehiclesInner
 import com.trindade.app.network.LoadingApi
+import java.time.DayOfWeek
+import java.time.LocalDate
+import kotlinx.coroutines.CompletableDeferred
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.ResponseBody.Companion.toResponseBody
 import retrofit2.Response
@@ -32,6 +35,24 @@ import retrofit2.Response
  */
 class FakeLoadingApi(
     private val schedulesToReturn: List<SchedulesResponseSchedulesInner>? = emptyList(),
+    /**
+     * When true, every schedule read waits on its own gate before answering, so a test can hold two of
+     * them in the air at once and choose which one lands last.
+     *
+     * The gate is released *before* the answer is built, on purpose: the answer is the one that is true
+     * when it lands, which is how a test reproduces what the code could not otherwise see -- a stale
+     * response arriving after a newer one, carrying the day the operator is no longer asking for.
+     */
+    private val gateSchedules: Boolean = false,
+    /**
+     * The date whose schedule read answers a 500 instead of a page.
+     *
+     * Compared where the answer is built and not where the call was made, which with [gateSchedules]
+     * lets a test make the failing answer the *stale* one: the newer read of a different day has
+     * already succeeded, so what the failure proves is that a superseded answer is dropped rather than
+     * drawn -- without the token it would put "sem conexão" over a day that loaded fine.
+     */
+    private val failForDate: String? = null,
     /** Null makes the history call fail, the same convention as [schedulesToReturn] and for the same reason. */
     private val historyToReturn: ScheduleHistoryResponse? = defaultHistory(),
     /**
@@ -43,11 +64,34 @@ class FakeLoadingApi(
      * it is rethrown instead, which is the state the two failures must not be confused in.
      */
     private val historyFailure: Throwable? = null,
+    /**
+     * When set, the history is this many batches at the server's default page size, and the two batch
+     * deletions really change it: a deletion removes one batch and a deactivation does not.
+     *
+     * A fixed [historyToReturn] cannot answer a paging test -- asking for page 2 and being handed page 1
+     * is exactly the mistake such a test exists to catch -- and it cannot model the case the step-back
+     * exists for, where deleting the last batch on the last page leaves that page empty.
+     */
+    private val historyItemCount: Int? = null,
+    /**
+     * When true, every history call waits on its own gate before answering, so a test can hold two of
+     * them in the air at once and choose which one lands last.
+     *
+     * The gate is released *before* the answer is built, on purpose: the state the fake reads is the
+     * state at release time, which is how a test reproduces what the code could not otherwise see -- a
+     * stale response arriving after a newer one, carrying rows the operator is no longer asking for.
+     */
+    private val gateHistory: Boolean = false,
     private val timeSlotsToReturn: List<String>? = listOf("04:00", "04:30", "05:00"),
     private val driversToReturn: List<DriversResponseDriversInner> = defaultDrivers(),
     private val vehiclesToReturn: List<VehiclesResponseVehiclesInner> = defaultVehicles(),
     private val createResponse: Response<ScheduleResponse>? = null,
     private val deleteSucceeds: Boolean = true,
+    /** What a batch deactivation answers. 200 with a body in practice; the fake never reads it either. */
+    private val deactivateBatchResponse: Response<SuccessResponse> =
+        Response.success(SuccessResponse(success = SuccessResponse.Success.entries.first())),
+    /** What a batch deletion answers, 204 with no body in practice, and the same convention for a refusal. */
+    private val deleteBatchResponse: Response<Unit> = Response.success(Unit),
     /** Null is the server refusing to render the text, which is the only failure the export has. */
     private val exportToReturn: String? = EXPORT_TEXT,
 ) : LoadingApi {
@@ -65,6 +109,35 @@ class FakeLoadingApi(
     var lastHistoryQuery: LoadingHistoryQuery? = null
         private set
 
+    /**
+     * Every history call, in order, which is what a paging test has to assert on.
+     *
+     * [lastHistoryQuery] is the last one, and the sequence is the only thing that can show what a
+     * step-back did: the pages the view model asked for after a deletion are the behaviour under test,
+     * and the state it settled on could have been reached without asking for the dismissed page at all.
+     */
+    val historyQueries = mutableListOf<LoadingHistoryQuery>()
+
+    /** The batch dates the two lifecycle calls were made with, in the order they were made. */
+    val deactivatedBatchDates = mutableListOf<String>()
+    val deletedBatchDates = mutableListOf<String>()
+
+    /** One gate per history call held open by [gateHistory], in the order the calls were made. */
+    val historyGates = mutableListOf<CompletableDeferred<Unit>>()
+
+    /** One gate per schedule read held open by [gateSchedules], in the order the calls were made. */
+    val scheduleGates = mutableListOf<CompletableDeferred<Unit>>()
+
+    /**
+     * How many batches the live history holds, counting down as deletions succeed.
+     *
+     * Writable on purpose: a test that wants the cascade the step-back rule is recursive for has to
+     * empty more than one page at once, and a deletion cannot do that. Setting this to 0 mid-test is how
+     * another operator's change is simulated, and it is the same state the fake serves pages from, so
+     * the arithmetic under test stays the one the server does.
+     */
+    var remainingHistoryItems = historyItemCount ?: 0
+
     var lastExportDate: String? = null
         private set
 
@@ -77,6 +150,17 @@ class FakeLoadingApi(
 
     override suspend fun schedules(date: String): Response<SchedulesResponse> {
         lastSchedulesDate = date
+
+        if (gateSchedules) {
+            val gate = CompletableDeferred<Unit>()
+            scheduleGates += gate
+            gate.await()
+        }
+
+        // After the gate and not before it: the failure is what this read answers when it lands, which
+        // is the only way a held-open read can be the stale one that fails while a newer one succeeds.
+        if (date == failForDate) return Response.error(500, EMPTY_BODY)
+
         val schedules = schedulesToReturn ?: return Response.error(500, EMPTY_BODY)
         return Response.success(SchedulesResponse(schedules = schedules))
     }
@@ -89,9 +173,69 @@ class FakeLoadingApi(
     ): Response<ScheduleHistoryResponse> {
         historyFailure?.let { throw it }
 
-        lastHistoryQuery = LoadingHistoryQuery(date = date, month = month, page = page, pageSize = pageSize)
-        val history = historyToReturn ?: return Response.error(500, EMPTY_BODY)
+        val query = LoadingHistoryQuery(date = date, month = month, page = page, pageSize = pageSize)
+        lastHistoryQuery = query
+        historyQueries += query
+
+        if (gateHistory) {
+            val gate = CompletableDeferred<Unit>()
+            historyGates += gate
+            gate.await()
+        }
+
+        val history = if (historyItemCount != null) {
+            liveHistory(page ?: 1)
+        } else {
+            historyToReturn ?: return Response.error(500, EMPTY_BODY)
+        }
         return Response.success(history)
+    }
+
+    /**
+     * One page of a history the deletions shrink, at the server's own page size.
+     *
+     * The arithmetic is the server's: pages of [PAGE_SIZE], `totalPages` rounded up, and a page past
+     * the end answering an empty list with a well-formed pagination rather than an error. `total` counts
+     * batches rather than entries, because that is what this endpoint groups by.
+     */
+    private fun liveHistory(page: Int): ScheduleHistoryResponse {
+        val total = remainingHistoryItems.coerceAtLeast(0)
+        val start = (page - 1) * PAGE_SIZE
+        val onPage = (total - start).coerceIn(0, PAGE_SIZE)
+
+        return ScheduleHistoryResponse(
+            items = (0 until onPage).map { offset ->
+                val day = batchDate(start + offset + 1)
+                historyItem(batchDate = day, loadingDate = loadingDate(day))
+            },
+            pagination = ScheduleHistoryResponsePagination(
+                page = page,
+                pageSize = PAGE_SIZE,
+                total = total,
+                totalPages = (total + PAGE_SIZE - 1) / PAGE_SIZE,
+            ),
+        )
+    }
+
+    /**
+     * The [index]-th most recent batch date, counting back from a fixed day.
+     *
+     * Fixed rather than today's date so a test's rows are the same on any machine, and consecutive so
+     * that every row's `batch_date` is distinct -- which is the key the endpoint groups by and the key
+     * the screen uses for its rows.
+     */
+    private fun batchDate(index: Int): String = LAST_BATCH_DATE.minusDays((index - 1).toLong()).toString()
+
+    /**
+     * The loading date the server computes from a batch date: the same day on a Friday, the day after
+     * on every other one. `%w` 5 is Friday in the server's `strftime`, and this is the same rule.
+     *
+     * Passed straight into [historyItem] by [liveHistory] so the two dates differ on the rows a test
+     * pages through, which is what makes the distinction the client must not lose visible in a test.
+     */
+    private fun loadingDate(batchDate: String): String {
+        val date = LocalDate.parse(batchDate)
+        return if (date.dayOfWeek == DayOfWeek.FRIDAY) batchDate else date.plusDays(1).toString()
     }
 
     override suspend fun timeSlots(): Response<TimeSlotsResponse> {
@@ -118,8 +262,20 @@ class FakeLoadingApi(
 
     override suspend fun updateSchedule(id: Int, body: UpdateScheduleRequest): Response<ScheduleResponse> = error(NOT_USED)
     override suspend fun deactivateSchedule(id: Int): Response<SuccessResponse> = error(NOT_USED)
-    override suspend fun deactivateBatch(date: String): Response<SuccessResponse> = error(NOT_USED)
-    override suspend fun deleteBatch(date: String): Response<Unit> = error(NOT_USED)
+
+    override suspend fun deactivateBatch(date: String): Response<SuccessResponse> {
+        deactivatedBatchDates += date
+        return deactivateBatchResponse
+    }
+
+    override suspend fun deleteBatch(date: String): Response<Unit> {
+        deletedBatchDates += date
+        // A real server removes the batch, so the reload that follows a deletion has to see a smaller
+        // history; a fake that only recorded the date would hand the reload the same page and hide the
+        // step-back from the test that exists to prove it.
+        if (deleteBatchResponse.isSuccessful) remainingHistoryItems -= 1
+        return deleteBatchResponse
+    }
     override suspend fun export(date: String): Response<TextResponse> {
         lastExportDate = date
         val text = exportToReturn ?: return Response.error(500, EMPTY_BODY)
@@ -128,6 +284,12 @@ class FakeLoadingApi(
 
     companion object {
         const val NOT_USED = "this fake does not implement that call; add it when a test needs it"
+
+        /** The server's own default, which is what a page of the live history holds. */
+        const val PAGE_SIZE = 30
+
+        /** The day a live history's newest row sits on, counted back from there for the older ones. */
+        val LAST_BATCH_DATE: LocalDate = LocalDate.of(2026, 9, 30)
 
         /** The shape of the server's message, including the line the operator copies. */
         const val EXPORT_TEXT = "Segunda-feira • 21/09/2026\nCarregamento:\n04:00 - Fletero"

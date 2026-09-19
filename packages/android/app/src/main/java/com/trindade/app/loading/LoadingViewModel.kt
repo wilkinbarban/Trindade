@@ -81,6 +81,17 @@ class LoadingViewModel @Inject constructor(
     private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state.asStateFlow()
 
+    /**
+     * Identifies the newest load, so an answer to an older one cannot overwrite it.
+     *
+     * Two loads really can be in the air at once now that a day can be requested: the constructor's
+     * own load of today starts before the requested day is applied, and both answer. Without this the
+     * earlier answer landing last would draw today's entries under the requested day's name -- the
+     * schedule of one day shown under the date of another, which reads exactly like the server
+     * answering with the wrong rows. The same token the history screens use, for the same reason.
+     */
+    private var newestLoad = 0
+
     init {
         load()
     }
@@ -94,6 +105,7 @@ class LoadingViewModel @Inject constructor(
         // The export text is dropped on every reload, and that includes the one a successful mutation
         // triggers: the text describes the day's entries, so leaving it on screen after they changed
         // would hand the operator a message about a day that no longer exists. It is one tap away.
+        val load = ++newestLoad
         _state.update { it.copy(date = date, loading = true, message = null, exportText = null) }
 
         viewModelScope.launch {
@@ -101,6 +113,11 @@ class LoadingViewModel @Inject constructor(
             val slots = repository.timeSlots()
             val drivers = repository.drivers()
             val vehicles = repository.vehicles()
+
+            // A superseded answer is dropped whole: not the entries, not the date, not the message.
+            // Half of it written over a newer answer would be worse than none, because the grid would
+            // then describe one day under the header of another.
+            if (load != newestLoad) return@launch
 
             _state.update {
                 it.copy(
@@ -176,13 +193,13 @@ class LoadingViewModel @Inject constructor(
 
         viewModelScope.launch {
             when (val result = repository.deleteSchedule(id)) {
-                ScheduleDeleteResult.Deleted -> {
+                ScheduleLifecycleResult.Changed -> {
                     _state.update { it.copy(busy = false) }
                     load()
                 }
-                is ScheduleDeleteResult.Refused ->
+                is ScheduleLifecycleResult.Refused ->
                     _state.update { it.copy(busy = false, message = deleteRefusal(result.statusCode)) }
-                ScheduleDeleteResult.Unreachable ->
+                ScheduleLifecycleResult.Unreachable ->
                     _state.update { it.copy(busy = false, message = UNREACHABLE) }
             }
         }

@@ -249,6 +249,43 @@ class LoadingViewModelTest {
     }
 
     @Test
+    fun `a superseded load does not overwrite the newer day, even when it fails`() {
+        // The history hands the grid a day to load, and the view model's constructor has already started
+        // its own load of today when that happens, so two reads really are in the air at once. Without
+        // the token the older answer landing last draws today's rows under the requested day's header,
+        // and here it would do worse than that: the older answer is a failure, so the operator would get
+        // "sem conexão" over a screen that had loaded fine.
+        //
+        // The gate is what makes the race reachable at all -- an immediate fake cannot produce it, which
+        // is why no test saw it before an independent verifier read the code. The stale read is the one
+        // for today, so the requesting date is deliberately a different day.
+        val api = FakeLoadingApi(
+            schedulesToReturn = listOf(FakeLoadingApi.entry(1, "04:00")),
+            gateSchedules = true,
+            failForDate = LoadingViewModel.saoPauloToday(),
+        )
+        val model = viewModel(api)
+
+        model.onDateChange("2026-08-14")
+        assertEquals("one request per load", 2, api.scheduleGates.size)
+
+        // The newer read answers first, with the rows of the requested day.
+        api.scheduleGates[1].complete(Unit)
+        assertEquals("2026-08-14", model.state.value.date)
+        assertEquals(1, model.state.value.schedules.size)
+
+        // The superseded one answers after it, as a refusal.
+        api.scheduleGates[0].complete(Unit)
+
+        // Nothing of the stale answer: not the rows, not the date, and above all not the unreachable
+        // sentence over a day that was read.
+        assertEquals("2026-08-14", model.state.value.date)
+        assertEquals(1, model.state.value.schedules.size)
+        assertEquals(null, model.state.value.message)
+        assertEquals(false, model.state.value.loading)
+    }
+
+    @Test
     fun `does not ask the server for the export until it is requested`() {
         val api = FakeLoadingApi()
         val model = viewModel(api)
