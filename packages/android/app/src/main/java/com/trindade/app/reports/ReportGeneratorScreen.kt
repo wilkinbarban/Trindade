@@ -19,6 +19,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -50,12 +51,27 @@ fun ReportGeneratorScreen(
     onProductToggle: (Int, String, Boolean) -> Unit,
     onTemperatureChange: (Int, Int, String) -> Unit,
     onSubmit: () -> Unit,
+    onOpenHistory: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
         modifier = modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        // The history lives here rather than in a third tab, and that is the deliberate part of this
+        // placement: the history lists the records this screen produces, so the way to them is an
+        // action on the surface that makes them. The tab row stays the app's two jobs -- Relatórios and
+        // Horários -- because the SPA's flat sidebar of four destinations is a desktop directory, not
+        // a phone's navigation.
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                TextButton(onClick = onOpenHistory) { Text(stringResource(R.string.report_history)) }
+            }
+        }
+
         state.message?.let { message ->
             item {
                 Text(
@@ -241,6 +257,7 @@ private fun TemperatureBlock(
 @Composable
 fun ReportGeneratorRoute(
     onCreated: (Int) -> Unit,
+    onOpenHistory: () -> Unit,
     viewModel: ReportGeneratorViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -257,5 +274,6 @@ fun ReportGeneratorRoute(
         onProductToggle = viewModel::onProductToggle,
         onTemperatureChange = viewModel::onTemperatureChange,
         onSubmit = viewModel::submit,
+        onOpenHistory = onOpenHistory,
     )
 }

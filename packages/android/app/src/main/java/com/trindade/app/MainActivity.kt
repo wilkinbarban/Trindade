@@ -20,6 +20,7 @@ import com.trindade.app.auth.LoginRoute
 import com.trindade.app.loading.LoadingRoute
 import com.trindade.app.reports.ReportDetailRoute
 import com.trindade.app.reports.ReportGeneratorRoute
+import com.trindade.app.reports.ReportsHistoryRoute
 import com.trindade.app.ui.theme.TrindadeTheme
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -45,14 +46,24 @@ class MainActivity : ComponentActivity() {
                 var signedIn by remember { mutableStateOf(authRepository.hasSession()) }
                 // Which report the operator is looking at, if any. Null means the generator.
                 var openReportId by remember { mutableStateOf<Int?>(null) }
+                // Whether the report history is showing instead of the generator.
+                var historyOpen by remember { mutableStateOf(false) }
                 // Which of the two top-level surfaces is showing. Reports is where a shift starts.
                 var tab by remember { mutableStateOf(Tab.REPORTS) }
 
                 when {
                     !signedIn -> LoginRoute(onSignedIn = { signedIn = true })
+                    // Ahead of the history, and that order is the whole of this navigation: the history
+                    // opens a report, so an open report has to win while `historyOpen` is still true --
+                    // otherwise closing the detail would land on the generator, and the operator would
+                    // lose the page of the history they were reading.
                     openReportId != null -> ReportDetailRoute(
                         reportId = openReportId!!,
                         onBack = { openReportId = null },
+                    )
+                    historyOpen -> ReportsHistoryRoute(
+                        onBack = { historyOpen = false },
+                        onOpenReport = { openReportId = it },
                     )
                     tab == Tab.LOADING -> LoadingRoute(onBack = { tab = Tab.REPORTS })
                     else -> Column {
@@ -63,7 +74,10 @@ class MainActivity : ComponentActivity() {
                             TextButton(onClick = { tab = Tab.REPORTS }) { Text(stringResource(R.string.nav_reports)) }
                             TextButton(onClick = { tab = Tab.LOADING }) { Text(stringResource(R.string.nav_loading)) }
                         }
-                        ReportGeneratorRoute(onCreated = { openReportId = it })
+                        ReportGeneratorRoute(
+                            onCreated = { openReportId = it },
+                            onOpenHistory = { historyOpen = true },
+                        )
                     }
                 }
             }

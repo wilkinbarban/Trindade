@@ -20,6 +20,28 @@
     <string name="export_load">Gerar texto do WhatsApp</string>
     <string name="export_copy">Copiar texto</string>
 
+    <!-- The history of the reports this surface produces. Its own door is on the generator rather than
+         in a third tab, so the action there is named for where it goes and not for the tab it is not. -->
+    <string name="report_history">Histórico</string>
+    <string name="history_title">Histórico de relatórios</string>
+    <string name="history_all_reports">Todos os relatórios</string>
+    <string name="history_filtered">Relatórios de %1$s</string>
+    <string name="history_filter_day">Dia</string>
+    <string name="history_filter_month">Mês</string>
+    <string name="history_filter_day_value">Dia: %1$s</string>
+    <string name="history_filter_month_value">Mês: %1$s</string>
+    <string name="history_clear_filters">Limpar</string>
+    <string name="history_month_picker_title">Escolha o mês</string>
+    <string name="history_turno_tarde">Tarde</string>
+    <string name="history_turno_noite">Noite</string>
+    <string name="history_inactive">Inativo</string>
+    <string name="history_deactivate">Desativar</string>
+    <string name="history_delete">Excluir</string>
+    <string name="history_empty">Nenhum relatório encontrado para este período.</string>
+    <string name="history_pagination">Página %1$d de %2$d (%3$d registros)</string>
+    <string name="history_previous">Anterior</string>
+    <string name="history_next">Próxima</string>
+
     <string name="nav_reports">Relatórios</string>
     <string name="nav_loading">Horários</string>
     <string name="loading_title">Cronograma de carregamento</string>

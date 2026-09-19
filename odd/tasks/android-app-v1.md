@@ -1112,14 +1112,15 @@ optional `date`, `month`, `userId`; `page` default 1; `pageSize` default 30, max
 `GET|PATCH /api/auth/profile` (`display_name` is the only writable field, and the body is `.strict()`),
 `POST /api/auth/change-password` and `POST /api/auth/logout`.
 
-- **D5a. The history data layer.** `ReportsApi.history` and `LoadingApi.history` — both deliberately absent
+- **D5a. The history data layer — DONE** (commits `8d3b03f` and `c7a361f`). `ReportsApi.history` and `LoadingApi.history` — both deliberately absent
   since D3 and D4, whose comments say so — with the repository methods, the paging and filter arguments,
   and `ContractCoverageTest` extended to reflect over both new calls. The same slice carries the
   **refusal-text fix**: most backend refusals answer `{error}` with **no `message`**, and
   `AuthRepository.errorMessage()` decodes only `message`, so every one of them collapses to the generic
   sentence. Decode `message ?: error` and test it, because that is the difference between "the server said
   why" and "it failed".
-- **D5b. The reports history screen.** Columns: date (`dd/mm/yyyy`), the turno, an inactive badge, the
+- **D5b. The reports history screen — DONE** (commit `38e0139`, the logic half, and the commit that carries
+  this line, the screen half). Columns: date (`dd/mm/yyyy`), the turno, an inactive badge, the
   author's `display_name`, and `notes` truncated at 60 characters. Actions: open the report's **detail
   screen, which already exists** from D3 — so editability is decided there, from the detail payload, and not
   recomputed from the list item.
