@@ -25,6 +25,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.trindade.app.BuildConfig
 import com.trindade.app.R
 
 /**
@@ -34,10 +35,15 @@ import com.trindade.app.R
  * model, an activity or a server. The two blocks are the two writes this screen has, and each has its
  * own action -- a name and a password are not the same kind of change, and the password change ends the
  * session.
+ *
+ * [appVersion] is a parameter rather than a read of `BuildConfig` inside the screen, for the same reason
+ * the state is: this file renders what it is handed, and the one place that knows where the value comes
+ * from is [ProfileRoute].
  */
 @Composable
 fun ProfileScreen(
     state: ProfileViewModel.UiState,
+    appVersion: String,
     onBack: () -> Unit,
     onDisplayNameChange: (String) -> Unit,
     onSave: () -> Unit,
@@ -176,6 +182,12 @@ fun ProfileScreen(
                 TextButton(onClick = onSignOut) { Text(stringResource(R.string.profile_sign_out)) }
             }
         }
+
+        // The version is drawn outside the branch that needs a loaded profile, and that placement is the
+        // point: this is the line an operator reads back when they ask whether an update landed, and a
+        // profile that failed to load is exactly when someone is looking for it. It is the same value the
+        // APK was packaged with, not a copy that could drift -- see the version fields in build.gradle.kts.
+        ReadOnlyField(label = stringResource(R.string.profile_app_version), value = appVersion)
     }
 }
 
@@ -261,6 +273,7 @@ fun ProfileRoute(
 
     ProfileScreen(
         state = state,
+        appVersion = BuildConfig.APP_VERSION_NAME,
         onBack = onBack,
         onDisplayNameChange = viewModel::onDisplayNameChange,
         onSave = viewModel::save,

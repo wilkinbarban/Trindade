@@ -94,6 +94,10 @@
          sentence, because that sign-out is one the operator did not ask for. -->
     <string name="profile_signed_out">Sessão encerrada.</string>
     <string name="profile_back_to_login">Entrar de novo</string>
+    <!-- The APK's own version, for the operator who asks whether the update reached the phone. It is read
+         from the build, never typed here, so the number on screen is the number that was packaged. Kept out
+         of the account block on purpose: see the screen for why it is drawn even when nothing loaded. -->
+    <string name="profile_app_version">Versão do aplicativo</string>
     <string name="loading_title">Cronograma de carregamento</string>
     <string name="loading_fleteros">%1$d/%2$d fleteros</string>
     <string name="loading_add_entry">Adicionar</string>
