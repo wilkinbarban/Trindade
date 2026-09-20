@@ -64,17 +64,24 @@ class AuthRepository @Inject constructor(
      * and stayed live on the server. Sending it while the session is still in place is what makes the
      * refresh token in the body mean anything.
      *
-     * The clear is still unconditional, only later. The contract makes logout idempotent -- an unknown
-     * or already-ended token still succeeds -- so a failed call means the session is already gone
-     * server-side, and there is nothing a client gains by holding a token whose session is over.
-     * Reporting the failure as "still signed in" would be the less true answer.
+     * The clear is unconditional, and it happens in a `finally` for a reason that cost a review to find:
+     * the call above can now be **cancelled**, and a cancellation leaves this function by design. Written
+     * after the call instead, a cancelled revoke would skip the clear entirely -- the operator taps "Sair",
+     * the request dies with the screen, and the tokens stay in the Keystore: a phone that is still signed
+     * in after being told to sign out. The contract makes logout idempotent -- an unknown or already-ended
+     * token still succeeds -- so a failed call means the session is already gone server-side, and there is
+     * nothing a client gains by holding a token whose session is over. Reporting the failure as "still
+     * signed in" would be the less true answer.
      */
     suspend fun logout() {
         val refreshToken = tokenStore.refreshToken()
-        if (refreshToken != null) {
-            runCatchingCancellable { api.logout(LogoutRequest(refreshToken = refreshToken)) }
+        try {
+            if (refreshToken != null) {
+                runCatchingCancellable { api.logout(LogoutRequest(refreshToken = refreshToken)) }
+            }
+        } finally {
+            tokenStore.clear()
         }
-        tokenStore.clear()
     }
 
     /**

@@ -38,7 +38,7 @@ import retrofit2.Response
  * answer was not null" would pass against the defect, because a captured cancellation answers null
  * just as a refused read does, so these tests fail loudly on the answer instead of inspecting it.
  *
- * The last three are about the wiring, since a correct helper that nothing calls fixes nothing. Each
+ * The last four are about the wiring, since a correct helper that nothing calls fixes nothing. Each
  * drives one of the three repositories whose API throws a cancellation and asserts that it comes back
  * out rather than arriving as `null` or as `Rejected`. They also happen to be the proof that the
  * helper can be inlined around a suspending call at all: that is the only reason these call sites
@@ -119,24 +119,47 @@ class CancellationTest {
         }
     }
 
+    @Test
+    fun `signing out clears the session even when the revoke call is cancelled`() = runTest {
+        val cancellation = CancellationException("the operator left the screen")
+        val store = SignOutTokenStore()
+        val repository = AuthRepository(CancellingAuthApi(cancellation), store, json())
+
+        try {
+            repository.logout()
+            fail("signing out answered instead of letting the cancellation through")
+        } catch (thrown: CancellationException) {
+            // The same instance, as the wiring tests above insist and for the same reason: the screen that
+            // gave up is waiting for the cancellation it was handed, not for a replacement.
+            assertSame(cancellation, thrown)
+        }
+
+        // The regression this pins: the clear was written *after* the revoke call, and the cancellation
+        // that ends the screen left the method before reaching it -- so the operator taps "Sair", the
+        // request dies with the screen, and the tokens stay in the Keystore. The phone is still signed in
+        // after being told to sign out. The clear has to survive the cancellation, and this count is the
+        // only thing that can tell the two shapes apart, since `logout` answers nothing.
+        assertEquals(1, store.clears)
+    }
+
     /** The same parser the app builds, although nothing here reaches a refusal body to decode. */
     private fun json() = Json { ignoreUnknownKeys = true }
 }
 
 /**
- * An `AuthApi` whose sign-in throws the cancellation.
+ * An `AuthApi` whose sign-in and sign-out throw the cancellation.
  *
  * Written here rather than reused because every other fake in this tree is private to the test file
- * that owns it, and this one is reached for a single call. Everything else throws, following the
- * convention the other fakes state: a quiet default is how a test passes while calling something it
- * never meant to.
+ * that owns it, and this one serves the two session calls that are exercised here. Everything else
+ * throws, following the convention the other fakes state: a quiet default is how a test passes while
+ * calling something it never meant to.
  */
 private class CancellingAuthApi(private val cancellation: CancellationException) : AuthApi {
 
     override suspend fun login(body: LoginRequest): Response<LoginResponse> = throw cancellation
 
     override suspend fun refresh(body: RefreshRequest): Response<RefreshResponse> = error(NOT_USED)
-    override suspend fun logout(body: LogoutRequest): Response<SuccessResponse> = error(NOT_USED)
+    override suspend fun logout(body: LogoutRequest): Response<SuccessResponse> = throw cancellation
     override suspend fun me(): Response<ProfileResponse> = error(NOT_USED)
     override suspend fun profile(): Response<ProfileResponse> = error(NOT_USED)
     override suspend fun updateProfile(body: UpdateProfileRequest): Response<ProfileResponse> = error(NOT_USED)
@@ -156,4 +179,28 @@ private class UnusedTokenStore : TokenStore {
     override fun clear() = error(NOT_USED)
 }
 
+/**
+ * A store with a token to revoke, which counts the clears asked of it.
+ *
+ * The refresh token is what puts the cancelling sign-out call within reach: with nothing in the store the
+ * repository never asks the server, and a test would be asserting about a call that was never made. The
+ * count is the other half of that path and the only place the clear is visible at all, because
+ * [AuthRepository.logout] answers nothing. `accessToken` and `save` throw, following [UnusedTokenStore]:
+ * signing out reaches neither.
+ */
+private class SignOutTokenStore : TokenStore {
+
+    /** How many times the sign-out path asked for the session to be dropped. */
+    var clears = 0
+        private set
+
+    override fun accessToken(): String? = error(NOT_USED)
+    override fun refreshToken(): String? = REFRESH_TOKEN
+    override fun save(accessToken: String, refreshToken: String) = error(NOT_USED)
+    override fun clear() {
+        clears++
+    }
+}
+
+private const val REFRESH_TOKEN = "refresh-token"
 private const val NOT_USED = "this fake does not implement that call; add it when a test needs it"
