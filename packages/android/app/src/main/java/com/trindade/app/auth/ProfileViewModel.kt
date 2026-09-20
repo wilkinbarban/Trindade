@@ -118,13 +118,22 @@ class ProfileViewModel @Inject constructor(
      * Four, not two, because the two that are not a comparison result are the ones a boolean would have
      * flattened: a check that has not answered yet, and a check that could not be made. The second is not
      * an error about the operator or their session -- the account loaded, the token is fine, GitHub had a
-     * bad moment or the tag is not one this client reads -- so it does not belong in [UiState.message],
+     * bad moment, or the tag is not one this client reads -- so it does not belong in [UiState.message],
      * which the screen draws in the error colour and which every other test in this app reads as
      * "something went wrong with the request you made".
      */
     sealed interface UpdateStatus {
 
-        /** In the air: the answer will replace this, or nothing will if the entry is superseded. */
+        /**
+         * In the air: the answer will replace this, or nothing will if the entry is superseded.
+         *
+         * `ProfileScreen` draws nothing at all for this state, and that is a decision rather than an
+         * omission: a "checking..." line over somebody else's account screen would claim something is being
+         * waited for, and it would flicker for one round trip on a line that only matters once there is a
+         * sentence to read. What keeps the silence honest is that it is bounded -- `GitHubClient`'s read
+         * timeout, ten seconds, chosen for this check rather than inherited from a request the operator
+         * made -- so the blank line cannot outlast a wait anybody agreed to. See `NetworkModule`.
+         */
         data object Checking : UpdateStatus
 
         /** This build is the newest release. Nothing to do, and nothing to say loudly. */
@@ -138,7 +147,19 @@ class ProfileViewModel @Inject constructor(
          */
         data class Available(val version: String) : UpdateStatus
 
-        /** GitHub could not be asked, answered with something unreadable, or named a tag this client reads no version out of. */
+        /**
+         * The check produced no answer, from either end.
+         *
+         * Two different causes land in this one state, and it covers both because the operator's side of
+         * them is the same. First, GitHub could not be asked, answered with something unreadable, named a
+         * tag this client reads no version out of, or answered a status that is not an answer (a 404 with no
+         * releases, a 403 from the rate limit). Second, this build's own `APP_VERSION_NAME` is not a version
+         * [ReleaseVersion.compare] can read, which is that comparison's `Comparison.Undetermined` arm: a
+         * build declaration rather than anything remote, and the reason this state is not named after
+         * GitHub. Nothing the operator can do differs between the two, so there is one state and one quiet
+         * sentence for both -- and neither is a statement about their account, which is why neither reaches
+         * [UiState.message].
+         */
         data object CouldNotCheck : UpdateStatus
     }
 

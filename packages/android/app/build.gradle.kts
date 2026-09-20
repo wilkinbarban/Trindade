@@ -166,17 +166,23 @@ fun requireUsableUrl(
     // Lowercased for the sentence below, and compared case-insensitively, so a value is judged the same way
     // whatever case either side happens to be written in.
     val schemes = allowedSchemes.map { it.lowercase() }
-    // No `scheme != null` beside `isAbsolute`. `URI.isAbsolute` *is* "this URI has a scheme component" --
-    // that is its definition in java.net.URI -- so a URI that passed that test always has a scheme, and a
-    // separate null test would be dead logic: a fourth requirement in the one rule that exists to stop
-    // having copies, where it would read as though the scheme were an independent thing to get right. The
-    // comparison below still cannot dereference a null without it, and does not rest on the reader knowing
-    // that definition: `String.equals` takes a nullable argument, so a null scheme is compared and answers
-    // false rather than thrown at.
     val declaredScheme = uri?.scheme
+    // The guard has three requirements and no others: the value parsed as a URI, its scheme is one of the
+    // allowed ones, and it carries a host. The first conjunct is load-bearing rather than symmetrical -- it
+    // is what lets `uri.host` be read at all below -- so it stays.
+    //
+    // Absoluteness is deliberately not tested here, and not because it does not matter: the scheme test is
+    // already that test. `URI.isAbsolute` *is* "this URI has a scheme component" -- that is its definition in
+    // java.net.URI -- so a URI whose scheme matches one of the allowed ones necessarily has a scheme, and an
+    // `isAbsolute` conjunct beside the comparison could never change the outcome. Left in place it would read
+    // as an independent requirement to satisfy, in the one rule that exists to stop having copies of itself.
+    //
+    // There is no separate `scheme != null` either, for the same reason one step further along: a null scheme
+    // matches none of the allowed ones. The comparison does not rest on the reader knowing that either, since
+    // `String.equals` takes a nullable argument -- a null scheme is compared and answers false rather than
+    // thrown at.
     require(
         uri != null &&
-            uri.isAbsolute &&
             schemes.any { it.equals(declaredScheme, ignoreCase = true) } &&
             !uri.host.isNullOrBlank(),
     ) {

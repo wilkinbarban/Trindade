@@ -27,6 +27,15 @@ object NetworkModule {
     private const val CONNECT_TIMEOUT_SECONDS = 10L
     private const val READ_TIMEOUT_SECONDS = 30L
 
+    // This check's own pair, deliberately not the backend's. What the two bound is not the same thing: the
+    // timeouts above are sized for a request an operator issued and is waiting on, so a slow answer is worth
+    // waiting for. This check is a nicety nobody asked for, and its silence is what the operator sees in
+    // place of an answer -- so it may not be able to last as long as a request they did make. Sharing one
+    // pair between the two clients would keep the manual invariant and dress it as a shared value, which is
+    // how the two would silently acquire each other's meaning again.
+    private const val GITHUB_CONNECT_TIMEOUT_SECONDS = 5L
+    private const val GITHUB_READ_TIMEOUT_SECONDS = 10L
+
     /**
      * The client, and the Retrofit built on it, that speak to this project's own API.
      *
@@ -82,19 +91,24 @@ object NetworkModule {
      *   the host: an exemption written for `repos/.../releases/latest` would also exempt any of this
      *   project's own API paths that happened to end the same way.
      *
-     * The two clients therefore differ in exactly one respect, which is what makes the invariant readable:
-     * the timeouts above are the backend client's, and the only omission is the interceptor. The separate
-     * Retrofit below is what keeps the two from being confused for each other -- and it is not possible to
-     * confuse them, because both providers are qualified: an unqualified `OkHttpClient` or `Retrofit` is no
-     * longer a request Dagger can satisfy at all, so a new call site has to name the destination it means.
+     * The two clients therefore differ in two respects, both named here rather than left to be read out of
+     * the builders: the interceptor above is omitted, and the timeouts are this client's own constants rather
+     * than the backend's. The timeout half is the one that used to be invisible, because repeating the same
+     * two names made the pair look like a shared value: it was not, and a change to one client silently
+     * changed the other's meaning. See the constants at the top of this module for why the values differ.
+     *
+     * The separate Retrofit below is what keeps the two from being confused for each other -- and it is not
+     * possible to confuse them, because both providers are qualified: an unqualified `OkHttpClient` or
+     * `Retrofit` is no longer a request Dagger can satisfy at all, so a new call site has to name the
+     * destination it means.
      */
     @Provides
     @Singleton
     @GitHubClient
     fun provideGitHubOkHttpClient(): OkHttpClient =
         OkHttpClient.Builder()
-            .connectTimeout(CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-            .readTimeout(READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .connectTimeout(GITHUB_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .readTimeout(GITHUB_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .build()
 
     @Provides

@@ -4,6 +4,7 @@ import com.trindade.app.BuildConfig
 import com.trindade.app.contract.models.ChangePasswordRequest
 import com.trindade.app.contract.models.LoginRequest
 import com.trindade.app.contract.models.LoginResponse
+import com.trindade.app.contract.models.LoginResponseUser
 import com.trindade.app.contract.models.LogoutRequest
 import com.trindade.app.contract.models.ProfileResponse
 import com.trindade.app.contract.models.ProfileResponseUser
@@ -566,6 +567,45 @@ class ProfileViewModelTest {
         assertEquals("a gate is not a request, and this one has nothing to send", 0, api.updateBodies.size)
     }
 
+    // The session counter itself, from its own side. Every test above asserts a *consequence* of the
+    // generation standing still or moving -- an account kept, an account dropped -- and none of them asserts
+    // the counter's own rule, which is what all of those consequences rest on: a login counts as a new
+    // session, and a rotation deliberately does not. Both are driven through the repository's own operations,
+    // so a call that quietly answered false cannot stand in for one that happened.
+
+    @Test
+    fun `a successful login is a new session`() {
+        val store = StubTokenStore()
+        val (repository, _) = profileSession(StubAuthApi(), store)
+        val before = repository.sessionGeneration
+
+        val result = runBlocking { repository.login("ana", "segredo") }
+
+        // The tokens really reached the store, so the increment below is the one a login performs rather
+        // than one taken after a refusal, which returns before reaching it.
+        assertEquals(LoginResult.Success, result)
+        assertEquals("token", store.accessToken())
+        assertEquals(before + 1, repository.sessionGeneration)
+    }
+
+    @Test
+    fun `a token rotation is not a new session`() {
+        // The line that keeps the profile leak closed, from the counter's side rather than the screen's: a
+        // rotation counted as a change of session would make the entry after it drop the account of the
+        // operator still sitting in front of it. The store is asserted with the counter so this equality
+        // cannot pass by measuring a refresh that answered false before doing anything -- `refresh()` returns
+        // early when there is no refresh token to present.
+        val store = StubTokenStore().also { it.save("token", "refresh") }
+        val (repository, _) = profileSession(StubAuthApi(), store)
+        val before = repository.sessionGeneration
+
+        val rotated = runBlocking { repository.refresh() }
+
+        assertEquals(true, rotated)
+        assertEquals("rotated", store.accessToken())
+        assertEquals(before, repository.sessionGeneration)
+    }
+
     // The update check. It shares the entry and the request token with the account read above and nothing
     // else: the answer is about the app rather than about the operator, it comes from a different host, and
     // it is drawn on its own line with its own four states.
@@ -911,6 +951,18 @@ private class StubAuthApi(
     private val updateResponse: Response<ProfileResponse> =
         Response.success(ProfileResponse(user = profileUser())),
     private val changePasswordResponse: Response<SuccessResponse> = Response.success(successBody()),
+    /**
+     * What a login answers. Implemented because a test needs it -- the session counter's two rules are
+     * measured through this repository -- and not because this screen signs anybody in: it does not.
+     */
+    private val loginResponse: Response<LoginResponse> = Response.success(
+        LoginResponse(
+            token = "token",
+            refreshToken = "refresh",
+            expiresIn = 900,
+            user = LoginResponseUser(id = 1, username = "ana", role = "Trabalhador"),
+        ),
+    ),
     private val failChangePasswordWithTransport: Boolean = false,
     private val onLogout: () -> Unit = {},
     /**
@@ -980,7 +1032,7 @@ private class StubAuthApi(
     override suspend fun refresh(body: RefreshRequest): Response<RefreshResponse> =
         Response.success(RefreshResponse(token = "rotated", refreshToken = "rotated-refresh", expiresIn = 900))
 
-    override suspend fun login(body: LoginRequest): Response<LoginResponse> = error(NOT_USED)
+    override suspend fun login(body: LoginRequest): Response<LoginResponse> = loginResponse
     override suspend fun me(): Response<ProfileResponse> = error(NOT_USED)
     override suspend fun setup(body: SetupRequest): Response<SetupResponse> = error(NOT_USED)
     override suspend fun setupStatus(): Response<SetupStatusResponse> = error(NOT_USED)

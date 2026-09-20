@@ -21,7 +21,14 @@ import retrofit2.http.GET
  *
  * The repository named in the path is the same project fact the `releasesUrl` default in
  * `build.gradle.kts` names, written in the two places that need it -- where the APK is published and
- * where the app asks which release is newest. If this project moves, both move together.
+ * where the app asks which release is newest. The two copies cannot be one value: this one is a Retrofit
+ * annotation, so it has to be a compile-time constant, and the other is a Gradle property resolved at
+ * configuration time, and any mechanism between them would be more machinery than the fact it holds.
+ *
+ * What holds them together is therefore a test rather than a habit: `GitHubReleaseApiTest` records the path
+ * this interface really produced, extracts the repository slug from it, and asserts that the same slug
+ * appears in `BuildConfig.RELEASES_URL`. If this project moves, that test fails until both copies move
+ * together.
  *
  * The path is relative to the configured base URL, which ends in a slash, so it must not begin with one.
  * Which client that base URL belongs to is the part that matters: see `NetworkModule`, where this

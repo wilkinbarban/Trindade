@@ -44,9 +44,24 @@ class AuthRepository @Inject constructor(
      *
      * Monotone, so a reader compares the value it saw last with the value now and only ever asks whether the
      * two are equal -- nothing reads the number itself, and nothing else depends on its size. One counter for
-     * the whole process, because this class is a singleton; a plain `var` is enough for it because both
-     * writers run on the main dispatcher, one user action at a time.
+     * the whole process, because this class is a singleton.
+     *
+     * [Volatile], because visibility and single-writer are two different claims and only one of them is the
+     * language's. What the annotation guarantees is the half a plain `var` did not: a reader on another thread
+     * -- `ProfileViewModel.open` reads this, and nothing in this declaration said which thread that was -- sees
+     * the value some writer last wrote instead of a copy cached in its own thread. A stale read is exactly the
+     * failure this counter exists to prevent: the entry would conclude the session had not changed and keep
+     * the previous operator's account in front of the next one.
+     *
+     * What it does **not** buy is an atomic read-modify-write: `sessionGeneration++` is a read and a write, and
+     * two threads doing it at once could lose one of the increments. That is not needed here, and the reason
+     * is a stated convention about the call sites rather than a property of the type: all three writers --
+     * [login], [logout] and [forgetSession] -- are reached from `ProfileViewModel`'s `viewModelScope`, which
+     * runs on the main dispatcher, one user action at a time. [refresh] deliberately does not write at all. A
+     * caller on another thread would need confinement or a `synchronized` block, and nothing here provides
+     * one.
      */
+    @Volatile
     var sessionGeneration: Int = 0
         private set
 
