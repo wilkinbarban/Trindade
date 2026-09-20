@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The round-masked launcher icon. Same two layers as ic_launcher, because the adaptive icon is what
+     the launcher masks: nothing about the mark changes when the mask is a circle, and a second set of
+     artwork here would be a second thing to keep in step with the first. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground android:drawable="@drawable/ic_launcher_foreground" />
+</adaptive-icon>

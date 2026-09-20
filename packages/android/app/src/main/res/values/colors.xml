@@ -1,0 +1,6 @@
+<resources>
+    <!-- The ground the launcher mark is drawn on, taken from the project rather than invented: this is
+         the same #b42025 the SPA declares as its theme-color, and the red of the logomarca's field. The
+         adaptive icon reads it by name, so the launcher and the site cannot drift to two different reds. -->
+    <color name="ic_launcher_background">#b42025</color>
+</resources>
