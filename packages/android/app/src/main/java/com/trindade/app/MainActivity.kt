@@ -165,7 +165,17 @@ class MainActivity : ComponentActivity() {
                                 tab = Tab.REPORTS
                             }
                         },
-                        onOpenHistory = { loadingHistoryOpen = true },
+                        onOpenHistory = {
+                            // The day goes here as well, and for the reason the comment above gives: this is
+                            // the other door into the history, and a day kept behind it is what made the two
+                            // screens bounce -- the history's back returned to a grid still bearing the day,
+                            // and that grid's own back opened the history again. Null means the day's screen
+                            // is over: what the history returns to is the tab's grid, today, which is also
+                            // what the grid is asked for again when the tab branch renders below.
+                            loadingDay = null
+                            loadingDayFromHistory = false
+                            loadingHistoryOpen = true
+                        },
                         date = loadingDay!!,
                     )
                     // And then the two tabs. The loading tab is a day of its own -- today -- so it is

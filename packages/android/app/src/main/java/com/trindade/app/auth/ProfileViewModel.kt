@@ -67,9 +67,16 @@ class ProfileViewModel @Inject constructor(
          * changes nothing leaves a trace of an edit that did not happen. The comparison is against the
          * trimmed value because that is what would be sent -- whitespace the server would trim away is
          * not a change either.
+         *
+         * The loaded profile is required as well, and not only as the thing being compared against: with
+         * no profile in state there is nothing to compare with, so `trim() != null` would be true for any
+         * name at all -- a save offered, and sent, with no account read behind it.
          */
         val canSave: Boolean
-            get() = !saving && displayName.isNotBlank() && displayName.trim() != profile?.displayName
+            get() = !saving &&
+                profile != null &&
+                displayName.isNotBlank() &&
+                displayName.trim() != profile?.displayName
 
         /**
          * Whether there is a password change worth sending.
@@ -87,6 +94,18 @@ class ProfileViewModel @Inject constructor(
     val state: StateFlow<UiState> = _state.asStateFlow()
 
     /**
+     * Identifies the newest profile read, so an answer to an older one cannot write at all.
+     *
+     * Two reads really can be in the air at once, because `open()` is callable twice: the previous entry's
+     * read is still unanswered when the next entry asks again. Without this, whichever answer lands last
+     * wins, and the older one landing last would write the account it was asked about over the entry that
+     * replaced it -- the same leak [open] closes, arriving one frame later. The report history, the loading
+     * history and the grid all carry this same token for this same reason, so this is that pattern rather
+     * than a second one: a counter, taken per request and compared once the answer is in hand.
+     */
+    private var newestOpen = 0
+
+    /**
      * Opens the screen: the profile as the server has it, and nothing left over from before.
      *
      * Called by the route on entry rather than from `init`, and that is about this app's scoping rather
@@ -95,11 +114,25 @@ class ProfileViewModel @Inject constructor(
      * anybody opened the profile -- in a following session, under a different user -- and a refusal
      * would sit under a form nobody had touched. Opening is the moment all of that stops being true,
      * so opening is where it is dropped.
+     *
+     * The account goes with the rest, and that is the part scoping makes load-bearing rather than tidy.
+     * This view model outlives the session as well as the screen, so as this entry begins, the profile and
+     * the editable name in state may both be the previous operator's -- on a shared phone, A's, read by B.
+     * Left in place, they are A's username, display name and role for the whole of B's wait, they are still
+     * A's if B's read fails (the failure path deliberately keeps a name it cannot replace), and [UiState.canSave]
+     * would be live against A's name. The day the session ended is A's last moment on this screen, so the
+     * entry that follows is the moment the account leaves it.
      */
     fun open() {
+        val open = ++newestOpen
         _state.update {
             it.copy(
                 loading = true,
+                // The previous operator's account: for a new entry there is nobody whose copy this could be,
+                // and a read that is in flight or that never arrives must not be able to present it as this
+                // operator's own.
+                profile = null,
+                displayName = "",
                 message = null,
                 nameSaved = false,
                 signedOut = false,
@@ -111,13 +144,22 @@ class ProfileViewModel @Inject constructor(
 
         viewModelScope.launch {
             val profile = repository.profile()
+
+            // A superseded answer is dropped whole: not the account, not the name, not the message. It
+            // describes a read the operator has already replaced, and writing it would put back exactly
+            // the identity the entry above took away.
+            if (open != newestOpen) return@launch
+
             _state.update {
                 it.copy(
                     loading = false,
                     profile = profile,
                     // Seeded from the server, and left as it was when nothing arrived: there is no name
                     // to seed with, and blanking a form somebody may be reading is not an answer to a
-                    // network fault.
+                    // network fault. That reasoning is the same-session reload's -- a read that fails while
+                    // the same operator is on the screen -- and what it keeps is only ever theirs: the entry
+                    // above has already dropped the previous account's copy, so there is none of somebody
+                    // else's here for this line to leave standing.
                     displayName = profile?.displayName ?: it.displayName,
                     message = if (profile == null) UNREACHABLE else null,
                 )

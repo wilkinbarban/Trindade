@@ -14,6 +14,7 @@ import com.trindade.app.contract.models.SetupStatusResponse
 import com.trindade.app.contract.models.SuccessResponse
 import com.trindade.app.contract.models.UpdateProfileRequest
 import com.trindade.app.network.AuthApi
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -287,13 +288,125 @@ class ProfileViewModelTest {
 
         model.open()
 
-        // The view model is scoped to the activity, so it outlives the screen: without this, the panel
-        // would be waiting for whoever opened the profile next, in the following session.
+        // The view model is scoped to the activity, so it outlives the screen and the session: without this,
+        // the panel would be waiting for whoever opened the profile next, in the following session.
         assertEquals(false, model.state.value.signedOut)
         assertNull(model.state.value.message)
         assertEquals("", model.state.value.currentPassword)
         // Opening reads the profile again rather than showing what the last session left behind.
         assertEquals(2, api.profileCalls)
+    }
+
+    @Test
+    fun `a new entry does not leave the previous operator's account readable while its own read is in flight`() {
+        // The account of one operator, and then the entry of the next one. The view model is scoped to the
+        // activity, so it outlives the session as well as the screen, and what is in state as that second
+        // entry begins is the first operator's account. On a shared phone -- A signs out, B signs in and
+        // opens Perfil -- the reader of the screen is B.
+        val api = StubAuthApi(gateProfile = true)
+        val model = profileViewModel(api)
+
+        model.open()
+        api.profileGates[0].complete(Unit)
+        assertEquals("ana", model.state.value.profile?.username)
+
+        // B's entry, with B's answer held open: this is the whole window the finding is about, and no race
+        // is needed to stand in it.
+        api.profileAnswer = Response.success(
+            ProfileResponse(user = profileUser(username = "bruno", displayName = "Bruno Lima")),
+        )
+        model.open()
+        assertEquals("one read per entry", 2, api.profileGates.size)
+
+        // The claim, on the state rather than on the screen: the previous operator's account is not readable
+        // while the new one is in flight. `displayName` is asserted with it because it is the account's own
+        // copy -- the one the form is seeded from -- and not a transient of the screen.
+        assertNull(
+            "the previous operator's account is still readable while the new one's read is in flight",
+            model.state.value.profile,
+        )
+        assertEquals("", model.state.value.displayName)
+        // And a save is not offered against it either: A's name was what the gate was comparing with.
+        assertEquals(false, model.state.value.canSave)
+
+        // The read that is in flight is still the one that lands.
+        api.profileGates[1].complete(Unit)
+        assertEquals("bruno", model.state.value.profile?.username)
+        assertEquals("Bruno Lima", model.state.value.displayName)
+    }
+
+    @Test
+    fun `a read that fails does not bring the previous operator's account back`() {
+        // The failure path is the one that keeps what it has -- there is no name to seed with, and blanking a
+        // form somebody may be reading is not an answer to a network fault -- so it is the path where an
+        // account left in state would stay on screen for good rather than for the length of a wait.
+        val api = StubAuthApi(gateProfile = true)
+        val model = profileViewModel(api)
+
+        model.open()
+        api.profileGates[0].complete(Unit)
+        assertEquals("ana", model.state.value.profile?.username)
+
+        api.profileAnswer = Response.error(500, errorOnlyBody("Internal error"))
+        model.open()
+        api.profileGates[1].complete(Unit)
+
+        // Nothing of A survives a failed read by B: not the account, not the name, and no save against it.
+        assertNull(model.state.value.profile)
+        assertEquals("", model.state.value.displayName)
+        assertEquals(ProfileViewModel.UNREACHABLE, model.state.value.message)
+        assertEquals(false, model.state.value.canSave)
+    }
+
+    @Test
+    fun `a superseded read does not write over the newer one`() {
+        // `open()` really can be called twice with two reads in the air, and the answer that lands last is
+        // not necessarily the newest. Without the token the older answer's account is what stays on screen,
+        // which is the identity of a read the operator already replaced -- the same leak, one frame later.
+        // The gate is what makes that reachable at all: an immediate fake answers before the second entry
+        // exists, which is why no test saw it.
+        val api = StubAuthApi(gateProfile = true)
+        val model = profileViewModel(api)
+
+        model.open()
+        model.open()
+        assertEquals("one read per entry", 2, api.profileGates.size)
+
+        // The newer read answers first, with the account that is really on screen.
+        api.profileAnswer = Response.success(
+            ProfileResponse(user = profileUser(username = "bruno", displayName = "Bruno Lima")),
+        )
+        api.profileGates[1].complete(Unit)
+        assertEquals("bruno", model.state.value.profile?.username)
+        assertEquals("Bruno Lima", model.state.value.displayName)
+
+        // And the superseded read answers after it, carrying the account it was asked about.
+        api.profileAnswer = Response.success(
+            ProfileResponse(user = profileUser(username = "ana", displayName = "Ana Souza")),
+        )
+        api.profileGates[0].complete(Unit)
+
+        // Nothing of the stale answer was written: not the account, not the name, not the loading flag.
+        assertEquals("bruno", model.state.value.profile?.username)
+        assertEquals("Bruno Lima", model.state.value.displayName)
+        assertEquals(false, model.state.value.loading)
+    }
+
+    @Test
+    fun `a name with no profile loaded behind it is not a save`() {
+        // The comparison the gate makes is against the loaded name, so with no profile loaded there is
+        // nothing to compare with -- `trim() != null` is true for any name at all. A failed read would
+        // otherwise leave the screen offering a save, and sending one, for an account it never read.
+        val api = StubAuthApi(profileResponse = Response.error(500, errorOnlyBody("Internal error")))
+        val model = profileViewModel(api)
+        model.open()
+        assertNull(model.state.value.profile)
+
+        model.onDisplayNameChange("Ana S. Souza")
+
+        assertEquals(false, model.state.value.canSave)
+        model.save()
+        assertEquals("a gate is not a request, and this one has nothing to send", 0, api.updateBodies.size)
     }
 }
 
@@ -302,9 +415,9 @@ private fun profileViewModel(
     store: StubTokenStore = StubTokenStore(),
 ) = ProfileViewModel(AuthRepository(api, store, json()))
 
-private fun profileUser(displayName: String = "Ana Souza") = ProfileResponseUser(
+private fun profileUser(username: String = "ana", displayName: String = "Ana Souza") = ProfileResponseUser(
     id = 1,
-    username = "ana",
+    username = username,
     displayName = displayName,
     role = "Trabalhador",
 )
@@ -333,17 +446,40 @@ private fun errorOnlyBody(error: String) = """{"error":"$error"}""".toResponseBo
  * these tests are about is what was sent and in which order.
  */
 private class StubAuthApi(
-    private val profileResponse: Response<ProfileResponse> =
+    profileResponse: Response<ProfileResponse> =
         Response.success(ProfileResponse(user = profileUser())),
     private val updateResponse: Response<ProfileResponse> =
         Response.success(ProfileResponse(user = profileUser())),
     private val changePasswordResponse: Response<SuccessResponse> = Response.success(successBody()),
     private val failChangePasswordWithTransport: Boolean = false,
     private val onLogout: () -> Unit = {},
+    /**
+     * When true, every profile read waits on its own gate before answering, so a test can hold two of
+     * them in the air at once and choose which one lands last.
+     *
+     * The gate is released *before* the answer is built, on purpose: the answer is the one that is true
+     * when it lands, which is how a test reaches what an immediate fake cannot -- a read that is still
+     * unanswered after the entry that made it has already been replaced.
+     */
+    private val gateProfile: Boolean = false,
 ) : AuthApi {
 
     var profileCalls = 0
         private set
+
+    /**
+     * The answer the next read builds, writable so a test can change what a held read carries when it
+     * lands.
+     *
+     * A fixed constructor answer cannot serve the two tests the token exists for: the entry that leaks and
+     * the entry that supersedes it have to answer with different accounts, and which answer belongs to
+     * which read is the whole assertion, so a fake that echoed one account back would measure a flag
+     * rather than whose identity is in state.
+     */
+    var profileAnswer: Response<ProfileResponse> = profileResponse
+
+    /** One gate per profile read held open by [gateProfile], in the order the calls were made. */
+    val profileGates = mutableListOf<CompletableDeferred<Unit>>()
 
     val updateBodies = mutableListOf<UpdateProfileRequest>()
     val changePasswordBodies = mutableListOf<ChangePasswordRequest>()
@@ -351,7 +487,12 @@ private class StubAuthApi(
 
     override suspend fun profile(): Response<ProfileResponse> {
         profileCalls++
-        return profileResponse
+        if (gateProfile) {
+            val gate = CompletableDeferred<Unit>()
+            profileGates += gate
+            gate.await()
+        }
+        return profileAnswer
     }
 
     override suspend fun updateProfile(body: UpdateProfileRequest): Response<ProfileResponse> {
