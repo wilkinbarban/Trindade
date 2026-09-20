@@ -56,6 +56,25 @@ val declaredVersionCode = declaredVersionCodeText?.toIntOrNull()
 val effectiveVersionName = declaredVersionName ?: "0.1.0"
 val effectiveVersionCode = declaredVersionCode ?: 1
 
+// Where this app is published, so the Perfil screen can offer the way to the download without an address
+// typed into its source.
+//
+// This one has a default while apiBaseUrl deliberately does not, and the difference is what each value is
+// about rather than a relaxation of the rule: a base URL is a fact about a deployment that must never be
+// guessed, while where this project publishes its APK is a fact about the project. The day the APK moves --
+// this deployment's own nginx, say -- one property changes and no screen is edited.
+//
+// The default is the releases *page* rather than a versioned asset URL, and that is deliberate: GitHub
+// redirects /releases/latest to the newest release, so the constant stays true release after release. A URL
+// naming trindade-0.2.0.apk would pin the app to one release and go stale the day the next APK is
+// published, sending the operator to a download link that never receives anything new.
+val defaultReleasesUrl = "https://github.com/wilkinbarban/Trindade/releases/latest"
+
+// Read at script level as well as inside defaultConfig, because the release guard below runs outside the
+// android block and cannot see a value that only exists in there. One read, so the field the app receives
+// and the string the guard checks are the same value rather than two that agree today.
+val declaredReleasesUrl = (project.findProperty("releasesUrl") as String?) ?: defaultReleasesUrl
+
 // The release signing values, as four separate knobs. Nothing here is required to configure a build:
 // an absent keystore means an unsigned release APK, which is what the CI lane builds on purpose.
 val releaseKeystorePath = declaredValue("trindadeKeystorePath", "TRINDADE_KEYSTORE_PATH", "trindadeKeystorePath")
@@ -127,6 +146,16 @@ android {
         // this project owns, and so nothing here collides with what AGP writes into the same class.
         buildConfigField("String", "APP_VERSION_NAME", "\"$effectiveVersionName\"")
         buildConfigField("int", "APP_VERSION_CODE", effectiveVersionCode.toString())
+
+        // Where the APK is published, for the action on the Perfil screen that opens it. A build
+        // declaration rather than a string resource because it is a deployment fact and not UI copy: the
+        // screen reads the address the build was given, exactly as it reads its own version, so hosting the
+        // APK somewhere else is one property here instead of an edit to a screen. No shape check at this
+        // point, unlike the base URL above: this value has a default, so the only way to get it wrong is an
+        // explicit override somebody typed, and that is checked once by the release guard below -- which is
+        // the run that checks every other declaration a release makes, and the one place a sentence about a
+        // malformed release value belongs.
+        buildConfigField("String", "RELEASES_URL", "\"$declaredReleasesUrl\"")
     }
 
     // Signing is configured only when a keystore was fully resolved. No keystore is not an error by
@@ -212,6 +241,23 @@ fun assertReleaseBuildDeclarations() {
         "A release build requires an https apiBaseUrl, but got '$declaredApiBaseUrl'."
     }
 
+    // Where the app is published, checked for shape only. It has a default, so an absent property is not a
+    // version the build invented -- but a blank or non-https one is a value somebody typed, and it becomes
+    // the address on a button the crew is told to tap. https for the same reason the base URL above needs
+    // it: a release hands this link to other people's browsers, and a download link is not something to
+    // send over cleartext. The two checks are separate sentences because they are separate mistakes: a
+    // blank override is someone dropping the value, and an http override is someone reaching for the dev
+    // habit the base URL above already allows.
+    require(declaredReleasesUrl.isNotBlank()) {
+        "releasesUrl must not be blank. Omit it to use the default '$defaultReleasesUrl', or give an " +
+            "absolute https URL."
+    }
+    require(declaredReleasesUrl.startsWith("https://")) {
+        "releasesUrl must be an absolute https URL, but got '$declaredReleasesUrl'. The address is handed " +
+            "to the operator's browser, so a download link the network can rewrite on the way is the one " +
+            "failure this build can prevent."
+    }
+
     // The version, which the tag workflow derives from the tag. Both properties are required because half a
     // version is worse than none: a versionCode that disagrees with the tag makes Android treat the install
     // as an update when it is not, or refuse one that is.
@@ -268,7 +314,7 @@ fun assertReleaseBuildDeclarations() {
 // buildFeatures.buildConfig would silently remove it.
 val verifyReleaseBuildDeclarations = tasks.register("verifyReleaseBuildDeclarations") {
     group = "verification"
-    description = "Checks the base URL, the version and the signature a release build declares."
+    description = "Checks the base URL, the version, the releases URL and the signature a release build declares."
     doLast { assertReleaseBuildDeclarations() }
 }
 

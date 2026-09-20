@@ -1,5 +1,8 @@
 package com.trindade.app.auth
 
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,10 +23,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.trindade.app.BuildConfig
 import com.trindade.app.R
@@ -36,14 +41,15 @@ import com.trindade.app.R
  * own action -- a name and a password are not the same kind of change, and the password change ends the
  * session.
  *
- * [appVersion] is a parameter rather than a read of `BuildConfig` inside the screen, for the same reason
- * the state is: this file renders what it is handed, and the one place that knows where the value comes
- * from is [ProfileRoute].
+ * [appVersion] and [releasesUrl] are parameters rather than reads of `BuildConfig` inside the screen, for
+ * the same reason the state is: this file renders what it is handed, and the one place that knows where
+ * those values come from is [ProfileRoute].
  */
 @Composable
 fun ProfileScreen(
     state: ProfileViewModel.UiState,
     appVersion: String,
+    releasesUrl: String,
     onBack: () -> Unit,
     onDisplayNameChange: (String) -> Unit,
     onSave: () -> Unit,
@@ -54,6 +60,8 @@ fun ProfileScreen(
     onBackToLogin: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
+
     // The signed-out panel replaces the whole screen, back action included. The session is already gone
     // at that point, so "Voltar" would land on a surface that can read nothing, and the panel's single
     // action is the only thing left to do.
@@ -188,6 +196,51 @@ fun ProfileScreen(
         // profile that failed to load is exactly when someone is looking for it. It is the same value the
         // APK was packaged with, not a copy that could drift -- see the version fields in build.gradle.kts.
         ReadOnlyField(label = stringResource(R.string.profile_app_version), value = appVersion)
+
+        // The action, under the value it is about: the operator reads the version, decides it is old, and
+        // this is the tap that takes them to where the new one is published. If both were not where a
+        // failed profile load still leaves them, the two halves of that one decision would be split apart
+        // on exactly the screen where the operator is looking for either.
+        Button(
+            onClick = { openReleasesPage(context, releasesUrl) },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(stringResource(R.string.profile_download_update))
+        }
+
+        // The first install's prompt, described before it appears instead of after. Muted rather than in
+        // the error tone or the confirmation one, because it is neither: nothing went wrong and nothing
+        // was done yet.
+        Text(
+            text = stringResource(R.string.profile_download_update_hint),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/**
+ * Opens the page the APK is published on, in whichever browser the phone has.
+ *
+ * The call is wrapped in a catch rather than preceded by a check, and the difference is deliberate.
+ * `resolveActivity` answers "can this app see anything that handles this intent?", and since Android 11
+ * package visibility hides other apps unless a `<queries>` element declares them: it would answer null
+ * here and disable a button that works, buying a manifest entry this app has no other use for. It would
+ * also be a worse question than the one that matters -- whether a browser is installed is not the same
+ * question as whether it answers at the moment of the tap. `startActivity` resolves when it is asked and
+ * reports the only real failure, nothing able to open the URL, as [ActivityNotFoundException].
+ *
+ * That failure says nothing to the operator, and that is a decision too: this app is installed by hand
+ * from a release page, so the phone demonstrably has a browser to have gotten it here, and the screen's
+ * one sentence is about the prompt that does arrive. A message about a browser that is not there would be
+ * noise on every normal install.
+ */
+private fun openReleasesPage(context: Context, releasesUrl: String) {
+    try {
+        context.startActivity(Intent(Intent.ACTION_VIEW, releasesUrl.toUri()))
+    } catch (ignored: ActivityNotFoundException) {
+        // Swallowed for the reason above: there is nothing this screen can offer a phone with no browser,
+        // and the alternative -- a check before the call -- would be a check that lies on Android 11+.
     }
 }
 
@@ -274,6 +327,7 @@ fun ProfileRoute(
     ProfileScreen(
         state = state,
         appVersion = BuildConfig.APP_VERSION_NAME,
+        releasesUrl = BuildConfig.RELEASES_URL,
         onBack = onBack,
         onDisplayNameChange = viewModel::onDisplayNameChange,
         onSave = viewModel::save,

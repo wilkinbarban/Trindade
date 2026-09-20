@@ -98,6 +98,18 @@
          from the build, never typed here, so the number on screen is the number that was packaged. Kept out
          of the account block on purpose: see the screen for why it is drawn even when nothing loaded. -->
     <string name="profile_app_version">Versão do aplicativo</string>
+    <!-- The way to the download, drawn next to the version it is about: the operator reads the version,
+         sees it is old, and this is the tap that takes them to the page it is published on. It says
+         "baixar" rather than "atualizar" on purpose: the app downloads nothing and installs nothing;
+         the browser does that, which is why this app needs no install permission. The address is not here:
+         it is a build declaration, because where the APK is hosted is not a sentence anyone writes
+         (see RELEASES_URL in build.gradle.kts). -->
+    <string name="profile_download_update">Baixar nova versão</string>
+    <!-- The one thing about this action that looks like a fault the first time and is not. An APK that did
+         not come from the store makes the phone ask once whether to allow it, and that prompt arrives
+         seconds after this button is tapped: a screen that says nothing about it turns a normal first
+         install into something that reads as gone wrong. One sentence, because it is one fact. -->
+    <string name="profile_download_update_hint">Na primeira vez o telefone pergunta se pode instalar um aplicativo de fora da loja, e pergunta uma vez só.</string>
     <string name="loading_title">Cronograma de carregamento</string>
     <string name="loading_fleteros">%1$d/%2$d fleteros</string>
     <string name="loading_add_entry">Adicionar</string>

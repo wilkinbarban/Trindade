@@ -14,6 +14,27 @@ Sistema web operativo para Trindade Massas — relatórios operativos, horários
 - Node.js >= 24.0.0
 - npm >= 10
 
+## The Android app
+
+This repository also publishes the field client for the crew's phones. It is not distributed through
+the Play Store: the APK is attached to a release, and the link below is GitHub's own pointer to the
+newest one, so it stays correct after every release.
+
+**https://github.com/wilkinbarban/Trindade/releases/latest**
+
+On the phone, open that link, download `trindade-<version>.apk` and open the file. Android asks once,
+the first time, whether to allow installing apps from this source — that prompt is expected, and
+answering it once is enough. There is no download or install inside the app: the browser fetches the
+file and the phone's installer takes it from there.
+
+The app shows the version it was packaged with under **Perfil → Versão do aplicativo**, in the same
+place as the button that opens this page, so "did this phone get the update?" is answered by reading
+the phone rather than by remembering. That number is the one stamped into the APK, not a value typed
+into a screen.
+
+Releases are signed, and an update installs over the installed app only when both come from the same
+key — see [`docs/release-android.md`](docs/release-android.md) for the full procedure.
+
 ## Getting Started
 
 ```bash
