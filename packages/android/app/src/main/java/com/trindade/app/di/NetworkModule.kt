@@ -43,13 +43,15 @@ object NetworkModule {
     // fires. So this is the timeout the whole check is really measured against -- the read timeout is the
     // bound on one read, and nothing else here bounds the request.
     //
-    // Above `readTimeout` on purpose, and by as little as the shape allows: a socket that really does go
-    // quiet should be ended by the tighter, more specific bound, and a whole-call bound placed below it
-    // would take that diagnosis away. Being above it by much would put this client back in the shape the
-    // comment above rejects -- a wait the operator never agreed to, wearing a third name instead of a shared
-    // pair. `GitHubReleaseApiTest` asserts both halves of this: the value, and the behaviour, by trickling a
-    // response that no single read timeout can end.
-    private const val GITHUB_CALL_TIMEOUT_SECONDS = 15L
+    // Above the *sum* of the two, not merely above `readTimeout`, and by as little as the shape allows:
+    // `connectTimeout + readTimeout` is the latest instant at which the read timeout can still fire, so a
+    // whole-call bound sitting on that sum would fire together with the read timeout on a call that spent its
+    // whole connect budget and then went quiet, and which of the two ended the call would be a race. A socket
+    // that really does go quiet has to be ended by the tighter, more specific bound. Being above the sum by
+    // much would put this client back in the shape the comment above rejects -- a wait the operator never
+    // agreed to, wearing a third name instead of a shared pair. `GitHubReleaseApiTest` asserts both halves of
+    // this: the value, and the behaviour, by trickling a response that no single read timeout can end.
+    private const val GITHUB_CALL_TIMEOUT_SECONDS = 16L
 
     /**
      * The client, and the Retrofit built on it, that speak to this project's own API.

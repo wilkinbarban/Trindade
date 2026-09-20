@@ -137,7 +137,7 @@ class GitHubReleaseApiTest {
             "the whole-call bound has to be here at all, because the two above are not one: a read timeout " +
                 "bounds a single idle socket read, and a response that keeps arriving inside every window " +
                 "never trips it, which leaves the check unresolved for as long as the server likes",
-            15_000,
+            16_000,
             client.callTimeoutMillis,
         )
     }
