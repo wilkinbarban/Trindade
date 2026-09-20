@@ -478,6 +478,40 @@ class ProfileViewModelTest {
     }
 
     @Test
+    fun `an answer to a read the ended session asked for leaves no account and no name`() {
+        // The entry keeps the account only while it believes the session has not changed, so an answer that
+        // lands after the session ended would otherwise restore an account and a name that are no longer this
+        // operator's. The read is answered with nothing here, which is the case where what the entry left in
+        // state would stand for good rather than for the length of a wait.
+        val api = StubAuthApi(gateProfile = true)
+        val (repository, model) = profileSession(api)
+
+        model.open()
+        api.profileGates[0].complete(Unit)
+        model.onDisplayNameChange("Ana Souza Silva")
+
+        // A second entry in the same session: the generation has not moved, so the account and the name typed
+        // but not sent are both kept, and they are what the answer below must not restore.
+        model.open()
+        assertEquals("ana", model.state.value.profile?.username)
+        assertEquals("Ana Souza Silva", model.state.value.displayName)
+
+        // The session ends while that read is in the air, through the operation a successful password change
+        // uses, which is the caller of `forgetSession`.
+        repository.forgetSession()
+
+        api.profileAnswer = Response.error(500, errorOnlyBody("Internal error"))
+        api.profileGates[1].complete(Unit)
+
+        // Nothing of the ended session survives the answer: not the account, not the name the operator had
+        // typed, and not a failure line, which would be a statement about a read whose session is over.
+        assertNull(model.state.value.profile)
+        assertEquals("", model.state.value.displayName)
+        assertNull(model.state.value.message)
+        assertEquals(false, model.state.value.loading)
+    }
+
+    @Test
     fun `a superseded read does not write over the newer one`() {
         // `open()` really can be called twice with two reads in the air, and the answer that lands last is
         // not necessarily the newest. Without the token the older answer's account is what stays on screen,

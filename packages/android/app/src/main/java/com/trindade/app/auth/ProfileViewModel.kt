@@ -169,8 +169,24 @@ class ProfileViewModel @Inject constructor(
 
             // A superseded answer is dropped whole: not the account, not the name, not the message. It
             // describes a read the operator has already replaced, and writing it would put back exactly
-            // the identity the entry above took away.
+            // the identity the entry above took away. This check stays **first**, ahead of the session one
+            // below, because that one writes: an answer this read has already been replaced by must not
+            // reach state at all, and an older read of an ended session landing after a newer one had
+            // answered for the entry that replaced it would otherwise wipe that newer answer out.
             if (open != newestOpen) return@launch
+
+            // The other question an answer has to pass, and not the same one: not "am I the newest read"
+            // but "is the session that asked me still the one in hand". [generation] above is the one this
+            // read was issued for, and the entry that issued it kept the account in state only because it
+            // believed the session had not changed. Once it has, that belief is false, and the account and
+            // the name it retained are a foreign operator's: they go with this answer rather than staying
+            // on until somebody opens the screen again. So nothing of the answer is written either -- not
+            // the account it carried, not the name, and not the restore the failure path below would
+            // otherwise perform with the profile the entry left behind.
+            if (repository.sessionGeneration != generation) {
+                _state.update { it.copy(loading = false, profile = null, displayName = "") }
+                return@launch
+            }
 
             _state.update {
                 it.copy(
