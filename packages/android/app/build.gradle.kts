@@ -113,6 +113,69 @@ val releaseSigningStarted = listOf(releaseKeystorePath, releaseKeystorePassword,
 // unsigned release, which is how that lane proves the release path still builds at all.
 val requireSigned = (project.findProperty("requireSigned") as String?)?.equals("true", ignoreCase = true) == true
 
+// -------------------------------------------------------------------------------------------------
+// The one URL rule every declared URL shares
+//
+// Three fields below are a URL this app speaks to or a link it hands somebody: apiBaseUrl and
+// githubApiBaseUrl become Retrofit base URLs, and releasesUrl becomes the address of a button the crew is
+// told to tap. All three fail the same way when they are wrong -- the string compiles, the APK installs,
+// and the failure surfaces at runtime inside a library that never names the property -- so all three are
+// checked by one function.
+//
+// That it is one function rather than three checks is the point, and it is not tidiness. The apiBaseUrl
+// guard was a prefix test that accepted "https://", the githubApiBaseUrl guard was written beside it by
+// copying that test, and releasesUrl was the one that had already been corrected. A rule with three copies
+// is a rule that is two edits away from going wrong again; this is the one place it lives, and a fourth
+// URL field is a call to this function rather than a fourth copy.
+// -------------------------------------------------------------------------------------------------
+
+/**
+ * Fails the build unless [value] can be used as the URL [fieldName] declares, naming the field and what
+ * it needs.
+ *
+ * The rule is the one the releasesUrl guard grew into: parse the value as a URI, require an absolute URL
+ * whose scheme is one of [allowedSchemes] and whose host is not blank, and refuse the characters that
+ * cannot appear inside the Java string literal the BuildConfig field is generated from. A prefix test
+ * cannot do any of that -- "https://" passes a `startsWith("https://")` check and carries no host, and
+ * the Retrofit built from it throws on the first request -- which is exactly the shape of the bug this
+ * replaces.
+ *
+ * [sentenceLead] is how the failure opens, because the two voices here differ: a defaultConfig guard
+ * speaks about the field ("apiBaseUrl must be ...") while a release guard speaks in the build's release
+ * voice ("A release build requires its apiBaseUrl to be ..."). [reason] is the per-field sentence that
+ * follows. The per-field extras stay with the field rather than here: the trailing slash the two base
+ * URLs need is a second require beside each call, and releasesUrl has none.
+ */
+fun requireUsableUrl(
+    fieldName: String,
+    value: String,
+    allowedSchemes: Set<String>,
+    reason: String,
+    sentenceLead: String = "$fieldName must be",
+) {
+    // Checked before the URL is parsed, so a value carrying one of these characters is refused for that
+    // reason rather than for whatever the parser makes of the same string.
+    require(value.none { it == '"' || it == '\\' || it == '\n' || it == '\r' }) {
+        "$fieldName must not contain a double quote, a backslash or a line break, but got '$value'. " +
+            "This value is written into the generated BuildConfig as a Java string literal, and none of " +
+            "those characters can appear inside one, so the build would stop with a compile error about " +
+            "a file this property is not named in."
+    }
+
+    val uri = runCatching { URI(value) }.getOrNull()
+    val schemes = allowedSchemes.map { it.lowercase() }
+    val scheme = uri?.scheme?.lowercase()
+    require(
+        uri != null &&
+            uri.isAbsolute &&
+            scheme != null &&
+            scheme in schemes &&
+            !uri.host.isNullOrBlank(),
+    ) {
+        "$sentenceLead an absolute ${schemes.joinToString("/")} URL with a host, but got '$value'. $reason"
+    }
+}
+
 android {
     namespace = "com.trindade.app"
     // The pinned androidx/OkHttp versions (Compose 1.12.x, OkHttp 5.5.0) require API 37;
@@ -136,9 +199,16 @@ android {
         // at runtime inside Retrofit with an error that does not name the cause. Checking it here
         // turns that into a configuration failure.
         val apiBaseUrl = (project.findProperty("apiBaseUrl") as String?) ?: "http://10.0.2.2:3000/"
-        require(apiBaseUrl.startsWith("http://") || apiBaseUrl.startsWith("https://")) {
-            "apiBaseUrl must be an absolute http(s) URL, but was '$apiBaseUrl'."
-        }
+        // http is allowed here and nowhere else: the default is the emulator host loopback, which is the
+        // one cleartext host the debug network security config exempts. The release guard below calls the
+        // same helper with https alone, so that exemption cannot leave src/debug/.
+        requireUsableUrl(
+            fieldName = "apiBaseUrl",
+            value = apiBaseUrl,
+            allowedSchemes = setOf("http", "https"),
+            reason = "It is the base every request is resolved against, so an address without a host " +
+                "would fail at the first call rather than here.",
+        )
         require(apiBaseUrl.endsWith("/")) {
             "apiBaseUrl must end with '/', because Retrofit resolves every endpoint relative to it. " +
                 "Got '$apiBaseUrl'."
@@ -162,9 +232,13 @@ android {
         // security config exempts and this is not, and the request travels to a public host over a network
         // the phone does not control.
         val githubApiBaseUrl = (project.findProperty("githubApiBaseUrl") as String?) ?: "https://api.github.com/"
-        require(githubApiBaseUrl.startsWith("https://")) {
-            "githubApiBaseUrl must be an absolute https URL, but was '$githubApiBaseUrl'."
-        }
+        requireUsableUrl(
+            fieldName = "githubApiBaseUrl",
+            value = githubApiBaseUrl,
+            allowedSchemes = setOf("https"),
+            reason = "The request travels to a public host over a network the phone does not control, " +
+                "so it must be https.",
+        )
         require(githubApiBaseUrl.endsWith("/")) {
             "githubApiBaseUrl must end with '/', because Retrofit resolves every endpoint relative to it. " +
                 "Got '$githubApiBaseUrl'."
@@ -269,9 +343,14 @@ fun assertReleaseBuildDeclarations() {
         "A release build requires -PapiBaseUrl=https://<host>/. There is no default, so that a " +
             "release can never silently point at the development loopback."
     }
-    require(declaredApiBaseUrl.startsWith("https://")) {
-        "A release build requires an https apiBaseUrl, but got '$declaredApiBaseUrl'."
-    }
+    requireUsableUrl(
+        fieldName = "apiBaseUrl",
+        value = declaredApiBaseUrl,
+        allowedSchemes = setOf("https"),
+        reason = "A release build hands this address to every installed app, and the release manifest " +
+            "grants no cleartext exception.",
+        sentenceLead = "A release build requires its apiBaseUrl to be",
+    )
 
     // Where the app is published, checked for shape only. It has a default, so an absent property is not a
     // version the build invented -- but a blank, malformed or non-https one is a value somebody typed, and it
@@ -279,38 +358,22 @@ fun assertReleaseBuildDeclarations() {
     // needs it: a release hands this link to other people's browsers, and a download link is not something to
     // send over cleartext.
     //
-    // The three checks are separate sentences because they are separate mistakes. A blank override is someone
-    // dropping the value. A value that is not an absolute https URL with a host is someone reaching for the
-    // dev habit the base URL above already allows, or handing over a link that only looks complete: 'https://'
-    // carries no host and would open nothing, and a startsWith("https://") test is exactly the test that
-    // cannot tell those apart -- which is why the shape is parsed as a URI here rather than prefix-matched.
-    //
-    // The third is the malformed value that narrower guard let through, and it is checked before the URL is
-    // parsed so that a value carrying one of its characters is refused for that reason rather than for
-    // whatever the parser makes of the same string. A double quote, a backslash or a line break passes any
-    // prefix test and then breaks the Java string literal the BuildConfig field is compiled from, which
-    // surfaces as a compile error in a generated file that never names this property.
+    // Two checks, because they are two mistakes. A blank override is someone dropping the value. Everything
+    // else -- not an absolute https URL, no host, or a character that cannot appear inside the generated Java
+    // string literal -- is the shared helper the two base URLs above already call, and it is used here for the
+    // same reason it was written: this is the one value that reaches somebody else's browser, and a
+    // startsWith("https://") test cannot tell "https://" (no host, opens nothing) from a real link.
     require(declaredReleasesUrl.isNotBlank()) {
         "releasesUrl must not be blank. Omit it to use the default '$defaultReleasesUrl', or give an " +
             "absolute https URL."
     }
-    require(declaredReleasesUrl.none { it == '"' || it == '\\' || it == '\n' || it == '\r' }) {
-        "releasesUrl must not contain a double quote, a backslash or a line break, but got " +
-            "'$declaredReleasesUrl'. This value is written into the generated BuildConfig as a Java string " +
-            "literal, and none of those characters can appear inside one, so the build would stop with a " +
-            "compile error about a file this property is not named in."
-    }
-    val releasesUri = runCatching { URI(declaredReleasesUrl) }.getOrNull()
-    require(
-        releasesUri != null &&
-            releasesUri.isAbsolute &&
-            releasesUri.scheme.equals("https", ignoreCase = true) &&
-            !releasesUri.host.isNullOrBlank(),
-    ) {
-        "releasesUrl must be an absolute https URL with a host, but got '$declaredReleasesUrl'. The address " +
-            "is handed to the operator's browser, so a download link the network can rewrite on the way is " +
-            "the one failure this build can prevent."
-    }
+    requireUsableUrl(
+        fieldName = "releasesUrl",
+        value = declaredReleasesUrl,
+        allowedSchemes = setOf("https"),
+        reason = "The address is handed to the operator's browser, so a download link the network can " +
+            "rewrite on the way is the one failure this build can prevent.",
+    )
 
     // The version, which the tag workflow derives from the tag. Both properties are required because half a
     // version is worse than none: a versionCode that disagrees with the tag makes Android treat the install

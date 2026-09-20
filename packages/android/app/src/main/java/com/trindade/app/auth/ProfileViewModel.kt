@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.trindade.app.BuildConfig
 import com.trindade.app.contract.models.ProfileResponseUser
 import com.trindade.app.network.runCatchingCancellable
+import com.trindade.app.update.Clock
 import com.trindade.app.update.GitHubReleaseApi
 import com.trindade.app.update.ReleaseVersion
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -40,6 +41,7 @@ import kotlinx.coroutines.launch
 class ProfileViewModel @Inject constructor(
     private val repository: AuthRepository,
     private val releases: GitHubReleaseApi,
+    private val clock: Clock,
 ) : ViewModel() {
 
     data class UiState(
@@ -165,6 +167,31 @@ class ProfileViewModel @Inject constructor(
     private var lastSeenGeneration: Int? = null
 
     /**
+     * The last answer a check produced, and when it produced it, or null when none has been recorded.
+     *
+     * This is the cache [open] consults before asking GitHub again: a re-entry inside
+     * [UPDATE_CACHE_MILLIS] shows this answer and makes no request, because the fact it carries changes a
+     * few times a month and every entry asking again is what spends GitHub's sixty anonymous requests an
+     * hour per source IP. It is written only when a check produced an answer and never when one failed --
+     * see [open] for why a failure is deliberately not remembered.
+     */
+    private var lastUpdateAnswer: UpdateStatus? = null
+    private var lastUpdateCheckedAtMillis: Long? = null
+
+    /**
+     * The cached answer while it is still fresh, or null when there is none or it has expired.
+     *
+     * Null is also what a failed check leaves behind, so a failure is retried by the next entry rather
+     * than remembered: half an hour of a bad moment is not an answer, and re-entering the screen is the
+     * natural retry.
+     */
+    private fun freshCachedUpdate(): UpdateStatus? {
+        val answer = lastUpdateAnswer ?: return null
+        val checkedAt = lastUpdateCheckedAtMillis ?: return null
+        return answer.takeIf { clock.nowMillis() - checkedAt < UPDATE_CACHE_MILLIS }
+    }
+
+    /**
      * Opens the screen: the profile as the server has it, and nothing left over from before.
      *
      * Called by the route on entry rather than from `init`, and that is about this app's scoping rather
@@ -197,6 +224,11 @@ class ProfileViewModel @Inject constructor(
         val sameSession = generation == lastSeenGeneration
         lastSeenGeneration = generation
 
+        // Read before the state is touched, so what is shown and whether to fetch are one decision: a fresh
+        // answer goes into the state below and the coroutine launched under it asks GitHub nothing, while an
+        // expired or absent one leaves Checking in place and is checked now.
+        val cachedUpdate = freshCachedUpdate()
+
         _state.update {
             it.copy(
                 loading = true,
@@ -211,11 +243,12 @@ class ProfileViewModel @Inject constructor(
                 // The password fields go with the rest: they were typed for a conversion that is over.
                 currentPassword = "",
                 newPassword = "",
-                // This entry runs its own check, so what was in state was the previous entry's answer and
-                // not this one's. Reset unconditionally, unlike the account above: the update state says
-                // nothing about who is signed in, so there is no session question to ask about it -- every
-                // entry has to ask GitHub again, whoever is entering.
-                update = UpdateStatus.Checking,
+                // A fresh cached answer is shown as it is, and only an expired or absent one is replaced
+                // with Checking. What is in state at this point belongs to the previous entry, and the
+                // cache is what tells the two apart. Unlike the account above there is no session question
+                // here -- the answer is about the app, not about who is signed in -- so the only reasons to
+                // replace it are that it has expired or that no check has been made at all.
+                update = cachedUpdate ?: UpdateStatus.Checking,
             )
         }
 
@@ -269,7 +302,18 @@ class ProfileViewModel @Inject constructor(
         // separate questions with separate answers, so a slow or failing account read must not hold the
         // update line back or take it down with it. What they share is the token.
         viewModelScope.launch {
-            val update = refreshUpdateCheck()
+            // A fresh cached answer is used as it is and GitHub is not asked; otherwise the check runs now.
+            // Note what is not cached: a check that could not be made leaves [lastUpdateAnswer] alone, so the
+            // next entry retries it rather than showing a cached failure for the length of the window.
+            val update = cachedUpdate ?: refreshUpdateCheck()
+
+            // Cached only when this entry is still the newest and the answer was really fetched. A superseded
+            // check describes a question the screen has already replaced, and caching it would put its older
+            // answer in front of the newer one for every entry after it, not just for this one.
+            if (cachedUpdate == null && open == newestOpen && update != UpdateStatus.CouldNotCheck) {
+                lastUpdateAnswer = update
+                lastUpdateCheckedAtMillis = clock.nowMillis()
+            }
 
             // The same token, for the same reason and with the same rule: two entries really can have two
             // checks in the air at once, the answer that lands last is not necessarily the newest, and a
@@ -448,6 +492,16 @@ class ProfileViewModel @Inject constructor(
          * learned from a refusal.
          */
         const val MIN_PASSWORD_LENGTH = 8
+
+        /**
+         * How long a check's answer is trusted before the next entry asks GitHub again.
+         *
+         * Thirty minutes: the fact changes a few times a month, and the request it saves is one of GitHub's
+         * sixty an hour for everybody behind the same source address, which a shared network or
+         * carrier-grade NAT exhausts quickly. Long enough that the ordinary re-entry is free, short enough
+         * that a release published after a check is seen within the same sitting.
+         */
+        const val UPDATE_CACHE_MILLIS = 30 * 60 * 1000L
 
         const val UNREACHABLE = "Sem conexão com o servidor. Verifique a rede e tente de novo."
         const val PASSWORD_CHANGED = "Senha alterada. Entre de novo."

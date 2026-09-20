@@ -94,6 +94,13 @@ ci-clone:
 #     poisoning documented above.
 #
 # GRADLE_USER_HOME is a host directory for the same reason.
+#
+# The image is pinned by digest, not by its tag alone. The digest lives in three places -- the two `docker
+# run` lines below, .github/workflows/ci.yml, and .github/workflows/android-release.yml -- and the three
+# move together: a local lane that runs against whatever the tag resolves to that day can pass here and
+# fail in CI against the pinned image, and the release workflow signs with the pinned one. There is
+# deliberately no shared variable file or script between them: the image changes once or twice a year, and
+# a mechanism would cost more to keep correct than the three edits it saves.
 ci-android:
 	@set -euo pipefail; \
 	mkdir -p "$$HOME/.cache/trindade-gradle" "$$HOME/.cache/trindade-android-sdk"; \
@@ -101,7 +108,7 @@ ci-android:
 		printf 'Seeding the Android SDK cache from the image; this happens once.\n'; \
 		docker run --rm --user "$$(id -u):$$(id -g)" \
 			--volume "$$HOME/.cache/trindade-android-sdk:/sdk" \
-			ghcr.io/cirruslabs/android-sdk:35 \
+			ghcr.io/cirruslabs/android-sdk:35@sha256:c724009e305b4607157287624033ab97f319af44c244bfc9f73b6293f3bb01b9 \
 			bash -c 'cp -a /opt/android-sdk-linux/. /sdk/'; \
 	fi; \
 	docker run --rm \
@@ -112,7 +119,7 @@ ci-android:
 		--volume "$$HOME/.cache/trindade-android-sdk:/opt/android-sdk-linux" \
 		--volume "$$(git rev-parse --show-toplevel):/work" \
 		--workdir /work \
-		ghcr.io/cirruslabs/android-sdk:35 \
+		ghcr.io/cirruslabs/android-sdk:35@sha256:c724009e305b4607157287624033ab97f319af44c244bfc9f73b6293f3bb01b9 \
 		bash scripts/ci-android.sh
 
 db-reset:

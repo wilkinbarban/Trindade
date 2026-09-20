@@ -37,8 +37,11 @@ jobs:
   # image is not the same act as auditing it -- and it does not freeze the toolchain for ever. The drift did
   # not disappear, it moved: it used to be the runner's toolchain changing underneath this file, and it is
   # now this line changing, which is a deliberate commit that has to be written, reviewed and explained.
-  # The local lane (`make ci-android`) still names the tag rather than this digest, so the pin holds for CI
-  # and not for that lane: what builds on a development host is whatever the tag resolves to that day.
+  # The pin lives in three places -- this file, android-release.yml, and the two `docker run` invocations
+  # in the Makefile's ci-android target -- and they move together: the local lane deliberately builds
+  # against the same digest rather than the tag, so a commit cannot pass here and fail in CI against a
+  # different toolchain, and an update is a deliberate act in all three. There is no shared mechanism for
+  # a value that changes once or twice a year; the sentence in each file is the mechanism.
   # The image is also about 18 months old as of this pin, so it changes nothing about today's build and
   # everything about tomorrow's.
   android:

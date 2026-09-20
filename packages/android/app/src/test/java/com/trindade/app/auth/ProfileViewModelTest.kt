@@ -15,6 +15,7 @@ import com.trindade.app.contract.models.SetupStatusResponse
 import com.trindade.app.contract.models.SuccessResponse
 import com.trindade.app.contract.models.UpdateProfileRequest
 import com.trindade.app.network.AuthApi
+import com.trindade.app.update.Clock
 import com.trindade.app.update.GitHubRelease
 import com.trindade.app.update.GitHubReleaseApi
 import kotlinx.coroutines.CompletableDeferred
@@ -704,22 +705,105 @@ class ProfileViewModelTest {
     }
 
     @Test
-    fun `a re-entry asks again and shows no previous answer while its own check is in the air`() {
-        // Each entry runs its own check, so what was in state was the previous entry's answer and not this
-        // one's. Left in place, the screen would be making a claim about a question that is still open --
-        // and, since an entry is also what happens after the version could have changed, a claim about a
-        // check that has not been made yet.
+    fun `a re-entry after the cached answer has expired checks again and shows nothing yet`() {
+        // An entry checks again only once the cached answer is stale, and this is what the cache was added
+        // for: what was in state was the previous entry's answer and not this one's, so leaving it in place
+        // would make a claim about a question that is still open -- and, since an entry is also what happens
+        // after the version could have changed, about a check that has not been made yet.
+        val clock = FakeClock()
         val releases = StubGitHubReleaseApi(gateReleases = true)
-        val model = profileViewModel(releases = releases)
+        val model = profileViewModel(releases = releases, clock = clock)
 
         model.open()
         releases.releaseGates[0].complete(Unit)
         assertEquals(ProfileViewModel.UpdateStatus.Available("99.0.0"), model.state.value.update)
 
+        // Inside the window this answer would be reused; at the window's edge it is stale, so the entry asks
+        // again -- which is the only way a second check is in the air at all.
+        clock.now += ProfileViewModel.UPDATE_CACHE_MILLIS
         model.open()
 
-        assertEquals("one check per entry", 2, releases.releaseGates.size)
+        assertEquals("one check for the expired answer", 2, releases.releaseGates.size)
         assertEquals(ProfileViewModel.UpdateStatus.Checking, model.state.value.update)
+    }
+
+    // The cache that keeps a re-entry from spending one of GitHub's sixty anonymous requests an hour per
+    // source IP. Its four behaviours, and the fake clock they need to be observable without waiting half an
+    // hour and without a device.
+
+    @Test
+    fun `a re-entry inside the cache window does not ask GitHub again`() {
+        // The common case the finding is about: entering the screen is the only trigger, so without a cache
+        // every re-entry spent a request on a fact that changes a few times a month.
+        val clock = FakeClock()
+        val releases = StubGitHubReleaseApi()
+        val model = profileViewModel(releases = releases, clock = clock)
+
+        model.open()
+        assertEquals("the first entry always checks", 1, releases.releaseCalls)
+
+        // The same screen opened again while the answer is still fresh.
+        model.open()
+
+        assertEquals("a fresh answer is not a reason to ask again", 1, releases.releaseCalls)
+        assertEquals(ProfileViewModel.UpdateStatus.Available("99.0.0"), model.state.value.update)
+    }
+
+    @Test
+    fun `a re-entry after the cache window asks GitHub again`() {
+        val clock = FakeClock()
+        val releases = StubGitHubReleaseApi()
+        val model = profileViewModel(releases = releases, clock = clock)
+
+        model.open()
+        assertEquals(1, releases.releaseCalls)
+
+        clock.now += ProfileViewModel.UPDATE_CACHE_MILLIS + 1
+        model.open()
+
+        // The answer could have changed by now, so the entry is allowed to spend the request.
+        assertEquals(2, releases.releaseCalls)
+    }
+
+    @Test
+    fun `a failed check is not cached, so the next entry retries it`() {
+        // A bad moment -- GitHub unreachable, a 403 from the rate limit, a payload this client cannot read --
+        // must not be remembered for half an hour. Re-entering is the natural retry, so the failure leaves
+        // the cache untouched.
+        val clock = FakeClock()
+        val releases = StubGitHubReleaseApi().also { it.failWithTransport = true }
+        val model = profileViewModel(releases = releases, clock = clock)
+
+        model.open()
+        assertEquals(ProfileViewModel.UpdateStatus.CouldNotCheck, model.state.value.update)
+        assertEquals(1, releases.releaseCalls)
+
+        // Still well inside the window, and it retries anyway: a failure is not an answer worth remembering.
+        clock.now += 1
+        model.open()
+
+        assertEquals(2, releases.releaseCalls)
+        assertEquals(ProfileViewModel.UpdateStatus.CouldNotCheck, model.state.value.update)
+    }
+
+    @Test
+    fun `a re-entry that made no request still shows the cached answer`() {
+        // The half of the cache that is about the line rather than the request: an entry that fetches nothing
+        // must draw the answer it has, not an empty line and not the checking state.
+        val clock = FakeClock()
+        val releases = StubGitHubReleaseApi().also {
+            it.releaseAnswer = Response.success(GitHubRelease(tagName = "v" + BuildConfig.APP_VERSION_NAME))
+        }
+        val model = profileViewModel(releases = releases, clock = clock)
+
+        model.open()
+        assertEquals(ProfileViewModel.UpdateStatus.UpToDate, model.state.value.update)
+        assertEquals(1, releases.releaseCalls)
+
+        model.open()
+
+        assertEquals(1, releases.releaseCalls)
+        assertEquals(ProfileViewModel.UpdateStatus.UpToDate, model.state.value.update)
     }
 }
 
@@ -727,7 +811,8 @@ private fun profileViewModel(
     api: StubAuthApi = StubAuthApi(),
     store: StubTokenStore = StubTokenStore(),
     releases: StubGitHubReleaseApi = StubGitHubReleaseApi(),
-) = profileSession(api, store, releases).second
+    clock: Clock = FakeClock(),
+) = profileSession(api, store, releases, clock).second
 
 /**
  * The view model and the repository whose session it reads, for the test that has to *move* the session
@@ -742,9 +827,10 @@ private fun profileSession(
     api: StubAuthApi = StubAuthApi(),
     store: StubTokenStore = StubTokenStore(),
     releases: StubGitHubReleaseApi = StubGitHubReleaseApi(),
+    clock: Clock = FakeClock(),
 ): Pair<AuthRepository, ProfileViewModel> {
     val repository = AuthRepository(api, store, json())
-    return repository to ProfileViewModel(repository, releases)
+    return repository to ProfileViewModel(repository, releases, clock)
 }
 
 private fun profileUser(username: String = "ana", displayName: String = "Ana Souza") = ProfileResponseUser(
@@ -758,6 +844,15 @@ private fun successBody() = SuccessResponse(success = SuccessResponse.Success.`t
 
 /** The same Json the app builds, so a test does not pass against a lenient parser the app lacks. */
 private fun json() = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+
+/**
+ * A clock the tests move by hand, so the update check's cache window can be crossed without waiting for it
+ * and without a device. The seam exists for this and nothing else: the update check is the only place this
+ * app reads a clock.
+ */
+private class FakeClock(var now: Long = 0L) : Clock {
+    override fun nowMillis(): Long = now
+}
 
 private fun String.toResponseBody() = this.toResponseBody("application/json".toMediaType())
 

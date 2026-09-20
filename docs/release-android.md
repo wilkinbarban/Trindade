@@ -87,8 +87,10 @@ Three consequences worth knowing before choosing a tag:
    ```
 
 3. **The `Android release` workflow runs**, and in this order:
-   - checks out the tagged commit, inside the SDK container `ghcr.io/cirruslabs/android-sdk:35` (the same
-     image `make ci-android` uses locally, so the toolchain is the one the lane is verified against);
+   - checks out the tagged commit, inside the SDK container
+     `ghcr.io/cirruslabs/android-sdk:35@sha256:c724009e305b4607157287624033ab97f319af44c244bfc9f73b6293f3bb01b9`
+     (the same image `make ci-android` uses locally, so the toolchain is the one the lane is verified
+     against);
    - derives `versionName` and `versionCode` from the tag by the rule in Section 2 and **refuses three
      kinds of tag**: `v1.2` and `vabc`, which its three-component regex does not read as a version at
      all, and `v1.100.0`, which it does read but whose `minor` is above 99 — that one would encode to
@@ -109,6 +111,13 @@ Three consequences worth knowing before choosing a tag:
 
 5. **Never move a tag.** Re-pointing a published tag at a different commit means two different APKs claim
    the same `versionCode`, and Android will install whichever one it sees.
+
+The digest, and not only the tag, is what pins the toolchain here, and it is written in three places that
+must move together: the two `docker run` lines in the `Makefile` (`make ci-android`),
+`.github/workflows/ci.yml` and `.github/workflows/android-release.yml`. There is deliberately no shared
+variable file or script between them: the image changes once or twice a year, and a mechanism would cost
+more to keep correct than the three edits it saves. When the image moves, change all three to the same
+digest.
 
 ---
 
@@ -150,7 +159,7 @@ gh secret set ANDROID_KEY_ALIAS --body trindade
 
 | Variable | Contents |
 | --- | --- |
-| `ANDROID_API_BASE_URL` | The base URL the release APK talks to, e.g. `https://trindademasas.duckdns.org/`. It must be `https://` and end with `/`. |
+| `ANDROID_API_BASE_URL` | The base URL the release APK talks to, e.g. `https://trindademasas.duckdns.org/`. It must be an `https://` URL with a host, and end with `/`. |
 
 When unset, the workflow falls back to `https://trindademasas.duckdns.org/`, the same host
 `.env.example` and `docs/deployment.md` name. A release build has no default of its own, so a base URL
@@ -207,7 +216,7 @@ docker run --rm --user "$(id -u):$(id -g)" \
   --volume "$HOME/.android-keystores:/keys" \
   --volume "$(git rev-parse --show-toplevel):/work" \
   --workdir /work/packages/android \
-  ghcr.io/cirruslabs/android-sdk:35 \
+  ghcr.io/cirruslabs/android-sdk:35@sha256:c724009e305b4607157287624033ab97f319af44c244bfc9f73b6293f3bb01b9 \
   bash -c './gradlew :app:assembleRelease --no-daemon -PapiBaseUrl=https://trindade.example/ -PversionName=1.0.0 -PversionCode=10000 -PrequireSigned=true'
 ```
 
