@@ -2,7 +2,11 @@ package com.trindade.app.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.trindade.app.BuildConfig
 import com.trindade.app.contract.models.ProfileResponseUser
+import com.trindade.app.network.runCatchingCancellable
+import com.trindade.app.update.GitHubReleaseApi
+import com.trindade.app.update.ReleaseVersion
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,10 +28,18 @@ import kotlinx.coroutines.launch
  * worse than showing it, which is the case the SPA gets wrong: its profile tab is drawn only for a
  * Trabalhador, so an Administrator cannot change a password from the desktop. This screen is for
  * whoever is signed in.
+ *
+ * One thing on this screen is not about the account at all: whether a newer release exists. It lives here
+ * because the answer is drawn under the version line and because the screen already has an entry point to
+ * run it on, and it is kept apart from the account in two directions -- a different source ([GitHubReleaseApi],
+ * on a client that carries no token) and a state of its own ([UpdateStatus]) that never touches the error
+ * line. See [open] and [refreshUpdateCheck] for why the account and the update are two questions with two
+ * answers rather than one result.
  */
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val repository: AuthRepository,
+    private val releases: GitHubReleaseApi,
 ) : ViewModel() {
 
     data class UiState(
@@ -57,6 +69,14 @@ class ProfileViewModel @Inject constructor(
         val nameSaved: Boolean = false,
         /** True once the session has ended, whether by the sign-out action or by a password change. */
         val signedOut: Boolean = false,
+        /**
+         * What the update check found, drawn under the version line.
+         *
+         * Its own field rather than a sentence in [message], and that is the decision this field exists to
+         * carry: see [UpdateStatus] for the four answers and the screen for why only one of them is
+         * allowed to raise its voice.
+         */
+        val update: UpdateStatus = UpdateStatus.Checking,
     ) {
         /**
          * Whether there is a save worth sending.
@@ -88,6 +108,36 @@ class ProfileViewModel @Inject constructor(
          */
         val canChangePassword: Boolean
             get() = !changing && currentPassword.isNotEmpty() && newPassword.length >= MIN_PASSWORD_LENGTH
+    }
+
+    /**
+     * The four answers the update check can leave on the screen.
+     *
+     * Four, not two, because the two that are not a comparison result are the ones a boolean would have
+     * flattened: a check that has not answered yet, and a check that could not be made. The second is not
+     * an error about the operator or their session -- the account loaded, the token is fine, GitHub had a
+     * bad moment or the tag is not one this client reads -- so it does not belong in [UiState.message],
+     * which the screen draws in the error colour and which every other test in this app reads as
+     * "something went wrong with the request you made".
+     */
+    sealed interface UpdateStatus {
+
+        /** In the air: the answer will replace this, or nothing will if the entry is superseded. */
+        data object Checking : UpdateStatus
+
+        /** This build is the newest release. Nothing to do, and nothing to say loudly. */
+        data object UpToDate : UpdateStatus
+
+        /**
+         * A newer release exists, named [version] without the tag's `v`.
+         *
+         * Carries the number because the sentence it feeds names it, and because the operator's next act
+         * is to compare it with the version line directly above.
+         */
+        data class Available(val version: String) : UpdateStatus
+
+        /** GitHub could not be asked, answered with something unreadable, or named a tag this client reads no version out of. */
+        data object CouldNotCheck : UpdateStatus
     }
 
     private val _state = MutableStateFlow(UiState())
@@ -161,6 +211,11 @@ class ProfileViewModel @Inject constructor(
                 // The password fields go with the rest: they were typed for a conversion that is over.
                 currentPassword = "",
                 newPassword = "",
+                // This entry runs its own check, so what was in state was the previous entry's answer and
+                // not this one's. Reset unconditionally, unlike the account above: the update state says
+                // nothing about who is signed in, so there is no session question to ask about it -- every
+                // entry has to ask GitHub again, whoever is entering.
+                update = UpdateStatus.Checking,
             )
         }
 
@@ -208,6 +263,56 @@ class ProfileViewModel @Inject constructor(
                     message = if (profile == null) UNREACHABLE else null,
                 )
             }
+        }
+
+        // Started here rather than after the read above, and not folded into that coroutine: the two are
+        // separate questions with separate answers, so a slow or failing account read must not hold the
+        // update line back or take it down with it. What they share is the token.
+        viewModelScope.launch {
+            val update = refreshUpdateCheck()
+
+            // The same token, for the same reason and with the same rule: two entries really can have two
+            // checks in the air at once, the answer that lands last is not necessarily the newest, and a
+            // superseded answer writes nothing at all.
+            //
+            // Only the token, though -- the session check in the read above deliberately has no twin here.
+            // That one exists because a profile answer carries an operator's account and a session can end
+            // while it flies, so writing it would present one person's identity to the next. This answer
+            // carries a version number, which is the same fact about the app for whoever is signed in, so a
+            // session change leaves nothing of anybody's in it to leak.
+            if (open != newestOpen) return@launch
+
+            _state.update { it.copy(update = update) }
+        }
+    }
+
+    /**
+     * Asks GitHub which release is newest, and compares it with the version this build carries.
+     *
+     * The call goes through [runCatchingCancellable] for the reason every repository in this app does: a
+     * transport failure, a refusal and a payload that does not decode are all the same answer here --
+     * "could not check" -- while a cancellation has to leave the coroutine rather than be reported as one,
+     * which is the half a plain `runCatching` gets wrong. The decode failure is worth naming because it is
+     * reachable: [GitHubRelease] requires `tag_name`, so a body without it throws inside the call instead of
+     * answering null -- and without this wrapper that throw would leave the coroutine and take the screen
+     * with it, so the wrapper is load-bearing here rather than only tidy.
+     *
+     * The endpoint's filters are not repeated here. GitHub's `releases/latest` already excludes drafts and
+     * prereleases, so a prerelease tag cannot arrive; and a tag this build's own comparison cannot read is
+     * [ReleaseVersion.Comparison.Undetermined], which is "could not check" on the screen rather than a
+     * guess dressed as an answer.
+     */
+    private suspend fun refreshUpdateCheck(): UpdateStatus {
+        val release = runCatchingCancellable { releases.latestRelease() }
+            .getOrNull()
+            ?.takeIf { it.isSuccessful }
+            ?.body()
+            ?: return UpdateStatus.CouldNotCheck
+
+        return when (val comparison = ReleaseVersion.compare(release.tagName, BuildConfig.APP_VERSION_NAME)) {
+            is ReleaseVersion.Comparison.Newer -> UpdateStatus.Available(comparison.version)
+            ReleaseVersion.Comparison.UpToDate -> UpdateStatus.UpToDate
+            ReleaseVersion.Comparison.Undetermined -> UpdateStatus.CouldNotCheck
         }
     }
 

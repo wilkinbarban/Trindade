@@ -6,11 +6,13 @@ import com.trindade.app.network.AuthApi
 import com.trindade.app.network.LoadingApi
 import com.trindade.app.network.ReportsApi
 import com.trindade.app.network.SystemApi
+import com.trindade.app.update.GitHubReleaseApi
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import java.util.concurrent.TimeUnit
+import javax.inject.Qualifier
 import javax.inject.Singleton
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
@@ -25,8 +27,30 @@ object NetworkModule {
     private const val CONNECT_TIMEOUT_SECONDS = 10L
     private const val READ_TIMEOUT_SECONDS = 30L
 
+    /**
+     * The client, and the Retrofit built on it, that speak to this project's own API.
+     *
+     * The one that carries a token: every request it sends passes through [AuthInterceptor].
+     */
+    @Qualifier
+    @Retention(AnnotationRetention.BINARY)
+    annotation class BackendClient
+
+    /**
+     * The client, and the Retrofit built on it, that speak to GitHub -- and that carry no credentials at
+     * all.
+     *
+     * Named as a destination rather than as an absence because the qualifier is about *where* a request
+     * goes; the absence of a token is the property that follows from it, and it is the one the comment on
+     * the provider below is about.
+     */
+    @Qualifier
+    @Retention(AnnotationRetention.BINARY)
+    annotation class GitHubClient
+
     @Provides
     @Singleton
+    @BackendClient
     fun provideOkHttpClient(authInterceptor: AuthInterceptor): OkHttpClient =
         OkHttpClient.Builder()
             .connectTimeout(CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
@@ -38,6 +62,41 @@ object NetworkModule {
             .addInterceptor(authInterceptor)
             .build()
 
+    /**
+     * A second client with no interceptor on it, and the absence is the point of the whole check.
+     *
+     * [AuthInterceptor] attaches this app's JWT to every request it sees. A request to GitHub must never
+     * carry it: it is a credential for this project's backend, it is nobody else's business, and a header
+     * sent to a third party cannot be taken back. So GitHub gets a client that has never been given the
+     * interceptor, rather than a path exemption inside the interceptor, and the difference is what can go
+     * wrong later:
+     *
+     * - **A token that is not attached cannot leak.** The separation is a property of the object graph --
+     *   this client is built with one builder, and that builder adds no interceptor -- so auditing it means
+     *   reading this provider. Nothing at request time can put a header on a request that goes out through
+     *   it.
+     * - **An exemption list is a rule somebody has to keep.** [AuthInterceptor] already carries one for
+     *   the calls that have no session to speak of, and it works by matching the tail of the request path.
+     *   Adding another entry there for a host that is not even ours would make the safety of a
+     *   third-party request depend on every future edit to that list, and a path rule says nothing about
+     *   the host: an exemption written for `repos/.../releases/latest` would also exempt any of this
+     *   project's own API paths that happened to end the same way.
+     *
+     * The two clients therefore differ in exactly one respect, which is what makes the invariant readable:
+     * the timeouts above are the backend client's, and the only omission is the interceptor. The separate
+     * Retrofit below is what keeps the two from being confused for each other -- and it is not possible to
+     * confuse them, because both providers are qualified: an unqualified `OkHttpClient` or `Retrofit` is no
+     * longer a request Dagger can satisfy at all, so a new call site has to name the destination it means.
+     */
+    @Provides
+    @Singleton
+    @GitHubClient
+    fun provideGitHubOkHttpClient(): OkHttpClient =
+        OkHttpClient.Builder()
+            .connectTimeout(CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .readTimeout(READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .build()
+
     @Provides
     @Singleton
     fun provideJson(): Json = Json {
@@ -47,9 +106,34 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideRetrofit(client: OkHttpClient, json: Json): Retrofit =
+    @BackendClient
+    fun provideRetrofit(@BackendClient client: OkHttpClient, json: Json): Retrofit =
         Retrofit.Builder()
             .baseUrl(BuildConfig.API_BASE_URL)
+            .client(client)
+            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+            .build()
+
+    /**
+     * GitHub's Retrofit, on the tokenless client and on GitHub's own base URL.
+     *
+     * Its own instance rather than a second API interface on the app's Retrofit, because the base URL and
+     * the client are both properties of the destination and an interface can override neither. A
+     * `GitHubReleaseApi` created from the backend Retrofit would send this project's own API a request for
+     * GitHub's path; a GitHub Retrofit built on the token-carrying client would send this app's JWT to
+     * `api.github.com`. The first is a broken call and the second is the leak this whole arrangement is
+     * here to prevent, and neither is reachable by accident: both providers are qualified, so a request for
+     * an unqualified `Retrofit` or `OkHttpClient` does not resolve.
+     *
+     * The `Json` is shared, and that is not a relaxation of the separation: it is a parser configuration,
+     * it holds no credential, and the two payloads are both JSON this app decodes the same way.
+     */
+    @Provides
+    @Singleton
+    @GitHubClient
+    fun provideGitHubRetrofit(@GitHubClient client: OkHttpClient, json: Json): Retrofit =
+        Retrofit.Builder()
+            .baseUrl(BuildConfig.GITHUB_API_BASE_URL)
             .client(client)
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
@@ -58,17 +142,22 @@ object NetworkModule {
     // is exposed here on purpose: the contract supplies the types, and the calls are this client's.
     @Provides
     @Singleton
-    fun provideAuthApi(retrofit: Retrofit): AuthApi = retrofit.create(AuthApi::class.java)
+    fun provideAuthApi(@BackendClient retrofit: Retrofit): AuthApi = retrofit.create(AuthApi::class.java)
 
     @Provides
     @Singleton
-    fun provideSystemApi(retrofit: Retrofit): SystemApi = retrofit.create(SystemApi::class.java)
+    fun provideSystemApi(@BackendClient retrofit: Retrofit): SystemApi = retrofit.create(SystemApi::class.java)
 
     @Provides
     @Singleton
-    fun provideReportsApi(retrofit: Retrofit): ReportsApi = retrofit.create(ReportsApi::class.java)
+    fun provideReportsApi(@BackendClient retrofit: Retrofit): ReportsApi = retrofit.create(ReportsApi::class.java)
 
     @Provides
     @Singleton
-    fun provideLoadingApi(retrofit: Retrofit): LoadingApi = retrofit.create(LoadingApi::class.java)
+    fun provideLoadingApi(@BackendClient retrofit: Retrofit): LoadingApi = retrofit.create(LoadingApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideGitHubReleaseApi(@GitHubClient retrofit: Retrofit): GitHubReleaseApi =
+        retrofit.create(GitHubReleaseApi::class.java)
 }

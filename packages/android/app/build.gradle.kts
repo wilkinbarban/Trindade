@@ -145,6 +145,32 @@ android {
         }
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
 
+        // Where the update check asks which release is newest. GitHub rather than this project's own
+        // backend, because the fact being asked for -- which release is newest -- lives there: a copy of
+        // it in the API would be a cache of something that backend does not own, stale on its own
+        // schedule and needing a deploy per release. The app already depends on GitHub for the download
+        // itself, so this adds no new dependency to the product.
+        //
+        // It has a default while apiBaseUrl deliberately does not, and the difference is what each value
+        // is about: a base URL for this project's deployment must never be guessed, while GitHub's address
+        // is a fact about the outside world that is the same for every build. Overriding it is therefore
+        // only ever a deliberate act -- a mirror or a proxy -- and the checks below are what make a
+        // deliberate act a checked one.
+        //
+        // https is required rather than allowed alongside http, which is the one place this guard is
+        // stricter than the apiBaseUrl one above: the development loopback is a host the debug network
+        // security config exempts and this is not, and the request travels to a public host over a network
+        // the phone does not control.
+        val githubApiBaseUrl = (project.findProperty("githubApiBaseUrl") as String?) ?: "https://api.github.com/"
+        require(githubApiBaseUrl.startsWith("https://")) {
+            "githubApiBaseUrl must be an absolute https URL, but was '$githubApiBaseUrl'."
+        }
+        require(githubApiBaseUrl.endsWith("/")) {
+            "githubApiBaseUrl must end with '/', because Retrofit resolves every endpoint relative to it. " +
+                "Got '$githubApiBaseUrl'."
+        }
+        buildConfigField("String", "GITHUB_API_BASE_URL", "\"$githubApiBaseUrl\"")
+
         // The app's own copy of the version, from the same single computation that filled versionCode and
         // versionName above, which is what makes what the operator reads on the Perfil screen the value
         // that was packaged rather than a second, drifting one. The field names are this build's
