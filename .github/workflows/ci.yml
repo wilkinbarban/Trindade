@@ -19,29 +19,27 @@ jobs:
         run: bash scripts/ci.sh
 
   # A separate job, because the Node gate deliberately refuses to run outside Node 24 and this lane
-  # needs a JDK. The same script runs locally through `make ci-android` inside a container, so the
-  # checks are one implementation rather than two that drift.
+  # needs a JDK. The same script runs locally through `make ci-android`, so the checks are one
+  # implementation rather than two that drift.
   #
-  # UNVERIFIED AS WRITTEN. The local lane it calls is verified; this job is written from the
-  # documented runner setup and has never executed, because a GitHub runner cannot be run from the
-  # development host. Treat the first push as the test of it, and expect the platform step below to
-  # be the part that needs adjusting.
+  # It runs *inside the SDK container* rather than on the runner's own toolchain, and that is not a
+  # preference: the first version of this job assumed `ubuntu-latest` ships an Android SDK and died in
+  # eight seconds with `sdkmanager: command not found`, before the lane was ever reached. The container
+  # is the one the local lane and the release workflow already build with, so the toolchain here cannot
+  # drift from the one this project is developed against, and no third-party setup action is needed to
+  # get an SDK. It is also what removed the three steps that used to stand here -- setting up a JDK,
+  # accepting licences and installing a platform -- because that image carries all three already, and
+  # the release build has since run in it and produced an APK, which is the proof it is enough.
   android:
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/cirruslabs/android-sdk:35
+    # A container job runs its steps with sh unless told otherwise, and the lane below is bash.
+    defaults:
+      run:
+        shell: bash
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-      - name: Set up JDK
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-      - name: Accept the SDK licences
-        run: yes | sdkmanager --licenses >/dev/null 2>&1 || true
-      - name: Ensure the platform the build compiles against is present
-        # The package id carries the dotted `.0` suffix deliberately. `sdkmanager --list` offers both
-        # `platforms;android-37` and `platforms;android-37.0`, but the integer form does NOT install:
-        # it fails with "Failed to find package". Listing a package is not the same as installing it.
-        run: sdkmanager --install "platforms;android-37.0"
       - name: Run the Android lane
         run: bash scripts/ci-android.sh
