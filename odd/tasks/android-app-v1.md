@@ -1292,6 +1292,45 @@ are recorded here because that is what they are worth**:
   tests green. The view model's contract is pinned; the composition-level wiring is read, not tested, because
   this module has no Compose or Robolectric host.
 
+### The escalated review of the accumulated range, and how it ended
+
+Lineage `review-82c335ae79636729` — tier high, four lenses, 25 files, 3360 changed lines — ran all four
+reviewers and a refuter, and **escalated**: `cause: unknown_causality`, `action: stop`,
+`native_stop_required`. **An escalated lineage has no disposition**: `review abandon` refuses it (*"lineage
+holds terminal escalated authority"*) and `review reopen-results` refuses it too (*"requires an uncorrected
+validating or correction-required authority"*), so **resolving it means inspecting it and acting on its
+findings**, which is what the contract's stop table says a terminal stop is for, and what was done here. The
+findings' full claims live in the store, not in the capture envelope:
+`.git/gentle-ai/review-transactions/v2/<lineage>/review-state.json` →
+`state.admitted_role_results[].value.result.findings[].claim`.
+
+**Three blockers.** `R1-2` (the cancelled sign-out skipping the clear) fixed in `e0eaf19`; `R1-1` (the
+profile showing one operator's account to the next) and `R2-002` (the two screens bouncing) fixed in
+`8d66e96`; and **`R2-001` was a false positive**, left unaddressed on purpose: it claimed the loading
+screen's history button was `{ onOpenHistory }`, while the code is `onClick = onOpenHistory` and that pattern
+exists nowhere in the tree. **Its proof reference pointed at the parameter declaration rather than the click
+site** — the tell that it was inferred from a signature instead of read from a call — and it rode into the
+escalation unchallenged because a blocker classified *deterministic* gets no refuter. Worth remembering the
+next time a deterministic blocker feels settled.
+
+**Why `R4-01`'s causality was unknown, which is the honest resolution of the escalation**: it describes **the
+same defect as `R1-2`** — the cancelled sign-out leaving the local session in place — from a different lens,
+and the causality is genuinely **mixed**: D5d moved the clear after the call, and the cancellation slice made
+the call rethrow. **Neither candidate alone creates the hole, only their interaction**, which is exactly why
+it could not be attributed to one of them. Its subject matter is closed by `e0eaf19`.
+
+**Advisories, with their dispositions**:
+- `R3-004` (a save offered with no profile loaded) — **FIXED** in `8d66e96`.
+- `R3-002` (a 404 reported to the operator as an unreachable server) — **recorded**; the same class the
+  refusal-text fix in D5a addressed.
+- `R4-02`/`R4-03` (`LoadingHistoryViewModel`: a deleted batch left visible and actionable after a failed
+  reload, and `busy` cleared before the reload starts so stale rows stay tappable) — **recorded**.
+- `R4-04` (the recursive step-back costs one request per emptied page) — **recorded as a cost**; the recursion
+  is deliberate and tested, and its price is now named rather than discovered.
+- `R3-003` (a filter change does not clear the previous filter's rows) — **recorded**.
+- `R2-003` (the private `lifecycle` helper duplicated between the two repositories) — **recorded** as drift
+  risk.
+
 ---
 
 ## Open decisions
