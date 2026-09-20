@@ -64,14 +64,19 @@ class AuthRepository @Inject constructor(
      * and stayed live on the server. Sending it while the session is still in place is what makes the
      * refresh token in the body mean anything.
      *
-     * The clear is unconditional, and it happens in a `finally` for a reason that cost a review to find:
-     * the call above can now be **cancelled**, and a cancellation leaves this function by design. Written
+     * The clear is unconditional, and it happens in a `finally` for a reason that a review found: the
+     * revoke call **inside this function** can be **cancelled**, and a cancellation leaves by design. Written
      * after the call instead, a cancelled revoke would skip the clear entirely -- the operator taps "Sair",
-     * the request dies with the screen, and the tokens stay in the Keystore: a phone that is still signed
-     * in after being told to sign out. The contract makes logout idempotent -- an unknown or already-ended
-     * token still succeeds -- so a failed call means the session is already gone server-side, and there is
-     * nothing a client gains by holding a token whose session is over. Reporting the failure as "still
-     * signed in" would be the less true answer.
+     * the request dies with the screen, and the tokens stay in the Keystore: a phone that is still signed in
+     * after being told to sign out.
+     *
+     * **The trade is deliberate and it is worth stating plainly, because a review asked for it.** A revoke
+     * that is cancelled *before it reaches the server* leaves that session alive while the client has
+     * discarded the only token it could have retried with. So the old sentence -- that a failed call means
+     * the session is already gone server-side -- is true for a call the server refused and false for one that
+     * never arrived. Between a server session that expires on its own and a phone that stays signed in, this
+     * chooses the phone: the device is the thing that changes hands in the yard, and an unrevoked session
+     * with no token left to present is inert from the client's side.
      */
     suspend fun logout() {
         val refreshToken = tokenStore.refreshToken()

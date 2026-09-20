@@ -38,10 +38,12 @@ import retrofit2.Response
  * answer was not null" would pass against the defect, because a captured cancellation answers null
  * just as a refused read does, so these tests fail loudly on the answer instead of inspecting it.
  *
- * The last four are about the wiring, since a correct helper that nothing calls fixes nothing. Each
- * drives one of the three repositories whose API throws a cancellation and asserts that it comes back
- * out rather than arriving as `null` or as `Rejected`. They also happen to be the proof that the
- * helper can be inlined around a suspending call at all: that is the only reason these call sites
+ * The last four are about the wiring, since a correct helper that nothing calls fixes nothing. They
+ * drive the three repositories whose API throws a cancellation -- four tests rather than three, because
+ * auth is driven twice, through `login()` and through `logout()`. Each asserts that the cancellation
+ * comes back out rather than arriving as the wrong answer: `null` for the two histories, `Rejected` for
+ * sign-in, and a store still holding the session for sign-out. They also happen to be the proof that
+ * the helper can be inlined around a suspending call at all: that is the only reason these call sites
  * compile.
  */
 class CancellationTest {
