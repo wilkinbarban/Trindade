@@ -27,6 +27,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -206,6 +207,48 @@ fun ProfileScreen(
         // APK was packaged with, not a copy that could drift -- see the version fields in build.gradle.kts.
         ReadOnlyField(label = stringResource(R.string.profile_app_version), value = appVersion)
 
+        // What the check that runs on entry found, directly under the version it is about: that is the
+        // line the operator compares it with.
+        //
+        // Three of the four states are drawn, and each speaks in its own voice. That is the design of
+        // this line rather than a matter of taste:
+        //
+        // - "up to date" is quiet -- the muted tone the hint below uses -- because it is the answer that
+        //   asks for nothing.
+        // - "there is a newer version" is the one in the attention tone, because it is the only one of
+        //   the three the operator has something to do about, and what to do is the button directly below
+        //   this line. The tone is the button's own primary, so the sentence and its action read as one
+        //   thing.
+        // - "could not check" is quiet again, and that is the deliberate part: it does **not** go on the
+        //   error line at the top of the screen. That line is this screen's channel for something that
+        //   went wrong with the operator's account -- a refused name, an unreadable profile -- and it is
+        //   drawn in the error colour. A failed update check is not about them: their account loaded, the
+        //   session is fine, and GitHub had a bad moment or named a tag this client reads no version out
+        //   of. Colouring the screen's error line for it would say something untrue about their session,
+        //   and an operator who reads it that way starts looking for a fault at their end.
+        //
+        // The fourth state draws nothing at all. A "checking..." line would flicker for the length of one
+        // round trip to GitHub and say nothing anyone needs: this line only matters once there is a
+        // sentence to read.
+        when (val update = state.update) {
+            ProfileViewModel.UpdateStatus.Checking -> Unit
+
+            ProfileViewModel.UpdateStatus.UpToDate -> UpdateNotice(
+                text = stringResource(R.string.profile_update_up_to_date),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            is ProfileViewModel.UpdateStatus.Available -> UpdateNotice(
+                text = stringResource(R.string.profile_update_available, update.version),
+                color = MaterialTheme.colorScheme.primary,
+            )
+
+            ProfileViewModel.UpdateStatus.CouldNotCheck -> UpdateNotice(
+                text = stringResource(R.string.profile_update_unavailable),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
         // The action, under the value it is about: the operator reads the version, decides it is old, and
         // this is the tap that takes them to where the new one is published. If both were not where a
         // failed profile load still leaves them, the two halves of that one decision would be split apart
@@ -238,6 +281,12 @@ fun ProfileScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
+}
+
+/** One line of the update check, in whichever of the three voices [color] carries. */
+@Composable
+private fun UpdateNotice(text: String, color: Color) {
+    Text(text = text, color = color, style = MaterialTheme.typography.bodyMedium)
 }
 
 /**

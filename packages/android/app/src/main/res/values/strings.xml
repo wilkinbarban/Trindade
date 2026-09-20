@@ -98,6 +98,19 @@
          from the build, never typed here, so the number on screen is the number that was packaged. Kept out
          of the account block on purpose: see the screen for why it is drawn even when nothing loaded. -->
     <string name="profile_app_version">Versão do aplicativo</string>
+    <!-- What the check that runs when the screen opens found, drawn under the version it is about.
+         Three sentences for three voices, and the difference between them is the point: "up to date"
+         is quiet because there is nothing to do; "there is a new version" is the one that wants the
+         eye, because the download action is directly below it; and a check that could not be made says
+         so in the same quiet voice, because it is not a fault of the operator's session. It says
+         "verificar" rather than "baixar" or "atualizar" on purpose: nothing is downloaded and nothing
+         is installed by this app, it only asks GitHub which release is newest. See the screen for why
+         this line is not drawn in the error colour. -->
+    <string name="profile_update_up_to_date">Você já está na versão mais recente.</string>
+    <!-- The number is the newest release without the tag's "v", so it reads the same way the version
+         line above it does. -->
+    <string name="profile_update_available">Há uma versão nova: %1$s</string>
+    <string name="profile_update_unavailable">Não foi possível verificar se há uma versão nova.</string>
     <!-- The way to the download, drawn next to the version it is about: the operator reads the version,
          sees it is old, and this is the tap that takes them to the page it is published on. It says
          "baixar" rather than "atualizar" on purpose: the app downloads nothing and installs nothing;
