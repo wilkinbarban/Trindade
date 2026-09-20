@@ -1,6 +1,7 @@
-// Imported rather than qualified as java.util.Properties: inside a Kotlin build script the name `java`
-// resolves to the Java plugin's project extension, not to the package, so the qualified form does not
-// compile here.
+// Imported rather than qualified as java.util.Properties / java.net.URI: inside a Kotlin build script the
+// name `java` resolves to the Java plugin's project extension, not to the package, so the qualified form
+// does not compile here.
+import java.net.URI
 import java.util.Properties
 
 plugins {
@@ -68,6 +69,11 @@ val effectiveVersionCode = declaredVersionCode ?: 1
 // redirects /releases/latest to the newest release, so the constant stays true release after release. A URL
 // naming trindade-0.2.0.apk would pin the app to one release and go stale the day the next APK is
 // published, sending the operator to a download link that never receives anything new.
+//
+// The same address is written down a second time in README.md, in the sentence that tells the crew where
+// this APK is published, because a README and a Gradle default cannot be one value here. The duplication is
+// therefore deliberate and each copy names the other: if the page moves, this line and that one change
+// together. Nothing reads the README from here, and no mechanism is invented to make the two agree.
 val defaultReleasesUrl = "https://github.com/wilkinbarban/Trindade/releases/latest"
 
 // Read at script level as well as inside defaultConfig, because the release guard below runs outside the
@@ -242,20 +248,42 @@ fun assertReleaseBuildDeclarations() {
     }
 
     // Where the app is published, checked for shape only. It has a default, so an absent property is not a
-    // version the build invented -- but a blank or non-https one is a value somebody typed, and it becomes
-    // the address on a button the crew is told to tap. https for the same reason the base URL above needs
-    // it: a release hands this link to other people's browsers, and a download link is not something to
-    // send over cleartext. The two checks are separate sentences because they are separate mistakes: a
-    // blank override is someone dropping the value, and an http override is someone reaching for the dev
-    // habit the base URL above already allows.
+    // version the build invented -- but a blank, malformed or non-https one is a value somebody typed, and it
+    // becomes the address on a button the crew is told to tap. https for the same reason the base URL above
+    // needs it: a release hands this link to other people's browsers, and a download link is not something to
+    // send over cleartext.
+    //
+    // The three checks are separate sentences because they are separate mistakes. A blank override is someone
+    // dropping the value. A value that is not an absolute https URL with a host is someone reaching for the
+    // dev habit the base URL above already allows, or handing over a link that only looks complete: 'https://'
+    // carries no host and would open nothing, and a startsWith("https://") test is exactly the test that
+    // cannot tell those apart -- which is why the shape is parsed as a URI here rather than prefix-matched.
+    //
+    // The third is the malformed value that narrower guard let through, and it is checked before the URL is
+    // parsed so that a value carrying one of its characters is refused for that reason rather than for
+    // whatever the parser makes of the same string. A double quote, a backslash or a line break passes any
+    // prefix test and then breaks the Java string literal the BuildConfig field is compiled from, which
+    // surfaces as a compile error in a generated file that never names this property.
     require(declaredReleasesUrl.isNotBlank()) {
         "releasesUrl must not be blank. Omit it to use the default '$defaultReleasesUrl', or give an " +
             "absolute https URL."
     }
-    require(declaredReleasesUrl.startsWith("https://")) {
-        "releasesUrl must be an absolute https URL, but got '$declaredReleasesUrl'. The address is handed " +
-            "to the operator's browser, so a download link the network can rewrite on the way is the one " +
-            "failure this build can prevent."
+    require(declaredReleasesUrl.none { it == '"' || it == '\\' || it == '\n' || it == '\r' }) {
+        "releasesUrl must not contain a double quote, a backslash or a line break, but got " +
+            "'$declaredReleasesUrl'. This value is written into the generated BuildConfig as a Java string " +
+            "literal, and none of those characters can appear inside one, so the build would stop with a " +
+            "compile error about a file this property is not named in."
+    }
+    val releasesUri = runCatching { URI(declaredReleasesUrl) }.getOrNull()
+    require(
+        releasesUri != null &&
+            releasesUri.isAbsolute &&
+            releasesUri.scheme.equals("https", ignoreCase = true) &&
+            !releasesUri.host.isNullOrBlank(),
+    ) {
+        "releasesUrl must be an absolute https URL with a host, but got '$declaredReleasesUrl'. The address " +
+            "is handed to the operator's browser, so a download link the network can rewrite on the way is " +
+            "the one failure this build can prevent."
     }
 
     // The version, which the tag workflow derives from the tag. Both properties are required because half a

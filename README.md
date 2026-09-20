@@ -22,6 +22,12 @@ newest one, so it stays correct after every release.
 
 **https://github.com/wilkinbarban/Trindade/releases/latest**
 
+That address is written down a second time, as the default of the `releasesUrl` build property in
+[`packages/android/app/build.gradle.kts`](packages/android/app/build.gradle.kts), because it is also the
+address the **Baixar nova versão** button on the Perfil screen opens. A README and a Gradle default cannot
+be made into one value, so the two copies name each other on purpose: if the page moves, this line and that
+default change together, and neither file is the one to edit alone.
+
 On the phone, open that link, download `trindade-<version>.apk` and open the file. Android asks once,
 the first time, whether to allow installing apps from this source — that prompt is expected, and
 answering it once is enough. There is no download or install inside the app: the browser fetches the

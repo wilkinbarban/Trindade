@@ -20,6 +20,17 @@ jobs:
   # commit whose pull request already ran it in ci.yml -- because this job exists to sign and to verify
   # the signature, and apksigner is the check it adds.
   #
+  # The image is pinned by digest, and the reason is sharper here than in ci.yml, because this is the job
+  # that signs the APK. A digest fixes the bytes: the release key is used inside today's image tomorrow as
+  # well, instead of inside whatever a mutable tag resolves to then, and whoever can move that tag stops
+  # deciding what this project signs with. It is not a statement that the image is trustworthy -- pinning a
+  # third party's image is not auditing it -- and it does not freeze the toolchain for ever: the drift moved
+  # from the tag to this line, where updating it is a deliberate commit someone has to write and defend. The
+  # same caveat as ci.yml applies, and it is worth repeating next to the key: the local lane names the tag
+  # rather than this digest, so the pin holds for the job that signs the APK and not for a development host.
+  # The image is also about 18 months old as of this pin, so it changes nothing about today's build and
+  # everything about tomorrow's.
+  #
   # UNVERIFIED AS WRITTEN. A GitHub-hosted runner cannot be run from the development host, so this
   # workflow has never executed and the first tag push is its test. The commands in the build and verify
   # steps below were run by hand inside this same image before they were written here (docs/release-android.md
@@ -27,7 +38,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/cirruslabs/android-sdk:35
+      image: ghcr.io/cirruslabs/android-sdk:35@sha256:c724009e305b4607157287624033ab97f319af44c244bfc9f73b6293f3bb01b9
     # A container job runs its steps with sh unless told otherwise, and the tag parsing below is bash.
     defaults:
       run:
@@ -113,7 +124,8 @@ jobs:
 
       - name: Locate the SDK build tools
         # apksigner and aapt2 are not on PATH in this image, and pinning a build-tools version here would
-        # break the next time the image moves. The newest installed one is the toolchain AGP just built with.
+        # break the next time the digest above is updated. The newest installed one is the toolchain AGP just
+        # built with.
         run: |
           set -euo pipefail
           sdk="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"

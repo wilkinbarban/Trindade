@@ -3,6 +3,7 @@ package com.trindade.app.auth
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,6 +23,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -61,6 +65,11 @@ fun ProfileScreen(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+
+    // Whether the last tap on the download action found no browser to hand the address to. Local state
+    // rather than a field on the view model's state: no request is made and nothing on the server changes,
+    // so this is the screen reporting on a call it made itself.
+    var browserUnavailable by remember { mutableStateOf(false) }
 
     // The signed-out panel replaces the whole screen, back action included. The session is already gone
     // at that point, so "Voltar" would land on a surface that can read nothing, and the panel's single
@@ -202,10 +211,22 @@ fun ProfileScreen(
         // failed profile load still leaves them, the two halves of that one decision would be split apart
         // on exactly the screen where the operator is looking for either.
         Button(
-            onClick = { openReleasesPage(context, releasesUrl) },
+            onClick = { browserUnavailable = !openReleasesPage(context, releasesUrl) },
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(stringResource(R.string.profile_download_update))
+        }
+
+        // The answer to a tap that found nothing able to open the address, drawn under the button that was
+        // tapped rather than in the message line at the top: this is not a statement about the session, and
+        // the operator's next move is right here. In the error tone, because unlike the hint below it this
+        // one is a fault.
+        if (browserUnavailable) {
+            Text(
+                text = stringResource(R.string.profile_download_update_failed),
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodyMedium,
+            )
         }
 
         // The first install's prompt, described before it appears instead of after. Muted rather than in
@@ -230,19 +251,26 @@ fun ProfileScreen(
  * question as whether it answers at the moment of the tap. `startActivity` resolves when it is asked and
  * reports the only real failure, nothing able to open the URL, as [ActivityNotFoundException].
  *
- * That failure says nothing to the operator, and that is a decision too: this app is installed by hand
- * from a release page, so the phone demonstrably has a browser to have gotten it here, and the screen's
- * one sentence is about the prompt that does arrive. A message about a browser that is not there would be
- * noise on every normal install.
+ * That failure is not silent, and an earlier version of this comment was wrong about why it could be. It
+ * argued that the phone must have a browser because the APK got there by hand from the release page, but an
+ * APK also arrives by `adb install`, from an MDM or from a file manager, so "this app is installed" says
+ * nothing about whether a browser exists. What a swallowed tap leaves behind is a button that does nothing:
+ * the operator has no sentence to read and support has no line to look at. The catch answers both -- the
+ * screen says what failed, and the log keeps the address that could not be opened.
+ *
+ * @return whether something took the intent, which is what the screen turns into that sentence when it did
+ *   not.
  */
-private fun openReleasesPage(context: Context, releasesUrl: String) {
-    try {
-        context.startActivity(Intent(Intent.ACTION_VIEW, releasesUrl.toUri()))
-    } catch (ignored: ActivityNotFoundException) {
-        // Swallowed for the reason above: there is nothing this screen can offer a phone with no browser,
-        // and the alternative -- a check before the call -- would be a check that lies on Android 11+.
-    }
+private fun openReleasesPage(context: Context, releasesUrl: String): Boolean = try {
+    context.startActivity(Intent(Intent.ACTION_VIEW, releasesUrl.toUri()))
+    true
+} catch (notFound: ActivityNotFoundException) {
+    Log.w(TAG, "No installed activity could open $releasesUrl", notFound)
+    false
 }
+
+// The tag this file's one log line appears under, so a support call can be told what to grep for.
+private const val TAG = "ProfileScreen"
 
 /**
  * What is shown once the session has ended: why, and the one way forward.

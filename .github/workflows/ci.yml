@@ -25,15 +25,26 @@ jobs:
   # It runs *inside the SDK container* rather than on the runner's own toolchain, and that is not a
   # preference: the first version of this job assumed `ubuntu-latest` ships an Android SDK and died in
   # eight seconds with `sdkmanager: command not found`, before the lane was ever reached. The container
-  # is the one the local lane and the release workflow already build with, so the toolchain here cannot
-  # drift from the one this project is developed against, and no third-party setup action is needed to
-  # get an SDK. It is also what removed the three steps that used to stand here -- setting up a JDK,
-  # accepting licences and installing a platform -- because that image carries all three already, and
+  # is the one the local lane and the release workflow already build with, and no third-party setup action
+  # is needed to get an SDK. It is also what removed the three steps that used to stand here -- setting up a
+  # JDK, accepting licences and installing a platform -- because that image carries all three already, and
   # the release build has since run in it and produced an APK, which is the proof it is enough.
+  #
+  # The image is pinned by digest, and what that buys is worth stating exactly, because an earlier version of
+  # this comment claimed more than it had. A digest fixes the bytes: the steps below, which run the checkout
+  # inside that image, get today's image tomorrow as well, and the job no longer depends on what a mutable
+  # tag resolves to on the day it runs. It does not make the image trustworthy -- pinning a third party's
+  # image is not the same act as auditing it -- and it does not freeze the toolchain for ever. The drift did
+  # not disappear, it moved: it used to be the runner's toolchain changing underneath this file, and it is
+  # now this line changing, which is a deliberate commit that has to be written, reviewed and explained.
+  # The local lane (`make ci-android`) still names the tag rather than this digest, so the pin holds for CI
+  # and not for that lane: what builds on a development host is whatever the tag resolves to that day.
+  # The image is also about 18 months old as of this pin, so it changes nothing about today's build and
+  # everything about tomorrow's.
   android:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/cirruslabs/android-sdk:35
+      image: ghcr.io/cirruslabs/android-sdk:35@sha256:c724009e305b4607157287624033ab97f319af44c244bfc9f73b6293f3bb01b9
     # A container job runs its steps with sh unless told otherwise, and the lane below is bash.
     defaults:
       run:

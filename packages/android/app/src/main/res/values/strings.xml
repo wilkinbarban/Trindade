@@ -110,6 +110,12 @@
          seconds after this button is tapped: a screen that says nothing about it turns a normal first
          install into something that reads as gone wrong. One sentence, because it is one fact. -->
     <string name="profile_download_update_hint">Na primeira vez o telefone pergunta se pode instalar um aplicativo de fora da loja, e pergunta uma vez só.</string>
+    <!-- The tap above that found nothing on this phone able to open a link, which is reachable because an
+         APK also arrives by adb, by MDM or from a file manager and none of those proves a browser exists.
+         It says what to do about it, since a button that silently does nothing is what support would
+         otherwise have to guess at, and it does not repeat the address: the address is a build declaration
+         and the log line carries it. -->
+    <string name="profile_download_update_failed">Nenhum aplicativo deste telefone abre links, então a página de download não abriu. Instale um navegador e toque de novo, ou baixe o APK no computador e passe para o telefone.</string>
     <string name="loading_title">Cronograma de carregamento</string>
     <string name="loading_fleteros">%1$d/%2$d fleteros</string>
     <string name="loading_add_entry">Adicionar</string>
