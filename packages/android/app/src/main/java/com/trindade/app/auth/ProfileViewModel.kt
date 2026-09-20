@@ -106,6 +106,15 @@ class ProfileViewModel @Inject constructor(
     private var newestOpen = 0
 
     /**
+     * The session generation the state in hand belongs to, or null while no entry has been made yet.
+     *
+     * Null rather than a numeric sentinel because there is no number the first entry could honestly call
+     * its own: this view model outlives the session, so the state in front of it at that moment may be a
+     * leftover from a session that has already ended, and only the comparison in [open] can say which.
+     */
+    private var lastSeenGeneration: Int? = null
+
+    /**
      * Opens the screen: the profile as the server has it, and nothing left over from before.
      *
      * Called by the route on entry rather than from `init`, and that is about this app's scoping rather
@@ -115,24 +124,37 @@ class ProfileViewModel @Inject constructor(
      * would sit under a form nobody had touched. Opening is the moment all of that stops being true,
      * so opening is where it is dropped.
      *
-     * The account goes with the rest, and that is the part scoping makes load-bearing rather than tidy.
-     * This view model outlives the session as well as the screen, so as this entry begins, the profile and
-     * the editable name in state may both be the previous operator's -- on a shared phone, A's, read by B.
-     * Left in place, they are A's username, display name and role for the whole of B's wait, they are still
-     * A's if B's read fails (the failure path deliberately keeps a name it cannot replace), and [UiState.canSave]
-     * would be live against A's name. The day the session ended is A's last moment on this screen, so the
-     * entry that follows is the moment the account leaves it.
+     * The account goes with the rest when the session has changed, and that is the part scoping makes
+     * load-bearing rather than tidy. This view model outlives the session as well as the screen, so the
+     * profile and the editable name in state may both be the previous operator's -- on a shared phone, A's,
+     * read by B. Left in place, they are A's username, display name and role for the whole of B's wait, they
+     * are still A's if B's read fails, and [UiState.canSave] would be live against A's name. The day the
+     * session ended is A's last moment on this screen, so the entry that follows is the moment the account
+     * leaves it.
+     *
+     * **Which entry that is, though, is the question [AuthRepository.sessionGeneration] answers**, and asking
+     * it is what keeps the clear from being a cure worse than the leak. An entry in the **same** session is
+     * the same operator asking for their own account again: dropping it there would blank the screen they are
+     * still looking at for the length of a read, take a name they had typed but not yet saved with it, and --
+     * since the failure path below keeps what the entry left it -- turn a network fault into an empty account
+     * block where the account that had been read belongs. So the clear is conditional on the session having
+     * changed, and only on that. The generation is read once, before the state is touched, so the entry and
+     * the answer it starts cannot disagree about which session they belong to.
      */
     fun open() {
         val open = ++newestOpen
+        val generation = repository.sessionGeneration
+        val sameSession = generation == lastSeenGeneration
+        lastSeenGeneration = generation
+
         _state.update {
             it.copy(
                 loading = true,
-                // The previous operator's account: for a new entry there is nobody whose copy this could be,
-                // and a read that is in flight or that never arrives must not be able to present it as this
-                // operator's own.
-                profile = null,
-                displayName = "",
+                // The previous operator's account: dropped unless this entry is the same operator entering
+                // again, in which case what is here is their own. A read that is in flight or that never
+                // arrives must not be able to present one operator's copy as another's.
+                profile = if (sameSession) it.profile else null,
+                displayName = if (sameSession) it.displayName else "",
                 message = null,
                 nameSaved = false,
                 signedOut = false,
@@ -153,7 +175,13 @@ class ProfileViewModel @Inject constructor(
             _state.update {
                 it.copy(
                     loading = false,
-                    profile = profile,
+                    // Written when an account arrived, and when none did the state keeps what it has: nothing
+                    // for an entry that changed session, because that entry emptied it above, and the same
+                    // operator's own account for an entry that did not. A read that fails is not evidence
+                    // about a session that did not change, so it must not be read as one -- that is this half
+                    // of the rule, and the half that keeps the identity away from the next operator is the
+                    // entry above, which decides whether there was somebody else's account here at all.
+                    profile = profile ?: it.profile,
                     // Seeded from the server, and left as it was when nothing arrived: there is no name
                     // to seed with, and blanking a form somebody may be reading is not an answer to a
                     // network fault. That reasoning is the same-session reload's -- a read that fails while

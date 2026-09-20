@@ -31,6 +31,26 @@ class AuthRepository @Inject constructor(
 ) {
 
     /**
+     * How many times the session's identity has changed: it has begun, or it has ended.
+     *
+     * What it counts is narrower than the name suggests, and the omission is the whole point. [login] moves
+     * it once a session really began; [logout] and [forgetSession] move it once one has ended. [refresh]
+     * deliberately does **not**, because rotating tokens is the same operator in the same session, and a
+     * reader that took "the generation moved" for "somebody else is signed in" would read a rotation as a
+     * change of operator. `ProfileViewModel` reads it for exactly that question, so a refresh counted here
+     * would put back the leak this counter exists to close: it would treat the operator still sitting in
+     * front of the screen as their predecessor. A rotation is not a new session; a login, a logout and a
+     * forgotten session are.
+     *
+     * Monotone, so a reader compares the value it saw last with the value now and only ever asks whether the
+     * two are equal -- nothing reads the number itself, and nothing else depends on its size. One counter for
+     * the whole process, because this class is a singleton; a plain `var` is enough for it because both
+     * writers run on the main dispatcher, one user action at a time.
+     */
+    var sessionGeneration: Int = 0
+        private set
+
+    /**
      * Signs in, reporting what happened rather than only whether it worked.
      *
      * The failure text comes from the server's own refusal body, because the contract sends one for
@@ -46,6 +66,9 @@ class AuthRepository @Inject constructor(
         val body = response.body()
         if (response.isSuccessful && body != null) {
             tokenStore.save(body.token, body.refreshToken)
+            // A session begins here, whoever the operator is: see [sessionGeneration] for why this is the
+            // only beginning that counts, and why the rotation in [refresh] is not a second one.
+            sessionGeneration++
             return LoginResult.Success
         }
 
@@ -86,6 +109,11 @@ class AuthRepository @Inject constructor(
             }
         } finally {
             tokenStore.clear()
+            // The session ends here whether the call arrived, was refused or was cancelled, and that is the
+            // same conditional-ness the clear has: a generation left behind would go on describing the
+            // session this just ended, and the entry that follows it would read the old operator's account
+            // as its own.
+            sessionGeneration++
         }
     }
 
@@ -100,6 +128,9 @@ class AuthRepository @Inject constructor(
      */
     fun forgetSession() {
         tokenStore.clear()
+        // A session that ended without a call to the server is still a session that ended: the password
+        // change that calls this has already revoked every session of this user, this one included.
+        sessionGeneration++
     }
 
     /**

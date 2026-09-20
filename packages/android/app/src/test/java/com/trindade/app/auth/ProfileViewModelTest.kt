@@ -16,6 +16,7 @@ import com.trindade.app.contract.models.UpdateProfileRequest
 import com.trindade.app.network.AuthApi
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
@@ -298,7 +299,7 @@ class ProfileViewModelTest {
     }
 
     @Test
-    fun `a new entry does not leave the previous operator's account readable while its own read is in flight`() {
+    fun `a new session does not leave the previous operator's account readable while its own read is in flight`() {
         // The account of one operator, and then the entry of the next one. The view model is scoped to the
         // activity, so it outlives the session as well as the screen, and what is in state as that second
         // entry begins is the first operator's account. On a shared phone -- A signs out, B signs in and
@@ -309,6 +310,12 @@ class ProfileViewModelTest {
         model.open()
         api.profileGates[0].complete(Unit)
         assertEquals("ana", model.state.value.profile?.username)
+
+        // A's session ends here, through the same path the "Sair" action uses. `logout()` is one of the
+        // operations that move the generation, so the entry below belongs to another session -- and that is
+        // the only thing that lets it know to drop what is in state. Without it this entry would be the same
+        // operator entering again and would keep A's account, which is the finding.
+        model.signOut()
 
         // B's entry, with B's answer held open: this is the whole window the finding is about, and no race
         // is needed to stand in it.
@@ -336,16 +343,128 @@ class ProfileViewModelTest {
     }
 
     @Test
-    fun `a read that fails does not bring the previous operator's account back`() {
-        // The failure path is the one that keeps what it has -- there is no name to seed with, and blanking a
-        // form somebody may be reading is not an answer to a network fault -- so it is the path where an
-        // account left in state would stay on screen for good rather than for the length of a wait.
+    fun `an entry in the same session keeps the account readable while its own read is in flight`() {
+        // The other side of the trade the leak fix made, and the reason the entry asks the generation first:
+        // nobody signed out and nobody signed in, so the account in state is this operator's own. Dropping it
+        // here would blank the screen for the length of a read, when the read is the operator asking again for
+        // the account already in front of them.
         val api = StubAuthApi(gateProfile = true)
         val model = profileViewModel(api)
 
         model.open()
         api.profileGates[0].complete(Unit)
         assertEquals("ana", model.state.value.profile?.username)
+
+        // The same session, and the stored name has moved on since the last read.
+        api.profileAnswer = Response.success(ProfileResponse(user = profileUser(displayName = "Ana S. Souza")))
+        model.open()
+        assertEquals("one read per entry", 2, api.profileGates.size)
+
+        assertEquals("ana", model.state.value.profile?.username)
+        assertEquals("Ana Souza", model.state.value.displayName)
+
+        // And the answer still replaces it: what the entry keeps is a screen that stays useful during the
+        // wait, not a copy that outranks the server.
+        api.profileGates[1].complete(Unit)
+        assertEquals("Ana S. Souza", model.state.value.profile?.displayName)
+        assertEquals("Ana S. Souza", model.state.value.displayName)
+    }
+
+    @Test
+    fun `an entry in the same session keeps a name the operator has typed but not saved`() {
+        // R3-001, which is the price clearing on every entry was paying: the field is the only copy of a name
+        // that has not been sent, so an entry that empties it throws away work the operator had done and had
+        // not been told anything was wrong with.
+        val api = StubAuthApi(gateProfile = true)
+        val model = profileViewModel(api)
+
+        model.open()
+        api.profileGates[0].complete(Unit)
+        model.onDisplayNameChange("Ana Souza Silva")
+
+        model.open()
+
+        assertEquals("Ana Souza Silva", model.state.value.displayName)
+        // The account is kept with it, so the field is not left standing over nothing: with no profile in state
+        // the save would not even be offered, and the typed name would be kept for no use at all.
+        assertEquals("ana", model.state.value.profile?.username)
+        assertEquals(true, model.state.value.canSave)
+
+        // The answer seeds the field from the server when it lands, which is the pre-existing rule: what the
+        // entry keeps is what is in front of the operator now, not a copy that outlives the read.
+        api.profileGates[1].complete(Unit)
+        assertEquals("Ana Souza", model.state.value.displayName)
+    }
+
+    @Test
+    fun `a read that fails in the same session keeps the account and the name`() {
+        // R4-2, the other half of the trade. The failure path already kept a name it could not replace, and
+        // throwing the account away underneath it left an empty account block where the account read a moment
+        // ago belongs -- on a session that has not changed, so the read that failed is no evidence about who is
+        // signed in.
+        val api = StubAuthApi(gateProfile = true)
+        val model = profileViewModel(api)
+
+        model.open()
+        api.profileGates[0].complete(Unit)
+        model.onDisplayNameChange("Ana Souza Silva")
+
+        api.profileAnswer = Response.error(500, errorOnlyBody("Internal error"))
+        model.open()
+        api.profileGates[1].complete(Unit)
+
+        assertEquals("ana", model.state.value.profile?.username)
+        assertEquals("Ana Souza Silva", model.state.value.displayName)
+        // The operator is still told the read failed: keeping the account is not a claim that it worked.
+        assertEquals(ProfileViewModel.UNREACHABLE, model.state.value.message)
+    }
+
+    @Test
+    fun `a rotated token is still the same session, so a re-entry keeps the account`() {
+        // The distinction the generation exists for, from the side that would put the leak back: a refresh is
+        // the same operator in the same session, so counting a rotation as a change would make the entry after
+        // it drop the account of the operator who is still signed in and still looking at the screen. Driven
+        // through the repository's own rotation -- the call that really writes the new pair -- rather than by
+        // anything reaching into the counter.
+        val store = StubTokenStore().also { it.save("token", "refresh") }
+        val api = StubAuthApi(gateProfile = true)
+        val (repository, model) = profileSession(api, store)
+
+        model.open()
+        api.profileGates[0].complete(Unit)
+        assertEquals("ana", model.state.value.profile?.username)
+
+        runBlocking { repository.refresh() }
+        // The rotation really happened through the writing path, so the entry below is the one a rotation
+        // precedes rather than one taken after a call that quietly answered false.
+        assertEquals("rotated", store.accessToken())
+
+        api.profileAnswer = Response.success(ProfileResponse(user = profileUser(displayName = "Ana S. Souza")))
+        model.open()
+
+        // Same operator, same session: the account on screen is still theirs, and only an answer may replace it.
+        assertEquals("ana", model.state.value.profile?.username)
+        assertEquals("Ana Souza", model.state.value.displayName)
+
+        api.profileGates[1].complete(Unit)
+        assertEquals("Ana S. Souza", model.state.value.displayName)
+    }
+
+    @Test
+    fun `a read that fails after the session changed leaves no account and no name`() {
+        // The failure path keeps what the entry left it, so what it keeps depends entirely on that entry. After
+        // the session changed there is nothing of the previous operator's for it to present as this one's, and
+        // this is the path where an account left in state would stay on screen for good rather than for the
+        // length of a wait.
+        val api = StubAuthApi(gateProfile = true)
+        val model = profileViewModel(api)
+
+        model.open()
+        api.profileGates[0].complete(Unit)
+        assertEquals("ana", model.state.value.profile?.username)
+
+        // The session ends, through the same path the "Sair" action uses.
+        model.signOut()
 
         api.profileAnswer = Response.error(500, errorOnlyBody("Internal error"))
         model.open()
@@ -413,7 +532,24 @@ class ProfileViewModelTest {
 private fun profileViewModel(
     api: StubAuthApi = StubAuthApi(),
     store: StubTokenStore = StubTokenStore(),
-) = ProfileViewModel(AuthRepository(api, store, json()))
+) = profileSession(api, store).second
+
+/**
+ * The view model and the repository whose session it reads, for the test that has to *move* the session
+ * rather than only look at it.
+ *
+ * The generation only ever moves through the repository's own operations, so a test that wants a different
+ * session has to go through one of them -- and a test that leaves the repository alone is, by construction,
+ * still in the same session. That is what the rest of these tests rely on, which is why the helper comes in
+ * two shapes instead of the counter ever being handed out.
+ */
+private fun profileSession(
+    api: StubAuthApi = StubAuthApi(),
+    store: StubTokenStore = StubTokenStore(),
+): Pair<AuthRepository, ProfileViewModel> {
+    val repository = AuthRepository(api, store, json())
+    return repository to ProfileViewModel(repository)
+}
 
 private fun profileUser(username: String = "ana", displayName: String = "Ana Souza") = ProfileResponseUser(
     id = 1,
@@ -512,8 +648,15 @@ private class StubAuthApi(
         return Response.success(successBody())
     }
 
+    /**
+     * Implemented because a test needs it, which is what the companion note below asks for: a rotation has to
+     * really reach the store for the test to be about the generation rather than about a call that answered
+     * false before doing anything.
+     */
+    override suspend fun refresh(body: RefreshRequest): Response<RefreshResponse> =
+        Response.success(RefreshResponse(token = "rotated", refreshToken = "rotated-refresh", expiresIn = 900))
+
     override suspend fun login(body: LoginRequest): Response<LoginResponse> = error(NOT_USED)
-    override suspend fun refresh(body: RefreshRequest): Response<RefreshResponse> = error(NOT_USED)
     override suspend fun me(): Response<ProfileResponse> = error(NOT_USED)
     override suspend fun setup(body: SetupRequest): Response<SetupResponse> = error(NOT_USED)
     override suspend fun setupStatus(): Response<SetupStatusResponse> = error(NOT_USED)
