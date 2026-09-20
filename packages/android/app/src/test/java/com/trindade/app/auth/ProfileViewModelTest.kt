@@ -705,6 +705,39 @@ class ProfileViewModelTest {
     }
 
     @Test
+    fun `a superseded check leaves the newer answer as the cached one`() {
+        // The token above keeps a superseded answer off the screen; this is the same rule one layer down,
+        // and the layer a state-only assertion cannot see. The cache outlives the entry that wrote it, so
+        // an answer that landed last would be the one every later entry inside the window is served, for
+        // the whole of its half hour, long after the screen stopped showing it. The cache is written only
+        // by the newest entry, and this is what that has to mean from the outside.
+        val clock = FakeClock()
+        val releases = StubGitHubReleaseApi(gateReleases = true)
+        val model = profileViewModel(releases = releases, clock = clock)
+
+        model.open()
+        model.open()
+
+        // The newer check answers first, with the version really in front of the operator.
+        releases.releaseAnswer = Response.success(GitHubRelease(tagName = "v0.10.0"))
+        releases.releaseGates[1].complete(Unit)
+
+        // And the check that entry replaced answers after it. It must not write, and the cache is not an
+        // exception to that: the next entry is the one that would be given this older answer.
+        releases.releaseAnswer = Response.success(GitHubRelease(tagName = "v0.9.0"))
+        releases.releaseGates[0].complete(Unit)
+        assertEquals(ProfileViewModel.UpdateStatus.Available("0.10.0"), model.state.value.update)
+
+        // A third entry, still inside the window, so it makes no request: what it shows is therefore what
+        // was cached, and that can only be the newer answer.
+        clock.now += 1
+        model.open()
+
+        assertEquals("a fresh cached answer is not a reason to ask again", 2, releases.releaseCalls)
+        assertEquals(ProfileViewModel.UpdateStatus.Available("0.10.0"), model.state.value.update)
+    }
+
+    @Test
     fun `a re-entry after the cached answer has expired checks again and shows nothing yet`() {
         // An entry checks again only once the cached answer is stale, and this is what the cache was added
         // for: what was in state was the previous entry's answer and not this one's, so leaving it in place

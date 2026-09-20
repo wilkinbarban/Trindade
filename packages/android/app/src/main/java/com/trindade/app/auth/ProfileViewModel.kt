@@ -167,7 +167,15 @@ class ProfileViewModel @Inject constructor(
     private var lastSeenGeneration: Int? = null
 
     /**
-     * The last answer a check produced, and when it produced it, or null when none has been recorded.
+     * The last answer a check produced together with the reading it was produced at, or null when none has
+     * been recorded.
+     *
+     * The status and its timestamp are one value rather than two fields, because neither is usable alone:
+     * a status without a reading cannot be told fresh from stale, and a reading without a status is not an
+     * answer at all. Held apart, that joint invariant had to be re-derived at every read and remembered at
+     * every write, so a later edit that wrote one and not the other would either disable the cache silently
+     * or leave a stale answer inside the window reading as a fresh one. Held together, writing a fresh
+     * answer and its reading is one assignment, and there is no way to write half of it.
      *
      * This is the cache [open] consults before asking GitHub again: a re-entry inside
      * [UPDATE_CACHE_MILLIS] shows this answer and makes no request, because the fact it carries changes a
@@ -175,8 +183,17 @@ class ProfileViewModel @Inject constructor(
      * hour per source IP. It is written only when a check produced an answer and never when one failed --
      * see [open] for why a failure is deliberately not remembered.
      */
-    private var lastUpdateAnswer: UpdateStatus? = null
-    private var lastUpdateCheckedAtMillis: Long? = null
+    private var lastUpdate: CachedUpdate? = null
+
+    /**
+     * One cached answer and the clock reading it was produced at, so that the pair cannot come apart.
+     *
+     * A type of its own rather than a `Pair` because both halves are named at the place the invariant is
+     * stated. [checkedAtMillis] is a reading from [Clock] and not a wall-clock date: see [Clock] for why it
+     * has to be monotonic, which is the one property the subtraction in [freshCachedUpdate] depends on for
+     * the window to mean what it says.
+     */
+    private data class CachedUpdate(val status: UpdateStatus, val checkedAtMillis: Long)
 
     /**
      * The cached answer while it is still fresh, or null when there is none or it has expired.
@@ -185,11 +202,10 @@ class ProfileViewModel @Inject constructor(
      * than remembered: half an hour of a bad moment is not an answer, and re-entering the screen is the
      * natural retry.
      */
-    private fun freshCachedUpdate(): UpdateStatus? {
-        val answer = lastUpdateAnswer ?: return null
-        val checkedAt = lastUpdateCheckedAtMillis ?: return null
-        return answer.takeIf { clock.nowMillis() - checkedAt < UPDATE_CACHE_MILLIS }
-    }
+    private fun freshCachedUpdate(): UpdateStatus? =
+        lastUpdate
+            ?.takeIf { clock.nowMillis() - it.checkedAtMillis < UPDATE_CACHE_MILLIS }
+            ?.status
 
     /**
      * Opens the screen: the profile as the server has it, and nothing left over from before.
@@ -303,7 +319,7 @@ class ProfileViewModel @Inject constructor(
         // update line back or take it down with it. What they share is the token.
         viewModelScope.launch {
             // A fresh cached answer is used as it is and GitHub is not asked; otherwise the check runs now.
-            // Note what is not cached: a check that could not be made leaves [lastUpdateAnswer] alone, so the
+            // Note what is not cached: a check that could not be made leaves [lastUpdate] alone, so the
             // next entry retries it rather than showing a cached failure for the length of the window.
             val update = cachedUpdate ?: refreshUpdateCheck()
 
@@ -311,8 +327,9 @@ class ProfileViewModel @Inject constructor(
             // check describes a question the screen has already replaced, and caching it would put its older
             // answer in front of the newer one for every entry after it, not just for this one.
             if (cachedUpdate == null && open == newestOpen && update != UpdateStatus.CouldNotCheck) {
-                lastUpdateAnswer = update
-                lastUpdateCheckedAtMillis = clock.nowMillis()
+                // One assignment for both halves of the cache, so an answer and the reading it is measured
+                // from can never disagree about when it was produced: see [CachedUpdate].
+                lastUpdate = CachedUpdate(update, clock.nowMillis())
             }
 
             // The same token, for the same reason and with the same rule: two entries really can have two

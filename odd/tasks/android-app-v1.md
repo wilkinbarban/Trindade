@@ -1333,6 +1333,61 @@ it could not be attributed to one of them. Its subject matter is closed by `e0ea
 
 ---
 
+### D6. Signing, release and the update path — DONE (three slices, three fix passes)
+
+**D6a — signing, the version rule and the release workflow** (`b34416f`, comments in `bdc7ba9` and
+`ece84e2`). A release keystore at `~/.android-keystores/trindade-release.jks` (PKCS12, alias `trindade`,
+RSA-4096, valid to 2054), its fingerprint and file digest recorded, and an off-machine backup verified by
+restoring it on another host. The version rule: `vX.Y.Z` → versionName `X.Y.Z`, versionCode
+`X*10000+Y*100+Z`. A release build **refuses to build** without a version, a base URL and an explicit
+`-PrequireSigned=true`, and those guards live in an always-running `verifyReleaseBuildDeclarations` task
+because a `doFirst` on a generate task can be skipped when that task is UP-TO-DATE — a guard that fails
+exactly when it is needed. The repository went public after a `gitleaks` run at zero findings; **v0.2.0** is
+published with a signed APK (versionCode 200), and the workflow that signs it is pinned by digest.
+
+**D6b — the download path is visible from the app** (`c283fd3`, four advisories in `4720f27`): the release
+page and the installed version are reachable from the profile, with the hardened `releasesUrl` guard and
+feedback for a device with no browser. Approved on the first pass.
+
+**D6c — the in-app update check** (`b382952`, `acb42bc`): the phone asks GitHub for the latest tag and
+compares it strictly and numerically against the installed version, in a **second, token-free HTTP client**
+(`@GitHubClient`) — the operator's JWT never travels to a third party. No backend or contract change: the
+fact lives in GitHub. 177 tests green; approved on the first pass.
+
+**The advisories of D6c and the local lane, one fix pass** (`aed5e90`), approved on the first pass — and the
+first finding was bigger than itself. **`R3-001` was the third copy of a URL rule that was already wrong in
+two of them**: `githubApiBaseUrl` accepted `https://`, a base with no host that fails inside Retrofit at
+runtime, and reading all three guards before touching one showed that **`apiBaseUrl` had the same hole**
+while only `releasesUrl` had been corrected. There is now **one** `requireUsableUrl` with four call sites.
+**`R4-UPDATE-RATE-LIMIT`**: the check ran on every profile entry against GitHub's **60 requests/hour per
+source IP** anonymous limit, so the answer is cached for thirty minutes and **a failure is never cached**,
+because re-entering the screen is the natural retry. **`R4-001`**: `make ci-android` built against the
+mutable tag while CI and the signing workflow were pinned by digest, so both lanes now carry the digest, in
+**six places across four files** (two in the `Makefile`, one in each workflow, two on the release page),
+with the decision recorded that no shared mechanism was added for a value that moves once or twice a year.
+
+**The closing pass on that review's five advisories**: the clock, the count, the dead conjunct and the cache
+pair. **The freshness window was measured with a wall clock** — `System.currentTimeMillis()` can step
+backwards (an NTP correction, a time change by hand), the difference goes negative, the comparison stays
+true, and a stale answer is served as fresh with GitHub never asked, so the thirty-minute ceiling was
+bounded by the process lifetime instead of by the constant. The binding is now
+`SystemClock.elapsedRealtime()`, and **the requirement is stated on the `Clock` interface rather than beside
+the cache that depends on it**, because whoever writes the next implementation is the one who can put the
+bug back. The document's digest paragraph said three places while the same change had written two more on
+that page; it now says six across four files, "this page included", because the copies a maintainer reads
+and copies from are the ones nothing else can catch. The shared guard lost a conjunct that could never fail
+(`URI.isAbsolute` *is* "has a scheme") and its allowed-scheme comparison became null-tolerant by
+construction instead of by that dead check, and the cache's status and timestamp are **one value** rather
+than two fields whose joint invariant had to be remembered at every write.
+
+**What this slice is worth remembering for**: these reviews found and fixed a cancelled sign-out that revoked
+nothing, a profile leaking one operator's identity to the next, a swallowed `ActivityNotFoundException`, an
+unpinned image in the workflow that signs releases, a missed clear in a failure path, **two more copies of
+an already-corrected guard**, and a wall clock under a freshness window — and one of them produced a
+provable false positive that rode into an escalation because a deterministic blocker gets no refuter.
+
+---
+
 ## Open decisions
 
 1. **B2a vs B2b vs B2c** — RESOLVED: B2c, see the Slice B decision table.

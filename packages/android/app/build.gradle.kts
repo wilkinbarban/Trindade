@@ -163,13 +163,21 @@ fun requireUsableUrl(
     }
 
     val uri = runCatching { URI(value) }.getOrNull()
+    // Lowercased for the sentence below, and compared case-insensitively, so a value is judged the same way
+    // whatever case either side happens to be written in.
     val schemes = allowedSchemes.map { it.lowercase() }
-    val scheme = uri?.scheme?.lowercase()
+    // No `scheme != null` beside `isAbsolute`. `URI.isAbsolute` *is* "this URI has a scheme component" --
+    // that is its definition in java.net.URI -- so a URI that passed that test always has a scheme, and a
+    // separate null test would be dead logic: a fourth requirement in the one rule that exists to stop
+    // having copies, where it would read as though the scheme were an independent thing to get right. The
+    // comparison below still cannot dereference a null without it, and does not rest on the reader knowing
+    // that definition: `String.equals` takes a nullable argument, so a null scheme is compared and answers
+    // false rather than thrown at.
+    val declaredScheme = uri?.scheme
     require(
         uri != null &&
             uri.isAbsolute &&
-            scheme != null &&
-            scheme in schemes &&
+            schemes.any { it.equals(declaredScheme, ignoreCase = true) } &&
             !uri.host.isNullOrBlank(),
     ) {
         "$sentenceLead an absolute ${schemes.joinToString("/")} URL with a host, but got '$value'. $reason"

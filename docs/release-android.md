@@ -112,12 +112,15 @@ Three consequences worth knowing before choosing a tag:
 5. **Never move a tag.** Re-pointing a published tag at a different commit means two different APKs claim
    the same `versionCode`, and Android will install whichever one it sees.
 
-The digest, and not only the tag, is what pins the toolchain here, and it is written in three places that
-must move together: the two `docker run` lines in the `Makefile` (`make ci-android`),
-`.github/workflows/ci.yml` and `.github/workflows/android-release.yml`. There is deliberately no shared
-variable file or script between them: the image changes once or twice a year, and a mechanism would cost
-more to keep correct than the three edits it saves. When the image moves, change all three to the same
-digest.
+The digest, and not only the tag, is what pins the toolchain here, and it is written in **six places across
+four files**, all of which must move together: the two `docker run` lines in the `Makefile`
+(`make ci-android`), `.github/workflows/ci.yml`, `.github/workflows/android-release.yml`, and **two copies
+on this page** — the container the release workflow checks out (Section 3) and the local build command in
+Section 5. There is deliberately no shared variable file or script between them: the image changes once or
+twice a year, and a mechanism would cost more to keep correct than the six edits it saves. When the image
+moves, change all six to the same digest, this page included: its two copies are the ones a maintainer
+reads and copies from, so a page left teaching the old digest is exactly the drift this paragraph exists
+to prevent, and it is the copy nothing else can catch.
 
 ---
 
