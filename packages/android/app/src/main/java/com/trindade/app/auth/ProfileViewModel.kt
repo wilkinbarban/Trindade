@@ -130,9 +130,13 @@ class ProfileViewModel @Inject constructor(
          * `ProfileScreen` draws nothing at all for this state, and that is a decision rather than an
          * omission: a "checking..." line over somebody else's account screen would claim something is being
          * waited for, and it would flicker for one round trip on a line that only matters once there is a
-         * sentence to read. What keeps the silence honest is that it is bounded -- `GitHubClient`'s read
-         * timeout, ten seconds, chosen for this check rather than inherited from a request the operator
-         * made -- so the blank line cannot outlast a wait anybody agreed to. See `NetworkModule`.
+         * sentence to read. What keeps the silence honest is that it is bounded, and the bound belongs to the
+         * client rather than here: `GitHubClient`'s own timeouts, chosen for this check rather than inherited
+         * from a request the operator made, of which the whole-call one is the one that matters, because a
+         * bound on a single read is not a bound on the check. So the blank line cannot outlast a wait anybody
+         * agreed to. The values are `NetworkModule`'s to state and are kept there; what belongs in this
+         * comment is the decision, not a second copy of a number that can be retuned -- a copy here would go
+         * stale without anything to notice it, and a stale bound reads as a promise nobody is keeping.
          */
         data object Checking : UpdateStatus
 

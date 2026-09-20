@@ -27,14 +27,29 @@ object NetworkModule {
     private const val CONNECT_TIMEOUT_SECONDS = 10L
     private const val READ_TIMEOUT_SECONDS = 30L
 
-    // This check's own pair, deliberately not the backend's. What the two bound is not the same thing: the
-    // timeouts above are sized for a request an operator issued and is waiting on, so a slow answer is worth
-    // waiting for. This check is a nicety nobody asked for, and its silence is what the operator sees in
-    // place of an answer -- so it may not be able to last as long as a request they did make. Sharing one
+    // This check's own trio, deliberately not the backend's pair. What they bound is not the same thing:
+    // the timeouts above are sized for a request an operator issued and is waiting on, so a slow answer is
+    // worth waiting for. This check is a nicety nobody asked for, and its silence is what the operator sees
+    // in place of an answer -- so it may not be able to last as long as a request they did make. Sharing one
     // pair between the two clients would keep the manual invariant and dress it as a shared value, which is
     // how the two would silently acquire each other's meaning again.
     private const val GITHUB_CONNECT_TIMEOUT_SECONDS = 5L
     private const val GITHUB_READ_TIMEOUT_SECONDS = 10L
+
+    // The third of the trio, and the one that makes this check's silence a bound rather than a hope.
+    // `readTimeout` bounds one idle socket read and not the call: a server that answers and then trickles a
+    // byte inside every window keeps the call open for as long as it likes, with the screen showing its
+    // `Checking` state and the socket and its coroutine still held, while neither of the timeouts above ever
+    // fires. So this is the timeout the whole check is really measured against -- the read timeout is the
+    // bound on one read, and nothing else here bounds the request.
+    //
+    // Above `readTimeout` on purpose, and by as little as the shape allows: a socket that really does go
+    // quiet should be ended by the tighter, more specific bound, and a whole-call bound placed below it
+    // would take that diagnosis away. Being above it by much would put this client back in the shape the
+    // comment above rejects -- a wait the operator never agreed to, wearing a third name instead of a shared
+    // pair. `GitHubReleaseApiTest` asserts both halves of this: the value, and the behaviour, by trickling a
+    // response that no single read timeout can end.
+    private const val GITHUB_CALL_TIMEOUT_SECONDS = 15L
 
     /**
      * The client, and the Retrofit built on it, that speak to this project's own API.
@@ -95,7 +110,10 @@ object NetworkModule {
      * the builders: the interceptor above is omitted, and the timeouts are this client's own constants rather
      * than the backend's. The timeout half is the one that used to be invisible, because repeating the same
      * two names made the pair look like a shared value: it was not, and a change to one client silently
-     * changed the other's meaning. See the constants at the top of this module for why the values differ.
+     * changed the other's meaning. See the constants at the top of this module for why the values differ,
+     * and note that this client carries a third one the backend's does not -- a bound on the whole call,
+     * which is not the same thing as the bound on one read, and which is the one this check's silence is
+     * measured against.
      *
      * The separate Retrofit below is what keeps the two from being confused for each other -- and it is not
      * possible to confuse them, because both providers are qualified: an unqualified `OkHttpClient` or
@@ -109,6 +127,9 @@ object NetworkModule {
         OkHttpClient.Builder()
             .connectTimeout(GITHUB_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .readTimeout(GITHUB_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            // Not a fourth bound on any one step: this is the cap on the whole call, the one that still
+            // holds when the bytes keep arriving and no single read is ever idle. See the constant above.
+            .callTimeout(GITHUB_CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .build()
 
     @Provides
