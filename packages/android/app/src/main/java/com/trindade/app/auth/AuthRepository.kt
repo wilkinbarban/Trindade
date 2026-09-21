@@ -116,12 +116,19 @@ class AuthRepository @Inject constructor(
             //
             // The throwable is the third argument so its type, message and stack all reach logcat, and
             // the class is repeated in the text as well so that one grep finds the failure without
-            // having to read frames: `Login failed before the server answered: Timeout
+            // having to read frames: `Login failed without a usable answer: Timeout
             // (SocketTimeoutException: timeout)`. Neither the username nor the password is logged; the
             // cause and the exception are what a reader needs, and the credentials are not.
+            //
+            // The prefix says "without a usable answer" rather than "before the server answered", and
+            // the difference is one of the values it now covers: `UnreadableBody` is an answer that
+            // arrived and could not be parsed, so a prefix claiming the server never answered would be
+            // false about it. Every value in the taxonomy shares the thing this wording claims -- the
+            // attempt produced no answer this client could use -- and none of them shares the stronger
+            // claim the old text made.
             logger.w(
                 TAG,
-                "Login failed before the server answered: $cause " +
+                "Login failed without a usable answer: $cause " +
                     "(${failure.javaClass.simpleName}: ${failure.message})",
                 failure,
             )
