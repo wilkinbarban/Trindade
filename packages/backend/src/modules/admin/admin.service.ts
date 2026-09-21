@@ -177,6 +177,30 @@ export function listTasks(db: Database.Database): TaskRow[] {
     .all() as (TaskRow & { category_name: string })[];
 }
 
+/**
+ * The one projection a single task is read through: the returns of both mutations, and the read
+ * `updateTask` answers a no-op PATCH with.
+ *
+ * `SELECT * FROM report_tasks` carries no `task_type` -- that field belongs to the CATEGORY and only
+ * the JOIN to `report_categories` has it -- so a task read without this projection fits no declared
+ * `TaskRow`. Reading one shape in one place is what makes `task_type` a fact of every task these
+ * mutations return instead of a claim each call site makes on its own.
+ *
+ * `better-sqlite3` types `.get()` as untyped, so one cast is unavoidable, and keeping it here is the
+ * point: one unchecked cast in one place, rather than one per call site.
+ */
+function selectTaskById(db: Database.Database, id: number): TaskRow | null {
+  const row = db
+    .prepare(
+      `SELECT rt.*, rc.category_type AS task_type
+       FROM report_tasks rt
+       JOIN report_categories rc ON rt.category_id = rc.id
+       WHERE rt.id = ?`
+    )
+    .get(id) as TaskRow | undefined;
+  return row ?? null;
+}
+
 export async function createTask(
   db: Database.Database,
   data: CreateTaskBody,
@@ -211,14 +235,10 @@ export async function createTask(
     throw err;
   }
 
-  return db
-    .prepare(
-      `SELECT rt.*, rc.category_type AS task_type
-       FROM report_tasks rt
-       JOIN report_categories rc ON rt.category_id = rc.id
-       WHERE rt.id = ?`
-    )
-    .get(result.lastInsertRowid as number) as TaskRow;
+  // The INSERT above just wrote this row, and `category_id` references the category whose existence
+  // was checked at the top, so the JOIN has a row to find: the `null` the helper's honest type
+  // admits is asserted away here, one line below the write that guarantees it.
+  return selectTaskById(db, result.lastInsertRowid as number)!;
 }
 
 export async function updateTask(
@@ -226,9 +246,11 @@ export async function updateTask(
   id: number,
   data: UpdateTaskBody
 ): Promise<TaskRow | null> {
+  // Typed as the columns this read supplies and this function reads. `SELECT *` here has no
+  // `task_type`, so naming `TaskRow` would claim a field nothing could ever show is present.
   const existing = db
     .prepare('SELECT * FROM report_tasks WHERE id = ?')
-    .get(id) as TaskRow | undefined;
+    .get(id) as Pick<TaskRow, 'category_id' | 'temperature_readings' | 'name_pt' | 'name_es'> | undefined;
   if (!existing) return null;
 
   const categoryId = data.category_id ?? existing.category_id;
@@ -274,7 +296,10 @@ export async function updateTask(
     params.push(data.temperature_readings);
   }
 
-  if (updates.length === 0) return existing as TaskRow;
+  // No assignment means no write, so the early return stays -- an UPDATE cannot be built from zero
+  // assignments -- but it now answers the same projection as the path below it, instead of the
+  // unjoined row this branch used to return with a cast over it.
+  if (updates.length === 0) return selectTaskById(db, id);
 
   params.push(id);
   try {
@@ -286,14 +311,7 @@ export async function updateTask(
     throw err;
   }
 
-  return db
-    .prepare(
-      `SELECT rt.*, rc.category_type AS task_type
-       FROM report_tasks rt
-       JOIN report_categories rc ON rt.category_id = rc.id
-       WHERE rt.id = ?`
-    )
-    .get(id) as TaskRow;
+  return selectTaskById(db, id);
 }
 
 export function deleteTask(db: Database.Database, id: number): boolean {

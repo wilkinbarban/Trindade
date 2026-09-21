@@ -139,18 +139,32 @@ can delete a task type.
 tests**, listed in its own `it(...)` blocks; the ledger's older "326" predates the commits between
 C2 and now, so no baseline is asserted — only the total and the attributable delta.
 
-**What P1a surfaced and deliberately did not change** (all outside its authority, all recorded here
-because the next person touching the admin surface needs them):
+**What P1a surfaced** — and the first two are now **closed by the follow-up pass** that the review of this
+slice asked for (`R3-001`, `R3-002`, `R3-003`; the whole write contract was declared and unproved, and
+registering it in P1b would have published it to the Android client):
 
-1. **The task list and the task writes serve different shapes.** `listTasks` selects
-   `rc.name_pt AS category_name` and the write paths do not, so a listed task carries a field a
-   created one does not. Modelled truthfully as two schemas rather than one widened with an optional
-   field — the drift is real and an optional field would hide it.
-2. **A PATCH with no fields changed returns an unprojected row.** `UpdateTaskSchema` is fully
-   optional, and `updateTask` returns the `SELECT *` row when nothing changed — which carries neither
-   `task_type` nor `category_name` and matches **neither** schema. The handler is what looks wrong;
-   the schema was not widened to fit it. The same early return exists for categories, drivers and
-   vehicles, but for those `SELECT *` happens to equal the served shape, so tasks is the only one.
+1. **The task list and the task writes served different shapes — FIXED.** `listTasks` selects
+   `rc.name_pt AS category_name` and the write paths do not, so a listed task carried a field a created
+   one did not. Still modelled as two schemas rather than one widened with an optional field: the drift
+   is real and an optional field would hide it.
+2. **A PATCH with no fields changed returned an unprojected row — FIXED.** `updateTask`'s early return
+   answered with `SELECT * FROM report_tasks`, which carries no `task_type` — that field only exists in
+   the JOIN to `report_categories` — so it matched **neither** declared schema and the `as TaskRow` cast
+   was what kept TypeScript quiet. **This is `F9` of `android-app-v1.md` again, one layer down:** one
+   type describing several runtime shapes, made unfalsifiable by a cast. The fix is `F9`'s fix — a single
+   `selectTaskById` helper both returns now project through, with the one unchecked cast SQLite forces
+   moved into that helper instead of one per call site. The same early-return pattern in
+   `updateCategory`, `updateDriver` and `updateVehicle` is deliberately **left alone**: for those,
+   `SELECT *` equals the served shape, so there is no drift to remove.
+
+   The test that holds it down is `answers a no-op task PATCH with the same declared shape as a real
+   update`, which sends `PATCH /api/admin/tasks/:id` with an empty body — the one case that takes the
+   branch that is not a write. It is the only test of the ten added that could have failed against the
+   old code, and its comment says so, so deleting it restores the defect silently.
+
+The remaining four are recorded and unfixed, because the contract's job is to describe what is served
+and widening a schema to fit a handler is how drift disappears from view:
+
 3. **`audit.service.ts`'s `AuditLogRow.user_id` is typed non-nullable** while `audit_logs.user_id`
    is nullable and `deleteUser` nulls it before deleting, so the LEFT JOIN can serve `user_id: null`.
    The schema documents the query's truth; the interface does not.
