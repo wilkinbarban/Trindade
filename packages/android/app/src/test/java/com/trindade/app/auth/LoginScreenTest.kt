@@ -15,6 +15,7 @@ import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -116,7 +117,11 @@ class LoginScreenTest {
 
         val submitInShortBox = composeRule.onNodeWithText(submitLabel)
         submitInShortBox.assertHeightIsAtLeast(40.dp)
-        val bottomInShortBox = submitInShortBox.getBoundsInRoot().bottom
+        // The bounds come back in dp, not in pixels, and the annotated type says so: `getBoundsInRoot()`
+        // answers in `Dp` -- its `bottom` is a `Dp` whose `.value` is the number of dp -- while the
+        // neighbouring `SemanticsNode.boundsInRoot` is the API that answers in pixels. Naming the unit was
+        // worth a line here because this test is the one the lane's next geometry tests are copied from.
+        val bottomInShortBox: Dp = submitInShortBox.getBoundsInRoot().bottom
 
         val grownBy = 200.dp
         composeRule.runOnUiThread { viewportHeight += grownBy }
@@ -124,7 +129,7 @@ class LoginScreenTest {
 
         val submitInTallBox = composeRule.onNodeWithText(submitLabel)
         submitInTallBox.assertHeightIsAtLeast(40.dp)
-        val bottomInTallBox = submitInTallBox.getBoundsInRoot().bottom
+        val bottomInTallBox: Dp = submitInTallBox.getBoundsInRoot().bottom
 
         val moved = bottomInTallBox.value - bottomInShortBox.value
         val expected = (grownBy / 2).value
