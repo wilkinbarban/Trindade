@@ -1555,7 +1555,7 @@ still needs committing in its own commit.
    the ear is gold or white, and the shipped mark's ear is white while the logomarca's own ear is
    white too — so drawing it from the description alone would be guessing at the one element the
    choice is about. D7's mark stays in place until the preview can be looked at.
-9. **A Compose UI test lane** — **DECIDED (2026-09-21): it is built, and it goes before the
+9. **A Compose UI test lane** — **DECIDED (2026-09-21): it gets built, and it goes before the
    parity track's first UI slice.** `R3-001` of `review-380c84270c06db8c` found that the login
    screen's new scroll container is covered by no test at all: a regression in the modifier order or
    in the centring would go unnoticed, and only a compile and an APK check stand behind it. Closing
@@ -1573,6 +1573,10 @@ still needs committing in its own commit.
    pay now rather than later is that the parity track adds nine surfaces nothing can currently render
    — Dashboard, two edit screens, six admin panels and audit — and this session has already produced
    one real layout regression that no test caught, found only by a reviewer reading the code.
+   **DELIVERED (2026-09-21)** as `T1` of that track. What the lane is, the two mutation controls that
+   make its first tests falsifiable, and the one thing the resources flag broke in the canonical lane —
+   a manifest lookup that began reading the unit-test variant's merge instead of the debug APK's — are
+   recorded in `odd/tasks/android-web-parity.md`.
 
 ## Review workload notes
 

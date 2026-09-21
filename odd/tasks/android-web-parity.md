@@ -214,25 +214,100 @@ and widening a schema to fit a handler is how drift disappears from view:
 and touches no Compose, so this lane does not slow the thing that is blocking; and the lane then lands
 before the first UI slice, which is where the renderable surfaces begin.
 
-### T1. Make a Compose screen renderable in a JVM test
+### T1. A Compose screen renders and is measured in a JVM test — DONE
 
-`R3-001` of `review-380c84270c06db8c` found the login screen's scroll container covered by no test, so a
-regression in its modifier order or its centring would go unnoticed. Nothing in the project can render a
-Compose screen today, and the measurement says what closing that costs: **no `androidTest` source set
-exists**, and an instrumented lane could not run here in any case because the emulator lives on the
-Windows box and is unreachable. The JVM test dependencies are `junit`, `mockwebserver` and
-`kotlinx.coroutines.test`, so the lane means `androidx.compose.ui:ui-test-junit4` (from the BOM),
-`ui-test-manifest` and Robolectric, plus `unitTests.isIncludeAndroidResources = true`.
+**Delivered, and its first test is the case that motivated it.** The module can now render a screen inside
+the existing `:app:testDebugUnitTest` task — no new Gradle task — and assert on the result.
 
-**It has to prove itself against the case that motivated it:** the first test in the lane asserts the
-login screen's scroll container behaves as the fix claims — that a short viewport scrolls to the submit
-button rather than squeezing it, and that the content still centres when it fits. That layout is the one
-regression of this session that no test caught, and a lane that does not cover it would be infrastructure
-built for a hypothetical.
+**What the lane is, in its parts.** `androidx.compose.ui:ui-test-junit4` and `ui-test-manifest` (1.12.1,
+from the Compose BOM) plus Robolectric 4.17 and `androidx.test.ext:junit` 1.3.0; `testOptions {
+unitTests { isIncludeAndroidResources = true } }`, because a rendered screen resolves the strings, the
+drawable and the theme through the app's own `R` rather than a shadow; and `ui-test-manifest` on the
+**debug** variant only, since that artifact is what declares the `ComponentActivity` `createComposeRule()`
+launches. That last one is a debug-only leak in principle, so it was checked in the merged manifests
+rather than assumed: the activity is attributed to `ui-test-manifest` in the debug merge, is present in
+the debug APK's manifest, and appears **zero** times in the release manifest.
 
-**Acceptance:** the lane runs in the existing `:app:testDebugUnitTest` task with no new Gradle task,
-the login scroll test fails if the `verticalScroll` modifier is removed, and the Android lane's runtime
-stays within what the CI image already allows.
+**The API level is pinned in one place**: `app/src/test/resources/robolectric.properties` (`sdk=35`).
+Inheriting it from the merged manifest's `targetSdk` would make a future bump change what every test in
+this lane runs against, and Robolectric resolves a different `android-all` image per level — such a change
+would arrive as a download and a new set of framework behaviours instead of as a decision. It ran on
+`android-all-instrumented-15-robolectric-13954326-i7`, which Robolectric fetches **outside Gradle's
+dependency graph**, into `~/.m2/repository`, at **200 MB**. In CI that `$HOME` is ephemeral, so the lane now downloads it on every run; this is recorded as a cost rather than mitigated, because the offline route
+documented by Robolectric (`dependency.dir` plus a pinned artifact) adds a mechanism whose version has to
+track Robolectric's own per-level pin — a rule with a second copy of itself in it, which is the shape this
+project keeps deleting.
+
+**The rendering is real, not a shadow's idea of it.** `@GraphicsMode(GraphicsMode.Mode.NATIVE)` makes text
+layout go through the framework's own implementation, so a screen measured here is measured the way a
+device measures it. A lane that renders without measuring text would be a second test that cannot fail,
+in a project that has already been bitten by one.
+
+**The rule is the `v2` factory**, `androidx.compose.ui.test.junit4.v2.createComposeRule`. This was decided
+from the artifact rather than from habit: in Compose 1.12.1 the unqualified `createComposeRule` carries a
+`@Deprecated` whose message points at the `v2` one, the `v2` factory carries no experimental marker, and it
+returns the same `ComposeContentTestRule`. The difference is the dispatcher composition is queued on —
+`StandardTestDispatcher` instead of `UnconfinedTestDispatcher`, which queues rather than running
+immediately. This file is the one the lane's next tests get copied from, so it does not start out
+deprecated.
+
+**The two tests, and what each one claims.**
+
+1. `a short viewport scrolls to the submit button instead of squeezing it`. The screen is rendered inside a
+   fixed 400×320dp box, so the viewport is a number the test states rather than a property of whichever
+device Robolectric emulates. Three assertions: the button starts **off screen** (a precondition, and the
+   thing that keeps the test from going quietly vacuous — if the content ever fits, "it can be scrolled to"
+   stops meaning anything); its height is at least 40dp (`ButtonDefaults.MinHeight`, so a squeezed button
+   is the failure rather than a coincidence); and `performScrollTo()` followed by `assertIsDisplayed()`,
+   which is the claim the fix makes.
+2. `the content still centres when the viewport holds it`. Centring is measured as a **difference**: the
+   same screen is rendered in a 700dp box and then a 900dp one, and the submit button's bottom edge must
+   move by half of what the viewport grew by (100dp, ±8). Centred content moves by half; content pinned to
+   the top does not move at all. That needs no knowledge of how tall the content is, so it does not
+   restate the layout it is testing, and the two hypotheses are 100dp apart.
+
+**Both tests were made to fail before either was trusted**, each against exactly the line it names. The
+method matters: the mutated file was bind-mounted over the container's view of that single path
+(`--volume /tmp/<mutated>.kt:/work/.../LoginScreen.kt`), so **no tracked file was ever modified** and
+`git status` on `app/src/main/` was empty after each run.
+
+| Removed from `LoginScreen.kt` | Failing test | Its message |
+| --- | --- | --- |
+| `.verticalScroll(rememberScrollState())` | the short-viewport one | `Actual height is 0.0.dp, expected at least 40.0.dp` |
+| `.heightIn(min = maxHeight)` | the centring one | `the submit button moved 0.0dp when the viewport grew by 200.0dp` |
+
+Each mutation failed **one** test and left the other green, which is what makes them two claims rather than
+one assertion wearing two names.
+
+**Evidence.** Before the change, the lane's own baseline: `19` classes, **202 tests**, 0 failures, 0 errors,
+0 skipped, and `:app:testDebugUnitTest --rerun-tasks` at **222s** (33/33 tasks executed). After: **20**
+classes, **204 tests**, 0 failures, 0 errors, 0 skipped, and the same command at **281s** (38/38 executed).
+The two new tests are the difference, and the arithmetic reconciles exactly. The new class's own suite time
+is 44.9s, most of it Robolectric's first boot in the run; the remaining 14s of the task's growth is the
+resource processing and recompilation the flag adds, which was not separated by measurement.
+
+**The canonical lane, and one thing this change broke in it.** `make ci-android` passes on the final bytes
+(debug APK, unit tests, release APK, the cleartext/`allowBackup` assertions, the deliberate failing release
+build that proves the base-URL guard, and the contract-types check): **`exit 0` twice**, at **629s** for the
+run in which every Gradle task executed, and at **227s** for the run on the final bytes — where
+`:app:testDebugUnitTest` was made to execute rather than report `UP-TO-DATE`, and whose regenerated XML
+reads **20 classes, 204 tests, 0 failures, 0 errors, 0 skipped**. No workflow sets `timeout-minutes`, so the
+lane's 10.5 minutes sit against GitHub's 360-minute default; the composed cost is the 200 MB image plus
+Robolectric's boot, and it is stated rather than left to be discovered.
+
+**A second defect, caused by this one.** `unitTests.isIncludeAndroidResources` makes AGP merge a manifest for
+the unit-test variant of the debug build type, and `scripts/ci-android.sh`'s `merged_manifest_for()`
+chose with `head -1` over candidates decided by the filesystem — so the assertion that claims a property of
+the shipped debug build began reading
+`merged_manifest/debugUnitTest/mergeDebugUnitTestManifest/AndroidManifest.xml`, a manifest no APK is built
+from. Both files happened to satisfy the assertions, so the lane was not lying, but it was no longer reading
+the file it names. Fixed in the same work unit by excluding the unit-test variants from that lookup, with
+the reason in the comment beside it.
+
+**What the lane does not cover.** It renders the stateless composable: `LoginRoute`, Hilt's graph and the
+navigation are not exercised by it, and the nine surfaces of this track still have no rendered test. Nor
+does it replace `E1`'s fourth acceptance criterion — a Robolectric render is a better test than a compile,
+not a substitute for an operator looking at the screen on the emulator.
 
 ---
 
@@ -367,7 +442,8 @@ with no Robolectric and no `ui-test-junit4`, so the lane means `androidx.compose
 
 It also has to prove itself against the case that motivated it: the first test in the lane should
 assert the login screen's scroll container behaves as the fix claims, because that layout is the one
-regression of this session that no test caught.
+regression of this session that no test caught. That is the test T1 shipped, and both halves of it were
+made to fail before either was trusted — see `T1` above.
 
 ## Locked decisions
 
