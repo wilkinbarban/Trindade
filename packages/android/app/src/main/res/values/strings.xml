@@ -4,6 +4,9 @@
     <!-- Portuguese because the operators are: the app's own copy is the only text here that the
          server did not write, and it is the same language the API answers in. -->
     <string name="login_title">Trindade Massas</string>
+    <!-- The web's own tagline for the same screen, from the pt-BR locale's `app.tagline`, so the two
+         clients greet the operator with the same words. -->
+    <string name="login_tagline">Plataforma Operacional</string>
     <string name="login_username">Usuário</string>
     <string name="login_password">Senha</string>
     <string name="login_submit">Entrar</string>
