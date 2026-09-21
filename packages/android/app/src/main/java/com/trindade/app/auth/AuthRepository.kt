@@ -1,6 +1,5 @@
 package com.trindade.app.auth
 
-import android.util.Log
 import com.trindade.app.contract.models.ChangePasswordRequest
 import com.trindade.app.contract.models.ErrorEnvelope
 import com.trindade.app.contract.models.LoginRequest
@@ -8,6 +7,8 @@ import com.trindade.app.contract.models.LogoutRequest
 import com.trindade.app.contract.models.ProfileResponseUser
 import com.trindade.app.contract.models.RefreshRequest
 import com.trindade.app.contract.models.UpdateProfileRequest
+import com.trindade.app.logging.AppLogger
+import com.trindade.app.logging.NoOpAppLogger
 import com.trindade.app.network.AuthApi
 import com.trindade.app.network.runCatchingCancellable
 import java.io.InterruptedIOException
@@ -41,6 +42,7 @@ class AuthRepository @Inject constructor(
     private val api: AuthApi,
     private val tokenStore: TokenStore,
     private val json: Json,
+    private val logger: AppLogger = NoOpAppLogger,
 ) {
 
     /**
@@ -117,7 +119,7 @@ class AuthRepository @Inject constructor(
             // having to read frames: `Login failed before the server answered: Timeout
             // (SocketTimeoutException: timeout)`. Neither the username nor the password is logged; the
             // cause and the exception are what a reader needs, and the credentials are not.
-            Log.w(
+            logger.w(
                 TAG,
                 "Login failed before the server answered: $cause " +
                     "(${failure.javaClass.simpleName}: ${failure.message})",
@@ -142,24 +144,26 @@ class AuthRepository @Inject constructor(
      * Which kind of failure kept a request from producing an answer.
      *
      * The mapping is made once, here, and [UnreachableCause] carries the reasoning behind each value and
-     * the classes it is read from. The order of the branches is not load-bearing -- the three families do
+     * the classes it is read from. The order of the branches is not load-bearing -- the families do
      * not overlap, since `SSLException` is not a `SocketException` -- and it is the order a diagnosis gets
      * simpler in: the client's own clock first, then the address, then the transport.
      *
-     * `SocketTimeoutException` and `ConnectException` are named although `InterruptedIOException` and
-     * `SocketException` cover them. That is deliberate: the pair is what a reader greps for on the device,
-     * and it says which classes this branch is about without the reader having to know either hierarchy.
+     * [UnreachableCause.Timeout] means the request did not answer in time (covering both OkHttp connect
+     * timeout and read timeout). `SocketTimeoutException` and `ConnectException` are named although
+     * `InterruptedIOException` and `SocketException` cover them. That is deliberate: the pair is what a reader
+     * greps for on the device, and it says which classes this branch is about without the reader having to
+     * know either hierarchy.
      *
-     * The `else` is the bucket the last value names, and it is honest about being one. A converter that
-     * could not read a reply arrives here (`kotlinx.serialization.SerializationException`), and so does a
-     * Throwable this client cannot classify -- whose own type and message the log line carries, so the
-     * bucket is never the last word about what happened.
+     * [UnreachableCause.UnreadableBody] is strictly for deserialization failures (`kotlinx.serialization.SerializationException`),
+     * while [UnreachableCause.Unknown] is the residue for any other unclassified Throwable -- whose own
+     * type and message the log line carries, so the fallback is never the last word about what happened.
      */
     private fun Throwable.unreachableCause(): UnreachableCause = when (this) {
         is SocketTimeoutException, is InterruptedIOException -> UnreachableCause.Timeout
         is UnknownHostException, is ConnectException, is SocketException -> UnreachableCause.NoRoute
         is SSLException -> UnreachableCause.Tls
-        else -> UnreachableCause.UnreadableBody
+        is kotlinx.serialization.SerializationException -> UnreachableCause.UnreadableBody
+        else -> UnreachableCause.Unknown
     }
 
     /**

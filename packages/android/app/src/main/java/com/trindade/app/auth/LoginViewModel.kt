@@ -64,19 +64,20 @@ class LoginViewModel @Inject constructor(
     /**
      * The sentence this app has for a failure that never got an answer.
      *
-     * A `when` with no `else` on purpose: a new [UnreachableCause] has to be given a sentence of its own
-     * here rather than inheriting whichever one happened to be last, which is exactly how a timeout came
-     * to be shown the words for a missing server. Only [UnreachableCause.Timeout] has its own sentence,
-     * because it is the only one the generic sentence is false about -- a refused connection, a failed
-     * handshake and an unreadable reply all leave the operator with nothing to do but try again, and the
-     * app has no better words for them than the ones it already has.
+     * A `when` with no `else` on purpose: a new [UnreachableCause] has to be given an explicit mapping
+     * here rather than inheriting whichever one happened to be last. [UnreachableCause.Timeout] maps
+     * to [LoginMessage.Timeout] because the server was slow rather than missing. [UnreachableCause.Tls]
+     * maps to [LoginMessage.Tls] to indicate secure connection/handshake failure. [UnreachableCause.UnreadableBody]
+     * maps to [LoginMessage.UnreadableBody] to indicate an unrecognized payload from the server.
+     * [UnreachableCause.NoRoute] and [UnreachableCause.Unknown] map to [LoginMessage.Unreachable] because
+     * no connection could be established or the failure is unclassified.
      */
     private fun UnreachableCause.toMessage(): LoginMessage = when (this) {
         UnreachableCause.Timeout -> LoginMessage.Timeout
+        UnreachableCause.Tls -> LoginMessage.Tls
+        UnreachableCause.UnreadableBody -> LoginMessage.UnreadableBody
         UnreachableCause.NoRoute,
-        UnreachableCause.Tls,
-        UnreachableCause.UnreadableBody,
-        -> LoginMessage.Unreachable
+        UnreachableCause.Unknown -> LoginMessage.Unreachable
     }
 
     /**

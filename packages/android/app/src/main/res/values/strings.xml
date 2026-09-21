@@ -8,15 +8,12 @@
     <string name="login_password">Senha</string>
     <string name="login_submit">Entrar</string>
     <string name="login_unreachable">Sem conexão com o servidor. Verifique a rede e tente de novo.</string>
-    <!-- The second failure sentence, and the one that exists because the first was a lie about this case.
-         A timeout means the server accepted the connection and took longer to answer than the client was
-         willing to wait, so "sem conexão" sent the operator to check a network that was working. The
-         operator's own report (a login that failed while the same API answered a refusal from the same
-         phone) is exactly that, and it is why this sentence exists. It therefore keeps "verifique a rede"
-         out of it and says only what the client can actually know: the answer was slow. The verb and the
-         closing "tente de novo" are the ones the login sentences above already use for a failed attempt,
-         so the operator reads one voice rather than three. -->
-    <string name="login_timeout">O servidor demorou para responder. Tente de novo.</string>
+    <!-- Failure sentences for unreachable causes.
+         "não respondeu a tempo" covers both OkHttp connect timeout and read timeout without falsely blaming
+         a missing network when the server was merely slow or overwhelmed. -->
+    <string name="login_timeout">O servidor não respondeu a tempo. Tente de novo.</string>
+    <string name="login_tls">Falha na conexão segura com o servidor. Tente de novo.</string>
+    <string name="login_unreadable_body">Resposta do servidor não reconhecida. Tente de novo.</string>
 
     <string name="report_submit">Salvar relatório</string>
     <string name="report_created">Relatório %1$d salvo.</string>

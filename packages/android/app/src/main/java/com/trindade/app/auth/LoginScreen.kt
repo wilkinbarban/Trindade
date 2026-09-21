@@ -74,18 +74,19 @@ fun LoginScreen(
             modifier = Modifier.fillMaxWidth(),
         )
 
-        // The three kinds of failure are rendered differently on purpose. Text from the server is shown as
-        // it arrives, because it describes what happened; a timeout gets this app's own words for a slow
-        // server, because "sem conexão" is false about it and sends the operator to check a network that is
-        // working; and the rest of the unreached cases get the generic sentence, in the app's own language
-        // resources, because there are no server words to repeat. Which case is which is decided by the
-        // view model, not here: this screen renders what it is handed and never looks at a cause.
+        // The failure messages are rendered differently on purpose. Text from the server is shown as
+        // it arrives, because it describes what happened; a timeout gets this app's words for a slow
+        // server ("não respondeu a tempo"); TLS failures and unparseable responses get dedicated messages;
+        // and missing routes or unknown failures get the generic unreachable sentence. Which case is which
+        // is decided by the view model, not here: this screen renders what it is handed and never looks at a cause.
         state.message?.let { message ->
             Spacer(Modifier.height(12.dp))
             Text(
                 text = when (message) {
                     is LoginMessage.FromServer -> message.text
                     LoginMessage.Timeout -> stringResource(R.string.login_timeout)
+                    LoginMessage.Tls -> stringResource(R.string.login_tls)
+                    LoginMessage.UnreadableBody -> stringResource(R.string.login_unreadable_body)
                     LoginMessage.Unreachable -> stringResource(R.string.login_unreachable)
                 },
                 color = MaterialTheme.colorScheme.error,

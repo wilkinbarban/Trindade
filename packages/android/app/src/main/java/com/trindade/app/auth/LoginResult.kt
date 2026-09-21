@@ -86,16 +86,17 @@ enum class UnreachableCause {
     Tls,
 
     /**
-     * Something answered and what came back could not be read as this client's envelope: the
-     * deserialization half, where the converter's own exception arrives out of the call instead of a
-     * status code.
-     *
-     * The last value is also the bucket, and that is stated rather than hidden: a Throwable this taxonomy
-     * cannot name lands here, and the log line carries its type and message so the reader is not left with
-     * the bucket. The screen keeps the generic sentence for both halves, because neither of them leaves
-     * the operator anything to do but try again.
+     * Something answered and what came back could not be read as this client's envelope:
+     * strictly for deserialization failures (`kotlinx.serialization.SerializationException`),
+     * where the converter's own exception arrives out of the call instead of a status code.
      */
     UnreadableBody,
+
+    /**
+     * Any unclassified residual Throwable that this taxonomy does not explicitly name.
+     * The log line carries its type and message so the reader is not left in the dark.
+     */
+    Unknown,
 }
 
 /**
@@ -106,9 +107,9 @@ enum class UnreachableCause {
  * condition this app has its own words for. Folding both into a String field put UI copy inside a
  * ViewModel and made the translation of one of them somebody else's problem.
  *
- * The app's own words are two sentences rather than one, and the split is the same one
- * [UnreachableCause] makes: a wait the client gave up on gets [Timeout], and everything else that never
- * answered gets [Unreachable].
+ * The app's own words are partitioned according to [UnreachableCause]: timeouts get [Timeout],
+ * TLS failures get [Tls], unreadable responses get [UnreadableBody], and missing routes or unknown
+ * errors get [Unreachable].
  */
 sealed interface LoginMessage {
     /** The contract's own words, which describe what actually happened better than the client can. */
@@ -123,6 +124,16 @@ sealed interface LoginMessage {
      */
     data object Timeout : LoginMessage
 
-    /** Nothing answered, so there are no server words to repeat. */
+    /**
+     * A TLS handshake or secure transport failure occurred between the client and the server.
+     */
+    data object Tls : LoginMessage
+
+    /**
+     * The server answered, but the response could not be parsed as a recognized contract envelope.
+     */
+    data object UnreadableBody : LoginMessage
+
+    /** Nothing answered or no route to host was available, so there are no server words to repeat. */
     data object Unreachable : LoginMessage
 }

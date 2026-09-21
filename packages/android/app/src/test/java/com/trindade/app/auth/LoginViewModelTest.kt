@@ -15,9 +15,12 @@ import com.trindade.app.contract.models.SetupResponse
 import com.trindade.app.contract.models.SetupStatusResponse
 import com.trindade.app.contract.models.SuccessResponse
 import com.trindade.app.contract.models.UpdateProfileRequest
+import com.trindade.app.logging.AppLogger
 import com.trindade.app.network.AuthApi
 import java.io.IOException
 import java.io.InterruptedIOException
+import java.net.ConnectException
+import java.net.SocketException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import javax.net.ssl.SSLException
@@ -109,9 +112,11 @@ class LoginViewModelTest {
 
     @Test
     fun `says the server is unreachable rather than blaming the credentials`() {
-        // A plain IOException: the bucket case, and one the generic sentence is still right about.
-        val api = FakeAuthApi(transportFailure = IOException("network down"))
-        val model = LoginViewModel(AuthRepository(api, FakeTokenStore(), json()))
+        // A plain IOException: the residue case, classified as Unknown and logged accordingly.
+        val failure = IOException("network down")
+        val api = FakeAuthApi(transportFailure = failure)
+        val logger = RecordingAppLogger()
+        val model = LoginViewModel(AuthRepository(api, FakeTokenStore(), json(), logger))
         model.onUsernameChange("ana")
         model.onPasswordChange("segredo")
         model.submit()
@@ -120,6 +125,14 @@ class LoginViewModelTest {
         // to repeat, and that is a different statement from a refusal this app has wording for.
         assertEquals(LoginMessage.Unreachable, model.state.value.message)
         assertEquals(false, model.state.value.signedIn)
+
+        // The log line captures the unclassified failure so logcat on the device preserves it.
+        assertEquals(1, logger.entries.size)
+        val entry = logger.entries.single()
+        assertEquals("AuthRepository", entry.tag)
+        assertTrue(entry.message.contains("Unknown"))
+        assertTrue(entry.message.contains("IOException: network down"))
+        assertEquals(failure, entry.throwable)
     }
 
     // The classification, measured where it is made: each of these drives the repository's own login and
@@ -145,6 +158,32 @@ class LoginViewModelTest {
     fun `a name that does not resolve is classified as no route`() {
         val repository = AuthRepository(
             FakeAuthApi(transportFailure = UnknownHostException("trindademasas.duckdns.org")),
+            FakeTokenStore(),
+            json(),
+        )
+
+        val result = runBlocking { repository.login("ana", "segredo") }
+
+        assertEquals(LoginResult.Unreachable(UnreachableCause.NoRoute), result)
+    }
+
+    @Test
+    fun `a refused connection is classified as no route`() {
+        val repository = AuthRepository(
+            FakeAuthApi(transportFailure = ConnectException("Connection refused")),
+            FakeTokenStore(),
+            json(),
+        )
+
+        val result = runBlocking { repository.login("ana", "segredo") }
+
+        assertEquals(LoginResult.Unreachable(UnreachableCause.NoRoute), result)
+    }
+
+    @Test
+    fun `a reset connection is classified as no route`() {
+        val repository = AuthRepository(
+            FakeAuthApi(transportFailure = SocketException("Connection reset")),
             FakeTokenStore(),
             json(),
         )
@@ -197,10 +236,32 @@ class LoginViewModelTest {
         assertEquals(LoginResult.Unreachable(UnreachableCause.UnreadableBody), result)
     }
 
-    // And the two classes the screen has words for, measured where the words are chosen.
+    @Test
+    fun `a residue exception is classified as unknown`() {
+        val failure = IOException("disk error")
+        val logger = RecordingAppLogger()
+        val repository = AuthRepository(
+            FakeAuthApi(transportFailure = failure),
+            FakeTokenStore(),
+            json(),
+            logger,
+        )
+
+        val result = runBlocking { repository.login("ana", "segredo") }
+
+        assertEquals(LoginResult.Unreachable(UnreachableCause.Unknown), result)
+        assertEquals(1, logger.entries.size)
+        val entry = logger.entries.single()
+        assertEquals("AuthRepository", entry.tag)
+        assertTrue(entry.message.contains("Unknown"))
+        assertTrue(entry.message.contains("IOException: disk error"))
+        assertEquals(failure, entry.throwable)
+    }
+
+    // And the classes the screen has words for, measured where the words are chosen.
 
     @Test
-    fun `a timeout reaches the screen as a slow server`() {
+    fun `a timeout reaches the screen as did not answer in time`() {
         val api = FakeAuthApi(transportFailure = SocketTimeoutException("timeout"))
         val model = LoginViewModel(AuthRepository(api, FakeTokenStore(), json()))
         model.onUsernameChange("ana")
@@ -211,6 +272,32 @@ class LoginViewModelTest {
         // Its own message rather than the unreachable one: that sentence tells the operator to check a
         // network, and here the network is the one thing that was working.
         assertEquals(LoginMessage.Timeout, model.state.value.message)
+        assertEquals(false, model.state.value.signedIn)
+    }
+
+    @Test
+    fun `a failed handshake reaches the screen as tls error`() {
+        val api = FakeAuthApi(transportFailure = SSLException("certificate expired"))
+        val model = LoginViewModel(AuthRepository(api, FakeTokenStore(), json()))
+        model.onUsernameChange("ana")
+        model.onPasswordChange("segredo")
+
+        model.submit()
+
+        assertEquals(LoginMessage.Tls, model.state.value.message)
+        assertEquals(false, model.state.value.signedIn)
+    }
+
+    @Test
+    fun `an unreadable body reaches the screen as unreadable body error`() {
+        val api = FakeAuthApi(transportFailure = SerializationException("Unexpected JSON token"))
+        val model = LoginViewModel(AuthRepository(api, FakeTokenStore(), json()))
+        model.onUsernameChange("ana")
+        model.onPasswordChange("segredo")
+
+        model.submit()
+
+        assertEquals(LoginMessage.UnreadableBody, model.state.value.message)
         assertEquals(false, model.state.value.signedIn)
     }
 
@@ -386,3 +473,11 @@ private fun refusalBody(message: String) =
  */
 private fun errorOnlyBody(error: String) =
     """{"error":"$error"}""".toResponseBody()
+
+private class RecordingAppLogger : AppLogger {
+    data class Entry(val tag: String, val message: String, val throwable: Throwable?)
+    val entries = mutableListOf<Entry>()
+    override fun w(tag: String, message: String, throwable: Throwable?) {
+        entries += Entry(tag, message, throwable)
+    }
+}

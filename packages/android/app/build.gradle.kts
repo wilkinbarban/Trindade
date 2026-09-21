@@ -306,21 +306,6 @@ android {
         buildConfig = true
     }
 
-    // Set because these are JVM tests and this app now logs: `android.util.Log` is a stub in the unit test
-    // runtime, and a stub that throws "Method w in android.util.Log not mocked" unless this is asked for.
-    // The failure paths under test -- the login classification above all -- go through `Log.w` on their way
-    // out, so without this the tests that exercise exactly the behaviour this candidate adds would fail on
-    // the mock instead of on their own assertions.
-    //
-    // What it does is return the stubs' default values: the log call answers 0 and writes nowhere. What it
-    // does not do is make the log line testable, and that is not a gap being papered over -- logcat is the
-    // device's surface, where support reads it, and a JVM test asserting the formatted string would be
-    // testing the sentence rather than the classification it is built from. The classification is asserted
-    // directly, from the result the repository hands back.
-    testOptions {
-        unitTests.isReturnDefaultValues = true
-    }
-
     // The contract artifact is the single source of truth for the paths this client speaks, and the
     // test that checks the interfaces against it reads it from the test classpath. Pointing the test
     // resources at the package avoids a copy step and any chance of the copy going stale.
