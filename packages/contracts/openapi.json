@@ -2491,6 +2491,1247 @@
             }
           }
         }
+      },
+      "AdminCategory": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "parent_category_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "name_pt": {
+            "type": "string"
+          },
+          "name_es": {
+            "type": "string"
+          },
+          "category_type": {
+            "type": "string",
+            "enum": [
+              "check",
+              "temperature",
+              "check_assai",
+              "check_normal"
+            ]
+          },
+          "sort_order": {
+            "type": "integer"
+          },
+          "is_active": {
+            "type": "integer"
+          },
+          "created_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "parent_category_id",
+          "name_pt",
+          "name_es",
+          "category_type",
+          "sort_order",
+          "is_active",
+          "created_at"
+        ],
+        "additionalProperties": false
+      },
+      "AdminCategoryResponse": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "parent_category_id": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "name_pt": {
+                "type": "string"
+              },
+              "name_es": {
+                "type": "string"
+              },
+              "category_type": {
+                "type": "string",
+                "enum": [
+                  "check",
+                  "temperature",
+                  "check_assai",
+                  "check_normal"
+                ]
+              },
+              "sort_order": {
+                "type": "integer"
+              },
+              "is_active": {
+                "type": "integer"
+              },
+              "created_at": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "parent_category_id",
+              "name_pt",
+              "name_es",
+              "category_type",
+              "sort_order",
+              "is_active",
+              "created_at"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "category"
+        ],
+        "additionalProperties": false
+      },
+      "AdminCategoriesResponse": {
+        "type": "object",
+        "properties": {
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "parent_category_id": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "name_pt": {
+                  "type": "string"
+                },
+                "name_es": {
+                  "type": "string"
+                },
+                "category_type": {
+                  "type": "string",
+                  "enum": [
+                    "check",
+                    "temperature",
+                    "check_assai",
+                    "check_normal"
+                  ]
+                },
+                "sort_order": {
+                  "type": "integer"
+                },
+                "is_active": {
+                  "type": "integer"
+                },
+                "created_at": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "parent_category_id",
+                "name_pt",
+                "name_es",
+                "category_type",
+                "sort_order",
+                "is_active",
+                "created_at"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "categories"
+        ],
+        "additionalProperties": false
+      },
+      "CreateAdminCategoryRequest": {
+        "type": "object",
+        "properties": {
+          "parent_category_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "exclusiveMinimum": 0
+          },
+          "name_pt": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name_es": {
+            "type": "string",
+            "minLength": 1
+          },
+          "category_type": {
+            "type": "string",
+            "enum": [
+              "check",
+              "temperature",
+              "check_assai",
+              "check_normal"
+            ],
+            "default": "check"
+          },
+          "sort_order": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0
+          }
+        }
+      },
+      "UpdateAdminCategoryRequest": {
+        "type": "object",
+        "properties": {
+          "parent_category_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "exclusiveMinimum": 0
+          },
+          "name_pt": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name_es": {
+            "type": "string",
+            "minLength": 1
+          },
+          "category_type": {
+            "type": "string",
+            "enum": [
+              "check",
+              "temperature",
+              "check_assai",
+              "check_normal"
+            ]
+          },
+          "sort_order": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "is_active": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          }
+        }
+      },
+      "AdminTask": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "category_id": {
+            "type": "integer"
+          },
+          "name_pt": {
+            "type": "string"
+          },
+          "name_es": {
+            "type": "string"
+          },
+          "temperature_readings": {
+            "type": "integer"
+          },
+          "is_active": {
+            "type": "integer"
+          },
+          "created_by_user_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "task_type": {
+            "type": "string",
+            "enum": [
+              "check",
+              "temperature",
+              "check_assai",
+              "check_normal"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "category_id",
+          "name_pt",
+          "name_es",
+          "temperature_readings",
+          "is_active",
+          "created_by_user_id",
+          "created_at",
+          "task_type"
+        ],
+        "additionalProperties": false
+      },
+      "AdminTaskListItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "category_id": {
+            "type": "integer"
+          },
+          "name_pt": {
+            "type": "string"
+          },
+          "name_es": {
+            "type": "string"
+          },
+          "temperature_readings": {
+            "type": "integer"
+          },
+          "is_active": {
+            "type": "integer"
+          },
+          "created_by_user_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "task_type": {
+            "type": "string",
+            "enum": [
+              "check",
+              "temperature",
+              "check_assai",
+              "check_normal"
+            ]
+          },
+          "category_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "category_id",
+          "name_pt",
+          "name_es",
+          "temperature_readings",
+          "is_active",
+          "created_by_user_id",
+          "created_at",
+          "task_type",
+          "category_name"
+        ],
+        "additionalProperties": false
+      },
+      "AdminTaskResponse": {
+        "type": "object",
+        "properties": {
+          "task": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "category_id": {
+                "type": "integer"
+              },
+              "name_pt": {
+                "type": "string"
+              },
+              "name_es": {
+                "type": "string"
+              },
+              "temperature_readings": {
+                "type": "integer"
+              },
+              "is_active": {
+                "type": "integer"
+              },
+              "created_by_user_id": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "created_at": {
+                "type": "string"
+              },
+              "task_type": {
+                "type": "string",
+                "enum": [
+                  "check",
+                  "temperature",
+                  "check_assai",
+                  "check_normal"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "category_id",
+              "name_pt",
+              "name_es",
+              "temperature_readings",
+              "is_active",
+              "created_by_user_id",
+              "created_at",
+              "task_type"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "task"
+        ],
+        "additionalProperties": false
+      },
+      "AdminTasksResponse": {
+        "type": "object",
+        "properties": {
+          "tasks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "category_id": {
+                  "type": "integer"
+                },
+                "name_pt": {
+                  "type": "string"
+                },
+                "name_es": {
+                  "type": "string"
+                },
+                "temperature_readings": {
+                  "type": "integer"
+                },
+                "is_active": {
+                  "type": "integer"
+                },
+                "created_by_user_id": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "created_at": {
+                  "type": "string"
+                },
+                "task_type": {
+                  "type": "string",
+                  "enum": [
+                    "check",
+                    "temperature",
+                    "check_assai",
+                    "check_normal"
+                  ]
+                },
+                "category_name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "category_id",
+                "name_pt",
+                "name_es",
+                "temperature_readings",
+                "is_active",
+                "created_by_user_id",
+                "created_at",
+                "task_type",
+                "category_name"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "tasks"
+        ],
+        "additionalProperties": false
+      },
+      "CreateAdminTaskRequest": {
+        "type": "object",
+        "properties": {
+          "category_id": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "name_pt": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name_es": {
+            "type": "string",
+            "minLength": 1
+          },
+          "temperature_readings": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 3,
+            "default": 1
+          }
+        },
+        "required": [
+          "category_id"
+        ]
+      },
+      "UpdateAdminTaskRequest": {
+        "type": "object",
+        "properties": {
+          "category_id": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "name_pt": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name_es": {
+            "type": "string",
+            "minLength": 1
+          },
+          "is_active": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          },
+          "temperature_readings": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 3
+          }
+        }
+      },
+      "AdminDriver": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "license_plate": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "driver_type": {
+            "type": "string",
+            "enum": [
+              "casa",
+              "fletero"
+            ]
+          },
+          "is_active": {
+            "type": "integer"
+          },
+          "created_by_user_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "license_plate",
+          "driver_type",
+          "is_active",
+          "created_by_user_id",
+          "created_at"
+        ],
+        "additionalProperties": false
+      },
+      "AdminDriverResponse": {
+        "type": "object",
+        "properties": {
+          "driver": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "license_plate": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "driver_type": {
+                "type": "string",
+                "enum": [
+                  "casa",
+                  "fletero"
+                ]
+              },
+              "is_active": {
+                "type": "integer"
+              },
+              "created_by_user_id": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "created_at": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "license_plate",
+              "driver_type",
+              "is_active",
+              "created_by_user_id",
+              "created_at"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "driver"
+        ],
+        "additionalProperties": false
+      },
+      "AdminDriversResponse": {
+        "type": "object",
+        "properties": {
+          "drivers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "license_plate": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "driver_type": {
+                  "type": "string",
+                  "enum": [
+                    "casa",
+                    "fletero"
+                  ]
+                },
+                "is_active": {
+                  "type": "integer"
+                },
+                "created_by_user_id": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "created_at": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "license_plate",
+                "driver_type",
+                "is_active",
+                "created_by_user_id",
+                "created_at"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "drivers"
+        ],
+        "additionalProperties": false
+      },
+      "CreateAdminDriverRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "license_plate": {
+            "type": "string"
+          },
+          "driver_type": {
+            "type": "string",
+            "enum": [
+              "casa",
+              "fletero"
+            ],
+            "default": "fletero"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "UpdateAdminDriverRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "license_plate": {
+            "type": "string"
+          },
+          "driver_type": {
+            "type": "string",
+            "enum": [
+              "casa",
+              "fletero"
+            ]
+          },
+          "is_active": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          }
+        }
+      },
+      "AdminVehicle": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "description": {
+            "type": "string"
+          },
+          "license_plate": {
+            "type": "string"
+          },
+          "is_active": {
+            "type": "integer"
+          },
+          "created_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "description",
+          "license_plate",
+          "is_active",
+          "created_at"
+        ],
+        "additionalProperties": false
+      },
+      "AdminVehicleResponse": {
+        "type": "object",
+        "properties": {
+          "vehicle": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "description": {
+                "type": "string"
+              },
+              "license_plate": {
+                "type": "string"
+              },
+              "is_active": {
+                "type": "integer"
+              },
+              "created_at": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "description",
+              "license_plate",
+              "is_active",
+              "created_at"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "vehicle"
+        ],
+        "additionalProperties": false
+      },
+      "AdminVehiclesResponse": {
+        "type": "object",
+        "properties": {
+          "vehicles": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "license_plate": {
+                  "type": "string"
+                },
+                "is_active": {
+                  "type": "integer"
+                },
+                "created_at": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "description",
+                "license_plate",
+                "is_active",
+                "created_at"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "vehicles"
+        ],
+        "additionalProperties": false
+      },
+      "CreateAdminVehicleRequest": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "license_plate": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "description",
+          "license_plate"
+        ]
+      },
+      "UpdateAdminVehicleRequest": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "license_plate": {
+            "type": "string",
+            "minLength": 1
+          },
+          "is_active": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          }
+        }
+      },
+      "AdminUser": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "username": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "role_id": {
+            "type": "integer"
+          },
+          "role_name": {
+            "type": "string"
+          },
+          "is_active": {
+            "type": "integer"
+          },
+          "created_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "display_name",
+          "role_id",
+          "role_name",
+          "is_active",
+          "created_at"
+        ],
+        "additionalProperties": false
+      },
+      "AdminUserResponse": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "username": {
+                "type": "string"
+              },
+              "display_name": {
+                "type": "string"
+              },
+              "role_id": {
+                "type": "integer"
+              },
+              "role_name": {
+                "type": "string"
+              },
+              "is_active": {
+                "type": "integer"
+              },
+              "created_at": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "username",
+              "display_name",
+              "role_id",
+              "role_name",
+              "is_active",
+              "created_at"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "user"
+        ],
+        "additionalProperties": false
+      },
+      "AdminUsersResponse": {
+        "type": "object",
+        "properties": {
+          "users": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "username": {
+                  "type": "string"
+                },
+                "display_name": {
+                  "type": "string"
+                },
+                "role_id": {
+                  "type": "integer"
+                },
+                "role_name": {
+                  "type": "string"
+                },
+                "is_active": {
+                  "type": "integer"
+                },
+                "created_at": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "username",
+                "display_name",
+                "role_id",
+                "role_name",
+                "is_active",
+                "created_at"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "users"
+        ],
+        "additionalProperties": false
+      },
+      "CreateAdminUserRequest": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "minLength": 1
+          },
+          "password": {
+            "type": "string",
+            "minLength": 4
+          },
+          "display_name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "role_id": {
+            "type": "integer",
+            "enum": [
+              1,
+              2
+            ]
+          }
+        },
+        "required": [
+          "username",
+          "password",
+          "display_name",
+          "role_id"
+        ]
+      },
+      "UpdateAdminUserRequest": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "minLength": 1
+          },
+          "password": {
+            "type": "string",
+            "minLength": 4
+          },
+          "display_name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "role_id": {
+            "type": "integer",
+            "enum": [
+              1,
+              2
+            ]
+          },
+          "is_active": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          }
+        }
+      },
+      "UpdateTimeSlotsRequest": {
+        "type": "object",
+        "properties": {
+          "time_slots": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "time_slots"
+        ]
+      },
+      "AuditLog": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "user_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "display_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "action": {
+            "type": "string"
+          },
+          "entity_type": {
+            "type": "string"
+          },
+          "entity_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "ip_address": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "details": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "user_id",
+          "display_name",
+          "action",
+          "entity_type",
+          "entity_id",
+          "ip_address",
+          "details",
+          "created_at"
+        ],
+        "additionalProperties": false
+      },
+      "AuditResponse": {
+        "type": "object",
+        "properties": {
+          "logs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "user_id": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "display_name": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "action": {
+                  "type": "string"
+                },
+                "entity_type": {
+                  "type": "string"
+                },
+                "entity_id": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "ip_address": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "details": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "created_at": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "user_id",
+                "display_name",
+                "action",
+                "entity_type",
+                "entity_id",
+                "ip_address",
+                "details",
+                "created_at"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "total": {
+            "type": "integer"
+          },
+          "page": {
+            "type": "integer"
+          },
+          "limit": {
+            "type": "integer"
+          },
+          "totalPages": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "logs",
+          "total",
+          "page",
+          "limit",
+          "totalPages"
+        ],
+        "additionalProperties": false
       }
     },
     "parameters": {}
@@ -4645,6 +5886,1335 @@
           },
           "404": {
             "description": "No such photo token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/categories": {
+      "get": {
+        "summary": "List every report category",
+        "description": "Admits Administrador and Trabalhador: those are the only two roles this API defines, so the only refusal from the guard is a missing or invalid token, with 401. This is the management view, so inactive categories are included.",
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Every category, active or not, in sort order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminCategoriesResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a report category",
+        "description": "Administrador only: a Trabalhador is refused with 403, and a missing or invalid token with 401. A category needs a name in Portuguese or Spanish; when only one is sent the server translates the other.",
+        "tags": [
+          "admin"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAdminCategoryRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created category",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminCategoryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request body failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Administrador only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/categories/{id}": {
+      "patch": {
+        "summary": "Update a report category",
+        "description": "Administrador only: a Trabalhador is refused with 403, and a missing or invalid token with 401. Every field is optional; only the ones sent are changed.",
+        "tags": [
+          "admin"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAdminCategoryRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated category",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminCategoryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The identifier is not a number, or the body failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Administrador only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such category",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a report category",
+        "description": "Administrador only: a Trabalhador is refused with 403, and a missing or invalid token with 401. Refused with 400 when something still references the category, which is why deactivating it is the safer edit.",
+        "tags": [
+          "admin"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The category was deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The identifier is not a number, or the category is referenced elsewhere",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Administrador only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such category",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/tasks": {
+      "get": {
+        "summary": "List report tasks with their category name",
+        "description": "Admits Administrador and Trabalhador: those are the only two roles this API defines, so the only refusal from the guard is a missing or invalid token, with 401. The tasks carry their category's `category_name`, which only this listing joins. A Trabalhador is shown only the active tasks; an Administrador sees every task, active or not.",
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "The tasks, each with the name of its category",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminTasksResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a report task",
+        "description": "Admits Administrador and Trabalhador: those are the only two roles this API defines, so the only refusal from the guard is a missing or invalid token, with 401. A task created by a Trabalhador is recorded against that user, which is what lets them later edit and delete it; one created by an Administrador is unattributed. A task inherits its `task_type` from the category it is created under, so the request sends a `category_id` rather than a type.",
+        "tags": [
+          "admin"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAdminTaskRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created task, without the category name that only the list carries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminTaskResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request body failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/tasks/{id}": {
+      "patch": {
+        "summary": "Update a report task",
+        "description": "Admits Administrador and Trabalhador: those are the only two roles this API defines, so the only refusal from the guard is a missing or invalid token, with 401. A Trabalhador may edit only a task they created, and may not set `is_active`; both are refused with 403. An Administrador has neither limit.",
+        "tags": [
+          "admin"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAdminTaskRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated task, without the category name that only the list carries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminTaskResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The identifier is not a number, or the body failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A Trabalhador tried to set is_active, or to edit another user's task",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such task",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a report task",
+        "description": "Admits Administrador and Trabalhador: those are the only two roles this API defines, so the only refusal from the guard is a missing or invalid token, with 401. A Trabalhador may delete only a task they created, and is refused with 403 otherwise. An Administrador may delete any task.",
+        "tags": [
+          "admin"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The task was deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The identifier is not a number, or the task is referenced elsewhere",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A Trabalhador tried to delete another user's task",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such task",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/drivers": {
+      "get": {
+        "summary": "List drivers",
+        "description": "Admits Administrador and Trabalhador: those are the only two roles this API defines, so the only refusal from the guard is a missing or invalid token, with 401. A Trabalhador is shown only the active drivers; an Administrador sees every driver, active or not. Unlike every other admin resource, drivers have no delete route: a driver is deactivated instead.",
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "The drivers, active and -- for an Administrador -- inactive",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminDriversResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a driver",
+        "description": "Admits Administrador and Trabalhador: those are the only two roles this API defines, so the only refusal from the guard is a missing or invalid token, with 401. A Trabalhador may create only a `fletero` driver and is refused with 403 for a `casa` one; an Administrador may create either. A driver created by a Trabalhador is recorded against them.",
+        "tags": [
+          "admin"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAdminDriverRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created driver",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminDriverResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request body failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A Trabalhador tried to create a casa driver",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/drivers/{id}": {
+      "patch": {
+        "summary": "Update a driver",
+        "description": "Admits Administrador and Trabalhador: those are the only two roles this API defines, so the only refusal from the guard is a missing or invalid token, with 401. A Trabalhador may edit only a `fletero` driver they created, may not set `is_active`, and may not change the `driver_type` to `casa`; each of those is refused with 403. An Administrador has none of those limits.",
+        "tags": [
+          "admin"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAdminDriverRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated driver",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminDriverResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The identifier is not a number, or the body failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A Trabalhador tried to set is_active, change the type, or edit another user's driver",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such driver",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/vehicles": {
+      "get": {
+        "summary": "List company vehicles",
+        "description": "Administrador only: a Trabalhador is refused with 403, and a missing or invalid token with 401. This is the management view, so inactive vehicles are included.",
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Every vehicle, active or not",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminVehiclesResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Administrador only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a company vehicle",
+        "description": "Administrador only: a Trabalhador is refused with 403, and a missing or invalid token with 401. A description and a license plate are both required.",
+        "tags": [
+          "admin"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAdminVehicleRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created vehicle",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminVehicleResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request body failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Administrador only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/vehicles/{id}": {
+      "patch": {
+        "summary": "Update a company vehicle",
+        "description": "Administrador only: a Trabalhador is refused with 403, and a missing or invalid token with 401. Every field is optional; only the ones sent are changed.",
+        "tags": [
+          "admin"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAdminVehicleRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated vehicle",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminVehicleResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The identifier is not a number, or the body failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Administrador only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such vehicle",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a company vehicle",
+        "description": "Administrador only: a Trabalhador is refused with 403, and a missing or invalid token with 401. Refused with 400 when something still references the vehicle, which is why deactivating it is the safer edit.",
+        "tags": [
+          "admin"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The vehicle was deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The identifier is not a number, or the vehicle is referenced elsewhere",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Administrador only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such vehicle",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/time-slots": {
+      "get": {
+        "summary": "Read the configured loading time slots",
+        "description": "Administrador only: a Trabalhador is refused with 403, and a missing or invalid token with 401. The same setting the loading module reads under `GET /api/loading/time-slots`, falling back to the built-in daily slots when no setting row exists.",
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "The configured slots in ascending order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimeSlotsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Administrador only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Replace the configured loading time slots",
+        "description": "Administrador only: a Trabalhador is refused with 403, and a missing or invalid token with 401. Replaces the whole list; at least one slot is required.",
+        "tags": [
+          "admin"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTimeSlotsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The slots as stored, in ascending order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimeSlotsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request body failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Administrador only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/users": {
+      "get": {
+        "summary": "List users with their role name",
+        "description": "Administrador only: a Trabalhador is refused with 403, and a missing or invalid token with 401. The projection omits `password_hash` and `updated_at`, and the `role_name` arrives from a join, so every listed user carries it.",
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Every user, with the joined role name",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUsersResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Administrador only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a user",
+        "description": "Administrador only: a Trabalhador is refused with 403, and a missing or invalid token with 401. The password is stored hashed, and a duplicate username is refused with 400.",
+        "tags": [
+          "admin"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAdminUserRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created user, without its password hash",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body failed validation, or the username is already taken",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Administrador only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/users/{id}": {
+      "patch": {
+        "summary": "Update a user",
+        "description": "Administrador only: a Trabalhador is refused with 403, and a missing or invalid token with 401. An administrator editing their own account may change their details or password, but may not change their own `role_id` or `is_active`; that is refused with 403.",
+        "tags": [
+          "admin"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAdminUserRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated user, without its password hash",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The identifier is not a number, the body failed validation, or the username is taken",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Administrador only, or an administrator changing their own role or active flag",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a user",
+        "description": "Administrador only: a Trabalhador is refused with 403, and a missing or invalid token with 401. An administrator may not delete their own account; that is refused with 403.",
+        "tags": [
+          "admin"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The user was deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The identifier is not a number, or the user is referenced elsewhere",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Administrador only, or an administrator deleting their own account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/audit": {
+      "get": {
+        "summary": "Read the paginated audit log",
+        "description": "Administrador only: a Trabalhador is refused with 403, and a missing or invalid token with 401. Ordered newest first, and filterable by action, entity type and user id. A log row whose authoring user was deleted keeps its entry with a null `user_id` and `display_name`.",
+        "tags": [
+          "admin"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "action",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "entityType",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            },
+            "required": false,
+            "name": "userId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page of audit rows with its totals",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The query parameters failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Administrador only",
             "content": {
               "application/json": {
                 "schema": {

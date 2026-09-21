@@ -24,6 +24,16 @@ export const HealthResponseSchema = z
   .object({ status: z.literal('ok'), timestamp: z.string() })
   .strict();
 
+/**
+ * The configured loading time slots, sent under the `timeSlots` envelope.
+ *
+ * The loading module serves this setting and the admin module serves the same setting, so the shape
+ * lives here rather than in either module: two declarations of one response is exactly the drift the
+ * strict schemas exist to prevent. Both modules re-export it so their existing importers keep
+ * working, but this is the single definition.
+ */
+export const TimeSlotsResponseSchema = z.object({ timeSlots: z.array(z.string()) }).strict();
+
 /** The active users the history filters offer, sent as a bare id and display name. */
 export const UserOptionsResponseSchema = z
   .object({

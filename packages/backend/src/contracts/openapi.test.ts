@@ -10,10 +10,22 @@ import {
 } from '../modules/auth/auth.schema.js';
 import { SuccessResponseSchema } from './common.schema.js';
 import { ErrorEnvelopeSchema } from './error.schema.js';
-import { buildOpenApiDocument, documentedPaths } from './openapi.js';
+import { buildOpenApiDocument, documentedPaths, normalizeNumericLiteralUnions } from './openapi.js';
 
 /** The surface this contract currently claims to describe. */
 const EXPECTED_PATHS = [
+  '/api/admin/audit',
+  '/api/admin/categories',
+  '/api/admin/categories/{id}',
+  '/api/admin/drivers',
+  '/api/admin/drivers/{id}',
+  '/api/admin/tasks',
+  '/api/admin/tasks/{id}',
+  '/api/admin/time-slots',
+  '/api/admin/users',
+  '/api/admin/users/{id}',
+  '/api/admin/vehicles',
+  '/api/admin/vehicles/{id}',
   '/api/auth/change-password',
   '/api/auth/login',
   '/api/auth/logout',
@@ -291,6 +303,145 @@ describe('the contract document references its own components', () => {
       dangling,
       [],
       'a reference that resolves to nothing is worse than the repetition it replaces',
+    );
+  });
+});
+
+/**
+ * The seven admin flag fields are why the normalization exists, so they are what the tests name:
+ * `is_active` on the five update requests and `role_id` on the two user requests. Before the step,
+ * each reached the document as an `anyOf` of one-member number enums, which the Kotlin generator
+ * turned into an enum whose values are `java.math.BigDecimal` built from String literals -- a model
+ * a client cannot assign a plain `1` to. The shapes below are the ones a generated client can use.
+ *
+ * The positive assertion runs against `buildOpenApiDocument()`, so deleting the step from the
+ * builder fails here rather than only in a generated client nobody is compiling in this suite.
+ */
+describe('the document normalizes numeric literal unions into integer enums', () => {
+  const document = buildOpenApiDocument();
+  const schemas = (document.components?.schemas ?? {}) as unknown as Record<
+    string,
+    { properties?: Record<string, unknown> } | undefined
+  >;
+
+  /** One named component's field schema, so a test can assert the representation a client receives. */
+  function property(component: string, field: string): unknown {
+    return schemas[component]?.properties?.[field];
+  }
+
+  it('collapses each admin flag union into one integer enum', () => {
+    for (const component of [
+      'UpdateAdminCategoryRequest',
+      'UpdateAdminTaskRequest',
+      'UpdateAdminDriverRequest',
+      'UpdateAdminVehicleRequest',
+      'UpdateAdminUserRequest',
+    ]) {
+      assert.deepStrictEqual(
+        property(component, 'is_active'),
+        { type: 'integer', enum: [0, 1] },
+        `${component}.is_active is not a single integer enum`,
+      );
+    }
+
+    for (const component of ['CreateAdminUserRequest', 'UpdateAdminUserRequest']) {
+      assert.deepStrictEqual(
+        property(component, 'role_id'),
+        { type: 'integer', enum: [1, 2] },
+        `${component}.role_id is not a single integer enum`,
+      );
+    }
+  });
+
+  it('leaves no union of numeric literals anywhere in the built document', () => {
+    const residue: string[] = [];
+
+    const isOneMemberNumberEnum = (member: unknown): boolean => {
+      if (!member || typeof member !== 'object') return false;
+      const record = member as Record<string, unknown>;
+      return (
+        record.type === 'number' &&
+        Array.isArray(record.enum) &&
+        record.enum.length === 1 &&
+        typeof record.enum[0] === 'number'
+      );
+    };
+
+    const walk = (value: unknown, where: string): void => {
+      if (Array.isArray(value)) {
+        value.forEach((entry, index) => walk(entry, `${where}[${index}]`));
+        return;
+      }
+      if (!value || typeof value !== 'object') return;
+      const record = value as Record<string, unknown>;
+
+      for (const key of ['anyOf', 'oneOf']) {
+        const members = record[key];
+        if (Array.isArray(members) && members.length > 0 && members.every(isOneMemberNumberEnum)) {
+          residue.push(`${where}.${key}`);
+        }
+      }
+
+      for (const [key, entry] of Object.entries(record)) walk(entry, `${where}.${key}`);
+    };
+
+    walk(document, 'document');
+    assert.deepStrictEqual(
+      residue,
+      [],
+      'these unions still reach a generated client as BigDecimal-valued enums',
+    );
+  });
+
+  it('leaves a fractional numeric enum exactly as it is', () => {
+    const original = {
+      components: {
+        schemas: {
+          Fractional: {
+            type: 'object',
+            properties: {
+              ratio: {
+                anyOf: [
+                  { type: 'number', enum: [0.5] },
+                  { type: 'number', enum: [1.5] },
+                ],
+              },
+            },
+          },
+        },
+      },
+    };
+
+    const normalized = normalizeNumericLiteralUnions(structuredClone(original));
+    assert.deepStrictEqual(
+      normalized,
+      original,
+      'a union that is not entirely integers must be left untouched',
+    );
+  });
+
+  it('does not rewrite a union that mixes an integer with a fractional value', () => {
+    const original = {
+      anyOf: [
+        { type: 'number', enum: [0] },
+        { type: 'number', enum: [1.5] },
+      ],
+    };
+
+    const normalized = normalizeNumericLiteralUnions(structuredClone(original));
+    assert.deepStrictEqual(normalized, original, 'one fractional member must hold off the whole rewrite');
+  });
+
+  it('is idempotent, and a no-op on the already-normalized built document', () => {
+    const raw = { anyOf: [{ type: 'number', enum: [0] }, { type: 'number', enum: [1] }] };
+    const once = normalizeNumericLiteralUnions(structuredClone(raw));
+    const twice = normalizeNumericLiteralUnions(structuredClone(once));
+    assert.deepStrictEqual(twice, once, 'a second pass over a normalized union changed it');
+
+    assert.deepStrictEqual(
+      normalizeNumericLiteralUnions(structuredClone(document)),
+      document,
+      'the builder already applied the step, so running it again must change nothing',
     );
   });
 });

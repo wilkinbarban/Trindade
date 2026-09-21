@@ -36,11 +36,45 @@ import {
   ScheduleResponseSchema,
   ScheduleSchema,
   SchedulesResponseSchema,
-  TimeSlotsResponseSchema,
   UpdateScheduleSchema,
   VehicleSchema,
   VehiclesResponseSchema,
 } from '../modules/loading/loading.schema.js';
+// Every admin schema is aliased, because the admin surface declares its own `Driver`, `Vehicle` and
+// driver/vehicle envelope names as wider projections than the loading module's same-named schemas.
+// Importing both unaliased would be a duplicate-identifier error; importing the loading one under a
+// bare name and the admin one under an alias would work but read as though the two were the same
+// shape, which is the confusion the Admin component prefix exists to prevent.
+import {
+  CategoriesResponseSchema as AdminCategoriesResponseSchema,
+  CategoryResponseSchema as AdminCategoryResponseSchema,
+  CategorySchema as AdminCategorySchema,
+  CreateCategorySchema as CreateAdminCategorySchema,
+  CreateDriverSchema as CreateAdminDriverSchema,
+  CreateTaskSchema as CreateAdminTaskSchema,
+  CreateUserSchema as CreateAdminUserSchema,
+  CreateVehicleSchema as CreateAdminVehicleSchema,
+  DriverResponseSchema as AdminDriverResponseSchema,
+  DriverSchema as AdminDriverSchema,
+  DriversResponseSchema as AdminDriversResponseSchema,
+  TaskListItemSchema as AdminTaskListItemSchema,
+  TaskResponseSchema as AdminTaskResponseSchema,
+  TaskSchema as AdminTaskSchema,
+  TasksResponseSchema as AdminTasksResponseSchema,
+  UpdateCategorySchema as UpdateAdminCategorySchema,
+  UpdateDriverSchema as UpdateAdminDriverSchema,
+  UpdateTaskSchema as UpdateAdminTaskSchema,
+  UpdateTimeSlotsSchema,
+  UpdateUserSchema as UpdateAdminUserSchema,
+  UpdateVehicleSchema as UpdateAdminVehicleSchema,
+  UserResponseSchema as AdminUserResponseSchema,
+  UserSchema as AdminUserSchema,
+  UsersResponseSchema as AdminUsersResponseSchema,
+  VehicleResponseSchema as AdminVehicleResponseSchema,
+  VehicleSchema as AdminVehicleSchema,
+  VehiclesResponseSchema as AdminVehiclesResponseSchema,
+} from '../modules/admin/admin.schema.js';
+import { AuditLogSchema, AuditQuerySchema, AuditResponseSchema } from '../modules/audit/audit.schema.js';
 import {
   CategoriesResponseSchema,
   CategoryResponseSchema,
@@ -69,6 +103,7 @@ import {
   PaginationSchema,
   SuccessResponseSchema,
   TextResponseSchema,
+  TimeSlotsResponseSchema,
   UserOptionsResponseSchema,
 } from './common.schema.js';
 import { ErrorEnvelopeSchema } from './error.schema.js';
@@ -82,8 +117,10 @@ import { ErrorEnvelopeSchema } from './error.schema.js';
  * document complete: nothing yet compares the routes actually registered against this document,
  * so a route added without a registry entry still escapes the contract silently.
  *
- * The surface is deliberately scoped to field operations. Admin and audit routes are
- * excluded because no mobile client calls them; they join the same registry when one does.
+ * The whole surface is described. The admin and audit routes -- all of them served under
+ * `/api/admin` -- were the last exclusion, and they joined the registry when a mobile client needed
+ * them. Nothing is out of scope now, and `route-coverage.test.ts` asserts that emptiness on purpose
+ * so a future exclusion has to be written down with its reason rather than creeping back in.
  */
 const API_TITLE = 'Trindade Massas Operações API';
 const API_VERSION = '0.1.0';
@@ -187,6 +224,23 @@ const SCHEDULE_ID_PARAMS = z.object({ id: z.string() });
 const REPORT_ID_PARAMS = z.object({ id: z.string() });
 const PHOTO_ID_PARAMS = z.object({ photoId: z.string() });
 const PHOTO_TOKEN_PARAMS = z.object({ token: z.string() });
+const ADMIN_ID_PARAMS = z.object({ id: z.string() });
+
+/**
+ * The role sentence every admin-only operation carries.
+ *
+ * OpenAPI has no vocabulary for roles, so a client author can only learn the guard split from the
+ * text. There are exactly two roles in this API -- `Administrador` and `Trabalhador` -- and the two
+ * guards in `admin.routes.ts` are what split the surface between them. `admin.contract.test.ts`
+ * asserts that split against a running server, so these sentences cannot quietly stop being true.
+ */
+const ADMINISTRATOR_ONLY =
+  'Administrador only: a Trabalhador is refused with 403, and a missing or invalid token with 401.';
+
+/** The role sentence for the operations the `catalogGuard` admits both roles to. */
+const ADMINISTRATOR_OR_WORKER =
+  'Admits Administrador and Trabalhador: those are the only two roles this API defines, so the only ' +
+  'refusal from the guard is a missing or invalid token, with 401.';
 
 function buildRegistry(): OpenAPIRegistry {
   const registry = new OpenAPIRegistry();
@@ -253,6 +307,51 @@ function buildRegistry(): OpenAPIRegistry {
   registerComponent(registry, 'CreateDriverRequest', CreateDriverSchema);
   registerComponent(registry, 'CreateReportRequest', CreateReportBodySchema);
   registerComponent(registry, 'UpdateReportRequest', UpdateReportBodySchema);
+
+  // The admin surface. Every name is prefixed `Admin` because the document already declares
+  // narrower `Driver`, `Vehicle`, `DriversResponse`, `VehiclesResponse`, `CategoriesResponse`, and
+  // `CreateDriverRequest` components from the loading and reports surfaces, and the admin endpoints
+  // serve wider projections than those: a loading driver has no `is_active`, no
+  // `created_by_user_id` and no `created_at`, and a loading vehicle has no `is_active` and no
+  // `created_at`. Reusing the existing names would publish a shape the admin endpoints do not
+  // serve, and the prefix makes the distinction visible in every generated client.
+  //
+  // `AdminTask` and `AdminTaskListItem` are two components because the admin task list joins the
+  // category and carries its `category_name`, while the create and update responses select only the
+  // task's own row; one schema with an optional field would describe neither.
+  //
+  // `TimeSlotsResponse` is deliberately NOT re-registered here. The admin time-slot route serves
+  // the same setting under the same envelope as the loading route, so both reference the single
+  // component registered above.
+  registerComponent(registry, 'AdminCategory', AdminCategorySchema);
+  registerComponent(registry, 'AdminCategoryResponse', AdminCategoryResponseSchema);
+  registerComponent(registry, 'AdminCategoriesResponse', AdminCategoriesResponseSchema);
+  registerComponent(registry, 'CreateAdminCategoryRequest', CreateAdminCategorySchema);
+  registerComponent(registry, 'UpdateAdminCategoryRequest', UpdateAdminCategorySchema);
+  registerComponent(registry, 'AdminTask', AdminTaskSchema);
+  registerComponent(registry, 'AdminTaskListItem', AdminTaskListItemSchema);
+  registerComponent(registry, 'AdminTaskResponse', AdminTaskResponseSchema);
+  registerComponent(registry, 'AdminTasksResponse', AdminTasksResponseSchema);
+  registerComponent(registry, 'CreateAdminTaskRequest', CreateAdminTaskSchema);
+  registerComponent(registry, 'UpdateAdminTaskRequest', UpdateAdminTaskSchema);
+  registerComponent(registry, 'AdminDriver', AdminDriverSchema);
+  registerComponent(registry, 'AdminDriverResponse', AdminDriverResponseSchema);
+  registerComponent(registry, 'AdminDriversResponse', AdminDriversResponseSchema);
+  registerComponent(registry, 'CreateAdminDriverRequest', CreateAdminDriverSchema);
+  registerComponent(registry, 'UpdateAdminDriverRequest', UpdateAdminDriverSchema);
+  registerComponent(registry, 'AdminVehicle', AdminVehicleSchema);
+  registerComponent(registry, 'AdminVehicleResponse', AdminVehicleResponseSchema);
+  registerComponent(registry, 'AdminVehiclesResponse', AdminVehiclesResponseSchema);
+  registerComponent(registry, 'CreateAdminVehicleRequest', CreateAdminVehicleSchema);
+  registerComponent(registry, 'UpdateAdminVehicleRequest', UpdateAdminVehicleSchema);
+  registerComponent(registry, 'AdminUser', AdminUserSchema);
+  registerComponent(registry, 'AdminUserResponse', AdminUserResponseSchema);
+  registerComponent(registry, 'AdminUsersResponse', AdminUsersResponseSchema);
+  registerComponent(registry, 'CreateAdminUserRequest', CreateAdminUserSchema);
+  registerComponent(registry, 'UpdateAdminUserRequest', UpdateAdminUserSchema);
+  registerComponent(registry, 'UpdateTimeSlotsRequest', UpdateTimeSlotsSchema);
+  registerComponent(registry, 'AuditLog', AuditLogSchema);
+  registerComponent(registry, 'AuditResponse', AuditResponseSchema);
 
   // The failure envelopes every path reuses. Declared here rather than at module scope because
   // errorResponse resolves the schema to a component reference, and the map it consults is only
@@ -839,6 +938,393 @@ function buildRegistry(): OpenAPIRegistry {
     },
   });
 
+  // ---- admin: catalog, fleet, users, time slots, and the audit log ----
+  //
+  // Mounted at `/api/admin` by `routes.ts`, which registers both the admin module and the audit
+  // module under that prefix. The two guards in `admin.routes.ts` split the surface: `catalogGuard`
+  // admits Administrador and Trabalhador, and `adminGuard` admits Administrador only. Each
+  // description below states which one applies, because OpenAPI has no way to say it in the schema.
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/admin/categories',
+    summary: 'List every report category',
+    description: `${ADMINISTRATOR_OR_WORKER} This is the management view, so inactive categories are included.`,
+    tags: ['admin'],
+    responses: {
+      200: jsonResponse('Every category, active or not, in sort order', AdminCategoriesResponseSchema),
+      401: UNAUTHORIZED,
+    },
+  });
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/admin/categories',
+    summary: 'Create a report category',
+    description:
+      `${ADMINISTRATOR_ONLY} A category needs a name in Portuguese or Spanish; when only one is sent the ` +
+      'server translates the other.',
+    tags: ['admin'],
+    request: { ...jsonRequest(CreateAdminCategorySchema) },
+    responses: {
+      201: jsonResponse('The created category', AdminCategoryResponseSchema),
+      400: INVALID_INPUT,
+      401: UNAUTHORIZED,
+      403: errorResponse('Administrador only'),
+    },
+  });
+
+  registry.registerPath({
+    method: 'patch',
+    path: '/api/admin/categories/{id}',
+    summary: 'Update a report category',
+    description: `${ADMINISTRATOR_ONLY} Every field is optional; only the ones sent are changed.`,
+    tags: ['admin'],
+    request: {
+      params: ADMIN_ID_PARAMS,
+      ...jsonRequest(UpdateAdminCategorySchema),
+    },
+    responses: {
+      200: jsonResponse('The updated category', AdminCategoryResponseSchema),
+      400: errorResponse('The identifier is not a number, or the body failed validation'),
+      401: UNAUTHORIZED,
+      403: errorResponse('Administrador only'),
+      404: errorResponse('No such category'),
+    },
+  });
+
+  registry.registerPath({
+    method: 'delete',
+    path: '/api/admin/categories/{id}',
+    summary: 'Delete a report category',
+    description:
+      `${ADMINISTRATOR_ONLY} Refused with 400 when something still references the category, which is ` +
+      'why deactivating it is the safer edit.',
+    tags: ['admin'],
+    request: { params: ADMIN_ID_PARAMS },
+    responses: {
+      200: jsonResponse('The category was deleted', SuccessResponseSchema),
+      400: errorResponse('The identifier is not a number, or the category is referenced elsewhere'),
+      401: UNAUTHORIZED,
+      403: errorResponse('Administrador only'),
+      404: errorResponse('No such category'),
+    },
+  });
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/admin/tasks',
+    summary: 'List report tasks with their category name',
+    description:
+      `${ADMINISTRATOR_OR_WORKER} The tasks carry their category's ` +
+      '`category_name`, which only this listing joins. A Trabalhador is shown only the active tasks; ' +
+      'an Administrador sees every task, active or not.',
+    tags: ['admin'],
+    responses: {
+      200: jsonResponse('The tasks, each with the name of its category', AdminTasksResponseSchema),
+      401: UNAUTHORIZED,
+    },
+  });
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/admin/tasks',
+    summary: 'Create a report task',
+    description:
+      `${ADMINISTRATOR_OR_WORKER} A task created by a Trabalhador is recorded against that user, ` +
+      'which is what lets them later edit and delete it; one created by an Administrador is ' +
+      'unattributed. A task inherits its `task_type` from the category it is created under, so the ' +
+      'request sends a `category_id` rather than a type.',
+    tags: ['admin'],
+    request: { ...jsonRequest(CreateAdminTaskSchema) },
+    responses: {
+      201: jsonResponse("The created task, without the category name that only the list carries", AdminTaskResponseSchema),
+      400: INVALID_INPUT,
+      401: UNAUTHORIZED,
+    },
+  });
+
+  registry.registerPath({
+    method: 'patch',
+    path: '/api/admin/tasks/{id}',
+    summary: 'Update a report task',
+    description:
+      `${ADMINISTRATOR_OR_WORKER} A Trabalhador may edit only a task they created, and may not set ` +
+      '`is_active`; both are refused with 403. An Administrador has neither limit.',
+    tags: ['admin'],
+    request: {
+      params: ADMIN_ID_PARAMS,
+      ...jsonRequest(UpdateAdminTaskSchema),
+    },
+    responses: {
+      200: jsonResponse("The updated task, without the category name that only the list carries", AdminTaskResponseSchema),
+      400: errorResponse('The identifier is not a number, or the body failed validation'),
+      401: UNAUTHORIZED,
+      403: errorResponse('A Trabalhador tried to set is_active, or to edit another user\'s task'),
+      404: errorResponse('No such task'),
+    },
+  });
+
+  registry.registerPath({
+    method: 'delete',
+    path: '/api/admin/tasks/{id}',
+    summary: 'Delete a report task',
+    description:
+      `${ADMINISTRATOR_OR_WORKER} A Trabalhador may delete only a task they created, and is refused ` +
+      'with 403 otherwise. An Administrador may delete any task.',
+    tags: ['admin'],
+    request: { params: ADMIN_ID_PARAMS },
+    responses: {
+      200: jsonResponse('The task was deleted', SuccessResponseSchema),
+      400: errorResponse('The identifier is not a number, or the task is referenced elsewhere'),
+      401: UNAUTHORIZED,
+      403: errorResponse("A Trabalhador tried to delete another user's task"),
+      404: errorResponse('No such task'),
+    },
+  });
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/admin/drivers',
+    summary: 'List drivers',
+    description:
+      `${ADMINISTRATOR_OR_WORKER} A Trabalhador is shown only the active drivers; an Administrador ` +
+      'sees every driver, active or not. Unlike every other admin resource, drivers have no delete ' +
+      'route: a driver is deactivated instead.',
+    tags: ['admin'],
+    responses: {
+      200: jsonResponse('The drivers, active and -- for an Administrador -- inactive', AdminDriversResponseSchema),
+      401: UNAUTHORIZED,
+    },
+  });
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/admin/drivers',
+    summary: 'Create a driver',
+    description:
+      `${ADMINISTRATOR_OR_WORKER} A Trabalhador may create only a ` +
+      '`fletero` driver and is refused with 403 for a `casa` one; an Administrador may create ' +
+      'either. A driver created by a Trabalhador is recorded against them.',
+    tags: ['admin'],
+    request: { ...jsonRequest(CreateAdminDriverSchema) },
+    responses: {
+      201: jsonResponse('The created driver', AdminDriverResponseSchema),
+      400: INVALID_INPUT,
+      401: UNAUTHORIZED,
+      403: errorResponse('A Trabalhador tried to create a casa driver'),
+    },
+  });
+
+  registry.registerPath({
+    method: 'patch',
+    path: '/api/admin/drivers/{id}',
+    summary: 'Update a driver',
+    description:
+      `${ADMINISTRATOR_OR_WORKER} A Trabalhador may edit only a ` +
+      '`fletero` driver they created, may not set `is_active`, and may not change the `driver_type` ' +
+      "to `casa`; each of those is refused with 403. An Administrador has none of those limits.",
+    tags: ['admin'],
+    request: {
+      params: ADMIN_ID_PARAMS,
+      ...jsonRequest(UpdateAdminDriverSchema),
+    },
+    responses: {
+      200: jsonResponse('The updated driver', AdminDriverResponseSchema),
+      400: errorResponse('The identifier is not a number, or the body failed validation'),
+      401: UNAUTHORIZED,
+      403: errorResponse("A Trabalhador tried to set is_active, change the type, or edit another user's driver"),
+      404: errorResponse('No such driver'),
+    },
+  });
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/admin/vehicles',
+    summary: 'List company vehicles',
+    description: `${ADMINISTRATOR_ONLY} This is the management view, so inactive vehicles are included.`,
+    tags: ['admin'],
+    responses: {
+      200: jsonResponse('Every vehicle, active or not', AdminVehiclesResponseSchema),
+      401: UNAUTHORIZED,
+      403: errorResponse('Administrador only'),
+    },
+  });
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/admin/vehicles',
+    summary: 'Create a company vehicle',
+    description: `${ADMINISTRATOR_ONLY} A description and a license plate are both required.`,
+    tags: ['admin'],
+    request: { ...jsonRequest(CreateAdminVehicleSchema) },
+    responses: {
+      201: jsonResponse('The created vehicle', AdminVehicleResponseSchema),
+      400: INVALID_INPUT,
+      401: UNAUTHORIZED,
+      403: errorResponse('Administrador only'),
+    },
+  });
+
+  registry.registerPath({
+    method: 'patch',
+    path: '/api/admin/vehicles/{id}',
+    summary: 'Update a company vehicle',
+    description: `${ADMINISTRATOR_ONLY} Every field is optional; only the ones sent are changed.`,
+    tags: ['admin'],
+    request: {
+      params: ADMIN_ID_PARAMS,
+      ...jsonRequest(UpdateAdminVehicleSchema),
+    },
+    responses: {
+      200: jsonResponse('The updated vehicle', AdminVehicleResponseSchema),
+      400: errorResponse('The identifier is not a number, or the body failed validation'),
+      401: UNAUTHORIZED,
+      403: errorResponse('Administrador only'),
+      404: errorResponse('No such vehicle'),
+    },
+  });
+
+  registry.registerPath({
+    method: 'delete',
+    path: '/api/admin/vehicles/{id}',
+    summary: 'Delete a company vehicle',
+    description:
+      `${ADMINISTRATOR_ONLY} Refused with 400 when something still references the vehicle, which is ` +
+      'why deactivating it is the safer edit.',
+    tags: ['admin'],
+    request: { params: ADMIN_ID_PARAMS },
+    responses: {
+      200: jsonResponse('The vehicle was deleted', SuccessResponseSchema),
+      400: errorResponse('The identifier is not a number, or the vehicle is referenced elsewhere'),
+      401: UNAUTHORIZED,
+      403: errorResponse('Administrador only'),
+      404: errorResponse('No such vehicle'),
+    },
+  });
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/admin/time-slots',
+    summary: 'Read the configured loading time slots',
+    description:
+      `${ADMINISTRATOR_ONLY} The same setting the loading module reads under ` +
+      '`GET /api/loading/time-slots`, falling back to the built-in daily slots when no setting row ' +
+      'exists.',
+    tags: ['admin'],
+    responses: {
+      200: jsonResponse('The configured slots in ascending order', TimeSlotsResponseSchema),
+      401: UNAUTHORIZED,
+      403: errorResponse('Administrador only'),
+    },
+  });
+
+  registry.registerPath({
+    method: 'put',
+    path: '/api/admin/time-slots',
+    summary: 'Replace the configured loading time slots',
+    description: `${ADMINISTRATOR_ONLY} Replaces the whole list; at least one slot is required.`,
+    tags: ['admin'],
+    request: { ...jsonRequest(UpdateTimeSlotsSchema) },
+    responses: {
+      200: jsonResponse('The slots as stored, in ascending order', TimeSlotsResponseSchema),
+      400: INVALID_INPUT,
+      401: UNAUTHORIZED,
+      403: errorResponse('Administrador only'),
+    },
+  });
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/admin/users',
+    summary: 'List users with their role name',
+    description:
+      `${ADMINISTRATOR_ONLY} ` +
+      'The projection omits `password_hash` and `updated_at`, and the `role_name` arrives from a ' +
+      'join, so every listed user carries it.',
+    tags: ['admin'],
+    responses: {
+      200: jsonResponse('Every user, with the joined role name', AdminUsersResponseSchema),
+      401: UNAUTHORIZED,
+      403: errorResponse('Administrador only'),
+    },
+  });
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/admin/users',
+    summary: 'Create a user',
+    description:
+      `${ADMINISTRATOR_ONLY} ` +
+      'The password is stored hashed, and a duplicate username is refused with 400.',
+    tags: ['admin'],
+    request: { ...jsonRequest(CreateAdminUserSchema) },
+    responses: {
+      201: jsonResponse('The created user, without its password hash', AdminUserResponseSchema),
+      400: errorResponse('The body failed validation, or the username is already taken'),
+      401: UNAUTHORIZED,
+      403: errorResponse('Administrador only'),
+    },
+  });
+
+  registry.registerPath({
+    method: 'patch',
+    path: '/api/admin/users/{id}',
+    summary: 'Update a user',
+    description:
+      `${ADMINISTRATOR_ONLY} ` +
+      'An administrator editing their own account may change their details or password, but may not ' +
+      'change their own `role_id` or `is_active`; that is refused with 403.',
+    tags: ['admin'],
+    request: {
+      params: ADMIN_ID_PARAMS,
+      ...jsonRequest(UpdateAdminUserSchema),
+    },
+    responses: {
+      200: jsonResponse('The updated user, without its password hash', AdminUserResponseSchema),
+      400: errorResponse('The identifier is not a number, the body failed validation, or the username is taken'),
+      401: UNAUTHORIZED,
+      403: errorResponse('Administrador only, or an administrator changing their own role or active flag'),
+      404: errorResponse('No such user'),
+    },
+  });
+
+  registry.registerPath({
+    method: 'delete',
+    path: '/api/admin/users/{id}',
+    summary: 'Delete a user',
+    description:
+      `${ADMINISTRATOR_ONLY} ` +
+      'An administrator may not delete their own account; that is refused with 403.',
+    tags: ['admin'],
+    request: { params: ADMIN_ID_PARAMS },
+    responses: {
+      200: jsonResponse('The user was deleted', SuccessResponseSchema),
+      400: errorResponse('The identifier is not a number, or the user is referenced elsewhere'),
+      401: UNAUTHORIZED,
+      403: errorResponse('Administrador only, or an administrator deleting their own account'),
+      404: errorResponse('No such user'),
+    },
+  });
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/admin/audit',
+    summary: 'Read the paginated audit log',
+    description:
+      `${ADMINISTRATOR_ONLY} ` +
+      'Ordered newest first, and filterable by action, entity type and user id. A log row whose ' +
+      'authoring user was deleted keeps its entry with a null `user_id` and `display_name`.',
+    tags: ['admin'],
+    request: { query: AuditQuerySchema },
+    responses: {
+      200: jsonResponse('One page of audit rows with its totals', AuditResponseSchema),
+      400: errorResponse('The query parameters failed validation'),
+      401: UNAUTHORIZED,
+      403: errorResponse('Administrador only'),
+    },
+  });
+
   // ---- dashboard, and the routes that belong to no module ----
 
   registry.registerPath({
@@ -896,12 +1382,106 @@ function buildRegistry(): OpenAPIRegistry {
 
   return registry;
 }
+
+/**
+ * Collapse a union of numeric literals into one integer enum.
+ *
+ * The defect this prevents, stated exactly: `z.union([z.literal(0), z.literal(1)])` is emitted by
+ * zod-to-openapi as `anyOf: [{ type: 'number', enum: [0] }, { type: 'number', enum: [1] }]`. The
+ * Kotlin generator reads each branch as its own one-member number enum and, because the values are
+ * whole numbers, renders the constants as `java.math.BigDecimal` built from String literals -- so a
+ * generated client cannot assign `1` to the field without wrapping it, and the model stops
+ * describing the JSON integer the server actually accepts. Collapsing the union into
+ * `{ type: 'integer', enum: [0, 1] }` is the shape that generates a plain Kotlin `Int`.
+ *
+ * The rewrite is deliberately narrow. Every member must be a single-value enum of a NUMBER and
+ * every collected value must be an integer, so a genuine enum such as `0.5, 1.5` is left exactly as
+ * it is: this fixes the typing of wire integers, it does not coerce numbers. It is idempotent,
+ * because the result carries no `anyOf`/`oneOf` for a second pass to match.
+ *
+ * It runs over the whole finished document from `buildOpenApiDocument` rather than over each schema
+ * at registration, so no future schema author has to remember to opt in: a numeric-literal union
+ * that reaches the document is normalized, or it is fractional and is deliberately kept.
+ */
+const NUMERIC_UNION_KEYS = ['anyOf', 'oneOf'] as const;
+
+/**
+ * A union member that is a single-value enum of a number, which is how zod-to-openapi renders a
+ * numeric `z.literal`. A one-member `enum` is the whole tell: anything else -- a multi-value member,
+ * a `const`, a different type -- makes the union something other than a list of numeric literals.
+ */
+function isSingleNumberLiteral(member: unknown): member is { type: 'number'; enum: [number] } {
+  if (!member || typeof member !== 'object') return false;
+  const candidate = member as Record<string, unknown>;
+  return (
+    candidate.type === 'number' &&
+    Array.isArray(candidate.enum) &&
+    candidate.enum.length === 1 &&
+    typeof candidate.enum[0] === 'number'
+  );
+}
+
+/**
+ * The integer values a schema's union spells out, or null when the schema is not a union of integer
+ * literals. Returned in member order so the enum keeps the order the schema declared.
+ */
+function integerLiteralUnionValues(schema: Record<string, unknown>): number[] | null {
+  for (const key of NUMERIC_UNION_KEYS) {
+    const members = schema[key];
+    if (!Array.isArray(members) || members.length === 0) continue;
+
+    const values: number[] = [];
+    let everyMemberIsNumberLiteral = true;
+    for (const member of members) {
+      if (!isSingleNumberLiteral(member)) {
+        everyMemberIsNumberLiteral = false;
+        break;
+      }
+      values.push(member.enum[0]);
+    }
+    if (!everyMemberIsNumberLiteral) continue;
+    // The guard that keeps this from being a blunt instrument: one fractional value means the union
+    // is a real numeric enum, not a set of integer flags, and it is left for the generator to render.
+    if (!values.every(Number.isInteger)) continue;
+
+    return values;
+  }
+  return null;
+}
+
+/**
+ * See the comment above `NUMERIC_UNION_KEYS` for the defect this prevents. Exported so a test can
+ * prove the guard on a fractional enum, which the built document deliberately does not contain.
+ */
+export function normalizeNumericLiteralUnions<T>(document: T): T {
+  const visit = (value: unknown): void => {
+    if (Array.isArray(value)) {
+      value.forEach(visit);
+      return;
+    }
+    if (!value || typeof value !== 'object') return;
+
+    const schema = value as Record<string, unknown>;
+    const values = integerLiteralUnionValues(schema);
+    if (values) {
+      for (const key of NUMERIC_UNION_KEYS) delete schema[key];
+      schema.type = 'integer';
+      schema.enum = values;
+    }
+
+    for (const entry of Object.values(schema)) visit(entry);
+  };
+
+  visit(document);
+  return document;
+}
+
 /** Build the OpenAPI 3.1 document. Pure: it reads schemas and returns an object. */
 export function buildOpenApiDocument() {
   const registry = buildRegistry();
   const generator = new OpenApiGeneratorV31(registry.definitions);
 
-  return generator.generateDocument({
+  const document = generator.generateDocument({
     openapi: '3.1.0',
     info: {
       title: API_TITLE,
@@ -912,6 +1492,10 @@ export function buildOpenApiDocument() {
     },
     servers: [{ url: 'https://trindademasas.duckdns.org', description: 'Production' }],
   });
+
+  // Applied inside the builder, so `documentedPaths`, `documentedOperations` and the generator
+  // entry point all return a normalized document: there is no path that reaches a client without it.
+  return normalizeNumericLiteralUnions(document);
 }
 
 /** Every path this contract currently describes, in document order. */

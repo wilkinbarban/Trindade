@@ -9,12 +9,14 @@ import { documentedOperations } from './openapi.js';
 /**
  * Routes the contract deliberately does not describe, and why.
  *
- * Admin and audit are excluded because no mobile client consumes them: the scope decision is field
- * operations only, and those two surfaces join the registry when a client needs them. Everything
- * else must appear in the document, so a new route forces a decision here instead of slipping past
- * the contract unnoticed.
+ * The set is empty, and that emptiness is a decision rather than an oversight: the document now
+ * describes every route the server registers. It held `/api/admin` until a mobile client needed the
+ * admin and audit surfaces, which is the condition the old entry itself named as its removal
+ * trigger. The constant stays so the emptiness is asserted rather than assumed, and this paragraph
+ * is where a future exclusion records its reason: a route left undescribed has to be a decision
+ * someone writes down, not a gap that opens silently.
  */
-const OUT_OF_SCOPE_PREFIXES = ['/api/admin'];
+const OUT_OF_SCOPE_PREFIXES: string[] = [];
 
 /** The document writes OpenAPI templates; Fastify registers `:param` routes. Compare in one form. */
 function toFastifyPath(documentPath: string): string {
@@ -95,16 +97,15 @@ describe('the contract covers exactly the routes the server serves', () => {
     assert.deepStrictEqual(phantom, [], 'the document describes operations that do not exist');
   });
 
-  // The exclusion is a scope decision, so it is asserted rather than assumed: if admin or audit
-  // routes were ever registered somewhere else, the first test above would start failing with them
-  // named, which is the intended signal.
-  it('excludes only the declared out-of-scope prefixes', () => {
-    const excluded = registered.filter((route) =>
-      OUT_OF_SCOPE_PREFIXES.some((prefix) => route.url.startsWith(prefix)),
+  // The exclusion set is empty, and the assertion says so deliberately. The previous form asserted
+  // that something *was* excluded, which is exactly what would have turned this correct change red:
+  // an empty set fails `excluded.length > 0`. Asserting the emptiness keeps the guarantee the old
+  // test provided -- a scope exclusion cannot appear unnoticed -- in the form the new state allows.
+  it('has nothing out of scope any more, and says so deliberately', () => {
+    assert.deepStrictEqual(
+      OUT_OF_SCOPE_PREFIXES,
+      [],
+      'the out-of-scope set is no longer empty: a new exclusion needs its own reason written here',
     );
-    assert.ok(excluded.length > 0, 'the out-of-scope set matched nothing, so it may be stale');
-    for (const route of excluded) {
-      assert.ok(route.url.startsWith('/api/admin'), `${route.url} was excluded for the wrong reason`);
-    }
   });
 });

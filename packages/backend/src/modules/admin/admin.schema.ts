@@ -206,10 +206,10 @@ export const UserSchema = z
   .strict();
 
 // The admin time-slot route serves the same `settings.loading_time_slots` value under the same
-// envelope as the loading module, so the shape is reused instead of re-declared. Its canonical home
-// is `contracts/common.schema.ts`; until that shared file is touched it stays owned by loading and is
-// re-exported here so the admin surface reads as complete.
-export { TimeSlotsResponseSchema } from '../loading/loading.schema.js';
+// envelope as the loading module, so the shape is reused instead of re-declared. Its single
+// definition lives in `contracts/common.schema.ts`, next to the other shapes more than one module
+// returns, and it is re-exported here because the admin contract test imports it from this module.
+export { TimeSlotsResponseSchema } from '../../contracts/common.schema.js';
 
 // ---- Response Envelopes ----
 //

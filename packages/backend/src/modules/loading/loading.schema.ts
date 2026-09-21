@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PaginationSchema } from '../../contracts/common.schema.js';
+import { PaginationSchema, TimeSlotsResponseSchema } from '../../contracts/common.schema.js';
 
 // ---- Query Params ----
 
@@ -158,7 +158,11 @@ export const DriverResponseSchema = z.object({ driver: DriverSchema }).strict();
 
 export const VehiclesResponseSchema = z.object({ vehicles: z.array(VehicleSchema) }).strict();
 
-export const TimeSlotsResponseSchema = z.object({ timeSlots: z.array(z.string()) }).strict();
+// Defined in `contracts/common.schema.ts`, which holds the shapes more than one module returns, and
+// re-exported here because the loading contract test and the contract generator already import it
+// from this module. Reusing the shared definition is what keeps the loading and admin responses the
+// same shape instead of two declarations that can drift apart.
+export { TimeSlotsResponseSchema };
 
 // The types the service and the routes keep importing, derived from the schemas so they cannot
 // drift away from the contract.
