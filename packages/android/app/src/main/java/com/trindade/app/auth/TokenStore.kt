@@ -16,10 +16,26 @@ interface TokenStore {
     fun refreshToken(): String?
 
     /**
+     * The role the current session was opened with, or null when there is no session.
+     *
+     * Beside the tokens rather than in a store of its own, because it is the same fact: a session is what
+     * the server granted at sign-in, and the role came with it. Two stores for one session is how the two
+     * get to disagree.
+     */
+    fun role(): String?
+
+    /**
      * Replace both tokens. Called on login and on every refresh, because the server rotates the pair
      * and the old refresh token stops being valid the moment the new one is issued.
      */
     fun save(accessToken: String, refreshToken: String)
+
+    /**
+     * Record the role the session was opened with. Separate from [save] because the pair rotates and the role
+     * does not -- the refresh response carries no role, a rotation is the same operator -- so only sign-in
+     * calls this.
+     */
+    fun saveRole(role: String)
 
     /**
      * Forget the session. Called on logout, and whenever a refresh fails: a store holding a token

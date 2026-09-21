@@ -171,13 +171,17 @@ private class CancellingAuthApi(private val cancellation: CancellationException)
 }
 
 /**
- * A store nothing reaches: the sign-in above throws before the repository can read or write a token,
- * so any call arriving here is one this test would be wrong to make.
+ * A store nothing reaches: the sign-in above throws before the repository can read or write a token, so any
+ * call arriving here is one this test would be wrong to make. That covers the two role members the same way it
+ * covers the pair: the role is recorded only after a sign-in has answered a token, and this fake is reached by
+ * one that never answers at all.
  */
 private class UnusedTokenStore : TokenStore {
     override fun accessToken(): String? = error(NOT_USED)
     override fun refreshToken(): String? = error(NOT_USED)
+    override fun role(): String? = error(NOT_USED)
     override fun save(accessToken: String, refreshToken: String) = error(NOT_USED)
+    override fun saveRole(role: String) = error(NOT_USED)
     override fun clear() = error(NOT_USED)
 }
 
@@ -187,8 +191,10 @@ private class UnusedTokenStore : TokenStore {
  * The refresh token is what puts the cancelling sign-out call within reach: with nothing in the store the
  * repository never asks the server, and a test would be asserting about a call that was never made. The
  * count is the other half of that path and the only place the clear is visible at all, because
- * [AuthRepository.logout] answers nothing. `accessToken` and `save` throw, following [UnusedTokenStore]:
- * signing out reaches neither.
+ * [AuthRepository.logout] answers nothing. `accessToken`, `save`, `role` and `saveRole` throw, following
+ * [UnusedTokenStore], and the sign-out path is what leaves that honest rather than convenient: it reads the
+ * refresh token, asks the server, and clears -- it records no role, because only a sign-in does, and no test
+ * that uses this store or that one ever completes a sign-in.
  */
 private class SignOutTokenStore : TokenStore {
 
@@ -198,7 +204,9 @@ private class SignOutTokenStore : TokenStore {
 
     override fun accessToken(): String? = error(NOT_USED)
     override fun refreshToken(): String? = REFRESH_TOKEN
+    override fun role(): String? = error(NOT_USED)
     override fun save(accessToken: String, refreshToken: String) = error(NOT_USED)
+    override fun saveRole(role: String) = error(NOT_USED)
     override fun clear() {
         clears++
     }

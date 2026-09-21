@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -21,6 +22,7 @@ import androidx.compose.ui.res.stringResource
 import com.trindade.app.auth.AuthRepository
 import com.trindade.app.auth.LoginRoute
 import com.trindade.app.auth.ProfileRoute
+import com.trindade.app.auth.RolePolicy
 import com.trindade.app.loading.LoadingHistoryRoute
 import com.trindade.app.loading.LoadingRoute
 import com.trindade.app.reports.ReportDetailRoute
@@ -33,8 +35,23 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
-    /** The two top-level surfaces. Nothing else is a destination yet. */
-    private enum class Tab { REPORTS, LOADING }
+    /** The two top-level surfaces this build can draw. Nothing else is a destination yet. */
+    private enum class Tab(@StringRes val label: Int) {
+        REPORTS(R.string.nav_reports),
+        LOADING(R.string.nav_loading),
+    }
+
+    /**
+     * What this build can draw, in the order the row shows them.
+     *
+     * What the app *has* is this list; whether a role may see one is `RolePolicy`'s answer, asked in the row
+     * below. The admin surfaces the parity track commits to are missing here because they are not built yet, not
+     * because nobody may see them: when one lands it joins this list and the policy decides who gets it.
+     */
+    private val destinations = listOf(
+        RolePolicy.EntryPoint.REPORTS to Tab.REPORTS,
+        RolePolicy.EntryPoint.LOADING to Tab.LOADING,
+    )
 
     @Inject
     lateinit var authRepository: AuthRepository
@@ -70,6 +87,11 @@ class MainActivity : ComponentActivity() {
                 var loadingDayFromHistory by remember { mutableStateOf(false) }
                 // Which of the two top-level surfaces is showing. Reports is where a shift starts.
                 var tab by remember { mutableStateOf(Tab.REPORTS) }
+                // The role this session was opened with. Read once per session rather than observed, for the reason
+                // `hasSession()` above gives: it is a SharedPreferences read, and the answer cannot change while the session
+                // is the same one -- the server hands the role over at sign-in and a token rotation carries none. Keyed on
+                // `signedIn`, which is exactly when a new role can arrive.
+                val role = remember(signedIn) { authRepository.sessionRole() }
 
                 /**
                  * Leaves the app: the session is over, so nothing may be left armed for the next one.
@@ -195,8 +217,12 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            TextButton(onClick = { tab = Tab.REPORTS }) { Text(stringResource(R.string.nav_reports)) }
-                            TextButton(onClick = { tab = Tab.LOADING }) { Text(stringResource(R.string.nav_loading)) }
+                            // The row is drawn from the policy, not from `destinations` alone: the list says what
+                            // the app has and the policy says what this role may open, and this is the one place
+                            // the two meet.
+                            RolePolicy.visibleDestinations(role, destinations).forEach { destination ->
+                                TextButton(onClick = { tab = destination }) { Text(stringResource(destination.label)) }
+                            }
                             Spacer(Modifier.weight(1f))
                             TextButton(onClick = { profileOpen = true }) { Text(stringResource(R.string.profile_title)) }
                         }

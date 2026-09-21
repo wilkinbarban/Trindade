@@ -395,7 +395,9 @@ a review on this candidate:
 | `R3-002` | reliability | `build.gradle.kts:500` | the Robolectric fetch is a precondition of the whole test task | duplicate of `R4-1` seen from the other lens |
 | `R4-1` | resilience | `build.gradle.kts:500` | the 200 MB `android-all-instrumented` fetch outside Gradle's graph, re-downloaded every CI run, with no cache, retry or offline fallback, failing **every** unit test in the module on a transient outage | **true** |
 
-**All five were closed or decided in one work unit**, and the shape of each closure is worth a line:
+**Five findings were closed or decided in one work unit, and they came from two reviews**: the four in the
+table above that are not `R2-003` -- which was closed as that record was written, not later -- plus
+`R3-003`, which the third line found. The shape of each closure is worth a line:
 
 * `R2-001` — **fixed**: the first test's KDoc now names the second assertion as the one the recorded
   mutation trips first and the third as the one the same mutation makes impossible, which is what the
@@ -409,7 +411,8 @@ a review on this candidate:
   unit-test variant to fail. So this is not the repair of an observed failure; it is the test declaring
   which variant owns it, which is what keeps a future release unit-test variant from inheriting one that
   cannot launch.
-* `R3-003` — **fixed, and it is the one that changes behaviour**, with the evidence a fix to a guard
+* `R3-003` — **fixed, and it is the one that changes behaviour** (the finding that came from the third line
+  below rather than from the table above), with the evidence a fix to a guard
   deserves. The centring test's guard asserted a height, and the scroll container this fix installs is
   exactly what keeps that height at 40dp in both regimes, so the guard held while the regime it named had
   already broken. It now requires both ends of the content to be on screen at once. Falsified in both
@@ -480,6 +483,54 @@ flipping the policy to grant one makes that test fail.
 
 **Why it lands before the admin surface and not with it:** every later slice asks this question,
 and answering it in six places is how a hidden control quietly becomes a relied-upon one.
+
+### A1 — DELIVERED
+
+**The table exists, the navigation asks it, and the cost this slice did not name was that the app had to be
+told the role at all.** It knew the role only as a word the profile screen drew, so the navigation had no way
+to ask a question about a value it never held.
+
+**`auth/RolePolicy.kt` is that table.** `ADMIN` and `WORKER` are `roles.name`'s own spellings, and
+`EntryPoint` lists the destinations with the server guard behind each one written beside it -- `adminGuard`
+(`requireRole('Administrador')`) and `catalogGuard` (`requireRole('Administrador', 'Trabalhador')`) quoted
+from `admin.routes.ts`, so the table is checkable against the server rather than against itself. The
+administrator's set is written as the worker's set **plus** the administrator-only entries, so a surface added
+to the worker's set cannot be forgotten on the other side -- which is the failure this table exists to prevent,
+one entry at a time. An absent or unrecognised role gets the worker's set: fail closed, so a value this client
+does not understand can only ever offer less. The entries also carry the one nuance the guards alone do not
+explain: `CATEGORIES` is administrator-only as a *tab* while a worker may read categories through the
+generator, which is why the entry point -- the tab -- is what the table gates.
+
+**The role now travels with the session.** `TokenStore` gained `role()` and `saveRole()`, `KeystoreTokenStore`
+stores it through the same encrypted path as the token pair (`clear()` already wipes the whole file, so
+signing out forgets it), and `AuthRepository.login()` records `body.user.role` while `sessionRole()` reads it
+back. Stored rather than kept in memory, because a cold start has no sign-in to learn it from -- the app comes
+back to a stored session and the navigation still has to know what to draw -- and recorded once per session
+rather than refreshed, because the refresh response carries no role: a rotation is the same operator. The
+server remains the authority for every call, so a role changed server-side takes effect at the next sign-in,
+when the server hands the new one over; what this value decides is what is *offered*.
+
+**The row is drawn from the policy.** `MainActivity` keeps `destinations` -- what this build can draw, which
+today is the two tabs it already had -- and asks `RolePolicy.visibleDestinations(role, destinations)` which of
+them this role may open. The admin surfaces are absent from that list because they are not built yet, not
+because nobody may see them: the day one lands it joins the list and the policy decides who gets it. The
+account button is deliberately not in the table -- it is a control hanging off the row rather than a surface
+the app is about, and no role's guard decides it.
+
+**Evidence.** `RolePolicyTest` asserts the table once per role, the unknown role's equality with the worker's
+set, and the acceptance test itself with a stand-in for a destination the app does not have yet:
+`visibleDestinations(WORKER, [REPORTS to ..., AUDIT to ...])` is `[reports]`. The acceptance's second half was
+run rather than assumed -- **granting `AUDIT` to the worker in the policy fails exactly three tests**, the row
+test among them with `expected:<[reports]> but was:<[reports, audit]>`. The focused set was 6 classes and 80
+tests green; the full suite went from 20 classes / 204 tests to **21 and 210**, 0 failures, 0 errors and
+0 skipped, with the two new members of the session store covered by a test that signs in, reads the role back
+and forgets it on the way out.
+
+**What A1 does not do, stated so a later slice does not assume it.** It gates no call: every request still
+meets the server's guard, and this table decides only what is offered. It adds no admin screen. And
+`MainActivity` still opens on `Tab.REPORTS` unconditionally -- valid while both current destinations are
+visible to every role, and the day an administrator-only entry comes first in the row, the starting tab has to
+come from the policy too.
 
 ---
 

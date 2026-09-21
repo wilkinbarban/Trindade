@@ -1102,6 +1102,15 @@ private class StubTokenStore(private val onClear: () -> Unit = {}) : TokenStore 
     override fun accessToken(): String? = access
     override fun refreshToken(): String? = refresh
 
+    // The role is deliberately not modelled here. What these tests read about the session is its pair and its
+    // generation, and the generation already covers what a role could not: `a successful login is a new session`
+    // drives a real login through this store and asserts the counter, so nothing in this file has a role to read.
+    // A stored one would be a third value to keep in step for no assertion, so `role()` answers null -- the
+    // shape of a session opened before this member existed -- and `saveRole` records nothing, which is also
+    // what leaves every other test's store saying what it said before the member was added.
+    override fun role(): String? = null
+    override fun saveRole(role: String) = Unit
+
     override fun save(accessToken: String, refreshToken: String) {
         access = accessToken
         refresh = refreshToken

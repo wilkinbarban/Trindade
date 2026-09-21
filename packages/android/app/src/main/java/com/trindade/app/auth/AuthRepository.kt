@@ -149,6 +149,9 @@ class AuthRepository @Inject constructor(
         val body = response.body()
         if (response.isSuccessful && body != null) {
             tokenStore.save(body.token, body.refreshToken)
+            // The role arrives once per session, with the pair, and is recorded here rather than derived anywhere
+            // else: every surface that asks what this operator may open reads it from the store.
+            tokenStore.saveRole(body.user.role)
             // A session begins here, whoever the operator is: see [sessionGeneration] for why this is the
             // only beginning that counts, and why the rotation in [refresh] is not a second one.
             sessionGeneration++
@@ -341,6 +344,16 @@ class AuthRepository @Inject constructor(
 
     /** Whether there is a session to resume, which is what decides between the login screen and the app. */
     fun hasSession(): Boolean = tokenStore.accessToken() != null
+
+    /**
+     * The role the current session was opened with, or null when there is no session.
+     *
+     * Read from the store rather than kept in memory, because a cold start has no sign-in to learn it from: the
+     * app comes back to a stored session, and the navigation still has to know what to draw. The server remains
+     * the authority for every call -- this value decides what is offered, never what is allowed -- and a role
+     * changed on the server takes effect at the next sign-in, when the server hands the new one over.
+     */
+    fun sessionRole(): String? = tokenStore.role()
 
     /**
      * The server's message for a failed call, or null when it sent one this client cannot read.

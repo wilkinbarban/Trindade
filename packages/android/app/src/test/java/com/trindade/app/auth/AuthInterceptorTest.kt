@@ -31,15 +31,22 @@ class AuthInterceptorTest {
     private val store = FakeTokenStore(access = EXPIRED, refresh = "refresh-token")
 
     private class FakeTokenStore(var access: String? = null, var refresh: String? = null) : TokenStore {
+        private var role: String? = null
+
         override fun accessToken(): String? = access
         override fun refreshToken(): String? = refresh
+        override fun role(): String? = role
         override fun save(accessToken: String, refreshToken: String) {
             access = accessToken
             refresh = refreshToken
         }
+        override fun saveRole(role: String) {
+            this.role = role
+        }
         override fun clear() {
             access = null
             refresh = null
+            role = null
         }
     }
 

@@ -39,11 +39,17 @@ class KeystoreTokenStore @Inject constructor(
 
     override fun refreshToken(): String? = read(KEY_REFRESH_TOKEN)
 
+    override fun role(): String? = read(KEY_ROLE)
+
     override fun save(accessToken: String, refreshToken: String) {
         prefs.edit()
             .putString(KEY_ACCESS_TOKEN, encrypt(accessToken))
             .putString(KEY_REFRESH_TOKEN, encrypt(refreshToken))
             .apply()
+    }
+
+    override fun saveRole(role: String) {
+        prefs.edit().putString(KEY_ROLE, encrypt(role)).apply()
     }
 
     override fun clear() {
@@ -100,6 +106,13 @@ class KeystoreTokenStore @Inject constructor(
         const val PREFS_NAME = "trindade.session"
         const val KEY_ACCESS_TOKEN = "access_token"
         const val KEY_REFRESH_TOKEN = "refresh_token"
+
+        // The role is not a secret -- it is a word the app draws on screen -- and it is encrypted with the rest
+        // because this file holds one session and one way of reading it is worth more than the round trip it
+        // saves: a second, plaintext path into the same preferences is a second thing to remember when the file
+        // is read or cleared.
+        private const val KEY_ROLE = "role"
+
         const val KEY_ALIAS = "trindade.session.key"
         const val PROVIDER = "AndroidKeyStore"
         const val TRANSFORMATION = "AES/GCM/NoPadding"

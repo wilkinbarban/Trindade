@@ -394,6 +394,18 @@ class LoginViewModelTest {
     }
 
     @Test
+    fun `signing in records the role the server issued, and signing out forgets it`() {
+        val api = FakeAuthApi()
+        val repository = AuthRepository(api, FakeTokenStore(), json())
+
+        assertEquals(null, repository.sessionRole())
+        runBlocking { repository.login("ana", "segredo") }
+        assertEquals("Trabalhador", repository.sessionRole())
+        runBlocking { repository.logout() }
+        assertEquals(null, repository.sessionRole())
+    }
+
+    @Test
     fun `clears a stale refusal as the operator types`() {
         val api = FakeAuthApi(loginResponse = Response.error(401, refusalBody("Usuário inativo")))
         val model = LoginViewModel(AuthRepository(api, FakeTokenStore(), json()))
@@ -454,16 +466,22 @@ private class FakeAuthApi(
 private class FakeTokenStore : TokenStore {
     private var access: String? = null
     private var refresh: String? = null
+    private var role: String? = null
 
     override fun accessToken(): String? = access
     override fun refreshToken(): String? = refresh
+    override fun role(): String? = role
     override fun save(accessToken: String, refreshToken: String) {
         access = accessToken
         refresh = refreshToken
     }
+    override fun saveRole(role: String) {
+        this.role = role
+    }
     override fun clear() {
         access = null
         refresh = null
+        role = null
     }
 }
 
