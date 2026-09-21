@@ -286,14 +286,22 @@ The two new tests are the difference, and the arithmetic reconciles exactly. The
 is 44.9s, most of it Robolectric's first boot in the run; the remaining 14s of the task's growth is the
 resource processing and recompilation the flag adds, which was not separated by measurement.
 
-**The canonical lane, and one thing this change broke in it.** `make ci-android` passes on the final bytes
-(debug APK, unit tests, release APK, the cleartext/`allowBackup` assertions, the deliberate failing release
-build that proves the base-URL guard, and the contract-types check): **`exit 0` twice**, at **629s** for the
-run in which every Gradle task executed, and at **227s** for the run on the final bytes — where
-`:app:testDebugUnitTest` was made to execute rather than report `UP-TO-DATE`, and whose regenerated XML
-reads **20 classes, 204 tests, 0 failures, 0 errors, 0 skipped**. No workflow sets `timeout-minutes`, so the
-lane's 10.5 minutes sit against GitHub's 360-minute default; the composed cost is the 200 MB image plus
-Robolectric's boot, and it is stated rather than left to be discovered.
+**And the same command again, on the bytes that carry the bounded correction**: `20` classes, **204 tests**,
+0 failures, 0 errors, 0 skipped, **413s**, 38/38 tasks executed. Both numbers are stated because they are
+the two revisions a reader would otherwise have to guess between, and because they measure what a single
+sample of this task is worth: two identical invocations, 281s and 413s apart, with the corrected one also
+recompiling the test source it changed. The lane's cost is real and it is not a constant.
+
+**The canonical lane, and one thing this change broke in it.** `make ci-android` passed twice on the bytes
+**before** the bounded correction below (debug APK, unit tests, release APK, the cleartext/`allowBackup`
+assertions, the deliberate failing release build that proves the base-URL guard, and the contract-types
+check): **`exit 0` both times**, at **629s** for the run in which every Gradle task executed and at **227s**
+for the run in which `:app:testDebugUnitTest` was made to execute rather than report `UP-TO-DATE`, whose
+regenerated XML reads **20 classes, 204 tests, 0 failures, 0 errors, 0 skipped**. **The lane was not re-run
+after the correction**, which touched one test file — a type annotation and a comment — and whose own suite
+was re-run in full, as the evidence above records. No workflow sets `timeout-minutes`, so the lane's 10.5
+minutes sit against GitHub's 360-minute default; the composed cost is the 200 MB image plus Robolectric's
+boot, and it is stated rather than left to be discovered.
 
 **A second defect, caused by this one.** `unitTests.isIncludeAndroidResources` makes AGP merge a manifest for
 the unit-test variant of the debug build type, and `scripts/ci-android.sh`'s `merged_manifest_for()`
@@ -364,6 +372,32 @@ supposed to be self-evident, and this one is self-evidently wrong — the compil
 was never consulted. There is no refuter route for a deterministic claim and no second correction, so the
 transaction is terminal with the candidate unapproved. **That is recorded as a limitation of the lane's
 first outing rather than repaired by changing code that was never broken.**
+
+### The second review, and this one approved
+
+A corrected candidate is a different target, so the provider's answer to it is a new transaction:
+`review-edc7124b2ab35bcf` covered the same seven paths again — **393** changed lines, budget **197**, the
+same four lenses — and came back **approved**. The acknowledgement burned the authority
+(`gentle-ai.review-acknowledged/v1`), so **the receipt stands**. Nothing carried over from the first
+lineage's escalation: this time the lens that had produced the false BLOCKER read the build file's
+dependency lines instead of the test's bounds.
+
+It left **six findings, all non-blocking.** The receipt's own words are that none opened a correction, none
+reopens the review, and no correction transition is offered — they are later work, never a reason to re-run
+a review on this candidate:
+
+| id | lens | where | what it says | assessment |
+| --- | --- | --- | --- | --- |
+| `R2-001` | readability | `LoginScreenTest.kt:78-82` | the KDoc names the wrong detector: the third assertion is called "the one that fails without `verticalScroll`", while the recorded mutation stops at the second | **true** — the second fails first, so the third never executes and the sentence claims something the evidence cannot show |
+| `R2-002` | readability | `LoginScreenTest.kt:55` | `@Config(qualifiers = "w400dp-h1000dp")` is load-bearing and unexplained: a fixed-size `Box` is coerced into the window's constraints, so the centring measurement only means what it claims while the window is taller than the largest box the test declares | **true, and the sharpest of the six** — a clone that trims the window because "the box replaces the test window" measures a difference of 0 and reads it as the pinned-to-the-top failure |
+| `R2-003` | readability | this document | "final bytes" denoted two revisions in one file, and nothing said which one the green runs belonged to | **true, and closed in this same commit**: every figure above is now attached to a revision, and the corrected bytes carry their own re-run |
+| `R3-001` | reliability | `build.gradle.kts:506` | the test lives in the variant-agnostic `src/test` and its runner dependencies are `testImplementation`, while `ui-test-manifest` is `debugImplementation` only — so the release unit-test variant has no host activity and `testReleaseUnitTest` (or plain `./gradlew test`) would fail to launch the rule | **true and latent**: CI runs only `:app:testDebugUnitTest`, so nothing is red today |
+| `R3-002` | reliability | `build.gradle.kts:500` | the Robolectric fetch is a precondition of the whole test task | duplicate of `R4-1` seen from the other lens |
+| `R4-1` | resilience | `build.gradle.kts:500` | the 200 MB `android-all-instrumented` fetch outside Gradle's graph, re-downloaded every CI run, with no cache, retry or offline fallback, failing **every** unit test in the module on a transient outage | **true** |
+
+**That is the next work unit.** `R2-001` and `R2-002` are prose and one comment, `R3-001` is a
+variant-scoped dependency, and `R4-1` is a decision rather than a fix — with the reason to prefer recording
+it over building the offline path already written above, in the paragraph about the pinned API level.
 
 ---
 
