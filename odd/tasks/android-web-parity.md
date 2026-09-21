@@ -30,7 +30,7 @@ router (`packages/frontend/src/App.tsx`) rather than assumed:
 | `/loading/reports-history` | `ReportHistoryPage` | `ReportsHistoryScreen` | present |
 | `/admin` | `AdminDashboard` | — | **missing** |
 | `/admin/audit` | `AuditPage` | — | **missing** |
-| `SetupGate` | `SetupPage` | — | first-run only — see E3 |
+| `SetupGate` | `SetupPage` | — | first-run only — see E2 |
 
 The web's own `profile` tab inside `AdminDashboard` has no work of its own: the app's
 `ProfileScreen` already covers it and exceeds it (password change, update check).

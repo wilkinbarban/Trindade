@@ -1,5 +1,6 @@
 package com.trindade.app.auth
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -113,20 +114,21 @@ fun LoginScreen(
             modifier = Modifier.fillMaxWidth(),
         )
 
-        // The failure messages are rendered differently on purpose. Text from the server is shown as
-        // it arrives, because it describes what happened; a timeout gets this app's words for a slow
-        // server ("não respondeu a tempo"); TLS failures and unparseable responses get dedicated messages;
-        // and missing routes or unknown failures get the generic unreachable sentence. Which case is which
-        // is decided by the view model, not here: this screen renders what it is handed and never looks at a cause.
+        // The failure messages are rendered differently on purpose, and the split is by origin rather
+        // than by case. Text from the server is shown exactly as it arrives, because it describes what
+        // happened and this client has no better words for it. The app's own sentences cover everything
+        // else: a timeout, a failed secure transport and an unreadable reply each have one of their own;
+        // a host with no route to it gets the network sentence, "Sem conexão com o servidor", because
+        // that is the one failure a network explains; and a Throwable this taxonomy could not name gets a
+        // sentence that names no cause at all, because nothing has shown such a failure to involve a
+        // network. Which case is which is decided by the view model, not here: this screen renders what it
+        // is handed, looks at no cause, and asks `appSentenceOf` for the resource.
         state.message?.let { message ->
             Spacer(Modifier.height(12.dp))
             Text(
                 text = when (message) {
                     is LoginMessage.FromServer -> message.text
-                    LoginMessage.Timeout -> stringResource(R.string.login_timeout)
-                    LoginMessage.Tls -> stringResource(R.string.login_tls)
-                    LoginMessage.UnreadableBody -> stringResource(R.string.login_unreadable_body)
-                    LoginMessage.Unreachable -> stringResource(R.string.login_unreachable)
+                    else -> stringResource(appSentenceOf(message))
                 },
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodyMedium,
@@ -177,4 +179,27 @@ fun LoginRoute(
         onPasswordChange = viewModel::onPasswordChange,
         onSubmit = viewModel::submit,
     )
+}
+
+/**
+ * The app's own sentence for a message, as a resource id.
+ *
+ * One map rather than a `when` buried in the composable, because this is the part a JVM test can
+ * reach: the `LoginMessage` values are asserted in `LoginViewModelTest`, but the sentence each one
+ * renders was asserted nowhere until this existed. With the mapping here, swapping two ids is a
+ * failing test instead of a screen that quietly says the wrong thing.
+ *
+ * [LoginMessage.FromServer] has no resource by construction -- that sentence is the contract's own
+ * text and is rendered from the value it carries, not looked up -- so asking for one is a
+ * programming error and says so rather than returning something plausible.
+ */
+@StringRes
+internal fun appSentenceOf(message: LoginMessage): Int = when (message) {
+    LoginMessage.Timeout -> R.string.login_timeout
+    LoginMessage.Tls -> R.string.login_tls
+    LoginMessage.UnreadableBody -> R.string.login_unreadable_body
+    LoginMessage.Unreachable -> R.string.login_unreachable
+    LoginMessage.Unknown -> R.string.login_unknown
+    is LoginMessage.FromServer ->
+        error("LoginMessage.FromServer carries the server's own sentence; it has no resource")
 }

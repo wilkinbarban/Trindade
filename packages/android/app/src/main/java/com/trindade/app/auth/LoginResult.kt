@@ -108,8 +108,9 @@ enum class UnreachableCause {
  * ViewModel and made the translation of one of them somebody else's problem.
  *
  * The app's own words are partitioned according to [UnreachableCause]: timeouts get [Timeout],
- * TLS failures get [Tls], unreadable responses get [UnreadableBody], and missing routes or unknown
- * errors get [Unreachable].
+ * TLS failures get [Tls], unreadable responses get [UnreadableBody], a missing route gets [Unreachable],
+ * and a failure the taxonomy could not name gets [Unknown]. That is five of the six cases; the sixth,
+ * [FromServer], is the other half of the split and is not the app's own words at all.
  */
 sealed interface LoginMessage {
     /** The contract's own words, which describe what actually happened better than the client can. */
@@ -134,6 +135,18 @@ sealed interface LoginMessage {
      */
     data object UnreadableBody : LoginMessage
 
-    /** Nothing answered or no route to host was available, so there are no server words to repeat. */
+    /**
+     * Nothing answered and there was no route to the host, so there are no server words to repeat.
+     *
+     * This is [UnreachableCause.NoRoute]'s sentence and only its own, because the sentence it renders
+     * is about the network. The residue case is [Unknown], which deliberately does not borrow it.
+     */
     data object Unreachable : LoginMessage
+
+    /**
+     * The residue: a failure this client cannot name. No cause is claimed, and that is the point --
+     * the sentence it renders must not send the operator to look at a part of the system the failure
+     * has not been shown to involve.
+     */
+    data object Unknown : LoginMessage
 }

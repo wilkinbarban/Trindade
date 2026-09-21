@@ -1,5 +1,6 @@
 package com.trindade.app.auth
 
+import com.trindade.app.R
 import com.trindade.app.contract.models.AuthProfile
 import com.trindade.app.contract.models.AuthUser
 import com.trindade.app.contract.models.ChangePasswordRequest
@@ -123,7 +124,10 @@ class LoginViewModelTest {
 
         // Asserted as the type rather than as text: no server answered, so there are no server words
         // to repeat, and that is a different statement from a refusal this app has wording for.
-        assertEquals(LoginMessage.Unreachable, model.state.value.message)
+        // The residue is asserted as Unknown and not as Unreachable, which is now the no-route sentence
+        // and the only one about the network. A plain IOException has not been shown to involve a
+        // network, so the residue deliberately no longer borrows that sentence.
+        assertEquals(LoginMessage.Unknown, model.state.value.message)
         assertEquals(false, model.state.value.signedIn)
 
         // The log line captures the unclassified failure so logcat on the device preserves it.
@@ -312,6 +316,20 @@ class LoginViewModelTest {
 
         assertEquals(LoginMessage.Unreachable, model.state.value.message)
         assertEquals(false, model.state.value.signedIn)
+    }
+
+    @Test
+    fun `each app sentence comes from one map, so a swapped id fails here`() {
+        // The five ids are pairwise different and each one is the expected constant, which is the whole
+        // point: the sentence a message renders is chosen by resource id, so swapping two of them would
+        // compile and pass every other test in this file while the screen quietly said the wrong thing.
+        // `LoginMessage.FromServer` is the sixth case and is deliberately absent: it has no resource by
+        // construction, since its sentence is the server's own text carried by the value.
+        assertEquals(R.string.login_timeout, appSentenceOf(LoginMessage.Timeout))
+        assertEquals(R.string.login_tls, appSentenceOf(LoginMessage.Tls))
+        assertEquals(R.string.login_unreadable_body, appSentenceOf(LoginMessage.UnreadableBody))
+        assertEquals(R.string.login_unreachable, appSentenceOf(LoginMessage.Unreachable))
+        assertEquals(R.string.login_unknown, appSentenceOf(LoginMessage.Unknown))
     }
 
     @Test

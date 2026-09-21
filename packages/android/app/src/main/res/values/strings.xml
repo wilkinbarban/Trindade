@@ -15,8 +15,9 @@
          enumerates. "Usable" is the precise word, because these are not all about a network:
            - login_timeout covers both OkHttp's connect timeout and its read timeout. The exception type
              cannot tell them apart, so the sentence claims only what the client can know: the answer did
-             not arrive in time. It keeps "verifique a rede" out of it, because telling the operator to
-             check a network that was working is exactly what the first sentence used to do wrongly.
+             not arrive in time. It keeps "verifique a rede" out of it, because sending the operator to
+             check a network the failure had not been shown to involve is exactly what the first sentence
+             used to do wrongly.
            - login_tls is a connection that was established and whose secure transport then failed.
            - login_unreadable_body is the case where the server answered and the reply could not be read
              as this client's envelope. The server was reached; only its answer was unusable.
@@ -25,6 +26,12 @@
     <string name="login_timeout">O servidor não respondeu a tempo. Tente de novo.</string>
     <string name="login_tls">Falha na conexão segura com o servidor. Tente de novo.</string>
     <string name="login_unreadable_body">Resposta do servidor não reconhecida. Tente de novo.</string>
+    <!-- The residue's sentence: the cause the taxonomy could not name. It says only that signing in did
+         not happen and invites a retry, and it names no cause at all, not the network, because an
+         unclassified Throwable has not been shown to involve one. This is the sentence `Unknown` used to
+         borrow from `login_unreachable`, which sent the operator to check a network the failure had not been
+         shown to involve. -->
+    <string name="login_unknown">Não foi possível entrar. Tente de novo.</string>
 
     <string name="report_submit">Salvar relatório</string>
     <string name="report_created">Relatório %1$d salvo.</string>

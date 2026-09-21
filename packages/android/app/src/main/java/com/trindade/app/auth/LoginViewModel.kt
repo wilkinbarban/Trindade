@@ -62,22 +62,36 @@ class LoginViewModel @Inject constructor(
     }
 
     /**
-     * The sentence this app has for a failure that never got an answer.
+     * The sentence this app has for a failure that produced no usable answer.
+     *
+     * "Usable" rather than "no answer at all", because one of the values below is an answer that arrived
+     * and could not be read: [UnreachableCause.UnreadableBody] is a reply the client reached and could not
+     * parse, so a heading claiming the server never answered would be false about it. Every cause shares
+     * the weaker claim this wording makes -- the attempt produced nothing this client could use -- and
+     * none of them shares the stronger one.
      *
      * A `when` with no `else` on purpose: a new [UnreachableCause] has to be given an explicit mapping
-     * here rather than inheriting whichever one happened to be last. [UnreachableCause.Timeout] maps
-     * to [LoginMessage.Timeout] because the server was slow rather than missing. [UnreachableCause.Tls]
-     * maps to [LoginMessage.Tls] to indicate secure connection/handshake failure. [UnreachableCause.UnreadableBody]
-     * maps to [LoginMessage.UnreadableBody] to indicate an unrecognized payload from the server.
-     * [UnreachableCause.NoRoute] and [UnreachableCause.Unknown] map to [LoginMessage.Unreachable] because
-     * no connection could be established or the failure is unclassified.
+     * here rather than inheriting whichever one happened to be last. The taxonomy's five values become
+     * five of [LoginMessage]'s six cases; the sixth, [LoginMessage.FromServer], is never chosen here,
+     * because a refusal that arrived readable comes back as [LoginResult.Rejected] and is rendered from
+     * the server's own text.
+     *
+     * [UnreachableCause.Timeout] maps to [LoginMessage.Timeout] because the server was slow rather than
+     * absent. [UnreachableCause.Tls] maps to [LoginMessage.Tls] for a secure transport that failed.
+     * [UnreachableCause.UnreadableBody] maps to [LoginMessage.UnreadableBody] for a payload this client
+     * could not read. [UnreachableCause.NoRoute] maps to [LoginMessage.Unreachable], the one sentence that
+     * is about the network, because a name that did not resolve or a connection that was refused is the
+     * one failure a network explains. [UnreachableCause.Unknown] maps to [LoginMessage.Unknown] instead of
+     * borrowing that sentence: it is the residue for a Throwable this taxonomy could not name, nothing has
+     * shown such a failure to involve a network, and telling the operator to check one would be the same
+     * defect this split exists to undo.
      */
     private fun UnreachableCause.toMessage(): LoginMessage = when (this) {
         UnreachableCause.Timeout -> LoginMessage.Timeout
         UnreachableCause.Tls -> LoginMessage.Tls
         UnreachableCause.UnreadableBody -> LoginMessage.UnreadableBody
-        UnreachableCause.NoRoute,
-        UnreachableCause.Unknown -> LoginMessage.Unreachable
+        UnreachableCause.NoRoute -> LoginMessage.Unreachable
+        UnreachableCause.Unknown -> LoginMessage.Unknown
     }
 
     /**

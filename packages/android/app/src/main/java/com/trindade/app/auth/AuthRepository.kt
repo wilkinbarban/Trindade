@@ -42,6 +42,17 @@ class AuthRepository @Inject constructor(
     private val api: AuthApi,
     private val tokenStore: TokenStore,
     private val json: Json,
+    // The default is for tests, and it is safe here for a reason that is the opposite of the one
+    // `AppLogger.w` states for its own parameter. There, the throwable is required precisely so a call
+    // site cannot silently drop a stack trace; here, a default cannot silently disable production
+    // logging, because this class is @Singleton @Inject and no main-source code constructs it by hand.
+    // Every production instance arrives through Hilt, and LoggingModule.provideAppLogger() is the only
+    // binding that supplies this parameter, so the device path never takes the default. What the default
+    // buys is that a test which does not care about logging does not have to name a logger it would
+    // otherwise be forced to spell out. The binding production rests on is AndroidAppLogger, and the
+    // claim that Hilt hands that one over is asserted by
+    // packages/android/app/src/test/java/com/trindade/app/di/LoggingModuleTest.kt -- that test path is
+    // where the binding is proven, not this declaration.
     private val logger: AppLogger = NoOpAppLogger,
 ) {
 
@@ -148,7 +159,11 @@ class AuthRepository @Inject constructor(
     }
 
     /**
-     * Which kind of failure kept a request from producing an answer.
+     * Which kind of failure kept a request from producing a usable answer.
+     *
+     * "Usable" rather than "any answer at all" for the same reason the login screen's wording uses it:
+     * one of the values below is an answer that arrived and could not be read, so a heading claiming the
+     * server never answered would be false about it. See [UnreachableCause.UnreadableBody].
      *
      * The mapping is made once, here, and [UnreachableCause] carries the reasoning behind each value and
      * the classes it is read from. The order of the branches is not load-bearing -- the families do
