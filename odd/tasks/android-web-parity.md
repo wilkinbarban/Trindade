@@ -309,6 +309,62 @@ navigation are not exercised by it, and the nine surfaces of this track still ha
 does it replace `E1`'s fourth acceptance criterion — a Robolectric render is a better test than a compile,
 not a substitute for an operator looking at the screen on the emulator.
 
+### The review of this candidate, and how it ended
+
+`review-6a9019bc7ee61beb`, **high** tier (the frozen risk reasons: an auth path, shell scripting and a
+process boundary), four lenses, 332 changed lines and a correction budget of 166. It came back
+`correction_required`, one bounded correction was spent, and the authority is now **`escalated`**: the
+transition it offers is `stop` / `native_stop_required`, which is terminal — the maintainer inspects the
+lineage, or the review switch is disabled for this clone. **This candidate was never approved.**
+
+**Two of the four lenses found something true, and both are recorded here as the next work unit:**
+
+1. **`R2-001` (readability, WARNING) — a comment that names the wrong detector, and the prose was mine.**
+   `LoginScreenTest`'s KDoc says the third assertion (reachability through `performScrollTo()`) "is the one
+   that fails without `verticalScroll`", while the mutation table above records the **second** one failing
+   for exactly that mutation, at `Actual height is 0.0.dp, expected at least 40.0.dp`. Both do fail in fact
+   — the height assertion fails first, and without a scrollable ancestor `performScrollTo()` could not be
+   performed at all — but the comment picks the wrong one to name, and this file is the template the lane's
+   next tests are copied from. This is the fourth time in this line of work that a comment describes the
+   change inaccurately, and the sentence is the one I wrote in the spec the writer copied.
+2. **`R4-1` (resilience, WARNING) — the lane's new runtime dependency is a precondition of the whole test
+   task.** Robolectric resolves `android-all-instrumented` through its own Maven resolver, outside Gradle's
+   dependency graph, into `$HOME/.m2`; the image is 200 MB, CI's `$HOME` is ephemeral, so it is fetched on
+   every run, and nothing in this change caches, retries or degrades around it. The consequence the reviewer
+   names is the one worth keeping: the fetch is a precondition of `:app:testDebugUnitTest`, so a transient
+   network or repository outage now fails **every** unit test in the module, not only the new Compose one.
+
+The other two lenses found nothing: `risk` reported no security, authorization, secret or
+dependency-vulnerability finding and confirmed the `ui-test-manifest` activity is debug-only, and
+`reliability`'s single finding is the false positive below.
+
+**`R3-001` (reliability, BLOCKER) is a false positive, and it is the fourth in this line of work.** Its
+claim: `getBoundsInRoot()` returns a pixel `Rect` whose `bottom` is a `Float`, so the `.value` accesses
+cannot compile and the test cannot run. **It compiles and it runs**, and the counter-evidence is the
+artifact rather than an argument: this class compiled and executed in the full suite, in the canonical
+lane, and in both mutation runs — the second of which printed an assertion message *computed from exactly
+those `.value` accesses*. `getBoundsInRoot()` returns a `DpRect` whose `bottom` is a `Dp`; the
+pixel-answering API it was confused with is `SemanticsNode.boundsInRoot`. The project's stance already on
+record was applied: no code was changed to satisfy a premise the project's own artifact contradicts.
+
+**What the correction did close is the mechanism the misreading rested on**, which is the same move made
+the last time this happened: the unit is now in the code instead of only in the reader's head. Both bounds
+are annotated `Dp` and the comment beside the first names the distinction. The provider's own ledger
+records the plan as 12 diff lines and the actual as **9**, and that correction introduced no regression
+(`correction_regression.passed`).
+
+**Then the targeted validator repeated the misreading and the lineage escalated.** Its verdict, quoted:
+
+> The corrected candidate still does not resolve R3-001. Instead of removing `.value` from Float
+> coordinates, it adds `Dp` annotations to `getBoundsInRoot().bottom` results ... so the frozen finding's
+> compile problem remains unmet.
+
+`original_criteria.passed: false`, cause `targeted_validator_rejected`. A deterministic finding is
+supposed to be self-evident, and this one is self-evidently wrong — the compiler is the evidence, and it
+was never consulted. There is no refuter route for a deterministic claim and no second correction, so the
+transaction is terminal with the candidate unapproved. **That is recorded as a limitation of the lane's
+first outing rather than repaired by changing code that was never broken.**
+
 ---
 
 ## Slice A — Role gating in the app
