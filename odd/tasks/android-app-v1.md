@@ -411,6 +411,16 @@ operations and 26 components, freshness check current, and the full canonical ga
 fresh clone including 53/53 Playwright E2E. Those E2E tests run against `server.ts`, so they
 are also the proof that moving the registration out of it broke nothing at runtime.
 
+**Those three figures were later found to be wrong, and the correction is worth more than the
+numbers.** When the admin surface was registered, the artifact measured **33 paths / 42 operations /
+52 components** before that change — not 32/41/26. The components had been under-reported by half and
+a path and an operation had appeared, and nothing had noticed, because the one check that reads the
+document (`verify-openapi-artifact.sh`) only asks whether it is *current*, never whether a prose claim
+about it is true. A generator produces the document; the sentence describing it is written by hand,
+and the two are kept in step by nothing at all. What finally measured it was registering a new surface
+and having to compare against HEAD, which is the same lesson `F11` records one layer up: a number in a
+summary is a claim, and a claim nobody recomputes drifts.
+
 **Change to the plan, forced by the harness.** Building the coverage test exposed four routes
 that were served and undescribed, including an error of my own from B2.3b: the document
 described `/api/reports/photos/public/{token}`, which answers 404 in practice, and not

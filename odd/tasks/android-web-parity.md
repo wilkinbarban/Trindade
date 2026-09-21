@@ -79,38 +79,67 @@ typed, validated models until the contract covers it.** That was recorded in
 
 ## Slice P — Backend: contract for the admin and audit surfaces
 
-### P1b. Register admin and audit in the OpenAPI contract — PENDING
+### P1b. Register admin and audit in the OpenAPI contract — DONE
 
-What remains, in one work unit (it cannot be split further and stay green: emptying the exclusion makes
-the coverage test demand every admin operation in the document, so the registry entries and the exclusion
-have to move together):
+**Delivered.** 22 operations across **12 distinct paths** — not the 15 or 16 this document first estimated by
+counting route registrations rather than distinct URLs, since the methods share paths. The document went
+**33 → 45 paths, 42 → 64 operations, 52 → 81 components**, verified add-only against HEAD: 0 paths removed,
+0 changed, 0 components removed, 0 changed.
 
-- Register the **22 operations across 16 paths** — 15 admin paths plus `/api/admin/audit` — in
-  `contracts/openapi.ts`, reusing the schemas P1a declared rather than restating them. The registry
-  currently documents 32 paths / 41 operations / 26 components; this takes it to 48 paths and 63
-  operations.
-- Regenerate `packages/contracts/openapi.json`.
-- **Empty the out-of-scope set** in `contracts/route-coverage.test.ts`. There is a trap here: that file
-  asserts `excluded.length > 0` with the message "the out-of-scope set matched nothing, so it may be
-  stale", so emptying the set fails that assertion until it is updated in the same commit. The
-  assertion existed to catch a stale prefix; with the set empty, `assert.deepEqual(OUT_OF_SCOPE_PREFIXES,
-  [])` and a comment recording why nothing is out of scope any more is what replaces it — the guard must
-  keep failing in both directions, not lose a direction.
-- Keep the coverage test failing in both directions: nothing served may be undescribed, and nothing
-  described may be unserved.
-- Move `TimeSlotsResponseSchema` to `contracts/common.schema.ts` while that file is open, since it is
-  shared with `loading` and P1a could only re-export it (finding 5 above).
-- Regenerate the Android contract types (`scripts/generate-android-contract.sh`) in the same work unit, so
-  the artifact and the client cannot drift.
+**The real work was a naming collision.** Eight component names were already taken by `loading` and
+`reports`, and every one is a *narrower projection* than what the admin surface returns — `Driver` without
+`is_active`, `created_at` or `created_by_user_id`; `Vehicle` without `is_active` or `created_at`;
+`CreateDriverRequest` without `driver_type`. Reusing them would have published a shape the admin endpoints
+do not serve, so everything the admin surface introduces carries an **`Admin` prefix**. `TimeSlotsResponse`
+is the one genuine reuse: that endpoint really does serve the same setting under the same envelope.
 
-The live-response contract tests already landed in P1a and do not repeat here. Write responses change
- data, so they stay covered by the route-coverage test plus the existing backend admin suite.
+`OUT_OF_SCOPE_PREFIXES` is now empty, and emptying it naively turns the suite red — the coverage test
+asserted `excluded.length > 0` with the message "the out-of-scope set matched nothing, so it may be stale".
+The guarantee is kept in the form the new state allows: the test now asserts the set is *deliberately*
+empty, which forces a future exclusion to arrive with its reason. Both coverage directions and the
+no-`:`/template-parameter assertions still pass. `TimeSlotsResponseSchema` moved to
+`contracts/common.schema.ts` with one definition and no re-export chain.
 
-**Acceptance:** `scripts/verify-openapi-artifact.sh` reports current; the backend suite is green; the
-route-coverage test proves nothing served is undescribed and nothing described is unserved, with the
-admin/audit exclusion gone; and the regenerated Android types compile.
+**The blocker, and it is the most instructive part of this slice.** The app would not compile: twelve
+errors, all one shape — the generated request models carried
+`enum class IsActive(val value: java.math.BigDecimal) { _0("0"), _1("1") }`, a String literal passed to a
+BigDecimal parameter. **The cause was in the document:** `z.union([z.literal(0), z.literal(1)])` was
+emitted as `type: number` for a flag that is an integer, and openapi-generator rendered each one-member
+number enum as a BigDecimal-valued Kotlin enum. No request schema had used a numeric literal union before,
+so the path had never been exercised. It is **7 enums over 6 files**, not the 5 this document first said:
+`is_active` on the five update requests and `role_id` (1|2) on the two user ones.
 
-**Not in scope:** changing any admin behavior. This slice describes what is already served.
+**The obvious fix cannot work**, and it was disproved rather than assumed:
+`.openapi({ type: 'integer', enum: [0, 1] })` beside the union fails with
+`z.union(...).openapi is not a function`, because `extendZodWithOpenApi(z)` is a *statement in the body* of
+`contracts/openapi.ts`, ESM evaluates a module's imports before its body, and `.openapi()` returns a copy.
+The only way to keep that prescription is to patch Zod from a module the server imports — which would load a
+codegen library into the server process, the exact thing `B2.1` avoided by keeping the library a
+devDependency.
+
+So the **document builder normalizes it**, unconditionally, behind a guard that rewrites only when *every*
+value is an integer so a genuine decimal enum is left alone, with five tests that make the rule falsifiable:
+the admin flags become integer enums, no numeric literal union survives in the built document, a fractional
+enum and a mixed union are both left untouched, and the step is idempotent. Chosen over attaching the claim
+per registration because six admin surfaces remain to be built, each full of `is_active`-shaped flags, and a
+rule that must be remembered at every registration is one that will be forgotten — the same reasoning that
+made `EditWindow` a required parameter and the log seam's throwable non-optional.
+
+**Evidence:** the app **compiles** (`:app:compileDebugKotlin` green, which was the whole blocker); the JVM
+suite at 202 tests, 0 failures; `check-android-contract-types.sh` reports the types current; the backend
+suite at **351 tests, 351 pass, 0 fail** (346 before, so the five new tests reconcile); `tsc --noEmit` clean;
+and the full canonical gate passed with 53/53 Playwright E2E and the artifact-freshness check green.
+
+**What remains open from P1a's findings**, now that the surface is published:
+
+1. **`audit.service.ts`'s `AuditLogRow.user_id` is typed non-nullable** while `audit_logs.user_id`
+   is nullable and `deleteUser` nulls it before deleting, so the LEFT JOIN can serve `user_id: null`.
+   The schema documents the query's truth; the interface does not.
+2. **`contracts/common.schema.ts`'s `PaginationSchema` is not reusable here**: it names the size
+   field `pageSize` and the audit handler returns `limit`. Audit's block is declared in its own module
+   rather than forcing one of the two to move.
+3. **`CATEGORY_TYPES` is duplicated** between `admin.schema.ts` and `reports.schema.ts` (the same four
+   values). Pre-existing.
 
 ---
 
