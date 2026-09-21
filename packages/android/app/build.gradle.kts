@@ -306,6 +306,16 @@ android {
         buildConfig = true
     }
 
+    // The JVM lane renders Compose, and a rendered screen resolves its own resources: the strings, the
+    // drawable and the theme below are read through the app's R class, not stubbed. This flag is what
+    // puts the merged resources and the manifest on the unit-test classpath; without it the first
+    // stringResource lookup fails and the lane can only test composables that use none.
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+        }
+    }
+
     // The contract artifact is the single source of truth for the paths this client speaks, and the
     // test that checks the interfaces against it reads it from the test classpath. Pointing the test
     // resources at the package avoids a copy step and any chance of the copy going stale.
@@ -476,4 +486,22 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.mockwebserver)
     testImplementation(libs.kotlinx.coroutines.test)
+
+    // The Compose UI lane. The three arrive together and none is optional: ui-test-junit4 renders a
+    // composable and asserts through the semantics tree; Robolectric runs that on the JVM, which is the
+    // only place this project can run a rendered screen (the emulator lives on a box this lane cannot
+    // reach); AndroidJUnit4 is the runner that chooses between the two.
+    //
+    // The BOM is named again here on purpose. Inheriting the version from the main classpath's platform
+    // would work today and would leave this block unreadable on its own -- a dependency that resolves by
+    // accident is one that breaks by accident.
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.ext.junit)
+
+    // The activity createComposeRule() launches has to be in the merged manifest of the variant under
+    // test, and it must never reach a release build. This is the artifact that declares it, and
+    // debugImplementation is what keeps it out of the APK the crew installs.
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

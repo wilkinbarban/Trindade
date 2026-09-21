@@ -44,9 +44,15 @@ merged_manifest_for() {
   local variant="$1" found
   # `|| true` matters under `set -e` with `pipefail`: without it a missing file kills the script with
   # a bare pipeline error instead of the named diagnosis below.
+  # The unit-test variants are excluded, and that is load-bearing rather than tidy: since
+  # `unitTests.isIncludeAndroidResources` was turned on for the Compose lane, AGP merges a manifest for
+  # the test variant of the same build type too, and `head -1` over several candidates is decided by the
+  # filesystem. Landing on `<variant>UnitTest` would leave this assertion reading a manifest no APK is
+  # built from, while it claims a property of the shipped build -- so the file has to be the one the APK
+  # is packaged from.
   found="$(find app/build/intermediates \
     -path "*${variant}*" -name AndroidManifest.xml \
-    ! -path "*androidTest*" 2>/dev/null | grep -i 'merged_manifest' | head -1 || true)"
+    ! -path "*androidTest*" ! -path "*UnitTest*" 2>/dev/null | grep -i 'merged_manifest' | head -1 || true)"
   if [[ -z "$found" ]]; then
     # Deliberately fatal. If AGP ever moves these files, this lane must fail loudly rather than skip
     # the assertions that read them and report a green run that checked nothing.
