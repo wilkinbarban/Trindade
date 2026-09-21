@@ -24,7 +24,24 @@ import retrofit2.converter.kotlinx.serialization.asConverterFactory
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    private const val CONNECT_TIMEOUT_SECONDS = 10L
+    // 15 seconds, where it used to be 10, and the reason is about where this server is rather than about
+    // the request: the operators work a few thousand kilometres from this deployment, often on a mobile
+    // radio, so a connect this client starts can spend most of a ten-second budget on DNS and the TCP and
+    // TLS round trips alone and give up on a connection that was going to succeed. A login is the one
+    // request an operator issued and is watching, which is what makes waiting on it worth more than
+    // failing it early.
+    //
+    // What this is not: evidence that a timeout is what the operator hit. Their working 401 from inside the
+    // emulator proves this app can reach the host -- it says nothing about how long a handset takes to get
+    // there -- and this bound only decides when the client stops waiting. It is a wait, not a diagnosis:
+    // the diagnosis is the failure's own class, which `AuthRepository` now logs and reports.
+    //
+    // Only this pair moved, and the trio below did not. That is not a shared value being edited twice: the
+    // GitHub check is a nicety nobody asked for, its bounds are deliberately tighter for the reason its own
+    // comments give, and widening them because a login felt slow would be fixing the wrong client -- the
+    // update check's silence is what the operator sees in place of an answer, so it is the last place that
+    // may be allowed to wait longer.
+    private const val CONNECT_TIMEOUT_SECONDS = 15L
     private const val READ_TIMEOUT_SECONDS = 30L
 
     // This check's own trio, deliberately not the backend's pair. What they bound is not the same thing:

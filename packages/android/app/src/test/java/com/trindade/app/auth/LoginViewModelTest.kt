@@ -16,10 +16,17 @@ import com.trindade.app.contract.models.SetupStatusResponse
 import com.trindade.app.contract.models.SuccessResponse
 import com.trindade.app.contract.models.UpdateProfileRequest
 import com.trindade.app.network.AuthApi
+import java.io.IOException
+import java.io.InterruptedIOException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
+import javax.net.ssl.SSLException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
+import kotlinx.serialization.SerializationException
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.After
@@ -36,6 +43,11 @@ import retrofit2.Response
  * The interesting part is not that signing in works, but what the screen does with each answer: the
  * server's own message is repeated rather than replaced, a host that cannot be reached says so instead
  * of blaming the credentials, and the password leaves the state as soon as it is no longer needed.
+ *
+ * A failure to reach the server is measured twice, and deliberately: once at the repository, where the
+ * class is read out of the Throwable, and once at the screen, where that class becomes a sentence. The
+ * second alone would pass on a client that showed the right words for the wrong reason, which is the
+ * shape the defect had -- every Throwable collapsed into one value before anybody could read it.
  */
 class LoginViewModelTest {
 
@@ -97,7 +109,8 @@ class LoginViewModelTest {
 
     @Test
     fun `says the server is unreachable rather than blaming the credentials`() {
-        val api = FakeAuthApi(failWithTransport = true)
+        // A plain IOException: the bucket case, and one the generic sentence is still right about.
+        val api = FakeAuthApi(transportFailure = IOException("network down"))
         val model = LoginViewModel(AuthRepository(api, FakeTokenStore(), json()))
         model.onUsernameChange("ana")
         model.onPasswordChange("segredo")
@@ -105,6 +118,111 @@ class LoginViewModelTest {
 
         // Asserted as the type rather than as text: no server answered, so there are no server words
         // to repeat, and that is a different statement from a refusal this app has wording for.
+        assertEquals(LoginMessage.Unreachable, model.state.value.message)
+        assertEquals(false, model.state.value.signedIn)
+    }
+
+    // The classification, measured where it is made: each of these drives the repository's own login and
+    // asserts the result it hands back. The screen's sentence is a consequence of that result, so a test of
+    // the sentence alone would pass on a client that produced the right words for the wrong reason.
+
+    @Test
+    fun `a timeout is classified as a slow server rather than a missing host`() {
+        val repository = AuthRepository(
+            FakeAuthApi(transportFailure = SocketTimeoutException("timeout")),
+            FakeTokenStore(),
+            json(),
+        )
+
+        val result = runBlocking { repository.login("ana", "segredo") }
+
+        // A timeout and a name that does not resolve used to produce the same value here, which is why
+        // the operator's report was "Sem conexão com o servidor" for a server that had answered.
+        assertEquals(LoginResult.Unreachable(UnreachableCause.Timeout), result)
+    }
+
+    @Test
+    fun `a name that does not resolve is classified as no route`() {
+        val repository = AuthRepository(
+            FakeAuthApi(transportFailure = UnknownHostException("trindademasas.duckdns.org")),
+            FakeTokenStore(),
+            json(),
+        )
+
+        val result = runBlocking { repository.login("ana", "segredo") }
+
+        assertEquals(LoginResult.Unreachable(UnreachableCause.NoRoute), result)
+    }
+
+    @Test
+    fun `a bare interrupted read is classified as a timeout too`() {
+        // The second half of the pair the repository names: OkHttp raises this one on the paths where it
+        // timed the call itself, and it is not a SocketTimeoutException.
+        val repository = AuthRepository(
+            FakeAuthApi(transportFailure = InterruptedIOException("timeout")),
+            FakeTokenStore(),
+            json(),
+        )
+
+        val result = runBlocking { repository.login("ana", "segredo") }
+
+        assertEquals(LoginResult.Unreachable(UnreachableCause.Timeout), result)
+    }
+
+    @Test
+    fun `a failed handshake is classified apart from a host that was not there`() {
+        val repository = AuthRepository(
+            FakeAuthApi(transportFailure = SSLException("chain not trusted")),
+            FakeTokenStore(),
+            json(),
+        )
+
+        val result = runBlocking { repository.login("ana", "segredo") }
+
+        assertEquals(LoginResult.Unreachable(UnreachableCause.Tls), result)
+    }
+
+    @Test
+    fun `a reply that cannot be read is classified as an unreadable body`() {
+        // What the kotlinx converter throws out of a call whose reply arrived and did not parse, which is
+        // the one failure that is an answer rather than a silence.
+        val repository = AuthRepository(
+            FakeAuthApi(transportFailure = SerializationException("Unexpected JSON token")),
+            FakeTokenStore(),
+            json(),
+        )
+
+        val result = runBlocking { repository.login("ana", "segredo") }
+
+        assertEquals(LoginResult.Unreachable(UnreachableCause.UnreadableBody), result)
+    }
+
+    // And the two classes the screen has words for, measured where the words are chosen.
+
+    @Test
+    fun `a timeout reaches the screen as a slow server`() {
+        val api = FakeAuthApi(transportFailure = SocketTimeoutException("timeout"))
+        val model = LoginViewModel(AuthRepository(api, FakeTokenStore(), json()))
+        model.onUsernameChange("ana")
+        model.onPasswordChange("segredo")
+
+        model.submit()
+
+        // Its own message rather than the unreachable one: that sentence tells the operator to check a
+        // network, and here the network is the one thing that was working.
+        assertEquals(LoginMessage.Timeout, model.state.value.message)
+        assertEquals(false, model.state.value.signedIn)
+    }
+
+    @Test
+    fun `a host that was not there reaches the screen as unreachable`() {
+        val api = FakeAuthApi(transportFailure = UnknownHostException("trindademasas.duckdns.org"))
+        val model = LoginViewModel(AuthRepository(api, FakeTokenStore(), json()))
+        model.onUsernameChange("ana")
+        model.onPasswordChange("segredo")
+
+        model.submit()
+
         assertEquals(LoginMessage.Unreachable, model.state.value.message)
         assertEquals(false, model.state.value.signedIn)
     }
@@ -191,7 +309,14 @@ private class FakeAuthApi(
             user = LoginResponseUser(id = 1, username = "ana", role = "Trabalhador"),
         ),
     ),
-    private val failWithTransport: Boolean = false,
+    /**
+     * The Throwable [login] throws instead of answering, or null when it answers.
+     *
+     * An exception rather than a `failWithTransport` boolean, because the tests that measure the
+     * classification have to say *which* failure they mean: a fake that could only say "the transport",
+     * with the Throwable built inside it, would let every one of those tests pass while measuring one value.
+     */
+    private val transportFailure: Throwable? = null,
 ) : AuthApi {
 
     var loginCalls = 0
@@ -199,7 +324,7 @@ private class FakeAuthApi(
 
     override suspend fun login(body: LoginRequest): Response<LoginResponse> {
         loginCalls++
-        if (failWithTransport) throw java.io.IOException("network down")
+        transportFailure?.let { throw it }
         return loginResponse
     }
 

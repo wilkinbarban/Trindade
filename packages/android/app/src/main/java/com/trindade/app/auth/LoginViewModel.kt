@@ -54,11 +54,29 @@ class LoginViewModel @Inject constructor(
                         current.copy(submitting = false, signedIn = true, password = "")
                     is LoginResult.Rejected ->
                         current.copy(submitting = false, message = LoginMessage.FromServer(result.message))
-                    LoginResult.Unreachable ->
-                        current.copy(submitting = false, message = LoginMessage.Unreachable)
+                    is LoginResult.Unreachable ->
+                        current.copy(submitting = false, message = result.cause.toMessage())
                 }
             }
         }
+    }
+
+    /**
+     * The sentence this app has for a failure that never got an answer.
+     *
+     * A `when` with no `else` on purpose: a new [UnreachableCause] has to be given a sentence of its own
+     * here rather than inheriting whichever one happened to be last, which is exactly how a timeout came
+     * to be shown the words for a missing server. Only [UnreachableCause.Timeout] has its own sentence,
+     * because it is the only one the generic sentence is false about -- a refused connection, a failed
+     * handshake and an unreadable reply all leave the operator with nothing to do but try again, and the
+     * app has no better words for them than the ones it already has.
+     */
+    private fun UnreachableCause.toMessage(): LoginMessage = when (this) {
+        UnreachableCause.Timeout -> LoginMessage.Timeout
+        UnreachableCause.NoRoute,
+        UnreachableCause.Tls,
+        UnreachableCause.UnreadableBody,
+        -> LoginMessage.Unreachable
     }
 
     /**

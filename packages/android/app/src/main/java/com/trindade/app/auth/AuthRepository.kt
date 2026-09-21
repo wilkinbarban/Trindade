@@ -1,5 +1,6 @@
 package com.trindade.app.auth
 
+import android.util.Log
 import com.trindade.app.contract.models.ChangePasswordRequest
 import com.trindade.app.contract.models.ErrorEnvelope
 import com.trindade.app.contract.models.LoginRequest
@@ -9,11 +10,23 @@ import com.trindade.app.contract.models.RefreshRequest
 import com.trindade.app.contract.models.UpdateProfileRequest
 import com.trindade.app.network.AuthApi
 import com.trindade.app.network.runCatchingCancellable
+import java.io.InterruptedIOException
+import java.net.ConnectException
+import java.net.SocketException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import javax.inject.Inject
 import javax.inject.Singleton
+import javax.net.ssl.SSLException
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import retrofit2.Response
+
+// The tag this file's one log line appears under, so a support call can be told what to grep for. Named
+// after the class rather than after the screen, and declared the way `ProfileScreen`'s own tag is: the
+// two log lines this app has stay readable one at a time, and logcat's `AuthRepository:D` filter reaches
+// them without a second name to remember.
+private const val TAG = "AuthRepository"
 
 /**
  * Owns the session: signing in, signing out, and rotating.
@@ -73,10 +86,45 @@ class AuthRepository @Inject constructor(
      * wrong credentials, an inactive account, or something unanticipated. An unreadable or absent
      * envelope falls back to a generic sentence rather than surfacing a parse error, which would tell
      * the user nothing and look like a client bug.
+     *
+     * A failure that never reached the server is reported by its class and logged on the way out, and the
+     * two halves are one correction rather than two features. `getOrNull()` collapsed every Throwable into
+     * a single [LoginResult.Unreachable], so a timeout, a name that did not resolve, a refused connection
+     * and a reply nobody could parse reached the operator as the same sentence about a missing network --
+     * while the exception that said which one it had been was discarded without ever being written down.
+     * Retrofit throws a transport failure out of the call instead of returning it as a status, which is
+     * why the class can only be read from the Throwable.
+     *
+     * Every refusal path is untouched: a server answer still repeats the server's own text, and an
+     * unreadable envelope still falls back to [GENERIC_REJECTION], because those cases did have an answer
+     * and this change is about the ones that did not.
      */
     suspend fun login(username: String, password: String): LoginResult {
-        val response = runCatchingCancellable { api.login(LoginRequest(username = username, password = password)) }.getOrNull()
-            ?: return LoginResult.Unreachable
+        val attempt = runCatchingCancellable {
+            api.login(LoginRequest(username = username, password = password))
+        }
+        val response = attempt.getOrElse { failure ->
+            val cause = failure.unreachableCause()
+            // WARN rather than DEBUG or ERROR, and the level is a claim about the failure rather than
+            // about its severity: the request failed and the app is reporting it, which is more than
+            // routine typing (DEBUG) and less than something the app could not handle (ERROR) -- the
+            // screen shows a sentence and the operator retries. It is also the level `ProfileScreen`'s
+            // own unopenable-link line uses, so this app's logcat has one severity for "this did not
+            // work" and no second vocabulary for it.
+            //
+            // The throwable is the third argument so its type, message and stack all reach logcat, and
+            // the class is repeated in the text as well so that one grep finds the failure without
+            // having to read frames: `Login failed before the server answered: Timeout
+            // (SocketTimeoutException: timeout)`. Neither the username nor the password is logged; the
+            // cause and the exception are what a reader needs, and the credentials are not.
+            Log.w(
+                TAG,
+                "Login failed before the server answered: $cause " +
+                    "(${failure.javaClass.simpleName}: ${failure.message})",
+                failure,
+            )
+            return LoginResult.Unreachable(cause)
+        }
 
         val body = response.body()
         if (response.isSuccessful && body != null) {
@@ -88,6 +136,30 @@ class AuthRepository @Inject constructor(
         }
 
         return LoginResult.Rejected(message = response.errorMessage() ?: GENERIC_REJECTION)
+    }
+
+    /**
+     * Which kind of failure kept a request from producing an answer.
+     *
+     * The mapping is made once, here, and [UnreachableCause] carries the reasoning behind each value and
+     * the classes it is read from. The order of the branches is not load-bearing -- the three families do
+     * not overlap, since `SSLException` is not a `SocketException` -- and it is the order a diagnosis gets
+     * simpler in: the client's own clock first, then the address, then the transport.
+     *
+     * `SocketTimeoutException` and `ConnectException` are named although `InterruptedIOException` and
+     * `SocketException` cover them. That is deliberate: the pair is what a reader greps for on the device,
+     * and it says which classes this branch is about without the reader having to know either hierarchy.
+     *
+     * The `else` is the bucket the last value names, and it is honest about being one. A converter that
+     * could not read a reply arrives here (`kotlinx.serialization.SerializationException`), and so does a
+     * Throwable this client cannot classify -- whose own type and message the log line carries, so the
+     * bucket is never the last word about what happened.
+     */
+    private fun Throwable.unreachableCause(): UnreachableCause = when (this) {
+        is SocketTimeoutException, is InterruptedIOException -> UnreachableCause.Timeout
+        is UnknownHostException, is ConnectException, is SocketException -> UnreachableCause.NoRoute
+        is SSLException -> UnreachableCause.Tls
+        else -> UnreachableCause.UnreadableBody
     }
 
     /**
