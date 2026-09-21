@@ -1545,23 +1545,24 @@ still needs committing in its own commit.
    the ear is gold or white, and the shipped mark's ear is white while the logomarca's own ear is
    white too — so drawing it from the description alone would be guessing at the one element the
    choice is about. D7's mark stays in place until the preview can be looked at.
-9. **A Compose UI test lane** — OPEN, and it is a **decision rather than a task**, because it changes
-   the build. `R3-001` of `review-380c84270c06db8c` found that the login screen's new scroll
-   container is covered by no test at all: a regression in the modifier order or in the centring
-   would go unnoticed, and only a compile and an APK check stand behind it. Closing that properly
-   needs a lane that can render Compose **on this machine**, and the measurement says what it costs:
+9. **A Compose UI test lane** — **DECIDED (2026-09-21): it is built, and it goes before the
+   parity track's first UI slice.** `R3-001` of `review-380c84270c06db8c` found that the login
+   screen's new scroll container is covered by no test at all: a regression in the modifier order or
+   in the centring would go unnoticed, and only a compile and an APK check stand behind it. Closing
+   that properly needs a lane that can render Compose **on this machine**, and the measurement says
+   what it costs:
    there is **no `androidTest` source set**, and an instrumented lane could not run here anyway — the
    emulator lives on the Windows box and it is unreachable; the JVM test dependencies are `junit`,
    `mockwebserver` and `kotlinx.coroutines.test`, with **no Robolectric and no `ui-test-junit4`**, so
    a Compose render test would add `androidx.compose.ui:ui-test-junit4` (from the BOM),
    `ui-test-manifest` and Robolectric, plus `unitTests.isIncludeAndroidResources = true` — three
    dependencies and a build flag, and a first test to establish the conventions.
-   **Why it is worth deciding now rather than after the fact:** the parity track adds nine more
-   surfaces (Dashboard, two edit screens, six admin panels and audit), every one of them a layout
-   nothing can currently render, and this session has already produced one real layout regression
-   that no test caught — a reviewer reading the code found it. The cost is a work unit of its own.
-   The alternative is accepting the gap for every screen that follows, which is a legitimate answer
-   as long as it is **chosen** rather than defaulted into.
+   **The order chosen:** `P1` (the admin and audit contract) runs first because it is backend work and
+   touches no Compose, so it is not slowed by this; the lane is then built as its own unit **before**
+   the parity track's first UI slice, which is where the nine renderable surfaces start. The reason to
+   pay now rather than later is that the parity track adds nine surfaces nothing can currently render
+   — Dashboard, two edit screens, six admin panels and audit — and this session has already produced
+   one real layout regression that no test caught, found only by a reviewer reading the code.
 
 ## Review workload notes
 

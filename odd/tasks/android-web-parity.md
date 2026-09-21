@@ -205,14 +205,37 @@ is the claim this feature exists to stop making.
 ## Locked order (confirmed by the user, 2026-09-21)
 
 1. **P1** (contract precondition) → **A1** (role gating)
-2. **Slice B** — the daily operational gap: B1 Dashboard, B2 Report edit, B3 Loading edit
-3. **Slice C** — admin panel, C1 → C6
-4. **Slice D** — audit
-5. **E1** — parity walk
+2. **Slice T** — the Compose UI test lane, decided before any UI slice lands (see below)
+3. **Slice B** — the daily operational gap: B1 Dashboard, B2 Report edit, B3 Loading edit
+4. **Slice C** — admin panel, C1 → C6
+5. **Slice D** — audit
+6. **E1** — parity walk
 
 The operational edits go before the admin panel because they are the work the crew already does
 on the phone every day, they sit next to screens that already exist, and each is a smaller review
 than any admin surface.
+
+### Slice T — why a test lane sits between the contract and the first screen
+
+`R3-001` of `review-380c84270c06db8c` found that the login screen's scroll container is covered by no
+test, so a regression in its modifier order or its centring would go unnoticed. Closing that needs a
+lane that can render Compose on this machine, and this track is what makes it worth paying for: it
+adds nine renderable surfaces — Dashboard, two edit screens, six admin panels and audit — and nothing
+in the project can render one today.
+
+`P1` stays ahead of it deliberately: it is backend and contract work and touches no Compose, so the
+lane does not slow it. Slice T then lands before Slice B, which is where the screens start.
+
+What it costs, measured rather than guessed: there is **no `androidTest` source set**, and an
+instrumented lane could not run here anyway because the emulator lives on the Windows box and is
+unreachable. The JVM test dependencies are `junit`, `mockwebserver` and `kotlinx.coroutines.test`,
+with no Robolectric and no `ui-test-junit4`, so the lane means `androidx.compose.ui:ui-test-junit4`
+(from the BOM), `ui-test-manifest` and Robolectric, plus `unitTests.isIncludeAndroidResources = true`
+— three dependencies, a build flag, and a first test that establishes the conventions.
+
+It also has to prove itself against the case that motivated it: the first test in the lane should
+assert the login screen's scroll container behaves as the fix claims, because that layout is the one
+regression of this session that no test caught.
 
 ## Locked decisions
 
