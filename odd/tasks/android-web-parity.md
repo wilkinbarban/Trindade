@@ -395,9 +395,43 @@ a review on this candidate:
 | `R3-002` | reliability | `build.gradle.kts:500` | the Robolectric fetch is a precondition of the whole test task | duplicate of `R4-1` seen from the other lens |
 | `R4-1` | resilience | `build.gradle.kts:500` | the 200 MB `android-all-instrumented` fetch outside Gradle's graph, re-downloaded every CI run, with no cache, retry or offline fallback, failing **every** unit test in the module on a transient outage | **true** |
 
-**That is the next work unit.** `R2-001` and `R2-002` are prose and one comment, `R3-001` is a
-variant-scoped dependency, and `R4-1` is a decision rather than a fix — with the reason to prefer recording
-it over building the offline path already written above, in the paragraph about the pinned API level.
+**All five were closed or decided in one work unit**, and the shape of each closure is worth a line:
+
+* `R2-001` — **fixed**: the first test's KDoc now names the second assertion as the one the recorded
+  mutation trips first and the third as the one the same mutation makes impossible, which is what the
+  evidence shows.
+* `R2-002` — **fixed**: the window qualifier is now the lane's fourth stated deliberate choice, with the
+  reviewer's reason written beside it -- a fixed-size `Box` is measured *under* the window's constraints.
+* `R3-001` — **fixed as a statement about scope, and the measurement is worth more than the fix**: the test
+  moved to `app/src/testDebug`, so the source set says what the dependency says. The breakage the finding
+  predicted, though, is unreachable in this module as it stands: `:app:tasks --all` lists exactly one
+  unit-test task, `testDebugUnitTest`, and the aggregate `test` covers only it — there is no release
+  unit-test variant to fail. So this is not the repair of an observed failure; it is the test declaring
+  which variant owns it, which is what keeps a future release unit-test variant from inheriting one that
+  cannot launch.
+* `R3-003` — **fixed, and it is the one that changes behaviour**, with the evidence a fix to a guard
+  deserves. The centring test's guard asserted a height, and the scroll container this fix installs is
+  exactly what keeps that height at 40dp in both regimes, so the guard held while the regime it named had
+  already broken. It now requires both ends of the content to be on screen at once. Falsified in both
+  directions by shrinking the test's box to 300dp so the content overflows: the new guard fails at the
+  precondition (*"The component ... contains 'Entrar' ... is not displayed"*), while the guard it replaced
+  let the height assertion pass and failed later at *"the submit button moved 467.0dp when the viewport grew
+  by 200.0dp"* — a centring message for a precondition failure, which is the misattribution the finding
+  named, observed rather than argued.
+* `R3-002` ≡ `R4-001` — **decided, not fixed**: the 200 MB fetch stays, because the offline path the
+  reviewer suggested would not remove it -- Robolectric's offline mode resolves the artifact through
+  Gradle, and Gradle's cache is as ephemeral as `$HOME/.m2` in CI, so the download happens on the first
+  run either way while the build gains a pinned artifact version that has to track Robolectric's own
+  per-SDK table. The real mitigation is a cache in the workflow that keeps the image between runs, which
+  belongs to the unit that next touches `.github/workflows/ci.yml`; writing it from here, where it cannot
+  be run, would be an unverifiable claim of a fix.
+
+**A third review line, and the loop it exposed.** The record of the second review was itself committed,
+which made a new candidate, and the provider answered a changed candidate the way it says it does: a third
+transaction (`review-ffe231dab8aa0534`) re-ran all four lenses over 427 lines whose only delta was that
+record -- approved and burned, with `R3-003` as its one new finding. **The rule this track takes from it: a
+commit that only records a review is a candidate like any other, so a record is batched into the next
+commit that carries work.** The alternative is paying a review per paragraph.
 
 ---
 

@@ -503,5 +503,8 @@ dependencies {
     // The activity createComposeRule() launches has to be in the merged manifest of the variant under
     // test, and it must never reach a release build. This is the artifact that declares it, and
     // debugImplementation is what keeps it out of the APK the crew installs.
+    // A test that needs that activity is therefore a debug-variant test, which is why this lane's test
+    // lives in `app/src/testDebug` rather than in the shared `src/test`: in the shared set it compiled and
+    // then could not launch under `testReleaseUnitTest` or a plain `./gradlew test`.
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

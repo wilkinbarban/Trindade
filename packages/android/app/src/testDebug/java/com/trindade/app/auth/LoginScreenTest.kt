@@ -37,7 +37,7 @@ import org.robolectric.annotation.GraphicsMode
  * could be squeezed to nothing with no way for the operator to reach it. Every test in this project
  * passed while that was true, because nothing could render the screen.
  *
- * Three things about the lane are deliberate:
+ * Four things about the lane are deliberate:
  *
  *  * `GraphicsMode.NATIVE` is what makes the rendering real -- text is measured by the framework's own
  *    layout instead of by a shadow that returns a constant -- so a screen measured here is measured
@@ -50,6 +50,17 @@ import org.robolectric.annotation.GraphicsMode
  *    string typed here, so the selector cannot drift from the copy, and it resolves to the button's own
  *    node -- the button merges its descendants, which is what gives that node the button's bounds
  *    rather than the text's.
+ *  * The window's own size is not decoration. A fixed-size `Box` is measured *under* the window's
+ *    constraints, so `@Config(qualifiers = "w400dp-h1000dp")` is what makes the boxes below mean what they
+ *    say: the centring test declares a 700dp box and grows it to 900dp, and both numbers only measure the
+ *    viewport while the window stays taller than the larger one. Trimming the qualifier because the KDoc
+ *    says the box replaces the test window measures a 0dp delta, which this test would then report as
+ *    content pinned to the top.
+ *
+ * The class lives in `src/testDebug` rather than `src/test`, because the host activity comes from
+ * `ui-test-manifest`, which is a debug-only dependency by design -- it must never reach a release APK. In
+ * the shared source set this test compiled and then could not launch under `testReleaseUnitTest` or a
+ * plain `./gradlew test`; in `testDebug` the variant that has the activity is the only one that runs it.
  */
 @RunWith(AndroidJUnit4::class)
 @Config(qualifiers = "w400dp-h1000dp")
@@ -69,6 +80,9 @@ class LoginScreenTest {
     private val submitLabel: String
         get() = ApplicationProvider.getApplicationContext<Context>().getString(R.string.login_submit)
 
+    private val titleLabel: String
+        get() = ApplicationProvider.getApplicationContext<Context>().getString(R.string.login_title)
+
     /**
      * The regression itself: the screen must scroll to the button on a viewport too short to hold the
      * branding, the fields and the button.
@@ -76,10 +90,10 @@ class LoginScreenTest {
      * The first assertion is a precondition rather than a claim about the fix, and it is what keeps
      * this test from going quietly vacuous: if the content ever fits in this viewport, "the button can
      * be scrolled to" stops meaning anything. The second is the squeeze -- a Material button is 40dp
-     * tall (`ButtonDefaults.MinHeight`) and 0 when it is measured against no space at all. The third
-     * is reachability, and it is the one that fails without `verticalScroll`: with no scrollable
-     * ancestor there is nothing to scroll, so the call does not merely assert the wrong thing, it
-     * cannot be performed.
+     * tall (`ButtonDefaults.MinHeight`) and 0 when it is measured against no space at all -- and it is the
+     * one the recorded mutation trips **first**, with `Actual height is 0.0.dp, expected at least
+     * 40.0.dp`. The third is reachability, and the same mutation does not fail it so much as make it
+     * impossible: with no scrollable ancestor there is nothing to scroll, so the run never reaches it.
      */
     @Test
     fun `a short viewport scrolls to the submit button instead of squeezing it`() {
@@ -104,9 +118,13 @@ class LoginScreenTest {
      * hypotheses are 100dp apart here, so the test states a number rather than a direction. Growing the
      * box is how the same screen is measured twice: `setContent` may only be called once per test.
      *
-     * `assertHeightIsAtLeast` guards the regime both measurements assume: if the content were taller
-     * than the box, the button would be squeezed, and the difference would be reading a screenshot of
-     * the wrong behaviour.
+     * The precondition both measurements rest on is asserted rather than assumed, and it is asserted as
+     * "the whole screen is on screen at once" rather than as a height: a height assertion cannot make this
+     * claim, because the scroll container this very fix installs is what keeps the submit button at its 40dp
+     * when the content outgrows the box -- so the height stays 40dp in both regimes and the guard passed
+     * while the regime it named had already broken. If the content ever grows past the box, the button
+     * leaves the viewport and `assertTheBoxHoldsTheWholeScreen` fails here, naming the precondition, instead
+     * of surfacing later as a movement of less than half and being read as a centring regression.
      */
     @Test
     fun `the content still centres when the viewport holds it`() {
@@ -115,21 +133,19 @@ class LoginScreenTest {
             Box(Modifier.size(width = 400.dp, height = viewportHeight)) { TestLoginScreen() }
         }
 
-        val submitInShortBox = composeRule.onNodeWithText(submitLabel)
-        submitInShortBox.assertHeightIsAtLeast(40.dp)
+        assertTheBoxHoldsTheWholeScreen()
         // The bounds come back in dp, not in pixels, and the annotated type says so: `getBoundsInRoot()`
         // answers in `Dp` -- its `bottom` is a `Dp` whose `.value` is the number of dp -- while the
         // neighbouring `SemanticsNode.boundsInRoot` is the API that answers in pixels. Naming the unit was
         // worth a line here because this test is the one the lane's next geometry tests are copied from.
-        val bottomInShortBox: Dp = submitInShortBox.getBoundsInRoot().bottom
+        val bottomInShortBox: Dp = composeRule.onNodeWithText(submitLabel).getBoundsInRoot().bottom
 
         val grownBy = 200.dp
         composeRule.runOnUiThread { viewportHeight += grownBy }
         composeRule.waitForIdle()
 
-        val submitInTallBox = composeRule.onNodeWithText(submitLabel)
-        submitInTallBox.assertHeightIsAtLeast(40.dp)
-        val bottomInTallBox: Dp = submitInTallBox.getBoundsInRoot().bottom
+        assertTheBoxHoldsTheWholeScreen()
+        val bottomInTallBox: Dp = composeRule.onNodeWithText(submitLabel).getBoundsInRoot().bottom
 
         val moved = bottomInTallBox.value - bottomInShortBox.value
         val expected = (grownBy / 2).value
@@ -141,6 +157,20 @@ class LoginScreenTest {
                 "move at all, so this measures neither.",
             moved >= expected - tolerance && moved <= expected + tolerance,
         )
+    }
+
+    /**
+     * The precondition the two measurements above rest on: the box holds the whole screen, which is what
+     * makes "centred" a thing this test can measure at all.
+     *
+     * The heading is the top of the content and the submit button is its bottom, so both being displayed
+     * at the same time is exactly "it fits". The height of the button is not, for the reason above: the
+     * scroll container keeps it at 40dp whether or not the content fits, so a height assertion is true in
+     * both regimes and cannot fail when this one breaks.
+     */
+    private fun assertTheBoxHoldsTheWholeScreen() {
+        composeRule.onNodeWithText(titleLabel).assertIsDisplayed()
+        composeRule.onNodeWithText(submitLabel).assertIsDisplayed()
     }
 
     /**
