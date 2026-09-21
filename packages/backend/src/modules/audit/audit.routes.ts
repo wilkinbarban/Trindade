@@ -1,15 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { requireRole } from '../auth/auth.middleware.js';
-import { z } from 'zod';
+import { AuditQuerySchema } from './audit.schema.js';
 import * as audit from './audit.service.js';
-
-const AuditQuerySchema = z.object({
-  page: z.coerce.number().int().positive().optional().default(1),
-  limit: z.coerce.number().int().min(1).max(100).optional().default(20),
-  action: z.string().optional(),
-  entityType: z.string().optional(),
-  userId: z.coerce.number().int().positive().optional(),
-});
 
 /**
  * Audit module — Fastify plugin.

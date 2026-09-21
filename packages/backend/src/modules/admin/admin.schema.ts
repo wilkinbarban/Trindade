@@ -113,55 +113,124 @@ export const UpdateUserSchema = z.object({
 export type CreateUserBody = z.infer<typeof CreateUserSchema>;
 export type UpdateUserBody = z.infer<typeof UpdateUserSchema>;
 
-// ---- Response Types (TypeScript only) ----
+// ---- Response Schemas ----
+//
+// Schemas rather than interfaces, so the contract generator can read them and a contract test can
+// validate what the routes really return. The interfaces these replace typed the ids as `number`
+// and marked `task_type` and `role_name` optional, while the queries return those fields on every
+// row: an interface can describe a response the code never produces and nothing would notice, which
+// is the drift a machine-readable contract exists to prevent. Every schema is `.strict()`, so a
+// route returning an undocumented field fails a test instead of drifting past the document.
 
-export interface CategoryRow {
-  id: number;
-  parent_category_id: number | null;
-  name_pt: string;
-  name_es: string;
-  category_type: CategoryType;
-  sort_order: number;
-  is_active: number;
-  created_at: string;
-}
+/** A category as `SELECT * FROM report_categories` returns it, which every category route sends. */
+export const CategorySchema = z
+  .object({
+    id: z.number().int(),
+    parent_category_id: z.number().int().nullable(),
+    name_pt: z.string(),
+    name_es: z.string(),
+    category_type: z.enum(CATEGORY_TYPES),
+    sort_order: z.number().int(),
+    is_active: z.number().int(),
+    created_at: z.string(),
+  })
+  .strict();
 
-export interface TaskRow {
-  id: number;
-  category_id: number;
-  name_pt: string;
-  name_es: string;
-  is_active: number;
-  created_by_user_id: number | null;
-  temperature_readings: number;
-  created_at: string;
-  task_type?: CategoryType;
-}
+/**
+ * A task as the create and update queries return it.
+ *
+ * `task_type` is the CATEGORY's type, which the query selects as `task_type`: a task inherits the
+ * type of the category it belongs to rather than carrying one of its own.
+ */
+export const TaskSchema = z
+  .object({
+    id: z.number().int(),
+    category_id: z.number().int(),
+    name_pt: z.string(),
+    name_es: z.string(),
+    temperature_readings: z.number().int(),
+    is_active: z.number().int(),
+    created_by_user_id: z.number().int().nullable(),
+    created_at: z.string(),
+    task_type: z.enum(CATEGORY_TYPES),
+  })
+  .strict();
 
-export interface DriverRow {
-  id: number;
-  name: string;
-  license_plate: string | null;
-  driver_type: 'casa' | 'fletero';
-  is_active: number;
-  created_by_user_id: number | null;
-  created_at: string;
-}
+/**
+ * A task as the listing returns it: the same row plus the category name, which only `listTasks`
+ * selects. Two schemas rather than one optional field, because `category_name` is on every listed
+ * task and on none of the written ones, and an optional field would describe neither.
+ */
+export const TaskListItemSchema = TaskSchema.extend({ category_name: z.string() }).strict();
 
-export interface VehicleRow {
-  id: number;
-  description: string;
-  license_plate: string;
-  is_active: number;
-  created_at: string;
-}
+/** A driver as `SELECT * FROM drivers` returns it. */
+export const DriverSchema = z
+  .object({
+    id: z.number().int(),
+    name: z.string(),
+    license_plate: z.string().nullable(),
+    driver_type: z.enum(['casa', 'fletero']),
+    is_active: z.number().int(),
+    created_by_user_id: z.number().int().nullable(),
+    created_at: z.string(),
+  })
+  .strict();
 
-export interface UserRow {
-  id: number;
-  username: string;
-  display_name: string;
-  role_id: number;
-  role_name?: string;
-  is_active: number;
-  created_at: string;
-}
+/** A vehicle as `SELECT * FROM vehicles` returns it. */
+export const VehicleSchema = z
+  .object({
+    id: z.number().int(),
+    description: z.string(),
+    license_plate: z.string(),
+    is_active: z.number().int(),
+    created_at: z.string(),
+  })
+  .strict();
+
+/**
+ * A user as `listUsers` and the user mutations return it.
+ *
+ * The projection deliberately omits `password_hash` and `updated_at`, and `role_name` arrives from an
+ * INNER JOIN, so every listed row carries it rather than the field being optional.
+ */
+export const UserSchema = z
+  .object({
+    id: z.number().int(),
+    username: z.string(),
+    display_name: z.string(),
+    role_id: z.number().int(),
+    role_name: z.string(),
+    is_active: z.number().int(),
+    created_at: z.string(),
+  })
+  .strict();
+
+// The admin time-slot route serves the same `settings.loading_time_slots` value under the same
+// envelope as the loading module, so the shape is reused instead of re-declared. Its canonical home
+// is `contracts/common.schema.ts`; until that shared file is touched it stays owned by loading and is
+// re-exported here so the admin surface reads as complete.
+export { TimeSlotsResponseSchema } from '../loading/loading.schema.js';
+
+// ---- Response Envelopes ----
+//
+// Objects rather than bare arrays, because that is what the handlers send. `.strict()` on a bare
+// array would accept nothing, and the envelope is what a generated client deserialises.
+
+export const CategoriesResponseSchema = z.object({ categories: z.array(CategorySchema) }).strict();
+export const CategoryResponseSchema = z.object({ category: CategorySchema }).strict();
+export const TasksResponseSchema = z.object({ tasks: z.array(TaskListItemSchema) }).strict();
+export const TaskResponseSchema = z.object({ task: TaskSchema }).strict();
+export const DriversResponseSchema = z.object({ drivers: z.array(DriverSchema) }).strict();
+export const DriverResponseSchema = z.object({ driver: DriverSchema }).strict();
+export const VehiclesResponseSchema = z.object({ vehicles: z.array(VehicleSchema) }).strict();
+export const VehicleResponseSchema = z.object({ vehicle: VehicleSchema }).strict();
+export const UsersResponseSchema = z.object({ users: z.array(UserSchema) }).strict();
+export const UserResponseSchema = z.object({ user: UserSchema }).strict();
+
+// The types the service keeps importing, derived from the schemas so they cannot drift away from
+// the contract.
+export type CategoryRow = z.infer<typeof CategorySchema>;
+export type TaskRow = z.infer<typeof TaskSchema>;
+export type DriverRow = z.infer<typeof DriverSchema>;
+export type VehicleRow = z.infer<typeof VehicleSchema>;
+export type UserRow = z.infer<typeof UserSchema>;

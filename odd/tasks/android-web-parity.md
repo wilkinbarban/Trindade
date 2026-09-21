@@ -79,28 +79,117 @@ typed, validated models until the contract covers it.** That was recorded in
 
 ## Slice P — Backend: contract for the admin and audit surfaces
 
-### P1. Register admin + audit in the OpenAPI contract
+### P1b. Register admin and audit in the OpenAPI contract — PENDING
 
-- `modules/admin/admin.schema.ts`: Zod request and response schemas for the admin surface,
-  `.strict()` like every other module, with the TypeScript types derived by `z.infer`. The
-  OpenAPI registry currently documents 32 paths / 41 operations; this slice adds the admin and
-  audit paths and their components.
-- Register in `contracts/openapi.ts`, regenerate `packages/contracts/openapi.json`, and
-  **shrink the declared out-of-scope set** in `contracts/route-coverage.test.ts` to empty (or
-  to whatever genuinely remains undocumented, with the reason written next to it). The coverage
-  test must keep failing in both directions.
-- Contract tests that parse **live responses** for each admin read endpoint, in the shape
-  `contracts/loading.contract.test.ts` established. Write responses change data, so they are
-  covered by the route coverage test plus the existing backend admin suite rather than by a
-  new live-mutation contract test.
-- Regenerate the Android contract types (`scripts/generate-android-contract.sh`) in the same
-  work unit so the artifact and the client cannot drift.
+What remains, in one work unit (it cannot be split further and stay green: emptying the exclusion makes
+the coverage test demand every admin operation in the document, so the registry entries and the exclusion
+have to move together):
 
-**Acceptance:** `scripts/verify-openapi-artifact.sh` reports current; the backend suite is green;
-the route-coverage test proves nothing served is undescribed and nothing described is unserved,
-with the admin/audit exclusion gone.
+- Register the **22 operations across 16 paths** — 15 admin paths plus `/api/admin/audit` — in
+  `contracts/openapi.ts`, reusing the schemas P1a declared rather than restating them. The registry
+  currently documents 32 paths / 41 operations / 26 components; this takes it to 48 paths and 63
+  operations.
+- Regenerate `packages/contracts/openapi.json`.
+- **Empty the out-of-scope set** in `contracts/route-coverage.test.ts`. There is a trap here: that file
+  asserts `excluded.length > 0` with the message "the out-of-scope set matched nothing, so it may be
+  stale", so emptying the set fails that assertion until it is updated in the same commit. The
+  assertion existed to catch a stale prefix; with the set empty, `assert.deepEqual(OUT_OF_SCOPE_PREFIXES,
+  [])` and a comment recording why nothing is out of scope any more is what replaces it — the guard must
+  keep failing in both directions, not lose a direction.
+- Keep the coverage test failing in both directions: nothing served may be undescribed, and nothing
+  described may be unserved.
+- Move `TimeSlotsResponseSchema` to `contracts/common.schema.ts` while that file is open, since it is
+  shared with `loading` and P1a could only re-export it (finding 5 above).
+- Regenerate the Android contract types (`scripts/generate-android-contract.sh`) in the same work unit, so
+  the artifact and the client cannot drift.
+
+The live-response contract tests already landed in P1a and do not repeat here. Write responses change
+ data, so they stay covered by the route-coverage test plus the existing backend admin suite.
+
+**Acceptance:** `scripts/verify-openapi-artifact.sh` reports current; the backend suite is green; the
+route-coverage test proves nothing served is undescribed and nothing described is unserved, with the
+admin/audit exclusion gone; and the regenerated Android types compile.
 
 **Not in scope:** changing any admin behavior. This slice describes what is already served.
+
+---
+
+### P1a. The admin response shapes are declared and proved — DONE
+
+Split from P1 deliberately. **P1a does not touch the OpenAPI registry or the committed artifact**, so
+the exclusion stays in place, the document stays exactly as true as it is today, and every
+intermediate state is green. Registering the 22 operations is P1b.
+
+Delivered: `modules/admin/admin.schema.ts` now declares the surface's response shapes as `.strict()`
+Zod schemas with `z.infer` types (the row interfaces it used to hold had the same export names, so
+`admin.service.ts` needed no change); `modules/audit/audit.schema.ts` is new and takes
+`AuditQuerySchema` out of the router along with `AuditLogSchema` and the paginated envelope; and
+`contracts/admin.contract.test.ts` parses **live responses from the running app** for all seven read
+endpoints, plus an assertion of the two-guard role split.
+
+**Measured, not assumed:** the surface is 22 operations across 16 paths. `audit` lives under the
+`/api/admin` prefix (`routes.ts` registers `auditRoutes` with that prefix), which is why a single
+prefix covers both. `drivers` has no `DELETE`. `tasks`' `DELETE` is `catalogGuard`, so a `Trabalhador`
+can delete a task type.
+
+**Evidence:** the full canonical gate passed — `make ci-clone`, i.e. `scripts/ci.sh` on
+`node:24-bookworm-slim` with the dirty files overlaid, ending **53/53 Playwright E2E** and
+`CI gate passed`. Separately measured on the declared engine: `tsc --noEmit` clean, and
+**336 backend tests, 336 pass, 0 fail, 0 skipped**. The new contract file contributes **8 named
+tests**, listed in its own `it(...)` blocks; the ledger's older "326" predates the commits between
+C2 and now, so no baseline is asserted — only the total and the attributable delta.
+
+**What P1a surfaced and deliberately did not change** (all outside its authority, all recorded here
+because the next person touching the admin surface needs them):
+
+1. **The task list and the task writes serve different shapes.** `listTasks` selects
+   `rc.name_pt AS category_name` and the write paths do not, so a listed task carries a field a
+   created one does not. Modelled truthfully as two schemas rather than one widened with an optional
+   field — the drift is real and an optional field would hide it.
+2. **A PATCH with no fields changed returns an unprojected row.** `UpdateTaskSchema` is fully
+   optional, and `updateTask` returns the `SELECT *` row when nothing changed — which carries neither
+   `task_type` nor `category_name` and matches **neither** schema. The handler is what looks wrong;
+   the schema was not widened to fit it. The same early return exists for categories, drivers and
+   vehicles, but for those `SELECT *` happens to equal the served shape, so tasks is the only one.
+3. **`audit.service.ts`'s `AuditLogRow.user_id` is typed non-nullable** while `audit_logs.user_id`
+   is nullable and `deleteUser` nulls it before deleting, so the LEFT JOIN can serve `user_id: null`.
+   The schema documents the query's truth; the interface does not.
+4. **`contracts/common.schema.ts`'s `PaginationSchema` is not reusable here**: it names the size
+   field `pageSize` and the audit handler returns `limit`. Audit's block is declared in its own module
+   rather than forcing one of the two to move.
+5. **`TimeSlotsResponseSchema` is shared with `loading` but lives in `loading.schema.ts`.** Its
+   conventional home is `common.schema.ts`; P1a re-exported it rather than duplicating it, and moving
+   it belongs with P1b when `common.schema.ts` is next touched.
+6. **`CATEGORY_TYPES` is duplicated** between `admin.schema.ts` and `reports.schema.ts` (the same four
+   values). Pre-existing.
+
+---
+
+## Slice T — The Compose UI test lane
+
+**Placed between Slice P and Slice B on purpose** (decided 2026-09-21): the contract work is backend
+and touches no Compose, so this lane does not slow the thing that is blocking; and the lane then lands
+before the first UI slice, which is where the renderable surfaces begin.
+
+### T1. Make a Compose screen renderable in a JVM test
+
+`R3-001` of `review-380c84270c06db8c` found the login screen's scroll container covered by no test, so a
+regression in its modifier order or its centring would go unnoticed. Nothing in the project can render a
+Compose screen today, and the measurement says what closing that costs: **no `androidTest` source set
+exists**, and an instrumented lane could not run here in any case because the emulator lives on the
+Windows box and is unreachable. The JVM test dependencies are `junit`, `mockwebserver` and
+`kotlinx.coroutines.test`, so the lane means `androidx.compose.ui:ui-test-junit4` (from the BOM),
+`ui-test-manifest` and Robolectric, plus `unitTests.isIncludeAndroidResources = true`.
+
+**It has to prove itself against the case that motivated it:** the first test in the lane asserts the
+login screen's scroll container behaves as the fix claims — that a short viewport scrolls to the submit
+button rather than squeezing it, and that the content still centres when it fits. That layout is the one
+regression of this session that no test caught, and a lane that does not cover it would be infrastructure
+built for a hypothetical.
+
+**Acceptance:** the lane runs in the existing `:app:testDebugUnitTest` task with no new Gradle task,
+the login scroll test fails if the `verticalScroll` modifier is removed, and the Android lane's runtime
+stays within what the CI image already allows.
 
 ---
 
