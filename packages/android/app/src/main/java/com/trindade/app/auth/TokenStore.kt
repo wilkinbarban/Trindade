@@ -16,7 +16,12 @@ interface TokenStore {
     fun refreshToken(): String?
 
     /**
-     * The role the current session was opened with, or null when there is no session.
+     * The role the current session was opened with, or null when no role has been recorded.
+     *
+     * Null is not the same as no session, and a caller must not read it that way: a session stored before this
+     * app recorded roles has its token pair and no role, so this answers null while [accessToken] answers a
+     * token. That is the upgrade path -- an app updated from an earlier version -- and it resolves at the next
+     * sign-in, which records the role the server hands over.
      *
      * Beside the tokens rather than in a store of its own, because it is the same fact: a session is what
      * the server granted at sign-in, and the role came with it. Two stores for one session is how the two

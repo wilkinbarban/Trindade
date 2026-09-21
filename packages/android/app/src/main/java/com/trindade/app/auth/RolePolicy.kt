@@ -72,8 +72,12 @@ object RolePolicy {
     /**
      * What both roles see: the surfaces a signed-in operator uses every day, plus the two admin surfaces
      * the server's `catalogGuard` opens to both.
+     *
+     * Named for what it is -- the base both roles share -- because the name it had first said "worker" and
+     * that is a trap: an entry point added here for the worker alone is handed to the administrator as
+     * well, and the administrator's set is built from this one, so nothing else would catch it.
      */
-    private val WORKER_ENTRY_POINTS = setOf(
+    private val SHARED_ENTRY_POINTS = setOf(
         EntryPoint.DASHBOARD,
         EntryPoint.REPORTS,
         EntryPoint.LOADING,
@@ -82,11 +86,11 @@ object RolePolicy {
     )
 
     /**
-     * The administrator is the worker plus the surfaces behind `adminGuard`. Written as an addition rather
-     * than as a second list, so a surface added to the worker's set cannot be forgotten here -- which is the
-     * failure this table exists to prevent, one entry at a time.
+     * The administrator is the shared base plus the surfaces behind `adminGuard`. Written as an addition
+     * rather than as a second list, so a surface added to the shared set cannot be forgotten here -- which
+     * is the failure this table exists to prevent, one entry at a time.
      */
-    private val ADMIN_ENTRY_POINTS = WORKER_ENTRY_POINTS + setOf(
+    private val ADMIN_ENTRY_POINTS = SHARED_ENTRY_POINTS + setOf(
         EntryPoint.CATEGORIES,
         EntryPoint.VEHICLES,
         EntryPoint.TIME_SLOTS,
@@ -95,12 +99,12 @@ object RolePolicy {
     )
 
     /**
-     * The entry points [role] may open. An absent or unrecognised role gets the worker's set: fail closed,
-     * so a value this client does not understand can only ever offer less.
+     * The entry points [role] may open. An absent or unrecognised role gets the shared set, which is what a
+     * worker sees: fail closed, so a value this client does not understand can only ever offer less.
      */
     fun visibleEntryPoints(role: String?): Set<EntryPoint> = when (role) {
         ADMIN -> ADMIN_ENTRY_POINTS
-        else -> WORKER_ENTRY_POINTS
+        else -> SHARED_ENTRY_POINTS
     }
 
     /**

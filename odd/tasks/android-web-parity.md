@@ -532,6 +532,31 @@ meets the server's guard, and this table decides only what is offered. It adds n
 visible to every role, and the day an administrator-only entry comes first in the row, the starting tab has to
 come from the policy too.
 
+### The three findings A1's review left, closed
+
+A1's own review (`review-7615f7fc754b9448`) approved it and left three findings, all three true:
+
+* `R2-001` — **fixed**: the set is now `SHARED_ENTRY_POINTS`. The reasoning was exact -- it is the base the
+  administrator's set is built from, so a name that said "worker" invited the one edit that would hand a
+  worker-only surface to the administrator, and nothing downstream would have caught it. The name contradicted
+  its own KDoc, which had said "what both roles see" from the start.
+* `R2-002` — **fixed as prose, and the state it names is real rather than hypothetical**: `null` from `role()`
+  now means *no role recorded*, not *no session*, because an app updated from the version before this one has a
+  stored session with its token pair and no role. The consequence is stated where a caller reads it:
+  `hasSession()` is true while `sessionRole()` is null, and the navigation then falls back to what the policy
+  answers for a role it does not recognise -- the direction that offers less. It resolves at the next sign-in,
+  which records the role the server hands over.
+* `R3-001` — **decided, and the decision is a measurement rather than an argument.** The finding is right that
+  the real `KeystoreTokenStore` has no test: the one that saves and reads a role goes through a fake. So it was
+  asked of the lane instead of assumed, with a probe test mounted into `src/testDebug`:
+  **`java.security.KeyStoreException: AndroidKeyStore not found`**. Robolectric does not provide the Android
+  Keystore, so this lane cannot exercise that class at all -- and the untested surface is two members delegating
+  to the same `read` and `encrypt` helpers the token pair already used, so this change added no new *kind* of
+  unproven code. What would close it is either an instrumented lane (the emulator lives on a box this project
+  cannot reach, which is why this JVM lane exists) or a seam that lifts the cipher out of the store so that the
+  encoding, the junk-tolerant `decrypt` and `clear()` become testable. Both are units of their own, and neither
+  is worth inventing to satisfy a warning.
+
 ---
 
 ## Slice B — The operational gap

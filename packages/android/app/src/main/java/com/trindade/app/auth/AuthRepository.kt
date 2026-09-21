@@ -346,12 +346,17 @@ class AuthRepository @Inject constructor(
     fun hasSession(): Boolean = tokenStore.accessToken() != null
 
     /**
-     * The role the current session was opened with, or null when there is no session.
+     * The role the current session was opened with, or null when the session has no role recorded.
      *
      * Read from the store rather than kept in memory, because a cold start has no sign-in to learn it from: the
      * app comes back to a stored session, and the navigation still has to know what to draw. The server remains
      * the authority for every call -- this value decides what is offered, never what is allowed -- and a role
      * changed on the server takes effect at the next sign-in, when the server hands the new one over.
+     *
+     * Null covers two states and this method does not try to tell them apart, because the caller's answer is the
+     * same for both: there is no session at all, or there is one stored before this app recorded roles. In the
+     * second case [hasSession] is true while this is null, and callers fall back to what `RolePolicy` answers for
+     * a role it does not recognise -- the direction that offers less, which is the one to fail towards.
      */
     fun sessionRole(): String? = tokenStore.role()
 
