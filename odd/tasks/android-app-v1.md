@@ -33,7 +33,13 @@ for i18n, forms and export surfaces.
 - Offline write queue / sync. No Room write path, no conflict resolution.
 - Google Play distribution.
 - Any change to the loading-schedule 1-hour edit window (see C1 note).
-- Admin management surfaces (users, catalogs, vehicles, audit) on mobile.
+- ~~Admin management surfaces (users, catalogs, vehicles, audit) on mobile.~~
+  **Superseded (2026-09-21).** The user asked for the app to match production, so this boundary
+  is retired and the work moves to `odd/tasks/android-web-parity.md`. What opened it was a
+  measurement rather than an opinion: five surfaces the web has and the app did not —
+  `/dashboard`, `/reports/:id/edit`, `/loading/edit`, the six-tab `/admin` panel, and
+  `/admin/audit`. The same measurement showed that users and roles were never the gap, because
+  the app already speaks to the production database; the gap was surfaces.
 
 ---
 
@@ -1388,6 +1394,125 @@ provable false positive that rode into an escalation because a deterministic blo
 
 ---
 
+### D7. The launcher icon, and v0.2.1 — DONE
+
+The published APK had **146 entries and no launcher resource at all**: no `mipmap`, no
+`ic_launcher`, zero `res/drawable` entries, and a manifest that declared a label and no
+`android:icon`. Every install showed Android's default robot, which is what the operator had been
+looking at on the phone.
+
+`9fcce2d` shipped the fix: an adaptive icon and nothing else, because `minSdk = 26` means every
+supported device reads one, so the whole mark is reviewable text and there is no raster PNG set in
+the repository. The mark is **the ear alone**, in white on the brand red `#b42025` — the same red
+the SPA declares as its `theme-color`, read by name so the launcher and the site cannot drift to
+two different reds. The ear alone because at 48 dp the wordmark is not an option and the ribbon is
+three hairlines; the ear is the one element of the logomarca that survives the reduction.
+
+Four decisions were taken for launcher size rather than logo size, and each one is a thing that was
+drawn, looked at and rejected: a 7° lean reads as a misprint under masks that are all symmetric
+about the vertical axis; hairline awns vanish into disconnected specks; plump grains that do not
+pinch at the stem fuse into one jagged blade that reads as a fern, and the neck is what keeps the
+*pairing* — the thing that says wheat — visible; and a needle-thin base is sub-pixel and leaves the
+ear unrooted. The safe zone was **arithmetic rather than judgement**: in a 108-unit viewport only
+the middle 72 is guaranteed, and the mark's farthest point sits at 33.50 from the centre, clearing
+the guarantee by 2.50 under any mask.
+
+**The verification that mattered was seeing it.** `aapt2` reading `application-icon` out of an APK
+is not a launcher drawing it, so the debug APK was installed on the emulator and photographed: the
+app drawer shows the red circle with the white ear under the label "Trindade" among the other apps.
+That is the loop no tool reading an APK can close.
+
+The review's one WARNING was **refuted with evidence rather than fixed**. It claimed the icon
+resources exist only under `-v26`, so "for any supported API below 26" the icon cannot resolve; the
+compiled manifest carries `minSdkVersion=26`, so the premise is empty and `-v26` is exactly the
+convention an adaptive icon follows. No code was changed to satisfy a premise the project
+contradicts.
+
+**v0.2.1 is published and verified at the artifact level**: `trindade-0.2.1.apk`, 9.3 MB, sha256
+`047bfd2eae98fb161e9f3c82d8b7964881556ff945818a6c123d9c83a4cbb81c`, `versionName 0.2.1`,
+`versionCode 201` (the rule is `X*10000+Y*100+Z`), the icon present as `res/BW.xml` because release
+builds rename resources, the base URL still `https://trindademasas.duckdns.org/`, and **`apksigner`
+verifying Signer #1 certificate SHA-256
+`ee0e404b211052b311ae0e0730606e9c7d5554315463d02f9ef33c9573c431f6`** — the recorded release-key
+fingerprint exactly. No password file exists anywhere for the keystore, deliberately, which is why
+the certificate digest rather than the key is what proves provenance.
+
+**The keystore alarm is closed**: a second copy now lives at
+`C:\Users\wilki\keystores\trindade-release.jks` on the Windows box, **hashed where it lives** on
+2026-09-20, yielding `ec185af21db6d2184fa10d073f44a234941046e9d4fa74a0eaf500f3f508a0ce` — the same
+value the original carries. A copy is proven by listing it and hashing it at its destination, with
+a date; a `cp` that reported success proves nothing.
+
+### D8. The revision 2 deployment — DONE
+
+The backend moved to **schema revision 2** in production on 2026-09-20, in the order F12 decided:
+build the image, migrate from the new image, verify `current` while the old container still serves,
+then switch traffic. Rollback images are tagged `trindade-api:pre-refresh-2026-09-20` and
+`trindade-web:pre-refresh-2026-09-20`, and the SQLite backup sits at
+`~/trindade-backup-2026-09-20-2119.db`. `auth_sessions` is live; the migration is additive and
+idempotent, which is what makes "migrate first" have no login outage at all.
+
+### D9. The login review's seven findings, closed — DONE
+
+Tracked in full in `odd/tasks/login-review-findings.md`. The short form: the review of `0117242`
+approved it and left seven findings, six of which were two root causes. They closed in three
+commits — `bfbdacc` (the findings), `b86cc38` (a correction the review asked for), `2b9ad0d` (two
+non-blocking advisories) — with **200 tests green**, up from 195.
+
+The two root causes were a taxonomy that contradicted the screen and a test setting broader than
+its reason. The second is the one worth remembering across the project: `unitTests.isReturnDefaultValues
+= true` had been added for a single `android.util.Log` call, and it makes **every** unmocked Android
+framework method return a default instead of throwing, so unrelated tests can pass while exercising
+stubs. The fix was not a better comment — it was a **log seam** (`AppLogger`, with `AndroidAppLogger`
+for the device and `NoOpAppLogger` for tests that do not care), which removed the need for the
+setting and made the log line assertable for the first time.
+
+`review-e3f629a3ff421253` (high tier, four lenses) reviewed that work and produced the **third false
+positive in this line of work**: a CRITICAL claiming the log call drops its throwable. The committed
+blob passes it, and the assertion the finding named passes in the same run — both checked before
+deciding anything. No code was changed to satisfy the false premise. What was closed is the
+*mechanism* the misreading rested on: `AppLogger.w`'s `throwable` parameter is no longer optional,
+so a future call site cannot drop a stack trace in silence. That is `C1`'s required-parameter
+reasoning applied to a log call.
+
+### D10. The brand mark on the login screen — DONE
+
+The web login has always opened with the logomarca over the app name and the tagline; the app
+opened with the name alone. `68b431c` ports the web's block rather than inventing one: the mark is
+the brand's own asset copied to `drawable-nodpi/logomarca.webp`, the order is the web's order
+(mark, name, tagline), the tagline is the web's own pt-BR `app.tagline`, and the 280.dp ceiling is
+the web's `max-w-[280px]` so the two clients present the same logo at the same size.
+
+Three details are load-bearing. The asset is **copied, not moved**, because the SPA loads
+`logomarca.png.webp` by that exact name and only the Android resource name had to change. It lives
+in `-nodpi` because `drawable/` is the mdpi baseline, where the platform would rescale a 300x131
+raster by the device density and the layout would scale it again. And the box is pinned to the
+asset's real 300x131 ratio, because in `-nodpi` one pixel is one dp: an `Image` measured only by
+`fillMaxWidth` takes the intrinsic 131dp as its height and `Fit` then letterboxes the mark inside a
+taller box.
+
+The asset's size is **300x131, not 299x130** — `file` prints the stored-value-plus-one form
+(`299+1x130+1`) and that was read as the dimensions. A delegated writer caught the discrepancy
+against its own task text before it shipped, and the WebP container's VP8X canvas and VP8 frame
+both say 300x131. The three figures in the file now agree with the asset.
+
+**Verified**: compiles, **200 tests green**, and `:app:assembleDebug` produces an APK carrying
+`res/drawable-nodpi-v4/logomarca.webp` at the source asset's own 9798 bytes. **Not verified, and
+said rather than implied**: the composed screen was not looked at, because the emulator lives on
+the Windows box and it is unreachable from this host. D7 closed that loop for its own change; D10
+could not borrow it.
+
+### D11. Open advisory — the `callTimeout` prose, not its behaviour
+
+`85c3cfa` put the whole-call bound above the sum of the parts, so the tighter timeout can win the
+race. The **behaviour is correct**; the comment beside it is not. It claims the read timeout always
+wins over the call timeout, but OkHttp's **connect timeout does not bound DNS resolution**, so the
+call timeout can still fire first. Registered rather than chased: it is a prose defect with no
+behavioural consequence, and it belongs with whoever next touches that configuration instead of
+inflating a slice that has already landed.
+
+---
+
 ## Open decisions
 
 1. **B2a vs B2b vs B2c** — RESOLVED: B2c, see the Slice B decision table.
@@ -1404,6 +1529,22 @@ still needs committing in its own commit.
 6. **Stage 2 publication status is stale** — the remote exists and local `main` is level with
    `origin/main`, so the README's "this repository has no remote yet" and the Stage 2 "Prepared /
    assign upstream remote" milestone are out of date.
+7. **Functional parity with the production web** — OPEN, and it is a feature track of its own:
+   `odd/tasks/android-web-parity.md`. It carries the measured gap, the server's own role matrix, the
+   `B2c` contract prerequisite it inherits, and the slices. Its order is settled: contract, then role
+   gating, then the daily operational edits (Dashboard, report edit, loading edit), then the admin
+   panel's six surfaces, then audit. Whether to include the web's first-run `SetupPage` is answered
+   there — excluded, with the reason recorded — and distribution stays one APK gated by role, the
+   single binary the web is.
+8. **The launcher icon's variant F** — OPEN, and **blocked on an artifact, not on a decision**. The
+   user chose variant F ("cinta dinâmica": red field, gold ring, gold wheat ear, tricolor ribbon with
+   a fold) and its previews live at `C:\Users\wilki\icono-variantes\` on the Windows box, which is
+   unreachable from this host — `10.50.0.2` times out, and `windows` is the only alias pointing at
+   it. Variant F is a **vector with gradients**, so it stays reviewable text like the current mark.
+   What is needed is the preview file, not a description: the handed-off prose does not say whether
+   the ear is gold or white, and the shipped mark's ear is white while the logomarca's own ear is
+   white too — so drawing it from the description alone would be guessing at the one element the
+   choice is about. D7's mark stays in place until the preview can be looked at.
 
 ## Review workload notes
 
