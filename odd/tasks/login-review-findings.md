@@ -71,6 +71,38 @@ read from the JUnit XML on purpose, because a test file that fails to *load* is 
 count drops silently. `android-app-v1.md`'s `F11` records the same trap on the backend side.
 Watching the total is what makes "200" a claim about the suite rather than about the build.
 
+## The review of this commit, and its one finding
+
+`review-e3f629a3ff421253`, **high** tier (the auth hot path), four lenses. It came back
+`correction_required` with a single CRITICAL, `R4-001` from the resilience lens, whose claim was
+that `AuthRepository.logger.w` passes "only tag and message", so "the throwable argument defaults
+to null", the named test "will fail", and the stack trace never reaches logcat.
+
+**That finding is false, and it is the third false positive in this line of work.** The evidence
+was taken before deciding anything:
+
+| What was checked | What it showed |
+| --- | --- |
+| `git show bfbdacc:.../AuthRepository.kt` — the committed blob, not the working tree | the call passes `failure` as the third argument |
+| The JUnit XML from the `--rerun-tasks` run | `says the server is unreachable rather than blaming the credentials` — the test at the cited line 135, whose assertion is `assertEquals(failure, entry.throwable)` — **passed** |
+| `AndroidAppLogger` | forwards `throwable` to `Log.w(tag, message, throwable)`, so the stack does reach logcat |
+
+Both halves of the claim are contradicted by the artifact. Per this project's already-recorded
+stance — no code is changed to satisfy a premise the project contradicts — no code was changed to
+repair a dropped throwable, because none was dropped.
+
+**What the correction does close is the mechanism the misreading rested on.**
+`AppLogger.w` took `throwable: Throwable? = null`, so a call site can omit it and still compile,
+losing a stack trace with nothing in the diff to show for it. The parameter is now required: a
+call with nothing to attach passes `null` and states it. That is `android-app-v1.md`'s `C1`
+reasoning — a default lets a new call site inherit behaviour without stating it — applied to a log
+call, and it came out of this review even though the finding that prompted it did not survive
+inspection.
+
+A false positive is worth recording rather than quietly absorbing for the same reason the two
+before it were: the reviewer's prose is not evidence, and a correction applied without checking
+would have left a commit message claiming a bug that never existed.
+
 ## Known, recorded, and deliberately not fixed here
 
 `ProfileScreen.kt:317` still calls `android.util.Log.w` directly for the unopenable-link line.
