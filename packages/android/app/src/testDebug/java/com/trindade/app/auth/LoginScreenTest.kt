@@ -58,9 +58,11 @@ import org.robolectric.annotation.GraphicsMode
  *    content pinned to the top.
  *
  * The class lives in `src/testDebug` rather than `src/test`, because the host activity comes from
- * `ui-test-manifest`, which is a debug-only dependency by design -- it must never reach a release APK. In
- * the shared source set this test compiled and then could not launch under `testReleaseUnitTest` or a
- * plain `./gradlew test`; in `testDebug` the variant that has the activity is the only one that runs it.
+ * `ui-test-manifest`, which is a debug-only dependency by design -- it must never reach a release APK. The
+ * module builds exactly one unit-test variant today (`testDebugUnitTest`, and the aggregate `test` covers
+ * only it), so the shared set would not have broken anything yet: the move is what makes the source set
+ * state the scope its own dependency has, instead of inheriting a test that could not launch the day a
+ * second unit-test variant exists.
  */
 @RunWith(AndroidJUnit4::class)
 @Config(qualifiers = "w400dp-h1000dp")
@@ -149,6 +151,12 @@ class LoginScreenTest {
 
         val moved = bottomInTallBox.value - bottomInShortBox.value
         val expected = (grownBy / 2).value
+        // The basis of this allowance is measured rather than chosen: with the tolerance at zero this
+        // assertion still passes, so the movement here is exactly the 100dp that separates the two
+        // hypotheses -- this lane runs at mdpi, where a dp is a pixel and the layout lands on whole dp. The
+        // 8dp is the room a different density or fractional text metrics could need for sub-dp rounding, and
+        // it stays an order of magnitude below the 100dp gap, so it can never admit the behaviour this
+        // assertion exists to reject.
         val tolerance = 8f
 
         assertTrue(

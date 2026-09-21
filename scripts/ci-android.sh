@@ -41,22 +41,28 @@ fi
 section() { printf '\n========== %s ==========\n' "$1"; }
 
 merged_manifest_for() {
-  local variant="$1" found
+  local variant="$1" found count
   # `|| true` matters under `set -e` with `pipefail`: without it a missing file kills the script with
   # a bare pipeline error instead of the named diagnosis below.
-  # The unit-test variants are excluded, and that is load-bearing rather than tidy: since
-  # `unitTests.isIncludeAndroidResources` was turned on for the Compose lane, AGP merges a manifest for
-  # the test variant of the same build type too, and `head -1` over several candidates is decided by the
-  # filesystem. Landing on `<variant>UnitTest` would leave this assertion reading a manifest no APK is
-  # built from, while it claims a property of the shipped build -- so the file has to be the one the APK
-  # is packaged from.
-  found="$(find app/build/intermediates \
-    -path "*${variant}*" -name AndroidManifest.xml \
-    ! -path "*androidTest*" ! -path "*UnitTest*" 2>/dev/null | grep -i 'merged_manifest' | head -1 || true)"
-  if [[ -z "$found" ]]; then
+  #
+  # The selection is anchored to the shape of the file this lane means to assert on -- the main
+  # variant's merge, the manifest the APK is packaged from -- and it then requires that exactly one
+  # file matches. Both halves carry weight. `head -1` over filesystem-ordered candidates is a coin
+  # toss, and the candidate set has grown once already: turning on `unitTests.isIncludeAndroidResources`
+  # for the Compose lane made AGP merge a manifest for the test variant of the same build type, and
+  # this lookup silently began reading `merged_manifest/debugUnitTest/...`, a manifest no APK is built
+  # from, while the assertions it feeds claim a property of the shipped build. Excluding that variant
+  # removed the symptom; anchoring the shape is what makes the resolution itself checkable, because a
+  # wrong selection now matches nothing and fails below, and two matches fail there as well instead of
+  # being settled by whichever directory `find` walked first.
+  found="$(find app/build/intermediates -name AndroidManifest.xml 2>/dev/null \
+    | grep -E "/merged_manifest/${variant}/process[^/]*MainManifest/AndroidManifest\.xml$" || true)"
+  count="$(printf '%s' "$found" | grep -c . || true)"
+  if [[ "$count" -ne 1 ]]; then
     # Deliberately fatal. If AGP ever moves these files, this lane must fail loudly rather than skip
     # the assertions that read them and report a green run that checked nothing.
-    printf 'Could not find the merged %s manifest under app/build/intermediates. If AGP changed its output layout, update this lookup; do not delete the assertion it feeds.\n' "$variant" >&2
+    printf 'Expected exactly one merged %s manifest under app/build/intermediates matching /merged_manifest/%s/process*MainManifest/AndroidManifest.xml, but found %s. If AGP changed its output layout, update this lookup; do not delete the assertion it feeds.\n' \
+      "$variant" "$variant" "$count" >&2
     exit 1
   fi
   printf '%s' "$found"

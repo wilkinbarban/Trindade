@@ -433,6 +433,31 @@ record -- approved and burned, with `R3-003` as its one new finding. **The rule 
 commit that only records a review is a candidate like any other, so a record is batched into the next
 commit that carries work.** The alternative is paying a review per paragraph.
 
+**A fourth review line carried the record with the code**, which is the rule above doing its work:
+`review-53b867913f1d19a4` approved the one-commit unit that closed the advisories, and left three
+findings of its own -- two of them about the prose that unit had just added.
+
+### The three findings the fourth review left, closed
+
+* `R2-001` — **fixed, and it was a contradiction inside a single candidate**: the build file's comment and
+  the class KDoc both asserted, as an experienced fact, that the shared source set "compiled and then
+  could not launch" under `testReleaseUnitTest` or a plain `./gradlew test`, while this record held the
+  same breakage to be unreachable. The record was right -- `:app:tasks --all` lists one unit-test task --
+  so both sentences now say what the move is: a source set stating the scope of its own dependency, not
+  the repair of an observed failure. Two accounts of one event, and the one written from the artifact was
+  the correct one.
+* `R2-002` — **fixed**, with its basis measured instead of argued: running the centring test with the
+  allowance at zero passes, so the movement it measures is exactly the 100dp that separates the two
+  hypotheses, and the 8dp is room for the sub-dp rounding a different density or fractional text metrics
+  could introduce. An allowance an order of magnitude below the gap cannot admit the behaviour the
+  assertion exists to reject.
+* `R3-002` — **fixed, and it named the real gap in the previous fix**: excluding the unit-test variant
+  stopped the lookup from reading the wrong file, but nothing in the lane could tell the corrected lookup
+  from the broken one, because both candidates satisfied the assertions. The lookup no longer selects
+  with `head -1` at all: it anchors the path shape (`/merged_manifest/<variant>/process*MainManifest/...`)
+  and requires exactly one match, so a wrong selection matches nothing and fails the lane, and a second
+  candidate fails it too instead of being settled by the order `find` walked the tree.
+
 ---
 
 ## Slice A — Role gating in the app

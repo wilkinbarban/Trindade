@@ -504,7 +504,10 @@ dependencies {
     // test, and it must never reach a release build. This is the artifact that declares it, and
     // debugImplementation is what keeps it out of the APK the crew installs.
     // A test that needs that activity is therefore a debug-variant test, which is why this lane's test
-    // lives in `app/src/testDebug` rather than in the shared `src/test`: in the shared set it compiled and
-    // then could not launch under `testReleaseUnitTest` or a plain `./gradlew test`.
+    // lives in `app/src/testDebug` rather than in the shared `src/test`. The module builds exactly one
+    // unit-test variant today -- `:app:tasks --all` lists `testDebugUnitTest`, and the aggregate `test`
+    // covers only it -- so the shared set would not have broken anything yet; what the move buys is a
+    // source set that states the scope its own dependency has, instead of one that would inherit a test
+    // unable to launch the day a second unit-test variant exists.
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
