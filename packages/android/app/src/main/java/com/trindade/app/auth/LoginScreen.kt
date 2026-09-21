@@ -69,11 +69,16 @@ fun LoginScreen(
     onSubmit: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // The scroll container is the `BoxWithConstraints`, and the order of the three modifiers on the
-    // column matters: `verticalScroll` is outermost, so this is what clips and scrolls, while
-    // `heightIn(min = maxHeight)` applies to the content *inside* it. Giving the column at least the
-    // viewport's height is what keeps `Arrangement.Center` centring when the content is short, and the
-    // same minimum is what lets the content grow past the viewport and scroll when it is not.
+    // The scroll container is the column's own `verticalScroll`: that modifier is what clips and
+    // scrolls, and being outermost in the chain it is also what the other two wrap. `BoxWithConstraints`
+    // is here for exactly one reason -- it is what exposes `maxHeight`, the viewport height the column
+    // needs as its minimum -- and it takes no part in the scrolling itself.
+    //
+    // The order of the three modifiers is therefore the fix, not a detail: `verticalScroll` is outermost
+    // so it owns the clipping, and `heightIn(min = maxHeight)` applies to the content *inside* it.
+    // Giving the column at least the viewport's height is what keeps `Arrangement.Center` centring when
+    // the content is short, and the same minimum is what lets the content grow past the viewport and
+    // scroll when it is not.
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
