@@ -63,6 +63,12 @@ The fix is not a better comment. The fix is to remove the need for the setting.
 
 195 tests before this pass, 200 after: five new tests, none removed, none skipped.
 
+**Both figures belong to this pass's own commit, `bfbdacc`, and they are stated that way on purpose.** A
+later pass took the suite to **202** — the sentence-resource-id map and the `LoggingModule` binding test
+— so a reader who checks the count against the tree as it stands today will find 202 and should find this
+note, not an apparent contradiction. The count is a property of the commit that measured it, and a review
+of a later candidate once read the bare "200" as covering tests this pass never ran.
+
 ## The check that matters, and why it is the XML rather than the exit code
 
 `BUILD SUCCESSFUL` says the task ran. It does not say how many tests ran. The two numbers are

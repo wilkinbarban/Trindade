@@ -112,7 +112,7 @@ class LoginViewModelTest {
     }
 
     @Test
-    fun `says the server is unreachable rather than blaming the credentials`() {
+    fun `a residue failure says only that signing in failed, and is logged with its throwable`() {
         // A plain IOException: the residue case, classified as Unknown and logged accordingly.
         val failure = IOException("network down")
         val api = FakeAuthApi(transportFailure = failure)
@@ -126,7 +126,11 @@ class LoginViewModelTest {
         // to repeat, and that is a different statement from a refusal this app has wording for.
         // The residue is asserted as Unknown and not as Unreachable, which is now the no-route sentence
         // and the only one about the network. A plain IOException has not been shown to involve a
-        // network, so the residue deliberately no longer borrows that sentence.
+        // network, so the residue deliberately no longer borrows that sentence. The name says the same
+        // thing for the same reason: `Unknown` is the sentence that names no cause at all, while
+        // `Unreachable` is now the no-route sentence and the only one about a network, so a test named
+        // after `Unreachable` would point a reader at the very sentence this case exists to stop
+        // borrowing.
         assertEquals(LoginMessage.Unknown, model.state.value.message)
         assertEquals(false, model.state.value.signedIn)
 
