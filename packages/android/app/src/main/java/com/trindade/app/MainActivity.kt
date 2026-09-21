@@ -23,6 +23,7 @@ import com.trindade.app.auth.AuthRepository
 import com.trindade.app.auth.LoginRoute
 import com.trindade.app.auth.ProfileRoute
 import com.trindade.app.auth.RolePolicy
+import com.trindade.app.dashboard.DashboardRoute
 import com.trindade.app.loading.LoadingHistoryRoute
 import com.trindade.app.loading.LoadingRoute
 import com.trindade.app.reports.ReportDetailRoute
@@ -35,8 +36,9 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
-    /** The two top-level surfaces this build can draw. Nothing else is a destination yet. */
+    /** The three top-level surfaces this build can draw. Nothing else is a destination yet. */
     private enum class Tab(@StringRes val label: Int) {
+        DASHBOARD(R.string.nav_dashboard),
         REPORTS(R.string.nav_reports),
         LOADING(R.string.nav_loading),
     }
@@ -49,6 +51,7 @@ class MainActivity : ComponentActivity() {
      * because nobody may see them: when one lands it joins this list and the policy decides who gets it.
      */
     private val destinations = listOf(
+        RolePolicy.EntryPoint.DASHBOARD to Tab.DASHBOARD,
         RolePolicy.EntryPoint.REPORTS to Tab.REPORTS,
         RolePolicy.EntryPoint.LOADING to Tab.LOADING,
     )
@@ -85,8 +88,14 @@ class MainActivity : ComponentActivity() {
                 // product change rather than a gap -- but the two doors are what the order below has to
                 // tell apart, so the origin is carried explicitly rather than assumed.
                 var loadingDayFromHistory by remember { mutableStateOf(false) }
-                // Which of the two top-level surfaces is showing. Reports is where a shift starts.
-                var tab by remember { mutableStateOf(Tab.REPORTS) }
+                // Which of the three top-level surfaces is showing. The dashboard is what the app opens on,
+                // and it is the web's own answer to the same question: a signed-in operator lands on
+                // `/dashboard` there, both from its `*` route and from its post-login redirect. The start is
+                // a literal because the dashboard is visible to every role -- `RolePolicy` has it in the set
+                // both roles share -- so there is no session for which this names a surface the row would not
+                // offer; the day an administrator-only entry sits first in that row, the start has to be
+                // derived from the policy rather than written here.
+                var tab by remember { mutableStateOf(Tab.DASHBOARD) }
                 // The role this session was opened with. Read once per session rather than observed, for the reason
                 // `hasSession()` above gives: it is a SharedPreferences read, and the answer cannot change while the session
                 // is the same one -- the server hands the role over at sign-in and a token rotation carries none. Keyed on
@@ -110,7 +119,7 @@ class MainActivity : ComponentActivity() {
                     loadingHistoryOpen = false
                     loadingDay = null
                     loadingDayFromHistory = false
-                    tab = Tab.REPORTS
+                    tab = Tab.DASHBOARD
                     signedIn = false
                 }
 
@@ -184,7 +193,7 @@ class MainActivity : ComponentActivity() {
                                 loadingDayFromHistory = false
                                 loadingHistoryOpen = true
                             } else {
-                                tab = Tab.REPORTS
+                                tab = Tab.DASHBOARD
                             }
                         },
                         onOpenHistory = {
@@ -200,17 +209,17 @@ class MainActivity : ComponentActivity() {
                         },
                         date = loadingDay!!,
                     )
-                    // And then the two tabs. The loading tab is a day of its own -- today -- so it is
-                    // reached without a day above it.
+                    // And then the loading tab, the one that is drawn as a screen of its own. It is a day
+                    // of its own -- today -- so it is reached without a day above it.
                     tab == Tab.LOADING -> LoadingRoute(
-                        onBack = { tab = Tab.REPORTS },
+                        onBack = { tab = Tab.DASHBOARD },
                         onOpenHistory = { loadingHistoryOpen = true },
                     )
                     else -> Column {
-                        // Two surfaces, one row of tabs, and the account at the far end of it. The tabs
-                        // are the app's two jobs -- Relatórios and Horários -- and the profile is not a
-                        // third one: it is the operator's own account rather than a surface the app is
-                        // about, so it is set apart from them instead of joining them. A navigation
+                        // One row of tabs, and the account at the far end of it. The row draws whatever the
+                        // policy says this role may open -- today the dashboard, the reports and the schedule --
+                        // and the profile is not one of them: it is the operator's own account rather than a
+                        // surface the app is about, so it is set apart instead of joining them. A navigation
                         // library would be more than this app has places to go, and the back action each
                         // screen already owns is the whole of the routing it needs.
                         Row(
@@ -226,10 +235,20 @@ class MainActivity : ComponentActivity() {
                             Spacer(Modifier.weight(1f))
                             TextButton(onClick = { profileOpen = true }) { Text(stringResource(R.string.profile_title)) }
                         }
-                        ReportGeneratorRoute(
-                            onCreated = { openReportId = it },
-                            onOpenHistory = { historyOpen = true },
-                        )
+                        // What the row switches between. The row is drawn for both, which is where these two differ from the
+                        // loading tab: that one is a screen with a back action of its own, while the dashboard and the report
+                        // generator are what the row is for -- and the web draws its navigation on the dashboard too.
+                        when (tab) {
+                            Tab.DASHBOARD -> DashboardRoute(
+                                onOpenReport = { openReportId = it },
+                                onOpenReports = { tab = Tab.REPORTS },
+                                onOpenLoading = { tab = Tab.LOADING },
+                            )
+                            else -> ReportGeneratorRoute(
+                                onCreated = { openReportId = it },
+                                onOpenHistory = { historyOpen = true },
+                            )
+                        }
                     }
                 }
             }

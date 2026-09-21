@@ -561,12 +561,54 @@ A1's own review (`review-7615f7fc754b9448`) approved it and left three findings,
 
 ## Slice B — The operational gap
 
-### B1. Dashboard
+### B1 — DELIVERED
 
-`DashboardPage` against `modules/dashboard` (already documented in the contract since `B2.4`, so
-this slice needs no prerequisite). Read-only summary, the same role visibility as the web
-(every signed-in user).
+**The dashboard exists, it is the app's first tab, and it is the screen the app opens on.** `EntryPoint.DASHBOARD`
+had been in the policy since A1 with nothing drawing it; this is the case the table was waiting for, and the tab
+that appears is the policy's answer rather than a third hardcoded button.
 
+**What it is.** `dashboard/DashboardRepository` over the `SystemApi.dashboardSummary()` the client already had --
+the contract has documented this endpoint since `B2.4`, so this slice needed no backend, no contract and no
+regeneration -- plus `DashboardViewModel` with a three-field `UiState`, and `DashboardScreen`, stateless, with
+`DashboardRoute` collecting. Five cards in the web's order and with the web's own words; the first carries the
+higiene/recepção breakdown, and the two links the web has are the two actions here: the reports card opens the
+report the summary names, or the reports list when the day has none, and the schedules card opens the schedule.
+
+**Two deliberate divergences, both stated where a reader meets them.** The emoji the web puts on each card are
+decoration and are not drawn -- five glyphs are not worth an icon dependency -- and `reportsToday`, which the
+contract carries and the endpoint computes, is not drawn either: the web's own card shows the breakdown under
+that title and never this count. `higieneTotal` and `recepcionTotal` reach no pixel, exactly as on the web, whose
+two strings interpolate only the done count.
+
+**The finding this slice produced, and it is why the view model does not read once.** The first version loaded
+from `init`, and the correction came from reading the app rather than the screen: these view models are
+**activity-scoped**, because there is no `NavHost` in `main` and `hiltViewModel()` therefore resolves
+`LocalViewModelStoreOwner` to the activity. The instance and its state outlive both the tab that drew them and the
+session that filled them, so two things were true of the first version and only the second is why it had to
+change:
+
+1. a read that failed stayed failed for the life of the activity, with nothing on the screen able to try again;
+2. **the next operator to sign in on the same activity would have been shown the previous operator's numbers** --
+   on the screen this slice had just made the first one.
+
+The read therefore belongs to the arrival: `DashboardRoute` refreshes on every entry, and `refresh()` drops the
+previous answer before it asks, which is also the web's own shape (that page fetches on mount). The app's
+existing precedent for the session half of this is `ProfileViewModel`, which compares `sessionGeneration`; this
+screen does not need that comparison, because it never shows a previous answer.
+
+**A pre-existing gap, recorded and not fixed here.** The same activity-scoping means the other read screens
+(`LoadingViewModel`, `LoadingHistoryViewModel`, `ReportsHistoryViewModel`) keep a previous session's data until
+their activity dies. That is not this slice's doing, and the fix for them is the shape this screen now has;
+applying it to three screens is a unit of its own rather than three quiet edits inside a dashboard slice.
+
+**Evidence.** `DashboardViewModelTest` (3) and `DashboardScreenTest` (6) are the new instruments. The second is
+that lane's first *data* screen -- `LoginScreenTest` was the lane's first consumer and renders the login form,
+while this one renders a screen whose content arrives from the server -- and it asserts the two actions it offers
+fire with the right argument: the five labels with the values their strings produce, the reports card calling back
+with the id the summary names and with the list when it names none, the schedules card calling back for the
+schedule, that a state without a summary draws no zeroes, and that the failed state draws the sentence and nothing
+else. The focused run was 3 classes and 14 tests green; the full suite went from 21 classes and 210 tests to
+**23 and 219**, 0 failures, 0 errors, 0 skipped, in 6m56s, with every XML of that run its own.
 ### B2. Report edit
 
 `ReportEditPage` has no Android counterpart, and `ReportDetailViewModel` deliberately supports

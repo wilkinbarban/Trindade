@@ -64,12 +64,11 @@ class RolePolicyTest {
     }
 
     @Test
-    fun `the two surfaces this build draws are visible to every role`() {
-        val drawn = listOf(EntryPoint.REPORTS to "reports", EntryPoint.LOADING to "loading")
-        val expected = drawn.map { (_, destination) -> destination }
+    fun `the surfaces a signed-in operator works with are visible to every role`() {
+        val shared = setOf(EntryPoint.DASHBOARD, EntryPoint.REPORTS, EntryPoint.LOADING)
 
         for (role in listOf(RolePolicy.ADMIN, RolePolicy.WORKER, "Supervisor", null)) {
-            assertEquals(expected, RolePolicy.visibleDestinations(role, drawn))
+            assertTrue(RolePolicy.visibleEntryPoints(role).containsAll(shared))
         }
     }
 }

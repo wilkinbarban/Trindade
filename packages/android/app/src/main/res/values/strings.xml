@@ -88,6 +88,29 @@
     <string name="loading_history_delete_confirm_title">Excluir o carregamento de %1$s?</string>
     <string name="loading_history_delete_confirm_body">Não dá para desfazer: todos os lançamentos desse dia saem para todo mundo, não só desta tela.</string>
 
+    <!-- The dashboard: the surface the app opens on, and the web's own `/dashboard`. Every string below
+         except `dashboard_unreachable` is the web's own `pt-BR` text, character for character, out of its
+         `dashboard` and `nav` blocks, because the two clients have to say the same thing about the same
+         numbers. The two breakdown lines keep the web's own arrow, written rather than redrawn as an icon:
+         the glyph is the locale file's text, and a picture of it would be a second thing to keep in
+         agreement with the first. -->
+    <string name="nav_dashboard">Dashboard</string>
+    <string name="dashboard_overview">Visão Geral</string>
+    <string name="dashboard_reports_today">Relatórios Hoje</string>
+    <string name="dashboard_schedules_tomorrow">Carregamentos Amanhã</string>
+    <string name="dashboard_active_users">Usuários Ativos</string>
+    <string name="dashboard_reports_total">Relatórios Totais</string>
+    <string name="dashboard_schedules_total">Histórico de Cargamento Total</string>
+    <string name="dashboard_higiene_count">Hig. &amp; Org. -> %1$d Tarefas</string>
+    <string name="dashboard_recepcion_count">Recepção -> %1$d Mercadorias</string>
+    <string name="dashboard_deferred_notice">Novos módulos estarão disponíveis em versões futuras.</string>
+    <!-- The one string here the web does not have, and it says what it says on purpose. It names no
+         cause, because a timeout, a refused connection and a reply nobody could read are not
+         distinguishable from this screen, and it is not the web's own "Erro ao carregar dashboard"
+         because that wording would invite the operator to report a fault the read has not been shown to
+         have. See the dashboard view model for why the failure is a flag rather than a sentence. -->
+    <string name="dashboard_unreachable">Não foi possível carregar o resumo. Tente de novo.</string>
+
     <string name="nav_reports">Relatórios</string>
     <string name="nav_loading">Horários</string>
 

@@ -353,10 +353,11 @@ class AuthRepository @Inject constructor(
      * the authority for every call -- this value decides what is offered, never what is allowed -- and a role
      * changed on the server takes effect at the next sign-in, when the server hands the new one over.
      *
-     * Null covers two states and this method does not try to tell them apart, because the caller's answer is the
-     * same for both: there is no session at all, or there is one stored before this app recorded roles. In the
-     * second case [hasSession] is true while this is null, and callers fall back to what `RolePolicy` answers for
-     * a role it does not recognise -- the direction that offers less, which is the one to fail towards.
+     * Null covers two states and this method does not tell them apart: there is no session at all, or there is one
+     * stored before this app recorded roles. They are not interchangeable -- the second is a session this app can
+     * still use, which is why [hasSession] is true while this is null -- and what they share is only the answer a
+     * caller gets from them: the fallback `RolePolicy` gives a role it does not recognise. That direction offers
+     * less, which is the one to fail towards, and the state resolves at the next sign-in.
      */
     fun sessionRole(): String? = tokenStore.role()
 
