@@ -57,6 +57,7 @@ fun LoadingScreen(
     onVehicleSelected: (Int) -> Unit,
     onConfirmAdd: () -> Unit,
     onDelete: (Int) -> Unit,
+    onEditEntry: (Int, String) -> Unit,
     onLoadExport: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -137,6 +138,7 @@ fun LoadingScreen(
                 onVehicleSelected = onVehicleSelected,
                 onConfirmAdd = onConfirmAdd,
                 onDelete = onDelete,
+                onEditEntry = onEditEntry,
             )
         }
     }
@@ -155,6 +157,7 @@ private fun SlotBlock(
     onVehicleSelected: (Int) -> Unit,
     onConfirmAdd: () -> Unit,
     onDelete: (Int) -> Unit,
+    onEditEntry: (Int, String) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -174,15 +177,31 @@ private fun SlotBlock(
         }
 
         entries.forEach { entry ->
+            // The three children of this row are its identity and its two actions, in that order and as
+            // siblings of one `Row`, rather than the identity and a nested block: `weight` on the
+            // identity is what keeps each action's own `Text` and the row it belongs to in one layout, so
+            // what the operator sees beside a row is the action for that row and not for the one above it.
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     text = describe(entry),
                     style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(start = 8.dp),
+                    modifier = Modifier.weight(1f).padding(start = 8.dp),
                 )
+                // The way in, offered only where the server's own flags allow it. `isReadOnly()` is the
+                // predicate the edit screen reads too -- one function in this package, so a row this grid
+                // offers an edit for is never one that screen would draw with no save at all. A row the
+                // server closed draws no action here rather than a disabled one, which is the reports'
+                // rule: an action that is drawn but refuses is still an offer. The day travels with the id
+                // because that screen reads the row out of its day (`GET /api/loading/schedules?date=`),
+                // and the day this grid is showing is written down here and nowhere else.
+                if (!entry.isReadOnly()) {
+                    TextButton(onClick = { onEditEntry(entry.id, state.date) }) {
+                        Text(stringResource(R.string.report_edit))
+                    }
+                }
                 TextButton(onClick = { onDelete(entry.id) }, enabled = !state.busy) {
                     Text(stringResource(R.string.report_photo_remove))
                 }
@@ -261,8 +280,12 @@ private fun AddEntryForm(
  *
  * A company driver is shown with the vehicle because that pairing is what identifies the row to an
  * operator; an external one is shown by name and plate, since the vehicle is theirs.
+ *
+ * Not private, because the edit screen draws the row it is editing with this same line: the row the
+ * operator tapped and the row the next screen shows them are the same row, and two expressions for it
+ * would be two answers to what an entry is called -- the drift a second copy eventually grows.
  */
-private fun describe(entry: SchedulesResponseSchedulesInner): String {
+internal fun describe(entry: SchedulesResponseSchedulesInner): String {
     val name = entry.driverName ?: entry.licensePlate ?: "—"
     val vehicle = entry.vehicleDescription
     val plate = entry.vehiclePlate ?: entry.licensePlate
@@ -274,7 +297,10 @@ private fun describe(entry: SchedulesResponseSchedulesInner): String {
 fun LoadingRoute(
     onBack: () -> Unit,
     onOpenHistory: () -> Unit,
+    onEditEntry: (Int, String) -> Unit,
     date: String? = null,
+    stale: Boolean = false,
+    onStaleRead: () -> Unit = {},
     viewModel: LoadingViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -283,24 +309,30 @@ fun LoadingRoute(
      * The grid's day, asked for through the view model's own `onDateChange` -- the method that has
      * existed since D4b with no caller, and this slice is where the history gives it one.
      *
-     * With a date, that day is loaded. The view model's constructor has already started a load of today
-     * by the time this runs, so the two are briefly in the air together, and what makes the requested
-     * day win is the request token inside the view model rather than an ordering guaranteed here.
+     * With a date, that day is loaded, and the read is forced because a day the operator asked for is
+     * what asking is for. The view model's constructor has already started a load of today by the time
+     * this runs, so the two are briefly in the air together, and what makes the requested day win is
+     * the request token inside the view model rather than an ordering guaranteed here.
      *
-     * Without a date this is the loading tab, which means today -- and it asks for today only when the
-     * grid is not already showing it. That condition is what keeps the ordinary entry to the tab at one
-     * load rather than two, because the constructor's load is that one. It also covers the return trip:
-     * the view model is scoped to the activity, so coming back from the history after a batch's day
-     * would otherwise render that day under a route that means today, and the grid's back action would
-     * then disagree with the date on the screen.
+     * Without a date this is the loading tab, which means today -- and today is the one day the arrival
+     * does not have to read, because the constructor's load is already that read; the return trip from
+     * the history's day is covered by the arrival naming a different day, which is read.
+     *
+     * The one thing an arrival cannot decide for itself is a write. The editor that moves a row is
+     * another view model on another copy of the day, so a save reaches this side of the app only as the
+     * overlay flag `MainActivity` clears -- and nothing of it reaches the grid, which is then drawn
+     * again on the day it was already showing with the day as it was *before* the edit: the row the
+     * operator moved would come back in the slot they moved it out of. [stale] is that fact travelling
+     * with the arrival, the read below is forced for it, and `onStaleRead` gives it back -- one save
+     * costs the grid one read, and no later arrival pays for it again.
+     *
+     * Keyed on the day alone, and deliberately: taking the fact flips [stale] back to false in the same
+     * composition, so an effect keyed on it would run a second time for a save the read already
+     * answered.
      */
     LaunchedEffect(date) {
-        if (date != null) {
-            viewModel.onDateChange(date)
-        } else {
-            val today = LoadingViewModel.saoPauloToday()
-            if (viewModel.state.value.date != today) viewModel.onDateChange(today)
-        }
+        viewModel.onDateChange(date ?: LoadingViewModel.saoPauloToday(), force = date != null || stale)
+        if (stale) onStaleRead()
     }
 
     LoadingScreen(
@@ -313,6 +345,7 @@ fun LoadingRoute(
         onVehicleSelected = viewModel::onVehicleSelected,
         onConfirmAdd = viewModel::confirmAdd,
         onDelete = viewModel::deleteEntry,
+        onEditEntry = onEditEntry,
         onLoadExport = viewModel::loadExport,
     )
 }

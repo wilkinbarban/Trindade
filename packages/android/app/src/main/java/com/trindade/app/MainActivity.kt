@@ -24,6 +24,7 @@ import com.trindade.app.auth.LoginRoute
 import com.trindade.app.auth.ProfileRoute
 import com.trindade.app.auth.RolePolicy
 import com.trindade.app.dashboard.DashboardRoute
+import com.trindade.app.loading.LoadingEditRoute
 import com.trindade.app.loading.LoadingHistoryRoute
 import com.trindade.app.loading.LoadingRoute
 import com.trindade.app.reports.ReportDetailRoute
@@ -79,6 +80,29 @@ class MainActivity : ComponentActivity() {
                 // editor on top of the report it is editing rather than replacing what the return trip
                 // goes back to.
                 var editingReportId by remember { mutableStateOf<Int?>(null) }
+                // The loading entry being edited, and the day it was opened from. A destination of its
+                // own rather than a mode inside the grid, for the reason the report editor above is: it
+                // is reached *from* the grid, so the grid's own flag -- `loadingDay`, or the tab when
+                // the grid is today's -- is still set while this is up, and a grid branch that won would
+                // make the edit action look like it did nothing at all. Both values are written together
+                // where a row offers the way in and cleared together on the way out, so the day is never
+                // the absent one while the id is set -- which is what lets the branch below read both.
+                //
+                // The day is carried rather than read off the grid, because the row is only reachable
+                // through it: `GET /api/loading/schedules?date=` is the read that carries a schedule,
+                // there is no single-entry route, and this activity has no other place the grid's day is
+                // written down -- the tab's grid is today's and is not a value anybody stored.
+                var editingScheduleId by remember { mutableStateOf<Int?>(null) }
+                var editingScheduleDay by remember { mutableStateOf<String?>(null) }
+                // Whether the loading editor has just reported a save. It is the one fact about that
+                // write this activity holds and the grid cannot see for itself: the editor is another
+                // view model on another copy of the day, so without it the grid underneath is drawn
+                // again from the day as it was *before* the edit -- the row the operator just moved
+                // comes back in the slot they moved it out of, and their own work looks like it did
+                // nothing. The grid's next arrival is the only thing that can act on it, and that
+                // arrival takes the fact back (`onStaleRead` below), so one save costs the grid one
+                // read and nothing later pays for it again.
+                var loadingStale by remember { mutableStateOf(false) }
                 // Whether the profile is showing instead of the tabs. The account is not one of them: see
                 // the tab row below.
                 var profileOpen by remember { mutableStateOf(false) }
@@ -129,6 +153,9 @@ class MainActivity : ComponentActivity() {
                     profileOpen = false
                     openReportId = null
                     editingReportId = null
+                    editingScheduleId = null
+                    editingScheduleDay = null
+                    loadingStale = false
                     historyOpen = false
                     loadingHistoryOpen = false
                     loadingDay = null
@@ -169,6 +196,34 @@ class MainActivity : ComponentActivity() {
                         reportId = editingReportId!!,
                         onBack = { editingReportId = null },
                         onSaved = { editingReportId = null },
+                    )
+                    // The loading editor, beside the report one and ahead of every loading branch for the
+                    // same shape of reason: it is opened from the grid, so the flag that draws the grid is
+                    // still set underneath it, and either grid branch winning would make the row's edit
+                    // action look like it did nothing. Closing it -- by the way out or by the save the route
+                    // reports -- drops the id, and that is all leaving it means: the grid underneath was
+                    // never replaced, so the operator lands back on the day they left. The day goes with
+                    // the id rather than being kept, because it means nothing without the row it was read
+                    // for -- and a save leaves one thing behind, `loadingStale` above: the grid's own copy
+                    // of that day is now the day as it was before the write.
+                    editingScheduleId != null -> LoadingEditRoute(
+                        scheduleId = editingScheduleId!!,
+                        date = editingScheduleDay!!,
+                        // The session this editor belongs to, for the reason the dashboard's own key is
+                        // passed down: the view model lives in the activity's store and must not be
+                        // inherited by the next person who signs in.
+                        sessionKey = sessionKey,
+                        onBack = {
+                            editingScheduleId = null
+                            editingScheduleDay = null
+                        },
+                        onSaved = {
+                            editingScheduleId = null
+                            editingScheduleDay = null
+                            // The save, on its way to the grid: whichever door the operator lands back on
+                            // draws itself again, reads its day, and takes this back.
+                            loadingStale = true
+                        },
                     )
                     openReportId != null -> ReportDetailRoute(
                         reportId = openReportId!!,
@@ -237,6 +292,15 @@ class MainActivity : ComponentActivity() {
                             loadingDayFromHistory = false
                             loadingHistoryOpen = true
                         },
+                        onEditEntry = { id, day ->
+                            editingScheduleId = id
+                            editingScheduleDay = day
+                        },
+                        // The day the row was opened on travels back with each arrival, and the save
+                        // report travels with it: the arrival that reads the day again is the one that
+                        // takes the fact.
+                        stale = loadingStale,
+                        onStaleRead = { loadingStale = false },
                         date = loadingDay!!,
                     )
                     // And then the loading tab, the one that is drawn as a screen of its own. It is a day
@@ -244,6 +308,18 @@ class MainActivity : ComponentActivity() {
                     tab == Tab.LOADING -> LoadingRoute(
                         onBack = { tab = Tab.DASHBOARD },
                         onOpenHistory = { loadingHistoryOpen = true },
+                        // The day here is the grid's own -- today -- and it travels to the editor the same
+                        // way a requested day does, because that screen reads the row out of the day it
+                        // was opened on whichever door the operator came through.
+                        onEditEntry = { id, day ->
+                            editingScheduleId = id
+                            editingScheduleDay = day
+                        },
+                        // The save report, for the reason the flag above gives: this door's grid is
+                        // today, which is the one day its arrival would otherwise be answered from
+                        // memory about.
+                        stale = loadingStale,
+                        onStaleRead = { loadingStale = false },
                     )
                     else -> Column {
                         // One row of tabs, and the account at the far end of it. The row draws whatever the

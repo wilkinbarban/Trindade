@@ -96,7 +96,34 @@ class LoadingViewModel @Inject constructor(
         load()
     }
 
-    fun onDateChange(date: String) {
+    /**
+     * The arrival at the grid: it shows [date], reading the day unless that is the day already on
+     * screen -- unless [force] says the copy in hand cannot be trusted.
+     *
+     * The skip is what keeps an ordinary arrival cheap, and it is not an optimisation for this screen:
+     * the loading tab's grid is today, and the constructor has already started a read of today by the
+     * time the route's arrival runs, so without it every entry to the tab would ask the server twice
+     * for the same day. It is also the whole of the return trip -- this instance is scoped to the
+     * activity's store, so coming back from the history after a batch's day leaves that day on screen,
+     * and the arrival that means today names a different day and reads it.
+     *
+     * **What the skip cannot see is a write, and that is why [force] exists.** The editor that moves one
+     * row is another view model on another copy of the day, so when the operator saves and the grid is
+     * drawn again underneath it, the rows here are the day as it was *before* their own edit: the row
+     * they just moved is drawn in the slot they moved it out of, which reads as the edit having done
+     * nothing at all -- the operator's own work disappearing from the screen. Nothing on this side can
+     * observe that write, because there is nothing here to look at but the day's own rows, so the
+     * caller says so instead: the arrival that follows the save asks for the read it would otherwise be
+     * answered from memory about, and that arrival is one of the two that force. The other is the one
+     * that names a day the operator asked for, which forces for the plainer reason that asking for a
+     * day is a request to read it.
+     *
+     * The shape is `ReportDetailViewModel.load(force)`'s, for the reason that class gives: a view model
+     * scoped to the activity's store outlives the composition and survives a trip through the edit
+     * surface, so what it is holding can be exactly what that surface has just changed.
+     */
+    fun onDateChange(date: String, force: Boolean = false) {
+        if (!force && date == state.value.date) return
         _state.update { it.copy(date = date) }
         load()
     }

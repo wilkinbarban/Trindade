@@ -31,6 +31,13 @@ import retrofit2.Response
  * copied verbatim, it is asked for only when wanted, and it is **dropped when the day's entries
  * change**, because the failure mode of leaving it on screen is a WhatsApp message sent with a driver
  * that was just removed.
+ *
+ * The arrival's read is asserted in both directions, because the rule that decides it cuts both ways.
+ * The day already on screen is not read again -- that skip is what keeps an ordinary entry to the tab at
+ * one read rather than two, the constructor's own read being that one -- while the arrival that follows
+ * the edit surface's save does read it, because the copy in hand is the day as it was *before* the
+ * operator's own edit. A grid that simply read on every arrival would pass the second half and fail the
+ * first, which is why both are in one leg.
  */
 class LoadingViewModelTest {
 
@@ -283,6 +290,33 @@ class LoadingViewModelTest {
         assertEquals(1, model.state.value.schedules.size)
         assertEquals(null, model.state.value.message)
         assertEquals(false, model.state.value.loading)
+    }
+
+    @Test
+    fun `reads the day again when the arrival says the copy may be stale, and not on a plain one`() {
+        // The read count is the claim here, and one gate per read is how this fake shows one: every
+        // schedule read it is asked for is a gate that exists. The constructor's own read of today is
+        // the first, and it is the read the tab's arrival is answered from.
+        val api = FakeLoadingApi(
+            schedulesToReturn = listOf(FakeLoadingApi.entry(41, "04:00")),
+            gateSchedules = true,
+        )
+        val model = viewModel(api)
+        assertEquals("the constructor's own read of today", 1, api.scheduleGates.size)
+
+        // A plain arrival at the tab's own grid: the day it is already showing is not read again. This
+        // is the skip the grid has always had, and it is the direction that refuses a fix which reads
+        // on every arrival -- such a grid would pass the leg below and this one would catch it.
+        model.onDateChange(model.state.value.date)
+        assertEquals("a plain arrival for the day already on screen", 1, api.scheduleGates.size)
+
+        // The arrival the edit surface's save leaves behind: the day in hand is the one the editor has
+        // just written to, so the caller says so rather than letting the read be skipped. Without the
+        // forced read the row the operator moved is drawn from the day as it was before their own edit
+        // -- in the slot they moved it out of, which reads as the edit having done nothing at all.
+        model.onDateChange(model.state.value.date, force = true)
+        assertEquals("the arrival that follows a save", 2, api.scheduleGates.size)
+        assertEquals(model.state.value.date, api.lastSchedulesDate)
     }
 
     @Test

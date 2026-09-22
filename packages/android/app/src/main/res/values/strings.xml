@@ -200,4 +200,23 @@
     <string name="loading_pick_vehicle">Veículo</string>
     <string name="loading_confirm">Confirmar</string>
     <string name="loading_cancel">Cancelar</string>
+    <!-- The loading edit surface, the web's own `LoadingEditPage`, which is a screen of its own rather
+         than a mode inside the grid: it carries its own heading and names its own save. Both are the
+         page's own `pt-BR` text out of the locale's `loading` block, as the strings above are:
+           - `editTitle` is "Editar Agendamento", this screen's heading.
+           - `updateEntry` is "Atualizar agendamento", the save action. Deliberately not `report_update`,
+             which spells the same verb for a different route and a different object ("Atualizar
+             Relatório"), and the web names the two separately just as this file does.
+         The row's own two labels are shared rather than written again, for the reason this file gives
+         wherever two screens name one control: the way in is `report_edit` ("Editar", which is also the
+         web's `loading.editEntry` for the same button) and the way out is `report_back`.
+         No refusal is here. The one-hour window's sentence is the backend's, character for character,
+         and it reaches the operator through the state's `message`: a copy of it in this file would be
+         a second statement of a rule this client deliberately does not implement. -->
+    <string name="loading_edit">Editar Agendamento</string>
+    <!-- The picker's own name, above its options. It is the web's word for this field,
+         `loading.timeSlot`, and a noun is what the loading surface already labels a group of choices
+         with: the add form draws "Motorista" and "Veículo" over its own radio rows the same way. -->
+    <string name="loading_pick_slot">Horário</string>
+    <string name="loading_edit_save">Atualizar agendamento</string>
 </resources>

@@ -765,6 +765,30 @@ Tasks, each closing with its own commit:
   completion is what tells the two apart, because under a cancellation the gate's `await` throws and the
   counter stays at zero. Falsified by putting the `cancel()` back and watching it fail.
 
+**Delivered.** B3-1 is `487c7a5`, B3-5 is `c1f6cca`, and B3-2 is `bda06e8`; the rendered surface,
+its way in and the refresh described below close in the final B3 commit. The wire test uses the app's
+real Retrofit/Json stack and proves a slot-only update is exactly `{"time_slot":"06:30"}`; its
+`encodeDefaults = true` mutant reproduces the destructive null body. The reports fake records only an
+update that resumed after its gate, and putting the cancellation back makes exactly that assertion fail.
+The edit view model carries only the slot, leaves a write to finish behind a request token, cancels the
+read it replaces, renders the server's flags without recomputing the one-hour window, and shows the
+backend's 403 sentence byte for byte.
+
+Two deliberate details are stated rather than hidden. Loading's read-only predicate is
+`readOnly || canEdit != true`: both fields are required in this contract, the web gates on `canEdit`,
+and an inconsistent pair fails closed. The picker's count always excludes the row and then adds it back
+when it is a fletero, so its own slot agrees with the grid; the web's own-slot expression counts that row
+and adds it again. Copying that double count would make the number change merely by opening the editor.
+
+The rendered surface draws the row, the configured slots and each slot's fletero quota, marks an
+exceeded option without disabling it, reads `state.canSubmit` instead of rebuilding its rule, and draws
+no save action at all where the server withheld editing. Its row-level way in reads the same predicate.
+Returning from a save also carries one fact back to the grid: `loadingStale`. The next arrival consumes
+it and forces exactly one read through `LoadingViewModel.onDateChange(date, force)`, then ordinary tab
+arrivals keep the old no-double-read rule. Without that one-shot, the row the operator just moved was
+drawn in the slot it moved out of, which read as the edit having done nothing. A mutation that ignores
+`force` fails exactly the view-model and rendered arrival legs.
+
 ---
 
 ## Slice C — The admin panel
