@@ -250,10 +250,15 @@ class MainActivity : ComponentActivity() {
                                 onOpenReports = { tab = Tab.REPORTS },
                                 onOpenLoading = { tab = Tab.LOADING },
                             )
-                            else -> ReportGeneratorRoute(
+                            Tab.REPORTS -> ReportGeneratorRoute(
                                 onCreated = { openReportId = it },
                                 onOpenHistory = { historyOpen = true },
                             )
+                            // The loading tab is drawn by its own branch above this one, so nothing reaches this
+                            // arm today. It is named rather than left to an `else` because that is what makes the
+                            // `when` exhaustive: a tab added to the enum would fail to compile here instead of
+                            // silently rendering the report generator.
+                            Tab.LOADING -> Unit
                         }
                     }
                 }

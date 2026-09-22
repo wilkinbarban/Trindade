@@ -591,10 +591,15 @@ change:
 2. **the next operator to sign in on the same activity would have been shown the previous operator's numbers** --
    on the screen this slice had just made the first one.
 
-The read therefore belongs to the arrival: `DashboardRoute` refreshes on every entry, and `refresh()` drops the
-previous answer before it asks, which is also the web's own shape (that page fetches on mount). The app's
-existing precedent for the session half of this is `ProfileViewModel`, which compares `sessionGeneration`; this
-screen does not need that comparison, because it never shows a previous answer.
+The read therefore belongs to the arrival, and the correction a review asked for moved two more things with it.
+`DashboardRoute` refreshes on every entry and `refresh()` **cancels the read in flight** before starting the next
+one -- two live reads are two answers that can land in either order, and the older one landing last would write
+the last refresh's answer back over the newer one -- and it still drops the previous answer before asking, which
+is the web's own shape (that page fetches on mount). The session half is `sessionGeneration`, the counter
+`ProfileViewModel` also reads, but here it is the **key the view model is built under**
+(`hiltViewModel(key = sessionKey)`) rather than something compared: the retained instance of a previous session is
+then never the one this screen draws, not even for the frame that `collectAsState()` would otherwise have composed
+before the effect ran.
 
 **A pre-existing gap, recorded and not fixed here.** The same activity-scoping means the other read screens
 (`LoadingViewModel`, `LoadingHistoryViewModel`, `ReportsHistoryViewModel`) keep a previous session's data until
@@ -611,9 +616,42 @@ else. The focused run was 3 classes and 14 tests green; the full suite went from
 **23 and 219**, 0 failures, 0 errors, 0 skipped, in 6m56s, with every XML of that run its own.
 ### B2. Report edit
 
+**Split into two units, and the first one is delivered.** Measuring the slice showed it could not be a pure
+addition: the form it edits lives inline and `private` inside the generator screen, while the web shares one
+component -- `CategorySection` -- between creating and editing, and two copies of a form drift in exactly the
+validation the server later refuses.
+
+#### B2a. The report form is one piece, and it draws the children — DELIVERED
+
+**What moved.** `reports/ReportForm.kt` holds `ReportFormState` (the answers plus the product offers) and
+`CategoryForm(category, children, form, readOnly, callbacks, depth)`, which is this app's `CategorySection`. The
+generator screen keeps what surrounds the form -- the way to the history, the message, the created id and the
+submit button -- and builds the state once. `readOnly` is the server's answer rendered rather than recomputed,
+which is `D6`'s rule arriving at the last surface that lacked it.
+
+**The defect the extraction found, and it is why the children are drawn.** The generator selected
+`categories.filter { it.parentCategoryId == null }`: it drew the roots only, while the endpoint serves every
+active category and orders a child right after its parent (`ORDER BY COALESCE(parent_category_id, id), sort_order,
+id`), the web renders two levels, and the production seed has **two active children this app never drew** --
+`report_categories` ids **9 `Caixas pequenas`** and **10 `Caixas Assai`**, both `parent_category_id = 8`. Its KDoc
+also claimed a recursion that nothing performed. That is not cosmetic: `PATCH /api/reports/:id` replaces the
+`items` array when the field is present, so an edit form that cannot see a child category's task would submit a
+list without it and delete the item.
+
+**Evidence.** `ReportFormTest` renders `CategoryForm` directly -- no ViewModel, no Hilt -- and asserts that a
+child category's task is drawn beside its parent, that each task type draws what the form holds (the product
+chips from the offers, one field per declared reading and no third one), that a tap reports the task its box
+belongs to, and that `readOnly` disables the check box and the temperature field and a tap reports nothing. The
+reports package ran at 51 tests green. One test defect was caught by the run rather than by reading: the helper
+that asserts a node is drawn requires a unique label, and the data had named a category after its own task --
+`Temperaturas` and `Câmara fria`, as production names them, is the shape the data has.
+
+#### B2b. The edit surface — NEXT
+
 `ReportEditPage` has no Android counterpart, and `ReportDetailViewModel` deliberately supports
-view + photos + export only. The slice adds the edit surface: selected products and quantities,
-observations, and whatever else the web form edits, against the existing reports routes.
+view + photos + export only. This unit adds the edit surface: selected products and quantities,
+observations, and whatever else the web form edits, against the existing reports routes -- and it
+consumes `CategoryForm` rather than a second form of its own.
 
 **Constraint:** the day-window rule is `D6`, and the server returns `canEdit` / `readOnly`. The
 app renders those flags; it never computes the boundary itself. A report the server marks
