@@ -86,6 +86,30 @@ class FakeLoadingApi(
     private val driversToReturn: List<DriversResponseDriversInner> = defaultDrivers(),
     private val vehiclesToReturn: List<VehiclesResponseVehiclesInner> = defaultVehicles(),
     private val createResponse: Response<ScheduleResponse>? = null,
+    /**
+     * What an update answers. Null is the server taking the body and echoing the row, which is what it does;
+     * a `Response.error` is the refusal the screen has to explain in its own words.
+     */
+    private val updateResponse: Response<ScheduleResponse>? = null,
+    /**
+     * When set, the update throws it instead of answering at all.
+     *
+     * The same hook as [historyFailure] and for the same reason: a refused write and an unreachable server
+     * are different answers -- the first is the server's own sentence and the second is the app's -- and a
+     * fake that could not tell them apart could not tell whether the screen had either.
+     */
+    private val updateFailure: Throwable? = null,
+    /**
+     * When true, every update waits on its own gate before answering, so a test can hold a save in the air
+     * and see what the state says while it is there.
+     *
+     * The convention is [gateSchedules]'s and [gateHistory]'s, and so is why a gate and not a delay: the
+     * fake answers immediately, so an in-flight write is a state no test could otherwise reach, and the
+     * claims about it -- that `submitting` is set while it is in the air, and that a load drops it rather
+     * than letting it report afterwards -- are about what happens between the request leaving and the
+     * answer arriving.
+     */
+    private val gateUpdates: Boolean = false,
     private val deleteSucceeds: Boolean = true,
     /** What a batch deactivation answers. 200 with a body in practice; the fake never reads it either. */
     private val deactivateBatchResponse: Response<SuccessResponse> =
@@ -143,6 +167,33 @@ class FakeLoadingApi(
 
     /** What the last create carried, which is how the payload rules below are asserted. */
     var createdBody: CreateScheduleRequest? = null
+        private set
+
+    /**
+     * The last update's target and body, which is what the partial-update rule is asserted on.
+     *
+     * The body is kept as it arrived rather than summarized, because the claim is about the request the
+     * screen sent and not about the state that produced it: the server merges a schedule update field by
+     * field, so which fields a caller named is the whole of what it said.
+     */
+    var updatedId: Int? = null
+        private set
+    var updatedBody: UpdateScheduleRequest? = null
+        private set
+
+    /** One gate per update held open by [gateUpdates], in the order the calls were made. */
+    val updateGates = mutableListOf<CompletableDeferred<Unit>>()
+
+    /**
+     * How many updates resumed from their own suspension and ran to their end.
+     *
+     * Whether a superseded write finished or was torn down is invisible from the view model's state -- both
+     * leave the same two flags -- and the difference is the whole reason a request token was chosen over a
+     * cancellation: a write the operator asked for is work that has to land. The counter is incremented on
+     * the line after the gate, the first line that runs only when the suspension resumed normally; a call
+     * cancelled while it was held never reaches it.
+     */
+    var updatesThatRanToCompletion = 0
         private set
 
     var deletedIds = mutableListOf<Int>()
@@ -260,7 +311,43 @@ class FakeLoadingApi(
         return if (deleteSucceeds) Response.success(Unit) else Response.error(403, EMPTY_BODY)
     }
 
-    override suspend fun updateSchedule(id: Int, body: UpdateScheduleRequest): Response<ScheduleResponse> = error(NOT_USED)
+    /**
+     * The update the edit screen sends, recorded rather than thrown away.
+     *
+     * The body is the point of this call: a double that answered with a plausible row without keeping the
+     * object could not make the claim the tests are about, because what the screen says is the request.
+     */
+    override suspend fun updateSchedule(id: Int, body: UpdateScheduleRequest): Response<ScheduleResponse> {
+        updatedId = id
+        updatedBody = body
+
+        if (gateUpdates) {
+            val gate = CompletableDeferred<Unit>()
+            updateGates += gate
+            gate.await()
+        }
+
+        // After the gate and not before it, which is the schedule read's own convention: the answer is the
+        // state at release time, and the counter below counts only calls that got here.
+        updatesThatRanToCompletion++
+        updateFailure?.let { throw it }
+        updateResponse?.let { return it }
+
+        return Response.success(ScheduleResponse(schedule = updatedRow(id, body.timeSlot)))
+    }
+
+    /**
+     * The row the server echoes after an update: the entry that was there, carrying the slot just set.
+     *
+     * The day's own row rather than a fresh one, because that is what the server does -- it re-reads the
+     * row it just wrote and projects it like every other schedule -- and the fallback is only for a day
+     * this fake was told to fail.
+     */
+    private fun updatedRow(id: Int, timeSlot: String?): SchedulesResponseSchedulesInner =
+        schedulesToReturn?.firstOrNull { it.id == id }
+            ?.let { found -> found.copy(timeSlot = timeSlot ?: found.timeSlot) }
+            ?: entry(id = id, slot = timeSlot.orEmpty())
+
     override suspend fun deactivateSchedule(id: Int): Response<SuccessResponse> = error(NOT_USED)
 
     override suspend fun deactivateBatch(date: String): Response<SuccessResponse> {
