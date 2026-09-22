@@ -63,7 +63,7 @@ class DashboardScreenTest {
 
     /** The settled state: a summary that arrived, which is what every card test starts from. */
     private fun state(summary: DashboardSummary? = FakeSystemApi.summary()) =
-        DashboardViewModel.UiState(loading = false, summary = summary, failed = false)
+        DashboardViewModel.UiState(loading = false, summary = summary)
 
     private fun render(
         state: DashboardViewModel.UiState,
@@ -172,12 +172,13 @@ class DashboardScreenTest {
      * The loading case of "there is no summary", and the claim is the one this lane was added for: the
      * screen must not draw a zero for a count nobody answered.
      *
-     * The state is written out field by field rather than taken from the default constructor, so that
-     * what is being rendered is visible in the test: loading, no summary, no failure.
+     * The state is written out field by field rather than taken from the default constructor, so that what
+     * is being rendered is visible in the test: loading, no summary. There is nothing else to set -- the
+     * failure is the state that is neither loading nor has a summary, so it has no flag to clear here.
      */
     @Test
     fun `a state with no summary draws no zeroes`() {
-        render(state = DashboardViewModel.UiState(loading = true, summary = null, failed = false))
+        render(state = DashboardViewModel.UiState(loading = true, summary = null))
 
         composeRule.onNode(hasProgressBarRangeInfo(ProgressBarRangeInfo.Indeterminate)).assertIsDisplayed()
 
@@ -189,7 +190,9 @@ class DashboardScreenTest {
 
     @Test
     fun `a read that did not arrive says so and draws nothing else`() {
-        render(state = DashboardViewModel.UiState(loading = false, summary = null, failed = true))
+        // Not loading and no summary: that *is* the failure state, and it is the whole of it -- nothing
+        // sets a flag, because there is none to set.
+        render(state = DashboardViewModel.UiState(loading = false, summary = null))
 
         composeRule.onNodeWithText(copy(R.string.dashboard_unreachable)).assertIsDisplayed()
 

@@ -101,6 +101,11 @@ class MainActivity : ComponentActivity() {
                 // is the same one -- the server hands the role over at sign-in and a token rotation carries none. Keyed on
                 // `signedIn`, which is exactly when a new role can arrive.
                 val role = remember(signedIn) { authRepository.sessionRole() }
+                // Which session this is, as the key the dashboard's view model is built under. It moves when the session
+                // changes -- that is what `sessionGeneration` counts, and [AuthRepository] says why a token rotation is
+                // not one of the moves -- so the next operator gets a dashboard of their own instead of the previous
+                // one's retained summary.
+                val sessionKey = remember(signedIn) { authRepository.sessionGeneration.toString() }
 
                 /**
                  * Leaves the app: the session is over, so nothing may be left armed for the next one.
@@ -240,6 +245,7 @@ class MainActivity : ComponentActivity() {
                         // generator are what the row is for -- and the web draws its navigation on the dashboard too.
                         when (tab) {
                             Tab.DASHBOARD -> DashboardRoute(
+                                sessionKey = sessionKey,
                                 onOpenReport = { openReportId = it },
                                 onOpenReports = { tab = Tab.REPORTS },
                                 onOpenLoading = { tab = Tab.LOADING },

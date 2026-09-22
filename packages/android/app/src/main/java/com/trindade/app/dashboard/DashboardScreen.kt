@@ -41,12 +41,13 @@ import com.trindade.app.contract.models.DashboardSummary
  *    because the web's own card titled "Relatórios Hoje" never shows that count: it shows the
  *    higiene/recepção breakdown instead, and no screen on either client reads `reportsToday`.
  *
- * `DashboardSummary`'s two remaining fields, `higieneTotal` and `recepcionTotal`, are passed to the same
- * two strings the web passes them to; those strings (the web's own `pt-BR` text, kept here character for
- * character) name only the `done` half, so the totals reach no pixel on either client. They are named
- * here rather than dropped quietly: whether the web's two lines should carry the totals is a copy
- * decision, made once, in the web's locale file, and this screen follows it rather than inventing a
- * second reading of the same sentence.
+ * `DashboardSummary`'s two remaining fields, `higieneTotal` and `recepcionTotal`, are **not read here at
+ * all**. The app's two strings interpolate one count each and it is the `done` half, so the totals reach no
+ * pixel on this screen. The web's own two lines interpolate both -- it passes `done` and `total` to the
+ * same `pt-BR` text kept here character for character -- and its copy renders only the `done` count as
+ * well, which is why the totals are named here rather than dropped quietly: whether the web's two lines
+ * should carry them is a copy decision, made once, in the web's locale file, and this screen follows it
+ * rather than inventing a second reading of the same sentence.
  *
  * The screens the cards open are named in [DashboardRoute]'s comment: the web links the first two cards
  * and draws the other three as plain numbers.
@@ -67,12 +68,16 @@ fun DashboardScreen(
             CircularProgressIndicator()
         }
 
+        // This branch *is* the failure state: not loading and nothing to show means the read did not arrive.
+        // That is why there is no flag to consult here -- a flag is a second thing saying what the state
+        // already says, and two things can disagree, which is the disagreement this screen cannot have.
+        //
         // No retry *control*, and none is drawn here. The web draws this same failure the same way -- an
         // alert with no action inside it -- and its page refetches on every visit; this screen's recovery
         // is the same one: leaving the tab and coming back. That works because the arrival, not the view
         // model's construction, is what reads: `DashboardRoute` refreshes on every arrival above. The
         // sentence names no cause, for the reason the view model's KDoc gives.
-        state.failed -> Box(
+        state.summary == null -> Box(
             modifier = modifier.fillMaxSize(),
             contentAlignment = Alignment.Center,
         ) {
@@ -84,10 +89,8 @@ fun DashboardScreen(
         }
 
         else -> {
-            // Read non-null once, here, instead of `state.summary!!` at each of the six uses below: the
-            // branch above is what guarantees it, and a reader should not have to hold two branches in
-            // their head to know that a `!!` cannot throw.
-            val summary: DashboardSummary = state.summary ?: return
+            // Read once, here, rather than at each of the uses below.
+            val summary: DashboardSummary = state.summary
 
             Column(
                 modifier = modifier
@@ -163,10 +166,17 @@ fun DashboardScreen(
  */
 @Composable
 fun DashboardRoute(
+    // The key is the session this dashboard is for, and it is what keeps a retained state off this
+    // screen. The view model lives in the activity's store, so without a key a dashboard built for a
+    // previous session would be the very instance this screen draws -- and its retained summary would be
+    // composed before the effect below ever ran, because the first composition happens before any
+    // `LaunchedEffect` does. Keyed to the session, that instance is not this screen's: the one it draws is
+    // new, and a new one starts at `loading = true`, so the first frame is the spinner.
+    sessionKey: String,
     onOpenReport: (Int) -> Unit,
     onOpenReports: () -> Unit,
     onOpenLoading: () -> Unit,
-    viewModel: DashboardViewModel = hiltViewModel(),
+    viewModel: DashboardViewModel = hiltViewModel(key = sessionKey),
 ) {
     val state by viewModel.state.collectAsState()
     // Every arrival reads again: the summary is about today, the operator can come back to it at any point in

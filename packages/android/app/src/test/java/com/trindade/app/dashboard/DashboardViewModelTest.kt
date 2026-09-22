@@ -28,10 +28,11 @@ import retrofit2.Response
  * other says a read that produced no answer arrives as nothing rather than as that summary's zeroed-out
  * shape.
  *
- * The third is the one the screen's shape made necessary. These view models are activity-scoped -- there is
- * no `NavHost` in `main`, so `hiltViewModel()` resolves to the activity -- which means a second read is what
- * a new operator gets, and it has to drop the first answer before it asks again, or the next operator to
- * sign in on the same activity would be shown the previous one's numbers.
+ * The third is the one the read-in-flight rule made necessary, and it is about ordering rather than about a
+ * flag: two reads can be in the air at once -- these view models are activity-scoped, so a refresh arrives
+ * from a screen that can be left and re-entered at any moment -- and the older one landing last would write
+ * the last refresh's answer back over the newer one's. The read in flight is cancelled for exactly that, and
+ * the test lets the older read finish *after* the newer answer has landed to say so.
  */
 class DashboardViewModelTest {
 
@@ -58,7 +59,6 @@ class DashboardViewModelTest {
 
         assertEquals(summary, model.state.value.summary)
         assertFalse(model.state.value.loading)
-        assertFalse(model.state.value.failed)
         // One read, and one only: the other two calls on `SystemApi` would have thrown, so a count of one
         // is this test's evidence that the screen asked the question it draws from and nothing else.
         assertEquals(1, api.summaryCalls)
@@ -70,70 +70,81 @@ class DashboardViewModelTest {
 
         model.refresh()
 
+        // Not loading and no summary *is* the failure -- these two assertions together are the whole of it,
+        // which is why the state has no flag of its own to assert and could disagree with them.
         assertNull(model.state.value.summary)
-        assertTrue(model.state.value.failed)
         assertFalse(model.state.value.loading)
     }
 
     /**
-     * The leak the read-on-arrival exists for: a second read never shows the first one's answer.
+     * Two reads in the air are two answers that can land in either order, and the older one landing last is
+     * the whole of the bug: what it writes is the last refresh's answer, coming back after the newer one had
+     * already replaced it -- a previous session's summary reappearing over this session's own.
      *
-     * The view model is scoped to the activity, so the state the next operator signs in to is the previous
-     * operator's. Dropping the answer before asking again is what stops the two from being on screen
-     * together -- so the assertion is made in exactly that window, with the second read held in flight: no
-     * summary, and the spinner.
+     * The first read is held open, the second answers, and only then is the first let go. Cancelling the read
+     * in flight is what `refresh` does about it, and the assertion is made where it would fail without that:
+     * after the slow read has had its chance to write.
      */
     @Test
-    fun `a second read drops the first answer before it asks again`() {
-        val api = AnswersOnceThenRefuses()
+    fun `a slow read that lands last does not overwrite the one after it`() {
+        val stale = FakeSystemApi.summary(latestReportId = 1)
+        val fresh = FakeSystemApi.summary(latestReportId = 2)
+        val api = SlowFirstReadThenAnswers(stale = stale, fresh = fresh)
         val model = DashboardViewModel(DashboardRepository(api))
 
+        // The first read, started and held: it is the older of the two and it has not answered yet.
         model.refresh()
-        assertEquals(FakeSystemApi.summary(), model.state.value.summary)
-        assertFalse(model.state.value.loading)
-
-        model.refresh()
-
-        // The first answer is gone while the second is in flight -- the state a new operator would
-        // otherwise be shown -- and the failure flag is not set yet, because nothing has failed yet.
-        assertNull(model.state.value.summary)
         assertTrue(model.state.value.loading)
-        assertFalse(model.state.value.failed)
+
+        // The second read, which answers at once. It cancels the first on its way in.
+        model.refresh()
+        assertEquals(fresh, model.state.value.summary)
+        assertFalse(model.state.value.loading)
         assertEquals(2, api.summaryCalls)
 
-        // Released, and the first answer still does not come back: what follows a read that did not arrive
-        // is the failure, never the numbers the previous one drew.
-        api.secondReadMayFinish.complete(Unit)
-        assertNull(model.state.value.summary)
+        // The older read is let go now, after the newer answer has landed. Were it still alive it would
+        // write `stale` over `fresh` right here -- which is the ordering this test exists to rule out.
+        api.firstReadMayFinish.complete(Unit)
+        assertEquals(fresh, model.state.value.summary)
+        assertFalse(model.state.value.loading)
     }
 }
 
 /**
- * A `SystemApi` whose first summary read answers and whose second refuses, with the second held open.
+ * A `SystemApi` whose first summary read is slow and whose second answers at once, so the older read can be
+ * let go *after* the newer answer has landed.
  *
- * `FakeSystemApi` cannot say this: its answer is a constructor parameter, so every call gets the same one.
- * A sequence is the whole of what the third test needs -- a summary that has arrived, and then a read that
- * does not -- and writing it here, beside the one test that needs it, is cheaper than a second seam in a
- * fake three other files share.
+ * `FakeSystemApi` cannot say this. Its answer is a constructor parameter, so every call gets the same one --
+ * there is no way to give the two reads different answers, and no way to hold one of them open -- and both
+ * halves matter here: an ordering test needs two distinguishable answers and a moment in which to release
+ * the older one. A sequence of that shape is the whole of what this test needs, and writing it here, beside
+ * the one test that needs it, is cheaper than a second seam in a fake three other files share.
  *
- * [secondReadMayFinish] is what makes the mid-flight state reachable at all. This lane installs an
- * unconfined dispatcher, so a read that answers immediately runs to completion inside `refresh()` and there
- * would be no moment left in which to look at the screen; a read that waits, on the other hand, hands the
- * test the exact state the assertion is about.
+ * [firstReadMayFinish] is what makes the ordering reachable at all. This lane installs an unconfined
+ * dispatcher, so a read that answers immediately runs to completion inside `refresh()`; a read that waits,
+ * on the other hand, is still in flight when the next `refresh()` is called, which is the exact moment the
+ * test is about.
  */
-private class AnswersOnceThenRefuses : SystemApi {
+private class SlowFirstReadThenAnswers(
+    /** What the first, slow read would write if it were ever allowed to answer. */
+    private val stale: DashboardSummary,
+    /** What the second read answers at once. */
+    private val fresh: DashboardSummary,
+) : SystemApi {
 
     var summaryCalls = 0
         private set
 
-    /** Released by the test so the second read can finish; until then the read is in flight. */
-    val secondReadMayFinish = CompletableDeferred<Unit>()
+    /** Released by the test so the first read can finish; until then that read is in flight. */
+    val firstReadMayFinish = CompletableDeferred<Unit>()
 
     override suspend fun dashboardSummary(): Response<DashboardSummary> {
         summaryCalls += 1
-        if (summaryCalls == 1) return Response.success(FakeSystemApi.summary())
-        secondReadMayFinish.await()
-        return Response.error(500, FakeSystemApi.EMPTY_BODY)
+        if (summaryCalls == 1) {
+            firstReadMayFinish.await()
+            return Response.success(stale)
+        }
+        return Response.success(fresh)
     }
 
     /** The two calls no test in this file makes, throwing for the reason the shared fake's own throw gives. */
