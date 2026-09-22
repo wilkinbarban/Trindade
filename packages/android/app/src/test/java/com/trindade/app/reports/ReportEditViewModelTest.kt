@@ -80,7 +80,7 @@ class ReportEditViewModelTest {
          * The convention is `FakeReportsApi.gateHistory`'s, and so is why it is a gate and not a delay:
          * the fake answers immediately, so an in-flight write is a state no test could otherwise reach,
          * and the two claims about it -- that `submitting` is set while it is in the air, and that a
-         * load cancels it rather than letting it report afterwards -- are both about what happens
+         * load drops it rather than letting it report afterwards -- are both about what happens
          * between the request leaving and the answer arriving.
          */
         gateUpdates: Boolean = false,
@@ -183,11 +183,12 @@ class ReportEditViewModelTest {
     }
 
     /**
-     * The read-only rule, in the direction that fails closed.
+     * The read-only rule, in the direction that fails closed and in the one that does not.
      *
-     * Three reports, because one cannot separate the expression from a form that is read-only whatever
-     * it is handed: the server marks this report not editable, the server says nothing at all, and the
-     * server marks it editable.
+     * Five reports, because one cannot separate the expression from a form that is read-only whatever
+     * it is handed: the server marks this report not editable, the server says nothing at all, the
+     * server marks it editable, and the two shapes in which an explicit `readOnly = false` is the
+     * server's own yes.
      */
     @Test
     fun `a report the server did not mark editable is read-only`() {
@@ -210,6 +211,21 @@ class ReportEditViewModelTest {
         open.load(REPORT_ID)
         assertEquals(false, open.state.value.readOnly)
         assertEquals(true, open.state.value.canSubmit)
+
+        // The widened branch, and the one the predicate's own prose used to leave out: an explicit
+        // `readOnly = false` is the server saying the report may be edited, and it decides on its own --
+        // `readOnly ?? !canEdit` never consults `canEdit` once the first flag is present. The two legs
+        // below are the two ways that shows up: `canEdit` contradicting it, and `canEdit` absent
+        // altogether. Both are editable, and the detail draws its way in on the same answer.
+        val explicitOpen = viewModel(fake(report = storedReport(canEdit = false, readOnly = false)))
+        explicitOpen.load(REPORT_ID)
+        assertEquals(false, explicitOpen.state.value.readOnly)
+        assertEquals(true, explicitOpen.state.value.canSubmit)
+
+        val openWithoutCanEdit = viewModel(fake(report = storedReport(canEdit = null, readOnly = false)))
+        openWithoutCanEdit.load(REPORT_ID)
+        assertEquals(false, openWithoutCanEdit.state.value.readOnly)
+        assertEquals(true, openWithoutCanEdit.state.value.canSubmit)
     }
 
     /**
@@ -280,7 +296,7 @@ class ReportEditViewModelTest {
      * explains why that is safe: `load` clears the flag, and this view model outlives the composition,
      * so the flag a save leaves behind belongs to the arrival that sent it rather than to the next one.
      * Nothing proved that until this test, and the flag is not the only thing a save leaves behind: the
-     * job it launched is not stopped by leaving either, so the same instance can be carrying a write in
+     * write it launched is not stopped by leaving either, so the same instance can be carrying a write in
      * the air when the next arrival loads. Both halves are here because both fail the same way -- the new
      * arrival reads an answer it did not ask for -- and the second is the one no assertion about a
      * finished save can reach.
@@ -296,7 +312,7 @@ class ReportEditViewModelTest {
      * it are about what the new arrival is handed: `submitting` back to false, so this screen owns its
      * own form, and `saved` false. Releasing the gate afterwards is what makes the second assertion say
      * something: the stale write gets its answer, and the only reason it cannot announce itself with it
-     * is that the load dropped it. A reset that cleared the flags without cancelling the job would pass
+     * is that the load dropped it. A reset that cleared the flags without bumping the token would pass
      * every assertion up to that point and fail this one.
      */
     @Test

@@ -9,7 +9,6 @@ import com.trindade.app.contract.models.ReportResponseReport
 import com.trindade.app.contract.models.UpdateReportRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -83,15 +82,26 @@ class ReportEditViewModel @Inject constructor(
     val state: StateFlow<UiState> = _state.asStateFlow()
 
     /**
-     * The save in flight, held so the next arrival can drop the claim it has on this screen.
+     * Identifies the newest load, so a save an older one started cannot announce itself on this screen.
      *
-     * The shape the dashboard's own `reading` uses, and the reason is the same one: this view model is
-     * scoped to the activity's store and outlives the composition that draws it, so a write one arrival
-     * started keeps running after the operator leaves. Holding the job is what makes that write
-     * cancellable from the one place that knows a new arrival has begun -- see [load] -- instead of
-     * leaving a previous screen's write to announce itself on this one.
+     * The history view models' own request token, and their reason: two requests really can be in the air
+     * at once. This view model is scoped to the activity's store and outlives the composition that draws
+     * it, so the write one arrival started keeps running after the operator leaves, and the arrival that
+     * replaces it is a screen that write does not belong to. Without the token the stale answer is written
+     * over the new screen's state -- a spinner it never set going, a form whose save is withheld, and then
+     * `saved`, which is the very flag the next arrival leaves on.
+     *
+     * The write itself is not touched for it, and that is the difference between this and a cancellation.
+     * Cancelling the coroutine would tear down the call it is awaiting, so an edit the operator submitted
+     * and then left the screen for could be abandoned before the server ever saw it; a write the operator
+     * asked for is work that should land. What the token drops is only that write's claim on a screen it no
+     * longer belongs to: the request runs on and the server applies it whether or not this screen is still
+     * there, and its answer writes nothing when it arrives. A read is treated the other way, and the
+     * dashboard is where that shape already is: it cancels its read, because an answer nobody is waiting
+     * for is waste -- no screen is left to draw it, and no fact about the report is lost by dropping it --
+     * while a cancelled write is work the operator asked for that never happened.
      */
-    private var saving: Job? = null
+    private var newestLoad = 0
 
     /**
      * The report, the categories and the offers, together, the way the generator loads its own three.
@@ -105,26 +115,25 @@ class ReportEditViewModel @Inject constructor(
      * keyed by task.
      */
     fun load(reportId: Int) {
-        // The save a previous arrival started is cancelled before anything is read, and both flags it
-        // left behind go back to false with the load. Both flags, because both are about a visit rather
-        // than about the report, and this view model is scoped to the activity's store, so it outlives
-        // the composition: the instance that answers here is the one the screen that is gone was talking
-        // to.
+        // The arrival takes a token of its own before anything is read, and every save compares against
+        // it: see [newestLoad] for why the write a previous arrival started is left running and why the
+        // token, rather than a cancellation, is what keeps it off this screen. Both flags that write left
+        // behind go back to false with the load. Both flags, because both are about a visit rather than
+        // about the report, and this view model is scoped to the activity's store, so it outlives the
+        // composition: the instance that answers here is the one the screen that is gone was talking to.
         //
         // `saved` is the obvious one. It means "the write this screen sent was accepted", and left
         // standing it would be read by the next arrival's `state.first { it.saved }` and close the
         // screen before the report it just asked for was ever drawn -- the sticky flag the route's own
         // comment says the reset is there to avoid.
         //
-        // `submitting` is the same failure one step earlier, and it is why the job is held at all. A
-        // write still in flight is a write a screen that no longer exists started: this arrival cannot
-        // finish it and did not start it, so left standing it would draw a spinner it never set going
-        // and a form whose save is withheld, and when that write landed it would set `saved` -- which is
-        // exactly the stale close above, arriving a moment later. Cancelling drops that claim and
-        // nothing else: the request may still land on the server, and what is dropped is its claim on
-        // this screen, not the request.
-        saving?.cancel()
-        saving = null
+        // `submitting` is the same failure one step earlier. A write still in flight is a write a screen
+        // that no longer exists started: this arrival cannot finish it and did not start it, so left
+        // standing it would draw a spinner it never set going and a form whose save is withheld, and when
+        // that write landed it would set `saved` -- exactly the stale close above, arriving a moment
+        // later. The token is what stops that now: the request finishes on the server and the answer it
+        // brings is dropped when it arrives, because the screen that started it is not this one.
+        newestLoad++
         _state.update { it.copy(loading = true, message = null, saved = false, submitting = false) }
 
         viewModelScope.launch {
@@ -198,20 +207,32 @@ class ReportEditViewModel @Inject constructor(
      *
      * Whether the readings are complete is the server's call here as much as in the generator: it
      * answers 400 and names what is missing.
+     *
+     * **The write is not cancelled when the operator leaves the screen.** A load started afterwards takes
+     * a new [newestLoad] token, and that is the whole of what happens to a save already in the air: the
+     * request runs to its end and the server applies it, whether or not this screen is still there, because
+     * the edit is work the operator asked for and cancelling the coroutine would tear down the call it is
+     * awaiting before the server ever saw it. What the token drops is that write's claim on a screen it no
+     * longer belongs to -- its answer arrives and writes nothing. A read is treated the other way, and the
+     * dashboard is where that shape already is: it cancels its read, because an answer nobody is waiting
+     * for is waste -- no screen is left to draw it -- while a write nobody is waiting for is still an edit
+     * the operator made and expects to have landed.
      */
     fun submit() {
         val current = state.value
         if (!current.canSubmit) return
         val report = current.report ?: return
 
+        // The arrival this save belongs to, read before the request is launched: a load that starts while
+        // the write is in the air takes a newer token, and this save then belongs to a screen that is gone.
+        val load = newestLoad
+
         _state.update { it.copy(submitting = true, message = null) }
 
-        // Held rather than launched and forgotten, so a trip out of this screen can drop the save the
-        // way [load] drops it. `submitting` is the state half of the same fact and is kept honest with
-        // the job: it is set here as the job starts and cleared on every path that runs when the job
-        // finishes, while a load that cancels the job clears it itself -- a cancelled coroutine never
-        // reaches those paths, and leaving the flag to be cleared by one of them would leave it stuck.
-        saving = viewModelScope.launch {
+        // `submitting` is set here as the write starts and cleared on every path that runs when it
+        // finishes, and the token is what keeps a later arrival from being handed any of it: a save whose
+        // token was superseded writes nothing at all -- not the flag, not `saved`, not the message.
+        viewModelScope.launch {
             val tasksById = current.categories.flatMap { it.tasks }.associateBy { it.id }
 
             val body = UpdateReportRequest(
@@ -241,6 +262,12 @@ class ReportEditViewModel @Inject constructor(
             )
 
             val result = repository.update(report.id, body)
+
+            // A superseded save is dropped whole -- not `submitting`, not `saved`, not the message -- and
+            // nothing is done to the request itself: it finished, the server answered, and that answer is
+            // about a screen that no longer exists. Half of it written over a newer arrival would be worse
+            // than none, because the flag and the form would then describe two different visits.
+            if (load != newestLoad) return@launch
 
             _state.update { previous ->
                 when (result) {

@@ -30,8 +30,8 @@ import org.robolectric.annotation.GraphicsMode
  * The unit's own lanes could not see it. The edit screen's lane proves D6 from a report the two flags
  * already agree about, and the view model's lane proves the predicate's answer -- neither of them draws
  * the detail, so neither can see the detail and the edit surface answering one question two ways. That
- * is what puts this file in the rendered lane, and what the two tests below divide between them: one leg
- * is the contradictory answer, and the other is what makes it mean something.
+ * is what puts this file in the rendered lane, and what the tests below divide between them: one leg is
+ * the contradictory answer, and the others are what make it mean something.
  *
  * Three things about the file are the lane's own conventions, and they are the same three the other
  * screens' tests state:
@@ -41,10 +41,10 @@ import org.robolectric.annotation.GraphicsMode
  *  * The copy is looked up from the resources the app ships -- `copy(R.string.x)` -- rather than typed
  *    here, so a change to a label fails this test instead of passing silently against a stale
  *    expectation.
- *  * Each test renders once, because a `ComposeContentTestRule` draws one composition. The two legs are
- *    therefore two tests rather than two renders, and the second is not decoration: "the action does not
- *    exist" is also true of a screen that drew nothing at all, which is why both tests assert the way
- *    back as well.
+ *  * Each test renders once, because a `ComposeContentTestRule` draws one composition. The legs are
+ *    therefore separate tests rather than re-renders, and the answer legs are not decoration: "the action
+ *    does not exist" is also true of a screen that drew nothing at all, which is why every test asserts
+ *    the way back as well.
  */
 @RunWith(AndroidJUnit4::class)
 @Config(qualifiers = "w400dp-h1000dp")
@@ -143,7 +143,7 @@ class ReportDetailScreenTest {
 
     /**
      * The other side of the same rule, and what makes the assertion above say something: an explicit
-     * `canEdit = true` with no `readOnly` at all is the only editable shape, and the way in is drawn.
+     * `canEdit = true` with no `readOnly` at all is one of the two editable shapes, and the way in is drawn.
      *
      * An absent `readOnly` is the case the predicate treats as "not refused" rather than as an absence to
      * fall back to, and it is the shape the server actually produces for an editable report -- the two
@@ -154,6 +154,24 @@ class ReportDetailScreenTest {
     @Test
     fun `a report the server marks editable draws the way into the edit surface`() {
         render(state(report(canEdit = true, readOnly = null)))
+
+        composeRule.onNodeWithText(copy(R.string.report_back)).assertIsDisplayed()
+        composeRule.onNodeWithText(copy(R.string.report_edit)).assertIsDisplayed()
+    }
+
+    /**
+     * The widened branch, and the shape a detail reading `canEdit` on its own would miss from the other
+     * side: an explicit `readOnly = false` is the server saying the report may be edited and it decides on
+     * its own, so the way in is drawn with `canEdit` absent entirely.
+     *
+     * The predicate is the web's own `readOnly ?? !canEdit`, which never consults `canEdit` once `readOnly`
+     * is present. A detail that required `canEdit = true` beside it would withhold the action on exactly
+     * the report the edit surface draws a save for -- the contradiction between the two screens this file
+     * exists to catch, arriving from the side the predicate's own prose used to leave out.
+     */
+    @Test
+    fun `a report the server marks not read-only draws the way in with no canEdit at all`() {
+        render(state(report(canEdit = null, readOnly = false)))
 
         composeRule.onNodeWithText(copy(R.string.report_back)).assertIsDisplayed()
         composeRule.onNodeWithText(copy(R.string.report_edit)).assertIsDisplayed()

@@ -7,8 +7,10 @@ import com.trindade.app.contract.models.ReportResponseReport
  *
  * One predicate for the two screens that ask: the detail decides whether to offer the way in, and the edit
  * surface decides whether to draw a save, and two copies of this expression would be two answers to one
- * question -- the shape this project keeps finding. It is the web's own `readOnly ?? !canEdit` and it fails
- * closed: only an explicit `canEdit = true` with no explicit `readOnly = true` is editable, so a report the
- * server did not positively mark editable is drawn read-only.
+ * question -- the shape this project keeps finding. It is the web's own `readOnly ?? !canEdit`, and the rule
+ * it states is this one: an explicit `readOnly = false` is the server saying the report may be edited and it
+ * decides on its own, whether or not `canEdit` agrees with it; otherwise an explicit `canEdit = true` is what
+ * makes the report editable; anything else is read-only. It fails closed: a report the server did not
+ * positively mark editable, in either flag, is drawn read-only.
  */
 internal fun ReportResponseReport.isReadOnly(): Boolean = readOnly ?: (canEdit != true)
