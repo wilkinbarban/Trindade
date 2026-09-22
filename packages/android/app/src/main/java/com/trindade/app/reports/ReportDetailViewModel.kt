@@ -46,8 +46,24 @@ class ReportDetailViewModel @Inject constructor(
     private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state.asStateFlow()
 
-    fun load(reportId: Int) {
-        if (state.value.reportId == reportId && state.value.report != null) return
+    /**
+     * Reads the report, or answers from what this instance already holds -- unless [force] says not to.
+     *
+     * The early return is an optimisation for repeated calls within one arrival, and [force] exists to
+     * say so rather than to add a feature. This view model is scoped to the activity's store, so it
+     * outlives the composition that draws the report and survives a trip through the edit surface: the
+     * `ReportResponseReport` it is holding is then the one that screen has just changed, and serving it
+     * again would show the operator the values from before their own save -- the exact failure a reload
+     * after a write exists to prevent. The report is not this screen's to cache in the first place: the
+     * server owns the window and the values, so the arrival is the only moment either can be trusted,
+     * which is what the route asks for by forcing the read there.
+     *
+     * The default keeps every existing caller -- and every test written against the old signature -- on
+     * the behaviour it had, and it is the right default for a caller that only wants the report drawn
+     * once.
+     */
+    fun load(reportId: Int, force: Boolean = false) {
+        if (!force && state.value.reportId == reportId && state.value.report != null) return
         _state.update { it.copy(reportId = reportId, loading = true, message = null) }
 
         viewModelScope.launch {

@@ -35,6 +35,23 @@
 
     <string name="report_submit">Salvar relatório</string>
     <string name="report_created">Relatório %1$d salvo.</string>
+    <!-- The edit surface, the web's own `ReportEditPage`. Each is that page's own `pt-BR` text for the
+         same control, out of the locale's `reports` block:
+           - `editTitle` is "Editar", and it is one string here because the web uses the one key for
+             both jobs this app needs it for: this screen's heading, and the label of the action on the
+             report detail that opens it (`ReportViewPage` draws `reports.editTitle` on its edit button).
+           - `updateReport` is the save action. It is deliberately not `report_submit` above, which is
+             this app's own word for the create: the two writes are different routes (that one makes a
+             report "Salvar relatório", this one changes one "Atualizar Relatório") and the web names
+             them differently too, with `saveReport` and `updateReport`.
+           - `notesLabel` is the notes field's label. Its placeholder (`notesPlaceholder`) is not used:
+             a field whose label already says what it is does not need a second sentence inside it.
+         The two shift names the chips draw are the history's pair below rather than two more strings:
+         they spell the same two shifts, and this file shares a word rather than writing it twice, for the
+         same reason `history_previous` is the loading history's too. -->
+    <string name="report_edit">Editar</string>
+    <string name="report_update">Atualizar Relatório</string>
+    <string name="report_notes">Observações</string>
     <string name="report_back">Voltar</string>
     <string name="report_photos">Fotos (%1$d/%2$d)</string>
     <string name="report_photo_add">Tirar foto</string>

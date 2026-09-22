@@ -1,6 +1,9 @@
 package com.trindade.app.reports
 
 import com.trindade.app.contract.models.PhotoResponse
+import com.trindade.app.contract.models.ReportResponse
+import com.trindade.app.contract.models.ReportResponseReport
+import com.trindade.app.network.ReportsApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -25,6 +28,10 @@ import retrofit2.Response
  *
  * The other is that the export is fetched separately from the report. The server refuses to render a
  * report missing a reading, and a screen that loaded both together would not open at all for one.
+ *
+ * The third is that the load is not always a read: the instance outlives the screen, so a caller that
+ * knows the retained report has been changed has to be able to say so. That is `force`, and it is what
+ * makes an edit visible on the way back from the edit surface.
  */
 class ReportDetailViewModelTest {
 
@@ -128,10 +135,77 @@ class ReportDetailViewModelTest {
         assertNotNull(messageBefore)
     }
 
+    /**
+     * The one arrival that is known to be stale, and the reason the force exists at all.
+     *
+     * This view model is scoped to the activity's store, so it outlives the composition and survives the
+     * trip through the edit surface. Coming back from a save, the report it is holding is the one that was
+     * just changed, and a load that trusted it would show the operator the values from before their own
+     * edit -- which is the one failure a reload after a write exists to prevent. The forced read is what
+     * the route asks for; the unforced one stays as it was, because a caller that only wants the report
+     * drawn once must not pay for a second read every time the screen is recomposed.
+     *
+     * Both halves are asserted on one instance, and on the number of calls rather than on the state alone:
+     * the second answer differs from the first, so "the state changed" would also be true of a load that
+     * re-read at random, while "the unforced call did not reach the server and the forced one did" is the
+     * distinction under test. The unforced call happens between the two reads, which is also what proves
+     * the early return is still there rather than merely unused.
+     */
+    @Test
+    fun `a forced load reads the report again, and an unforced one still keeps what it holds`() {
+        val before = FakeReportsApi.createdReport(id = REPORT_ID).copy(notes = "antes da edição")
+        val after = FakeReportsApi.createdReport(id = REPORT_ID).copy(notes = "depois da edição")
+        val api = SequencedReportsApi(FakeReportsApi(reportToReturn = before), listOf(before, after))
+        val model = ReportDetailViewModel(ReportsRepository(api), FakePhotoCompressor())
+
+        model.load(REPORT_ID)
+        assertEquals("antes da edição", model.state.value.report!!.notes)
+        assertEquals(1, api.reportCalls)
+
+        // The early return, unchanged: what the instance holds is what it answers with.
+        model.load(REPORT_ID)
+        assertEquals(1, api.reportCalls)
+        assertEquals("antes da edição", model.state.value.report!!.notes)
+
+        // And the forced read goes to the server again, and the answer that arrives replaces the one
+        // that was held.
+        model.load(REPORT_ID, force = true)
+        assertEquals(2, api.reportCalls)
+        assertEquals("depois da edição", model.state.value.report!!.notes)
+    }
+
     private companion object {
         const val REPORT_ID = 42
 
         val EMPTY_BODY: okhttp3.ResponseBody = "{}".toResponseBody("application/json".toMediaType())
+    }
+}
+
+/**
+ * The report call, counted, with an answer per call.
+ *
+ * `FakeReportsApi` answers every read with the same report and keeps no count, and neither can make the
+ * claim above: the point is not that the report was read but that it was read *twice* and that the second
+ * answer is the one that lands. Interface delegation hands every other call -- the categories, the offers,
+ * the photos, the export -- to the same fake the rest of this file uses, so only the read under test is
+ * replaced.
+ *
+ * The last answer repeats once the list is exhausted, so a fixture of one report is still a valid
+ * argument here and the class never indexes past its own list.
+ */
+private class SequencedReportsApi(
+    private val delegate: FakeReportsApi,
+    private val reports: List<ReportResponseReport>,
+) : ReportsApi by delegate {
+
+    /** How many times the report was read, which is the half of the claim a state cannot make. */
+    var reportCalls = 0
+        private set
+
+    override suspend fun report(id: Int): Response<ReportResponse> {
+        val answer = reports[minOf(reportCalls, reports.lastIndex)]
+        reportCalls++
+        return Response.success(ReportResponse(report = answer))
     }
 }
 

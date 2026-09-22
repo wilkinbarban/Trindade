@@ -656,16 +656,49 @@ from a wrongly keyed one. And the chip's read-only guard is asserted beside the 
 pequenas'`, and making the chip ignore `readOnly` fails its test with `Failed to assert the following: (is not
 enabled)`.
 
-#### B2b. The edit surface — NEXT
+#### B2b. The edit surface — DELIVERED
 
-`ReportEditPage` has no Android counterpart, and `ReportDetailViewModel` deliberately supports
-view + photos + export only. This unit adds the edit surface: selected products and quantities,
-observations, and whatever else the web form edits, against the existing reports routes -- and it
-consumes `CategoryForm` rather than a second form of its own.
+**What it is.** `ReportEditViewModel` loads the report with the categories and the offers, seeds the form from
+the report and submits an `UpdateReportRequest` through the same payload rules the generator uses -- those rules
+moved to `ReportPayload.kt` in this unit, so creating and editing cannot drift in the body the server validates.
+`ReportEditScreen` draws the shift, the notes, the message and the shared `CategoryForm`, and the operator reaches
+it from the detail's own edit action through an overlay in `MainActivity`. The web's edit page also manages photos;
+this screen does not, because the app's detail already does.
 
-**Constraint:** the day-window rule is `D6`, and the server returns `canEdit` / `readOnly`. The
-app renders those flags; it never computes the boundary itself. A report the server marks
-non-editable must not offer an edit action.
+**The rule the slice existed for, and where it is rendered.** `D6`: the server computes `canEdit` and `readOnly`
+and the app renders them. So the detail's edit action is drawn **only when `canEdit == true`** -- an absent flag is
+not an affirmative one -- and **the read-only screen draws no save action at all**. A disabled action is still an
+offer, and there is nothing for the operator to fix because the boundary is the server's window; the controls
+above it are drawn disabled so the screen cannot even collect an edit it has no action to send. The derivation
+mirrors the web's `readOnly ?? !canEdit` as `report.readOnly ?: (report.canEdit != true)`, which fails closed.
+
+**Nothing stale after an edit.** The detail's view model is activity-scoped and used to return early for a report
+it had already loaded, so coming back from a save would have shown the values from before it. `load` gained a
+`force` flag and the detail's route reads on arrival, which is also what makes the edit's result visible. The same
+activity-scoping is why the edit route awaits `saved` on a flow rather than keying an effect to it: a flag left
+true by a previous visit would close the screen before its own load landed -- the sticky-flag defect this codebase
+has already recorded once, for the login flag.
+
+**Three findings the work produced, all recorded.** (1) A **403** for this endpoint *is* the edit-window refusal
+(`reports.command.service.ts`), so answering it with the generator's "try again" sentence would send the operator
+to retry something no retry can fix; the view model borrows the detail's own window sentence instead of inventing
+a second one. (2) The notes are trimmed and sent as null when empty, mirroring the web's `notes.trim() || null`,
+because "nothing" and the empty string are different statements to the server. (3) A **recorded wart**: the
+`temperatures` field is omitted when the form produces no readings, so blanking every reading leaves the stored
+ones in place while blanking one sends the field and deletes it. Clearing them all is not expressible -- a blank
+reading has no wire representation, because the schema requires a value -- and it is recorded beside the call
+rather than repaired.
+
+**Evidence.** `ReportEditViewModelTest` covers the seeding from a report, the read-only derivation in three flag
+combinations, the update carrying the form rather than the report, and the two refusals; `ReportEditScreenTest`
+renders the stateless screen and asserts that an editable report offers a save that submits once, that a
+**read-only one draws no save action at all** and its controls are disabled, and that the message is drawn; and
+`ReportDetailViewModelTest` gained the forced-load test. The reports package ran at **64 tests green** and the
+full suite is recorded below. Four assertions were falsified rather than trusted: drawing the save in read-only
+fails with `found '1' node ... 'Atualizar Relatório'`, dropping the 403 arm fails with
+`expected:<Fora do prazo de edição...> but was:<Não foi possível salvar...>`, dropping the notes rule fails with
+`expected:<null> but was:<   >`, and -- from the previous unit -- emptying the children and making a chip ignore
+`readOnly` each fail their own test.
 
 ### B3. Loading edit
 

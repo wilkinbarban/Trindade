@@ -4,8 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.trindade.app.contract.models.CategoriesResponseCategoriesInner
 import com.trindade.app.contract.models.CreateReportRequest
-import com.trindade.app.contract.models.CreateReportRequestItemsInner
-import com.trindade.app.contract.models.CreateReportRequestTemperaturesInner
 import com.trindade.app.contract.models.ProductsResponse
 import com.trindade.app.contract.models.ReportCategoryTasksInner
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -111,10 +109,10 @@ class ReportGeneratorViewModel @Inject constructor(
     /**
      * Sends the report.
      *
-     * The payload follows what the SPA sends, verified rather than assumed: a temperature reading's
-     * `location` is the task's own name -- `Câmara Fria 1` and the like -- not a free-text field this
-     * client could fill with anything, and `readingIndex` is one-based because the server accepts 1 to
-     * 3.
+     * The body itself is built by [reportItems] and [reportTemperatures], which the report's edit screen
+     * submits through as well: the server validates both bodies against one schema, so the rules that
+     * turn a filled form into the wire shape have one home and not two. What stays here is what the two
+     * surfaces do not share: the refusal sentences of this route and the id of the report it produced.
      *
      * Whether the readings are complete is left to the server. It answers 400 naming the missing
      * temperatures, and duplicating that rule here would give the client a second place to be wrong
@@ -128,37 +126,13 @@ class ReportGeneratorViewModel @Inject constructor(
         viewModelScope.launch {
             val tasksById = current.categories.flatMap { it.tasks }.associateBy { it.id }
 
-            val items = tasksById.values
-                .filter { it.taskType != ReportCategoryTasksInner.TaskType.temperature }
-                .map { task ->
-                    CreateReportRequestItemsInner(
-                        taskId = task.id,
-                        checked = current.checks[task.id] == true,
-                        // Null rather than an empty list: nothing selected and an empty selection are
-                        // the same statement, and the server treats the field as optional.
-                        selectedProducts = current.selectedProducts[task.id]?.toList()?.takeIf { it.isNotEmpty() },
-                    )
-                }
-
-            val temperatures = tasksById.values
-                .filter { it.taskType == ReportCategoryTasksInner.TaskType.temperature }
-                .flatMap { task ->
-                    current.temperatures[task.id].orEmpty().mapIndexedNotNull { index, text ->
-                        text.toReading()?.let { value ->
-                            CreateReportRequestTemperaturesInner(
-                                location = task.namePt,
-                                value = value,
-                                readingIndex = index + 1,
-                            )
-                        }
-                    }
-                }
-
             val result = repository.create(
                 CreateReportRequest(
                     turno = current.turno?.let(::requestTurno),
-                    items = items.takeIf { it.isNotEmpty() },
-                    temperatures = temperatures.takeIf { it.isNotEmpty() },
+                    items = reportItems(tasksById.values, current.checks, current.selectedProducts)
+                        .takeIf { it.isNotEmpty() },
+                    temperatures = reportTemperatures(tasksById.values, current.temperatures, String::toReading)
+                        .takeIf { it.isNotEmpty() },
                 ),
             )
 
@@ -171,16 +145,6 @@ class ReportGeneratorViewModel @Inject constructor(
             }
         }
     }
-
-    /**
-     * A typed reading, or null when the field is empty or not a number.
-     *
-     * The comma is not a nicety. Portuguese writes decimals with one, an operator in a cold room types
-     * `4,5`, and `toDoubleOrNull` on that string returns null -- so the reading would be dropped and
-     * the server would answer that a temperature is missing, pointing at the wrong problem.
-     */
-    private fun String.toReading(): java.math.BigDecimal? =
-        trim().replace(',', '.').toBigDecimalOrNull()
 
     /**
      * The request's turno enum, matched by its value.

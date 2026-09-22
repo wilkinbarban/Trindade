@@ -377,6 +377,11 @@ class ReportFormTest {
      * The read-only form is composed first and the editable one second, which is what makes the two chips
      * of an identical label index 0 and index 1 of the collection below rather than an order to be
      * discovered by reading which one is enabled.
+     *
+     * Each chip is scrolled to before it is tapped, and the read-only one is scrolled back to after the
+     * editable one has been: a tap is delivered at the node's own position, so the chip that has to
+     * report nothing is put back on screen first, and the assertion below is about a disabled chip that
+     * was tapped rather than about a chip that was never reached.
      */
     @Test
     fun `a product chip is not enabled in read-only, and the same chip reports a toggle when it is not`() {
@@ -429,9 +434,15 @@ class ReportFormTest {
         chips[0].performScrollTo().assertIsNotEnabled()
         chips[1].performScrollTo().assertIsEnabled()
 
-        // The tap is asserted rather than assumed, and it is the whole point of a disabled chip: a form
-        // that drew a greyed chip and still forwarded the click would pass an "is it disabled" test and
-        // fail here, and a tap is delivered at the node's own position whatever the node's state is.
+        // Back to the read-only chip before tapping it, and asserted as displayed there. A tap is
+        // delivered at the node's own position, so a chip the scroll above left off screen is a tap that
+        // never arrives -- and the assertion below would then be about a chip nobody tapped rather than
+        // about a disabled chip that reported nothing.
+        chips[0].performScrollTo().assertIsDisplayed()
+
+        // The tap itself is asserted rather than assumed, and it is the whole point of a disabled chip:
+        // a form that drew a greyed chip and still forwarded the click would pass an "is it disabled"
+        // test and fail here.
         chips[0].performClick()
         composeRule.waitForIdle()
 

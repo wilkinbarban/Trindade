@@ -27,6 +27,7 @@ import com.trindade.app.dashboard.DashboardRoute
 import com.trindade.app.loading.LoadingHistoryRoute
 import com.trindade.app.loading.LoadingRoute
 import com.trindade.app.reports.ReportDetailRoute
+import com.trindade.app.reports.ReportEditRoute
 import com.trindade.app.reports.ReportGeneratorRoute
 import com.trindade.app.reports.ReportsHistoryRoute
 import com.trindade.app.ui.theme.TrindadeTheme
@@ -71,6 +72,13 @@ class MainActivity : ComponentActivity() {
                 var signedIn by remember { mutableStateOf(authRepository.hasSession()) }
                 // Which report the operator is looking at, if any. Null means the generator.
                 var openReportId by remember { mutableStateOf<Int?>(null) }
+                // Which report is being edited, if any. A destination of its own rather than a mode of
+                // the detail's, and it is deliberately not folded into `openReportId` above: the edit
+                // screen is reached *from* the detail, so the operator arrives with that flag already
+                // set, and the two have to be tellable apart for the branch order below to put the
+                // editor on top of the report it is editing rather than replacing what the return trip
+                // goes back to.
+                var editingReportId by remember { mutableStateOf<Int?>(null) }
                 // Whether the profile is showing instead of the tabs. The account is not one of them: see
                 // the tab row below.
                 var profileOpen by remember { mutableStateOf(false) }
@@ -120,6 +128,7 @@ class MainActivity : ComponentActivity() {
                 fun endSession() {
                     profileOpen = false
                     openReportId = null
+                    editingReportId = null
                     historyOpen = false
                     loadingHistoryOpen = false
                     loadingDay = null
@@ -149,8 +158,24 @@ class MainActivity : ComponentActivity() {
                     // history opens something over itself, so the open thing has to win while the
                     // history's flag is still true -- otherwise closing the detail would land on the
                     // generator, and the operator would lose the page of the history they were reading.
+                    //
+                    // The edit surface is ahead of the detail for the same shape of reason and one
+                    // degree more specific: it is opened from the detail, so `openReportId` is still set
+                    // while it is up, and a detail branch that won would make the edit action look like
+                    // it did nothing at all. Closing it drops only `editingReportId`, which is what
+                    // returns the operator to the report they were reading -- and that report's route
+                    // reads it again on arrival, so the save they just made is what they see.
+                    editingReportId != null -> ReportEditRoute(
+                        reportId = editingReportId!!,
+                        onBack = { editingReportId = null },
+                        onSaved = { editingReportId = null },
+                    )
                     openReportId != null -> ReportDetailRoute(
                         reportId = openReportId!!,
+                        // The report is the one this branch was drawn for: the detail's callback carries
+                        // no id of its own (it is `() -> Unit`, and the screen already has the report it
+                        // is showing), so the overlay takes the id from the flag that opened it.
+                        onEdit = { editingReportId = openReportId },
                         onBack = { openReportId = null },
                     )
                     // The account, above the histories for the same reason the report detail is: it is

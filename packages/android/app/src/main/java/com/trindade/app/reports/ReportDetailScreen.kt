@@ -56,6 +56,7 @@ fun ReportDetailScreen(
     onAddPhoto: (String) -> Unit,
     onDeletePhoto: (Int) -> Unit,
     onLoadExport: () -> Unit,
+    onEdit: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -75,9 +76,26 @@ fun ReportDetailScreen(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         // A way out that is visible rather than left to the system back gesture, which is not
-        // discoverable on a device the operator may be holding in one hand with gloves on.
+        // discoverable on a device the operator may be holding in one hand with gloves on. The edit
+        // action sits beside it because the two are the same kind of thing: a way to leave this screen
+        // for the one that does something with the report rather than shows it.
         item {
-            TextButton(onClick = onBack) { Text(stringResource(R.string.report_back)) }
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                TextButton(onClick = onBack) { Text(stringResource(R.string.report_back)) }
+                // Drawn only when the server's own flag says so, and the flag is read rather than
+                // recomputed: which day, which creator and therefore whether an edit would be accepted
+                // is the backend's rule, and a client that derived the window would be a second
+                // implementation of it -- with the phone's clock and timezone as its inputs. Both of the
+                // other shapes fail closed, which is why the comparison is against `true` rather than
+                // against false: a report the server marked non-editable must not offer an edit, and
+                // neither must one whose flag never arrived, because an absent answer is not an
+                // affirmative one. The screen the action opens reads the same flag again on arrival and
+                // draws no save of its own for such a report (D6), so this is the first of two places
+                // the one flag is rendered and neither of them computes it.
+                if (state.report?.canEdit == true) {
+                    TextButton(onClick = onEdit) { Text(stringResource(R.string.report_edit)) }
+                }
+            }
         }
 
         state.message?.let { message ->
@@ -202,17 +220,26 @@ private const val MAX_PHOTOS = 5
 @Composable
 fun ReportDetailRoute(
     reportId: Int,
+    onEdit: () -> Unit,
     onBack: () -> Unit,
     viewModel: ReportDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
-    androidx.compose.runtime.LaunchedEffect(reportId) { viewModel.load(reportId) }
+
+    // Forced, and keyed on the id: this route is drawn again every time the operator arrives at a
+    // report, including on the way back from the edit screen, and the instance it talks to is scoped to
+    // the activity's store rather than to this composition. A load that trusted the retained value
+    // would show the report as it was before the save, which is the one thing that must not happen after
+    // a write this app itself sent. See [ReportDetailViewModel.load] for why the read is forced here and
+    // why the early return it overrides exists at all.
+    androidx.compose.runtime.LaunchedEffect(reportId) { viewModel.load(reportId, force = true) }
 
     ReportDetailScreen(
         state = state,
         onAddPhoto = viewModel::attachPhoto,
         onDeletePhoto = viewModel::deletePhoto,
         onLoadExport = viewModel::loadExport,
+        onEdit = onEdit,
         onBack = onBack,
     )
 }

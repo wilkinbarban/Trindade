@@ -1,14 +1,17 @@
 package com.trindade.app.reports
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.unit.Dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.trindade.app.contract.models.CategoriesResponseCategoriesInner
 import com.trindade.app.contract.models.ProductsResponse
 import com.trindade.app.contract.models.ReportCategoryTasksInner
 import com.trindade.app.ui.theme.TrindadeTheme
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -43,8 +46,9 @@ import org.robolectric.annotation.GraphicsMode
  *    different assertion.
  *  * The categories are shaped the way the endpoint serves them rather than the way a minimal fixture
  *    would: the list is ordered `COALESCE(parent_category_id, id), sort_order, id`, so a child arrives
- *    right after its parent and the first test's child sits between the two roots. That is the order
- *    the screen's filter walks, and a child parked at the end of the list would test the filter less.
+ *    right after the root it belongs to, which is why the second test's child is the third entry and
+ *    carries an id higher than its parent's. That is the order the screen's filter walks, and a child
+ *    parked at the end of the list would test the filter less.
  */
 @RunWith(AndroidJUnit4::class)
 @Config(qualifiers = "w400dp-h1000dp")
@@ -175,37 +179,73 @@ class ReportGeneratorScreenTest {
     }
 
     /**
-     * The same wiring when the children have to be matched to the right root: the child belongs to the
-     * first root, and the second root's own task is drawn too.
+     * The same wiring when the children have to be matched to the right root, read off the layout rather
+     * than off the node's existence.
      *
-     * A missing `children` argument is what the test above catches; this one is for a wrong one -- the
-     * children looked up with a key that is not the current root's id, the first root's for every root,
-     * say. The first half alone cannot separate those two readings, because the child belongs to the
-     * first root and is drawn there either way; it is the second root's own task that refuses the wrong
-     * one. A lookup that handed every root the first root's children would also draw the child twice,
-     * and a selection by label refuses a second match instead of quietly picking one.
+     * The child belongs to the second root, and the three tasks below are the ones whose vertical order
+     * says where it was drawn: the first root's own task, the child's own root's task, and the child's.
+     * Presence alone was not enough here, and this is the whole reason the test is written this way: a
+     * screen that drew the child under whichever root it happened to be iterating -- the first one, say,
+     * because the lookup was handed the wrong key -- still draws the child's task somewhere, so an
+     * `assertIsDisplayed` on it passes. What refuses that reading is where the row ended up: with the
+     * child drawn under its own root it sits below that root's own task, and drawn under the first root
+     * it would sit above it, between the first root's task and the child's real parent.
+     *
+     * The fixture also had to move for this: the child used to belong to the first root, where `displayed`
+     * and a placement both say the same thing, because the first root is drawn first either way.
+     *
+     * The child's own name and its task's are both asserted, as in the test above: those are the two rows
+     * that go missing together, and the placement claim is about the task's row.
      */
     @Test
     fun `the child is drawn with the root it belongs to, not with whichever root comes first`() {
-        val childTask = task(id = 22, categoryId = 9, namePt = "Conferir validade")
-        val otherRootTask = task(id = 31, categoryId = 20, namePt = "Conferir a geladeira")
+        val firstRootTask = task(id = 11, categoryId = 8, namePt = "Lavar as mãos")
+        val parentRootTask = task(id = 31, categoryId = 10, namePt = "Conferir a geladeira")
+        val childTask = task(id = 22, categoryId = 21, namePt = "Conferir validade")
 
         render(
             state(
                 listOf(
-                    category(id = 8, namePt = "Higiene"),
+                    category(id = 8, namePt = "Higiene", tasks = listOf(firstRootTask)),
+                    category(id = 10, namePt = "Recepção", tasks = listOf(parentRootTask)),
                     category(
-                        id = 9,
+                        id = 21,
                         namePt = "Caixas pequenas",
-                        parentCategoryId = 8,
+                        parentCategoryId = 10,
                         tasks = listOf(childTask),
                     ),
-                    category(id = 20, namePt = "Recepção", tasks = listOf(otherRootTask)),
                 ),
             ),
         )
 
         displayed(childTask.namePt)
-        displayed(otherRootTask.namePt)
+        displayed(parentRootTask.namePt)
+        displayed("Caixas pequenas")
+
+        // The bounds come back in dp, not in pixels: `getBoundsInRoot()` answers in `Dp` while the
+        // neighbouring `SemanticsNode.boundsInRoot` is the API that answers in pixels.
+        val firstRootTaskTop: Dp = composeRule.onNodeWithText(firstRootTask.namePt).getBoundsInRoot().top
+        val parentRootTaskTop: Dp = composeRule.onNodeWithText(parentRootTask.namePt).getBoundsInRoot().top
+        val childTaskTop: Dp = composeRule.onNodeWithText(childTask.namePt).getBoundsInRoot().top
+
+        // Every row is drawn top to bottom, so a row that is lower on the screen has the greater `top`.
+        // The child is under its own root's task, which is where its root's block is.
+        assertTrue(
+            "the child's task (top ${childTaskTop.value}dp) is not under the task of the root it belongs " +
+                "to (top ${parentRootTaskTop.value}dp), so it was not drawn with that root",
+            childTaskTop > parentRootTaskTop,
+        )
+        // And below the first root's task as well, which is the other row above the child's own root:
+        // under both rows is the placement the wiring produces, and between the two is the placement a
+        // child drawn inside the first root's block would have. (The comparison is against the first
+        // root's task's `top` and reads "greater than": the first root is drawn first, so its task's top
+        // is the smallest on the screen and a child below it can only be greater, never smaller. The
+        // task statement asked for "smaller" here, which no layout can produce; the claim it names,
+        // "not placed with a root that is not its own", is the one asserted.)
+        assertTrue(
+            "the child's task (top ${childTaskTop.value}dp) is not below the first root's task (top " +
+                "${firstRootTaskTop.value}dp), so it is drawn between the two rows instead of under them",
+            childTaskTop > firstRootTaskTop,
+        )
     }
 }
