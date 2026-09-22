@@ -9,6 +9,7 @@ import com.trindade.app.contract.models.ReportResponseReport
 import com.trindade.app.contract.models.UpdateReportRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -59,14 +60,17 @@ class ReportEditViewModel @Inject constructor(
         /**
          * Whether the form is drawn read-only, read off the report rather than decided here.
          *
-         * `readOnly ?? !canEdit`, the SPA's own expression: an explicit flag from the server wins, and
-         * when it is absent the report is editable only if `canEdit` said so. That second half is the
-         * one that has to fail closed -- a report the server did not explicitly mark editable is drawn
-         * read-only, so an absent flag can only ever offer less than the server allows, never an edit
-         * the server would answer with a 403. A missing report is read-only for the same reason: there
-         * is nothing there to edit, and the load that failed says so.
+         * The answer is [isReadOnly], the predicate in `ReportWindow.kt`, and not a copy of it: the
+         * detail screen asks the same question to decide whether to offer the way in, so two copies
+         * would be two answers to one question -- a report the detail draws an edit action for while
+         * this screen draws no save at all, which is the contradiction one of them would eventually be
+         * edited into. That predicate is the SPA's own `readOnly ?? !canEdit`, and its second half is
+         * the one that has to fail closed: a report the server did not explicitly mark editable is
+         * drawn read-only, so an absent flag can only ever offer less than the server allows, never an
+         * edit the server would answer with a 403. A missing report is read-only for the same reason:
+         * there is nothing there to edit, and the load that failed says so.
          */
-        val readOnly: Boolean get() = report?.let { it.readOnly ?: (it.canEdit != true) } ?: true
+        val readOnly: Boolean get() = report?.isReadOnly() ?: true
 
         val ready: Boolean
             get() = !loading && report != null && categories.isNotEmpty() && offers != null && turno != null
@@ -77,6 +81,17 @@ class ReportEditViewModel @Inject constructor(
 
     private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state.asStateFlow()
+
+    /**
+     * The save in flight, held so the next arrival can drop the claim it has on this screen.
+     *
+     * The shape the dashboard's own `reading` uses, and the reason is the same one: this view model is
+     * scoped to the activity's store and outlives the composition that draws it, so a write one arrival
+     * started keeps running after the operator leaves. Holding the job is what makes that write
+     * cancellable from the one place that knows a new arrival has begun -- see [load] -- instead of
+     * leaving a previous screen's write to announce itself on this one.
+     */
+    private var saving: Job? = null
 
     /**
      * The report, the categories and the offers, together, the way the generator loads its own three.
@@ -90,12 +105,27 @@ class ReportEditViewModel @Inject constructor(
      * keyed by task.
      */
     fun load(reportId: Int) {
-        // `saved` goes back to false with the load, and it is the one field here that is about a visit
-        // rather than about the report: the flag means "the write this screen sent was accepted", and
-        // this view model is scoped to the activity's store, so it outlives the composition. Left
-        // standing, a save from a previous visit would be read by the next arrival's screen and close
-        // it before the report it just asked for was ever drawn.
-        _state.update { it.copy(loading = true, message = null, saved = false) }
+        // The save a previous arrival started is cancelled before anything is read, and both flags it
+        // left behind go back to false with the load. Both flags, because both are about a visit rather
+        // than about the report, and this view model is scoped to the activity's store, so it outlives
+        // the composition: the instance that answers here is the one the screen that is gone was talking
+        // to.
+        //
+        // `saved` is the obvious one. It means "the write this screen sent was accepted", and left
+        // standing it would be read by the next arrival's `state.first { it.saved }` and close the
+        // screen before the report it just asked for was ever drawn -- the sticky flag the route's own
+        // comment says the reset is there to avoid.
+        //
+        // `submitting` is the same failure one step earlier, and it is why the job is held at all. A
+        // write still in flight is a write a screen that no longer exists started: this arrival cannot
+        // finish it and did not start it, so left standing it would draw a spinner it never set going
+        // and a form whose save is withheld, and when that write landed it would set `saved` -- which is
+        // exactly the stale close above, arriving a moment later. Cancelling drops that claim and
+        // nothing else: the request may still land on the server, and what is dropped is its claim on
+        // this screen, not the request.
+        saving?.cancel()
+        saving = null
+        _state.update { it.copy(loading = true, message = null, saved = false, submitting = false) }
 
         viewModelScope.launch {
             val report = repository.report(reportId)
@@ -176,7 +206,12 @@ class ReportEditViewModel @Inject constructor(
 
         _state.update { it.copy(submitting = true, message = null) }
 
-        viewModelScope.launch {
+        // Held rather than launched and forgotten, so a trip out of this screen can drop the save the
+        // way [load] drops it. `submitting` is the state half of the same fact and is kept honest with
+        // the job: it is set here as the job starts and cleared on every path that runs when the job
+        // finishes, while a load that cancels the job clears it itself -- a cancelled coroutine never
+        // reaches those paths, and leaving the flag to be cleared by one of them would leave it stuck.
+        saving = viewModelScope.launch {
             val tasksById = current.categories.flatMap { it.tasks }.associateBy { it.id }
 
             val body = UpdateReportRequest(

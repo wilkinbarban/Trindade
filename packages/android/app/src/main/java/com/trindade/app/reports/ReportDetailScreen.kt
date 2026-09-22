@@ -82,17 +82,21 @@ fun ReportDetailScreen(
         item {
             Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                 TextButton(onClick = onBack) { Text(stringResource(R.string.report_back)) }
-                // Drawn only when the server's own flag says so, and the flag is read rather than
+                // Drawn only when the server says the report may be edited, and the two flags behind
+                // that answer -- `readOnly` and `canEdit` -- are the server's, read rather than
                 // recomputed: which day, which creator and therefore whether an edit would be accepted
                 // is the backend's rule, and a client that derived the window would be a second
-                // implementation of it -- with the phone's clock and timezone as its inputs. Both of the
-                // other shapes fail closed, which is why the comparison is against `true` rather than
-                // against false: a report the server marked non-editable must not offer an edit, and
-                // neither must one whose flag never arrived, because an absent answer is not an
-                // affirmative one. The screen the action opens reads the same flag again on arrival and
-                // draws no save of its own for such a report (D6), so this is the first of two places
-                // the one flag is rendered and neither of them computes it.
-                if (state.report?.canEdit == true) {
+                // implementation of it -- with the phone's clock and timezone as its inputs. The
+                // predicate is `ReportResponseReport.isReadOnly()`, in `ReportWindow.kt`, and it is
+                // shared with the screen this action opens, so the two cannot disagree: the edit
+                // surface asks the same function rather than holding its own copy of the expression,
+                // and a report this action offers is therefore never one that surface draws with no
+                // save at all (D6). One predicate also closes the contradictory answer the server can
+                // legitimately send -- `canEdit = true` beside `readOnly = true` -- where the explicit
+                // refusal wins. The comparison is against `false` rather than against the truth of
+                // `canEdit` for the reason the predicate fails closed: a report whose flags never
+                // arrived is not an affirmative answer, and an absent answer must not offer an edit.
+                if (state.report?.isReadOnly() == false) {
                     TextButton(onClick = onEdit) { Text(stringResource(R.string.report_edit)) }
                 }
             }

@@ -693,12 +693,32 @@ rather than repaired.
 combinations, the update carrying the form rather than the report, and the two refusals; `ReportEditScreenTest`
 renders the stateless screen and asserts that an editable report offers a save that submits once, that a
 **read-only one draws no save action at all** and its controls are disabled, and that the message is drawn; and
-`ReportDetailViewModelTest` gained the forced-load test. The reports package ran at **64 tests green** and the
-full suite is recorded below. Four assertions were falsified rather than trusted: drawing the save in read-only
+`ReportDetailViewModelTest` gained the forced-load test. The reports package ran at **67 tests green** and the
+full suite is recorded below. Five assertions were falsified rather than trusted: drawing the save in read-only
 fails with `found '1' node ... 'Atualizar Relatório'`, dropping the 403 arm fails with
 `expected:<Fora do prazo de edição...> but was:<Não foi possível salvar...>`, dropping the notes rule fails with
 `expected:<null> but was:<   >`, and -- from the previous unit -- emptying the children and making a chip ignore
 `readOnly` each fail their own test.
+
+**Three findings the review of this unit left, closed in the commit after it.** Two were one rule read twice, and
+the third was a save that outlived its screen:
+
+1. The detail drew its edit action on `canEdit == true` while the edit surface answered read-only with
+   `readOnly ?: (canEdit != true)`, so a server answering both flags affirmatively -- which the wire allows, the
+two are independent -- would have offered a way into a screen that draws no save. The rule now lives once, as
+   `ReportResponseReport.isReadOnly()` in `ReportWindow.kt`, and both screens call it.
+2. A save in flight was not stopped by leaving the screen, and `load` reset `saved` but not `submitting`: the next
+   arrival showed a spinner it had never started, and when the stale write landed it set `saved`, which the new
+   arrival's own `first { it.saved }` read as its own and closed on. `load` now **cancels the save** and resets
+   both flags -- the dashboard's cancellation shape -- and the KDoc says which half is dropped: the request may
+   still land on the server, and it is its claim on this screen that goes away.
+3. The reset the route's comment relies on had no test at any level. It has two now, one of them releasing a
+   held write *after* a load to prove the claim is dropped rather than merely cleared, and a rendered detail test
+   whose read-only leg is paired with an editable one so the missing action cannot pass on an empty screen.
+
+A fourth read of those same two flags survives in `ReportDetailViewModel.deleteRefusal`, where it answers a
+different question -- which sentence a refused photo deletion gets. Recorded rather than folded in, because
+folding it would change a refusal message this unit never touched.
 
 ### B3. Loading edit
 

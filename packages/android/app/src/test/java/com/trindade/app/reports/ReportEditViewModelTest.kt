@@ -13,6 +13,7 @@ import com.trindade.app.reports.FakeReportsApi.Companion.TEMPERATURE_TASK_ID
 import com.trindade.app.reports.FakeReportsApi.Companion.TEMPERATURE_TASK_NAME
 import java.io.IOException
 import java.math.BigDecimal
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -72,13 +73,24 @@ class ReportEditViewModelTest {
         report: ReportResponseReport = storedReport(),
         updateResponse: Response<ReportResponse> = Response.success(ReportResponse(report = FakeReportsApi.createdReport())),
         updateFailure: Throwable? = null,
+        /**
+         * When true, the update waits on its own gate before answering, so a test can hold a save in the
+         * air and see what the state says while it is there.
+         *
+         * The convention is `FakeReportsApi.gateHistory`'s, and so is why it is a gate and not a delay:
+         * the fake answers immediately, so an in-flight write is a state no test could otherwise reach,
+         * and the two claims about it -- that `submitting` is set while it is in the air, and that a
+         * load cancels it rather than letting it report afterwards -- are both about what happens
+         * between the request leaving and the answer arriving.
+         */
+        gateUpdates: Boolean = false,
     ) = FakeReportsApi(
         offers = ProductsResponse(
             assai = listOf(ProductsResponse.Assai.Quadrada, ProductsResponse.Assai.Rolo_500),
             normal = listOf(ProductsResponse.Normal.Nhoque_400g),
         ),
         reportToReturn = report,
-    ).let { RecordingReportsApi(it, updateResponse, updateFailure) }
+    ).let { RecordingReportsApi(it, updateResponse, updateFailure, gateUpdates) }
 
     /**
      * One stored report, on top of the fake's own created one so the fields this test does not care
@@ -261,6 +273,64 @@ class ReportEditViewModelTest {
     }
 
     /**
+     * The reset `ReportEditRoute` says it relies on, on both of the flags a previous arrival can leave
+     * standing.
+     *
+     * The route waits for `state.first { it.saved }` and leaves the screen on it, and its own comment
+     * explains why that is safe: `load` clears the flag, and this view model outlives the composition,
+     * so the flag a save leaves behind belongs to the arrival that sent it rather than to the next one.
+     * Nothing proved that until this test, and the flag is not the only thing a save leaves behind: the
+     * job it launched is not stopped by leaving either, so the same instance can be carrying a write in
+     * the air when the next arrival loads. Both halves are here because both fail the same way -- the new
+     * arrival reads an answer it did not ask for -- and the second is the one no assertion about a
+     * finished save can reach.
+     *
+     * The first half is the flag on its own: the save lands, `saved` is true, and a load puts it back to
+     * false. Without the reset the next arrival's `first { it.saved }` returns immediately from the value
+     * the previous visit left, and the screen closes before the report it just asked for is drawn.
+     *
+     * The second half is the write still in the air, and it is the half a `saved`-only reset would still
+     * fail. The gate holds the update, so `submitting` is true with `saved` still false -- a form the
+     * route would draw with a spinner it never set going and a save it withholds, because `canSubmit`
+     * reads the same flag. The load is called while that write is unfinished, and both assertions after
+     * it are about what the new arrival is handed: `submitting` back to false, so this screen owns its
+     * own form, and `saved` false. Releasing the gate afterwards is what makes the second assertion say
+     * something: the stale write gets its answer, and the only reason it cannot announce itself with it
+     * is that the load dropped it. A reset that cleared the flags without cancelling the job would pass
+     * every assertion up to that point and fail this one.
+     */
+    @Test
+    fun `a load forgets the save the previous arrival started`() {
+        // A save that landed: the two flags it set, and the load that has to clear both.
+        val landed = viewModel(fake())
+        landed.load(REPORT_ID)
+        landed.submit()
+        assertEquals(true, landed.state.value.saved)
+
+        landed.load(REPORT_ID)
+        assertEquals(false, landed.state.value.saved)
+        assertEquals(false, landed.state.value.submitting)
+
+        // A save still in the air when the next arrival loads.
+        val recording = fake(gateUpdates = true)
+        val inFlight = viewModel(recording)
+        inFlight.load(REPORT_ID)
+        inFlight.submit()
+
+        // The state the previous screen would have left drawn: a write in the air, and no answer yet.
+        assertEquals(true, inFlight.state.value.submitting)
+        assertEquals(false, inFlight.state.value.saved)
+
+        inFlight.load(REPORT_ID)
+        assertEquals(false, inFlight.state.value.submitting)
+        assertEquals(false, inFlight.state.value.saved)
+
+        // And the answer the stale write was waiting for, arriving after the load that replaced it.
+        recording.updateGates.single().complete(Unit)
+        assertEquals(false, inFlight.state.value.saved)
+    }
+
+    /**
      * The two failures an update can end in, told apart by what they say.
      *
      * A refusal is a business answer and keeps the server's meaning -- the payload is incomplete -- while
@@ -400,11 +470,16 @@ class ReportEditViewModelTest {
  *
  * [updateFailure] is the unreachable server: the repository turns a thrown call into `Unreachable`, so
  * that is the only way to reach the failure the screen has its own sentence for.
+ *
+ * [gateUpdates] is the write held in the air, the same convention `FakeReportsApi.gateHistory` uses: one
+ * gate per update, awaited before the answer is built, so the state between the request leaving and the
+ * answer arriving is a state a test can stand in and assert on.
  */
 private class RecordingReportsApi(
     private val delegate: FakeReportsApi,
     private val updateResponse: Response<ReportResponse>,
     private val updateFailure: Throwable?,
+    private val gateUpdates: Boolean,
 ) : ReportsApi by delegate {
 
     /** The last update's id and body, which is what the tests assert on. */
@@ -413,9 +488,17 @@ private class RecordingReportsApi(
     var updatedBody: UpdateReportRequest? = null
         private set
 
+    /** One gate per update held open by [gateUpdates], in the order the calls were made. */
+    val updateGates = mutableListOf<CompletableDeferred<Unit>>()
+
     override suspend fun updateReport(id: Int, body: UpdateReportRequest): Response<ReportResponse> {
         updatedId = id
         updatedBody = body
+        if (gateUpdates) {
+            val gate = CompletableDeferred<Unit>()
+            updateGates += gate
+            gate.await()
+        }
         updateFailure?.let { throw it }
         return updateResponse
     }
