@@ -314,14 +314,26 @@ class ReportEditViewModelTest {
      * something: the stale write gets its answer, and the only reason it cannot announce itself with it
      * is that the load dropped it. A reset that cleared the flags without bumping the token would pass
      * every assertion up to that point and fail this one.
+     *
+     * The last assertion of the test is the other half of that claim, and the half no state can carry.
+     * What the flags prove is that a superseded write says nothing on this screen; what the operator's
+     * edit needs is that the request still reached the server, and a coroutine cancelled at the top of
+     * `load` produces a state identical to the one above -- `submitting` false, `saved` false -- while the
+     * write it was awaiting never resumes. So the fake counts the updates that ran past their own
+     * suspension and the test reads that count beside the flags: the screen drops the answer and the
+     * request finishes, which is the pair `newestLoad` exists to hold apart.
      */
     @Test
     fun `a load forgets the save the previous arrival started`() {
         // A save that landed: the two flags it set, and the load that has to clear both.
-        val landed = viewModel(fake())
+        val landedRecording = fake()
+        val landed = viewModel(landedRecording)
         landed.load(REPORT_ID)
         landed.submit()
         assertEquals(true, landed.state.value.saved)
+        // The positive direction of the counter the last assertion of this test reads, so that a zero
+        // there means "this write was dropped" rather than "this seam never counted anything".
+        assertEquals(1, landedRecording.updatesThatRanToCompletion)
 
         landed.load(REPORT_ID)
         assertEquals(false, landed.state.value.saved)
@@ -344,6 +356,14 @@ class ReportEditViewModelTest {
         // And the answer the stale write was waiting for, arriving after the load that replaced it.
         recording.updateGates.single().complete(Unit)
         assertEquals(false, inFlight.state.value.saved)
+
+        // Both halves of the load's promise, read together: the superseded save wrote nothing to this
+        // screen -- the two pairs of flag assertions above -- and its request still ran to its end, so the
+        // edit the operator made reached the server. Cancelling the launched job instead of bumping the
+        // token, which is the shape the comment on `newestLoad` warns off, passes every assertion above
+        // and fails this one: a coroutine torn down while it was awaiting the gate never resumes, and the
+        // counter is incremented on the line after the gate rather than where the call is entered.
+        assertEquals(1, recording.updatesThatRanToCompletion)
     }
 
     /**
@@ -490,6 +510,14 @@ class ReportEditViewModelTest {
  * [gateUpdates] is the write held in the air, the same convention `FakeReportsApi.gateHistory` uses: one
  * gate per update, awaited before the answer is built, so the state between the request leaving and the
  * answer arriving is a state a test can stand in and assert on.
+ *
+ * [updatesThatRanToCompletion] is the other half of a superseded write, and the half no view model state
+ * can show. Whether the request finished or was torn down is invisible from the outside -- both leave the
+ * same two flags -- and the difference is the whole reason the token was chosen over a cancellation: a
+ * write the operator asked for is work that has to land. The counter is therefore incremented on the line
+ * after the gate, the first line that runs only when the suspension resumed normally, and a call cancelled
+ * while it was held never reaches it. Counting where the call is entered would count both, because a
+ * cancelled call has already been entered by the time its coroutine is torn down.
  */
 private class RecordingReportsApi(
     private val delegate: FakeReportsApi,
@@ -507,6 +535,10 @@ private class RecordingReportsApi(
     /** One gate per update held open by [gateUpdates], in the order the calls were made. */
     val updateGates = mutableListOf<CompletableDeferred<Unit>>()
 
+    /** How many updates resumed from their own suspension and ran to their end. See the class comment. */
+    var updatesThatRanToCompletion = 0
+        private set
+
     override suspend fun updateReport(id: Int, body: UpdateReportRequest): Response<ReportResponse> {
         updatedId = id
         updatedBody = body
@@ -515,6 +547,10 @@ private class RecordingReportsApi(
             updateGates += gate
             gate.await()
         }
+        // Past the suspension, so a call cancelled while it was held is not counted, and before the
+        // answer is built, because what is recorded here is that the request ran rather than what it
+        // answered: a server that refuses or cannot be reached is still a write that was not abandoned.
+        updatesThatRanToCompletion++
         updateFailure?.let { throw it }
         return updateResponse
     }

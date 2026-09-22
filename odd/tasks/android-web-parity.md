@@ -709,9 +709,11 @@ two are independent -- would have offered a way into a screen that draws no save
    `ReportResponseReport.isReadOnly()` in `ReportWindow.kt`, and both screens call it.
 2. A save in flight was not stopped by leaving the screen, and `load` reset `saved` but not `submitting`: the next
    arrival showed a spinner it had never started, and when the stale write landed it set `saved`, which the new
-   arrival's own `first { it.saved }` read as its own and closed on. `load` now **cancels the save** and resets
-   both flags -- the dashboard's cancellation shape -- and the KDoc says which half is dropped: the request may
-   still land on the server, and it is its claim on this screen that goes away.
+   arrival's own `first { it.saved }` read as its own and closed on. `load` resets both flags, and the write
+   a previous arrival started is kept off this screen by a request token rather than by a cancellation: a read
+   is cancelled (the dashboard's own shape -- an answer nobody awaits is waste) while a write the operator
+   asked for is left to finish, so the server applies it either way and what the token drops is that write's
+   claim on a screen it no longer belongs to.
 3. The reset the route's comment relies on had no test at any level. It has two now, one of them releasing a
    held write *after* a load to prove the claim is dropped rather than merely cleared, and a rendered detail test
    whose read-only leg is paired with an editable one so the missing action cannot pass on an empty screen.
@@ -725,6 +727,43 @@ folding it would change a refusal message this unit never touched.
 `LoadingEditPage` against the existing loading routes, on the same terms as its history surface:
 the server decides what is editable, the 1-hour window is `loading`'s own rule and stays
 untouched (`C1` in `android-app-v1.md` explains why that boundary matters).
+
+**The shape, established before writing any of it.** Loading is a schedule of driver/vehicle/time-slot
+rows and not a report: there are no loading items, no categories, no photos and no temperatures, so
+nothing of `ReportForm`/`ReportPayload` transfers and a second, small component is what is right --
+sharing would import report semantics into a schedule, which is the drift this track keeps warning
+about. What the web's page does is one field: it draws the day's rows
+(`GET /api/loading/schedules?date=`, `GET /api/loading/time-slots`), offers the way in only where the
+server says `entry.canEdit`, replaces that row with an inline `<select>` of the time slots annotated
+with the quota each one has left, keeps its save dead until the slot changes, and sends
+`PATCH /api/loading/schedules/:id` with `{ time_slot }` **and nothing else** -- a partial merge on the
+server, which resolves every field it receives against the existing row. A refusal surfaces the
+server's own sentence, and the window half of it is the backend's
+(`loading.service.ts`, `projectHistoryPermissions(actor, existing, 'one-hour')` -> 403), which is
+exactly C1's boundary: the app renders the flags and never recomputes the window.
+
+Tasks, each closing with its own commit:
+
+- **B3-1. Establish what the client puts on the wire, before it writes one.** `UpdateScheduleRequest`'s
+  nullable fields default to null, and the server reads an explicit null as a value: a partial update
+  whose omitted fields serialize as explicit nulls would clear a driver or a vehicle the operator never
+  touched. Prove the serializer's behaviour with a test that asserts the body of an update carrying only
+  a time slot contains exactly that field, and fix the configuration or the way the request is built if
+  it does not.
+- **B3-2. The view model.** Read the row and its time slots, seed the selected slot, submit the partial
+  update, map the refusal arms to the sentences the operator reads (the window's own 403 sentence
+  verbatim, and whatever arms the repository's existing result types already tell apart), and keep an
+  older arrival from claiming this screen -- the token for the write, the cancellation for the read, the
+  shape the reports unit ended on.
+- **B3-3. The rendered surface.** The way in only where the server says `canEdit`; the picker with each
+  slot's remaining quota; a save that is dead until the slot changes; a read-only arrival that draws no
+  edit at all. This is loading's first Compose-lane test.
+- **B3-4. The way in.** `MainActivity`'s overlay flag beside `editingReportId`, and the row's edit action
+  gated on the same predicate the other screens read.
+- **B3-5. Batched: the reports unit's own evidence.** `ReportEditViewModelTest` proves that a superseded
+  save does not announce itself, not that it still reaches the server -- a fake that records its own
+  completion is what tells the two apart, because under a cancellation the gate's `await` throws and the
+  counter stays at zero. Falsified by putting the `cancel()` back and watching it fail.
 
 ---
 
