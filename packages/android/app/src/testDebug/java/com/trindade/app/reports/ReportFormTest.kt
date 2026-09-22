@@ -7,9 +7,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -351,5 +353,95 @@ class ReportFormTest {
         // The field is looked up by its label, which the text field merges into its own node: that is the
         // node that carries whether it can be typed in.
         composeRule.onNodeWithText("Leitura 1").performScrollTo().assertIsNotEnabled()
+    }
+
+    /**
+     * The chips' own read-only guard, which the test above does not reach: it renders a check task and a
+     * temperature task, and `ProductCheckBlock` has a guard of its own (`if (readOnly) return@FilterChip`
+     * beside `enabled = !readOnly`). A chip is the third kind of control the form draws, so it is the
+     * third that can send an edit the report does not have, and neither half of that guard is proved by
+     * a form with no product task in it.
+     *
+     * It is a sibling test rather than more data in the test above because that test's own comment turns
+     * on its data: one check task, so the single toggleable node is the box under test. A product task
+     * there would leave that claim standing on the chip not being toggleable -- true today, and a reason
+     * for the read-only claim to change without anyone noticing if it stopped being.
+     *
+     * Both halves are in this one test because each is what the other cannot say. `assertIsNotEnabled()`
+     * alone passes on a chip that was never able to report anything, and a toggle in some other test
+     * could agree by accident; here the same chip is drawn twice -- read-only, and editable beside it --
+     * so the count of what was reported is what separates "the disabled chip reported nothing" from
+     * "the chip does not work". The two forms share one fixture and one callback, so the only difference
+     * between the chips is the `readOnly` argument.
+     *
+     * The read-only form is composed first and the editable one second, which is what makes the two chips
+     * of an identical label index 0 and index 1 of the collection below rather than an order to be
+     * discovered by reading which one is enabled.
+     */
+    @Test
+    fun `a product chip is not enabled in read-only, and the same chip reports a toggle when it is not`() {
+        val assaiTask = task(
+            id = 51,
+            categoryId = 5,
+            namePt = "Produtos Assaí",
+            taskType = ReportCategoryTasksInner.TaskType.check_assai,
+        )
+        val product = ProductsResponse.Assai.Quadrada.value
+        val productCategory = category(id = 5, namePt = "Recebimento", tasks = listOf(assaiTask))
+        val form = ReportFormState(
+            offers = offers(assai = listOf(ProductsResponse.Assai.Quadrada), normal = emptyList()),
+        )
+        val reported = mutableListOf<Triple<Int, String, Boolean>>()
+        val onProductToggle = { taskId: Int, name: String, chosen: Boolean ->
+            reported += Triple(taskId, name, chosen)
+        }
+
+        composeRule.setContent {
+            TrindadeTheme {
+                Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                    CategoryForm(
+                        category = productCategory,
+                        children = emptyList(),
+                        form = form,
+                        readOnly = true,
+                        onCheckChange = { _, _ -> },
+                        onProductToggle = onProductToggle,
+                        onTemperatureChange = { _, _, _ -> },
+                    )
+                    CategoryForm(
+                        category = productCategory,
+                        children = emptyList(),
+                        form = form,
+                        readOnly = false,
+                        onCheckChange = { _, _ -> },
+                        onProductToggle = onProductToggle,
+                        onTemperatureChange = { _, _, _ -> },
+                    )
+                }
+            }
+        }
+
+        // A chip's label is merged into the chip's own node, so each form contributes exactly one node
+        // for the product -- one read-only and one editable, in that order.
+        val chips = composeRule.onAllNodesWithText(product)
+        chips.assertCountEquals(2)
+
+        chips[0].performScrollTo().assertIsNotEnabled()
+        chips[1].performScrollTo().assertIsEnabled()
+
+        // The tap is asserted rather than assumed, and it is the whole point of a disabled chip: a form
+        // that drew a greyed chip and still forwarded the click would pass an "is it disabled" test and
+        // fail here, and a tap is delivered at the node's own position whatever the node's state is.
+        chips[0].performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(emptyList<Triple<Int, String, Boolean>>(), reported)
+
+        chips[1].performClick()
+        composeRule.waitForIdle()
+
+        // The chip starts unselected, so the toggle it reports is the selection being made, and the task
+        // id is the one the chip belongs to rather than whichever one was drawn.
+        assertEquals(listOf(Triple(assaiTask.id, product, true)), reported)
     }
 }

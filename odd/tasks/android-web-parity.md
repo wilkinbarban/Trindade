@@ -646,6 +646,16 @@ reports package ran at 51 tests green. One test defect was caught by the run rat
 that asserts a node is drawn requires a unique label, and the data had named a category after its own task --
 `Temperaturas` and `Câmara fria`, as production names them, is the shape the data has.
 
+**Two of those assertions were asked for by the review rather than written first**, and both are of the kind a
+form test cannot make. `ReportGeneratorScreenTest` renders the real screen and asserts that a child category's
+task reaches it -- `ReportFormTest` hands the form its children itself, so it could never see the argument the
+screen passes -- with a second root's own task asserted beside it, which is what separates a missing argument
+from a wrongly keyed one. And the chip's read-only guard is asserted beside the same chip made editable, because
+`assertIsNotEnabled` also passes on a chip that never worked. Both assertions were then **falsified**: passing
+`children = emptyList()` in the screen fails the two screen tests with `could not find any node ... 'Caixas
+pequenas'`, and making the chip ignore `readOnly` fails its test with `Failed to assert the following: (is not
+enabled)`.
+
 #### B2b. The edit surface — NEXT
 
 `ReportEditPage` has no Android counterpart, and `ReportDetailViewModel` deliberately supports
