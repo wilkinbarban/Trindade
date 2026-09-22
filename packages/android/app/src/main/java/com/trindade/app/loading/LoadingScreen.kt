@@ -323,16 +323,20 @@ fun LoadingRoute(
      * overlay flag `MainActivity` clears -- and nothing of it reaches the grid, which is then drawn
      * again on the day it was already showing with the day as it was *before* the edit: the row the
      * operator moved would come back in the slot they moved it out of. [stale] is that fact travelling
-     * with the arrival, the read below is forced for it, and `onStaleRead` gives it back -- one save
-     * costs the grid one read, and no later arrival pays for it again.
+     * with the arrival, the read below is forced for it, and `onStaleRead` gives it back only after that
+     * exact request wins and writes a non-null schedules answer. A failure or superseded request leaves
+     * the fact with `MainActivity`, so the next arrival can retry it.
      *
      * Keyed on the day alone, and deliberately: taking the fact flips [stale] back to false in the same
      * composition, so an effect keyed on it would run a second time for a save the read already
      * answered.
      */
     LaunchedEffect(date) {
-        viewModel.onDateChange(date ?: LoadingViewModel.saoPauloToday(), force = date != null || stale)
-        if (stale) onStaleRead()
+        val read = viewModel.onDateChange(
+            date ?: LoadingViewModel.saoPauloToday(),
+            force = date != null || stale,
+        )
+        if (stale && read?.await() == true) onStaleRead()
     }
 
     LoadingScreen(

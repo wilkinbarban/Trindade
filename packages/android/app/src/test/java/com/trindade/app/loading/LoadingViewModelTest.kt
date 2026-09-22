@@ -1,9 +1,12 @@
 package com.trindade.app.loading
 
+import com.trindade.app.contract.models.SchedulesResponse
 import com.trindade.app.contract.models.SchedulesResponseSchedulesInner
+import com.trindade.app.network.LoadingApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -256,36 +259,31 @@ class LoadingViewModelTest {
     }
 
     @Test
-    fun `a superseded load does not overwrite the newer day, even when it fails`() {
-        // The history hands the grid a day to load, and the view model's constructor has already started
-        // its own load of today when that happens, so two reads really are in the air at once. Without
-        // the token the older answer landing last draws today's rows under the requested day's header,
-        // and here it would do worse than that: the older answer is a failure, so the operator would get
-        // "sem conexão" over a screen that had loaded fine.
-        //
-        // The gate is what makes the race reachable at all -- an immediate fake cannot produce it, which
-        // is why no test saw it before an independent verifier read the code. The stale read is the one
-        // for today, so the requesting date is deliberately a different day.
+    fun `a superseded load neither overwrites the newer day nor reports success`() = runTest {
+        // Three reads are held: construction, the stale arrival whose completion the route may await,
+        // and the newer day that supersedes it. The newer one succeeds first. The stale request then
+        // answers successfully too, but its own deferred must remain false: another token winning is
+        // not evidence that this token supplied the schedules on screen.
         val api = FakeLoadingApi(
             schedulesToReturn = listOf(FakeLoadingApi.entry(1, "04:00")),
             gateSchedules = true,
-            failForDate = LoadingViewModel.saoPauloToday(),
         )
         val model = viewModel(api)
+        val staleRead = model.onDateChange(model.state.value.date, force = true)!!
+        val newerRead = model.onDateChange("2026-08-14")!!
+        assertEquals("one request per load", 3, api.scheduleGates.size)
 
-        model.onDateChange("2026-08-14")
-        assertEquals("one request per load", 2, api.scheduleGates.size)
-
-        // The newer read answers first, with the rows of the requested day.
-        api.scheduleGates[1].complete(Unit)
+        api.scheduleGates[2].complete(Unit)
+        assertTrue("the winning request reports its own success", newerRead.await())
         assertEquals("2026-08-14", model.state.value.date)
         assertEquals(1, model.state.value.schedules.size)
 
-        // The superseded one answers after it, as a refusal.
+        api.scheduleGates[1].complete(Unit)
+        assertFalse("a superseded request cannot spend a stale fact", staleRead.await())
         api.scheduleGates[0].complete(Unit)
 
-        // Nothing of the stale answer: not the rows, not the date, and above all not the unreachable
-        // sentence over a day that was read.
+        // Nothing of either superseded answer: not the rows, not the date, and no failure message over a
+        // day that was read successfully by the winning request.
         assertEquals("2026-08-14", model.state.value.date)
         assertEquals(1, model.state.value.schedules.size)
         assertEquals(null, model.state.value.message)
@@ -293,30 +291,35 @@ class LoadingViewModelTest {
     }
 
     @Test
-    fun `reads the day again when the arrival says the copy may be stale, and not on a plain one`() {
-        // The read count is the claim here, and one gate per read is how this fake shows one: every
-        // schedule read it is asked for is a gate that exists. The constructor's own read of today is
-        // the first, and it is the read the tab's arrival is answered from.
-        val api = FakeLoadingApi(
-            schedulesToReturn = listOf(FakeLoadingApi.entry(41, "04:00")),
-            gateSchedules = true,
-        )
-        val model = viewModel(api)
-        assertEquals("the constructor's own read of today", 1, api.scheduleGates.size)
+    fun `a failed forced arrival reports no success and the next forced arrival retries`() = runTest {
+        var reads = 0
+        val api = object : LoadingApi by FakeLoadingApi() {
+            override suspend fun schedules(date: String): Response<SchedulesResponse> {
+                reads++
+                if (reads == 2) return Response.error(500, FakeLoadingApi.EMPTY_BODY)
+                val slot = if (reads == 1) "04:00" else "04:30"
+                return Response.success(
+                    SchedulesResponse(schedules = listOf(FakeLoadingApi.entry(41, slot))),
+                )
+            }
+        }
+        val model = LoadingViewModel(LoadingRepository(api))
+        assertEquals("the constructor's own read", 1, reads)
 
-        // A plain arrival at the tab's own grid: the day it is already showing is not read again. This
-        // is the skip the grid has always had, and it is the direction that refuses a fix which reads
-        // on every arrival -- such a grid would pass the leg below and this one would catch it.
-        model.onDateChange(model.state.value.date)
-        assertEquals("a plain arrival for the day already on screen", 1, api.scheduleGates.size)
+        val failed = model.onDateChange(model.state.value.date, force = true)!!
+        assertFalse("a missing schedules answer cannot consume stale", failed.await())
+        assertEquals(2, reads)
+        assertNotNull(model.state.value.message)
 
-        // The arrival the edit surface's save leaves behind: the day in hand is the one the editor has
-        // just written to, so the caller says so rather than letting the read be skipped. Without the
-        // forced read the row the operator moved is drawn from the day as it was before their own edit
-        // -- in the slot they moved it out of, which reads as the edit having done nothing at all.
-        model.onDateChange(model.state.value.date, force = true)
-        assertEquals("the arrival that follows a save", 2, api.scheduleGates.size)
-        assertEquals(model.state.value.date, api.lastSchedulesDate)
+        val retried = model.onDateChange(model.state.value.date, force = true)!!
+        assertTrue("the retry that writes schedules may consume stale", retried.await())
+        assertEquals(3, reads)
+        assertEquals("04:30", model.state.value.schedules.single().timeSlot)
+
+        // The settled ordinary arrival remains the old no-double-read path and has no completion to
+        // acknowledge, because it started no request.
+        assertEquals(null, model.onDateChange(model.state.value.date))
+        assertEquals(3, reads)
     }
 
     @Test

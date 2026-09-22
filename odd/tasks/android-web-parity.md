@@ -789,6 +789,16 @@ arrivals keep the old no-double-read rule. Without that one-shot, the row the op
 drawn in the slot it moved out of, which read as the edit having done nothing. A mutation that ignores
 `force` fails exactly the view-model and rendered arrival legs.
 
+**Post-review advisory closed separately.** The approved B3 review found that the route gave
+`loadingStale` back as soon as it launched that read. A transient schedules failure therefore spent the
+only fact that could cause a retry, while the same date left in the view model made the next ordinary
+arrival skip another read. `onDateChange`/`load` now return a `Deferred<Boolean>` bound to that request's
+own token: failure and supersession answer false, and only the winning request that writes non-null
+schedules answers true. The route waits for that answer before calling `onStaleRead`. The rendered leg
+now fails once, retains the fact, remounts and retries, draws the moved row, spends the fact once, and
+proves a later ordinary arrival does not read again. Restoring the old acknowledge-at-launch code by
+bind mount fails exactly that retained/retry leg.
+
 ---
 
 ## Slice C — The admin panel

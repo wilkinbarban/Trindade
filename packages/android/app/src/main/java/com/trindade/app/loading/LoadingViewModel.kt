@@ -10,6 +10,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.LocalDate
 import java.time.ZoneId
 import javax.inject.Inject
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -122,20 +124,27 @@ class LoadingViewModel @Inject constructor(
      * scoped to the activity's store outlives the composition and survives a trip through the edit
      * surface, so what it is holding can be exactly what that surface has just changed.
      */
-    fun onDateChange(date: String, force: Boolean = false) {
-        if (!force && date == state.value.date) return
+    fun onDateChange(date: String, force: Boolean = false): Deferred<Boolean>? {
+        if (!force && date == state.value.date) return null
         _state.update { it.copy(date = date) }
-        load()
+        return load()
     }
 
-    fun load(date: String = state.value.date) {
+    /**
+     * Starts one read and answers whether this exact request supplied the schedules now on screen.
+     *
+     * The deferred belongs to this load token. A failed schedules response answers false, as does a
+     * superseded request even if its response was successful; true is returned only after the winning
+     * token writes a non-null schedules answer. Callers that do not need completion may ignore it.
+     */
+    fun load(date: String = state.value.date): Deferred<Boolean> {
         // The export text is dropped on every reload, and that includes the one a successful mutation
         // triggers: the text describes the day's entries, so leaving it on screen after they changed
         // would hand the operator a message about a day that no longer exists. It is one tap away.
         val load = ++newestLoad
         _state.update { it.copy(date = date, loading = true, message = null, exportText = null) }
 
-        viewModelScope.launch {
+        return viewModelScope.async {
             val schedules = repository.schedules(date)
             val slots = repository.timeSlots()
             val drivers = repository.drivers()
@@ -143,8 +152,9 @@ class LoadingViewModel @Inject constructor(
 
             // A superseded answer is dropped whole: not the entries, not the date, not the message.
             // Half of it written over a newer answer would be worse than none, because the grid would
-            // then describe one day under the header of another.
-            if (load != newestLoad) return@launch
+            // then describe one day under the header of another. Its own completion also answers false,
+            // so a caller waiting on this token cannot mistake another request's success for its own.
+            if (load != newestLoad) return@async false
 
             _state.update {
                 it.copy(
@@ -158,6 +168,7 @@ class LoadingViewModel @Inject constructor(
                     message = if (schedules == null) UNREACHABLE else null,
                 )
             }
+            schedules != null
         }
     }
 

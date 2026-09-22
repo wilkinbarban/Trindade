@@ -213,15 +213,18 @@ class LoadingScreenTest {
         private val movesFrom: String,
         private val movesTo: String,
         private val rowId: Int,
+        private val failsOnRead: Int? = null,
     ) : LoadingApi by FakeLoadingApi() {
 
         /** The dates asked for, in order: what an ordinary arrival must not lengthen. */
         val asked = mutableListOf<String>()
+        private var successfulReads = 0
 
         override suspend fun schedules(date: String): Response<SchedulesResponse> {
             asked += date
-            val slot = if (asked.size > 1) movesTo else movesFrom
+            if (asked.size == failsOnRead) return Response.error(500, FakeLoadingApi.EMPTY_BODY)
 
+            val slot = if (successfulReads++ == 0) movesFrom else movesTo
             return Response.success(
                 SchedulesResponse(schedules = listOf(FakeLoadingApi.entry(rowId, slot))),
             )
@@ -245,16 +248,22 @@ class LoadingScreenTest {
      * so a grid that reloaded on every arrival fails this leg even though it would make the stale one pass.
      */
     @Test
-    fun `the row a save moved is drawn in its new slot when the grid comes back`() {
-        val api = DayThatMoves(movesFrom = SLOT_MOVED_FROM, movesTo = SLOT_MOVED_TO, rowId = MOVED_ROW_ID)
+    fun `a failed stale arrival keeps the fact and the next arrival draws the moved row`() {
+        val api = DayThatMoves(
+            movesFrom = SLOT_MOVED_FROM,
+            movesTo = SLOT_MOVED_TO,
+            rowId = MOVED_ROW_ID,
+            failsOnRead = 2,
+        )
         val model = LoadingViewModel(LoadingRepository(api))
         val today = LoadingViewModel.saoPauloToday()
         val row = FakeLoadingApi.entry(MOVED_ROW_ID, SLOT_MOVED_FROM)
 
         // The two inputs `MainActivity` supplies: the save report the editor leaves behind, and the way the
-        // grid hands that fact back once it has acted on it.
+        // grid hands that fact back once it has acted on it. The count proves success acknowledges once.
         val stale = mutableStateOf(false)
         val arrival = mutableStateOf(0)
+        var staleReads = 0
 
         composeRule.setContent {
             TrindadeTheme {
@@ -264,7 +273,10 @@ class LoadingScreenTest {
                         onOpenHistory = {},
                         onEditEntry = { _, _ -> },
                         stale = stale.value,
-                        onStaleRead = { stale.value = false },
+                        onStaleRead = {
+                            staleReads++
+                            stale.value = false
+                        },
                         viewModel = model,
                     )
                 }
@@ -272,29 +284,38 @@ class LoadingScreenTest {
         }
         composeRule.waitForIdle()
 
-        // One read, and the row drawn in the slot that read had it in: this arrival is the loading tab's
-        // own, which means today, and the read the constructor started is that one. An arrival that asked
-        // again here would already be the wrong grid.
+        // One read, and the pre-edit row: this arrival is the loading tab's ordinary constructor-backed
+        // arrival. Asking again here would already violate the no-double-read side of the contract.
         assertEquals(listOf(today), api.asked)
         assertEquals(SLOT_MOVED_FROM, drawnSlot(row))
 
-        // The save: the editor reports it, the fact is set, and the grid arrives again on the day it was
-        // already showing. The day is read again, so what is on screen is where the server now has the row
-        // -- and the fact goes back with that read.
+        // The first stale arrival reaches the server, but its schedules response fails. The route must not
+        // spend MainActivity's one-shot; there is no truthful replacement to acknowledge yet.
         stale.value = true
         arrival.value++
         composeRule.waitForIdle()
 
         assertEquals(listOf(today, today), api.asked)
-        assertFalse("the arrival takes the fact with its read", stale.value)
-        assertEquals(SLOT_MOVED_TO, drawnSlot(row))
+        assertEquals(0, staleReads)
+        assertEquals(true, stale.value)
 
-        // And the arrival after that one -- the ordinary one -- reads nothing, which is the skip the grid
-        // has always had and the direction this fix must not have cost.
+        // MainActivity still owns the fact, so the next remount retries. This answer succeeds, writes the
+        // moved row, and only then acknowledges exactly once.
         arrival.value++
         composeRule.waitForIdle()
 
-        assertEquals(listOf(today, today), api.asked)
+        assertEquals(listOf(today, today, today), api.asked)
+        assertEquals(1, staleReads)
+        assertFalse("the successful retry takes the fact", stale.value)
+        assertEquals(SLOT_MOVED_TO, drawnSlot(row))
+
+        // The subsequent ordinary arrival keeps the established no-double-read behavior and cannot
+        // acknowledge the already-consumed fact again.
+        arrival.value++
+        composeRule.waitForIdle()
+
+        assertEquals(listOf(today, today, today), api.asked)
+        assertEquals(1, staleReads)
         assertEquals(SLOT_MOVED_TO, drawnSlot(row))
     }
 
