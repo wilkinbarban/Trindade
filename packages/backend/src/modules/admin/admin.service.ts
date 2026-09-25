@@ -19,6 +19,7 @@ import type {
 } from './admin.schema.js';
 import bcrypt from 'bcryptjs';
 import { translateText } from '../../utils/translator.js';
+import { revokeUserSessions } from '../auth/auth.sessions.service.js';
 
 async function translateOrCopy(text: string, fromLang: 'es' | 'pt'): Promise<string> {
   const cleaned = text.trim();
@@ -563,57 +564,89 @@ export function updateUser(
   id: number,
   data: UpdateUserBody
 ): UserRow | null {
-  const existing = db
-    .prepare('SELECT * FROM users WHERE id = ?')
-    .get(id) as UserRow | undefined;
-  if (!existing) return null;
+  // Hashing happens before the transaction on purpose: bcrypt is deliberately slow, and holding
+  // SQLite's write lock for its whole duration would serialize every other writer behind one
+  // password reset. The hash is a pure function of the request, so computing it first changes
+  // nothing about which row the transaction later reads.
+  const passwordHash = data.password === undefined ? undefined : bcrypt.hashSync(data.password, 10);
 
-  const updates: string[] = [];
-  const params: unknown[] = [];
+  try {
+    return db
+      .transaction((): UserRow | null => {
+        // Read inside the immediate transaction, not before it: what the row holds when the write
+        // lock is held is the only state this decision and this UPDATE may agree on.
+        const existing = db
+          .prepare('SELECT * FROM users WHERE id = ?')
+          .get(id) as UserRow | undefined;
+        if (!existing) return null;
 
-  if (data.username !== undefined) {
-    updates.push('username = ?');
-    params.push(data.username);
-  }
-  if (data.password !== undefined) {
-    const passwordHash = bcrypt.hashSync(data.password, 10);
-    updates.push('password_hash = ?');
-    params.push(passwordHash);
-  }
-  if (data.display_name !== undefined) {
-    updates.push('display_name = ?');
-    params.push(data.display_name);
-  }
-  if (data.role_id !== undefined) {
-    updates.push('role_id = ?');
-    params.push(data.role_id);
-  }
-  if (data.is_active !== undefined) {
-    updates.push('is_active = ?');
-    params.push(data.is_active);
-  }
+        // "Effective" means the request would change how the account authenticates or what it may
+        // do. A display-name edit, or a value identical to the one already stored, leaves the
+        // credential and its sessions alone: signing every device out over a cosmetic change is a
+        // self-inflicted outage, not a security win.
+        const effective =
+          (data.username !== undefined && data.username !== existing.username) ||
+          passwordHash !== undefined ||
+          (data.role_id !== undefined && data.role_id !== existing.role_id) ||
+          (data.is_active !== undefined && data.is_active !== existing.is_active);
 
-  if (updates.length > 0) {
-    updates.push("updated_at = datetime('now')");
-    params.push(id);
-    try {
-      db.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).run(...params);
-    } catch (err: any) {
-      if (err && err.code && err.code.startsWith('SQLITE_CONSTRAINT')) {
-        throw Object.assign(new Error('Violação de restrição de banco de dados (Nome de usuário já existe ou role_id inválido).'), { statusCode: 400 });
-      }
-      throw err;
+        const updates: string[] = [];
+        const params: unknown[] = [];
+
+        if (data.username !== undefined) {
+          updates.push('username = ?');
+          params.push(data.username);
+        }
+        if (passwordHash !== undefined) {
+          updates.push('password_hash = ?');
+          params.push(passwordHash);
+        }
+        if (data.display_name !== undefined) {
+          updates.push('display_name = ?');
+          params.push(data.display_name);
+        }
+        if (data.role_id !== undefined) {
+          updates.push('role_id = ?');
+          params.push(data.role_id);
+        }
+        if (data.is_active !== undefined) {
+          updates.push('is_active = ?');
+          params.push(data.is_active);
+        }
+
+        if (updates.length > 0) {
+          // The version bump and the session revocation commit together. A reader that could see
+          // one without the other -- a token still valid after its sessions were killed, or live
+          // sessions behind a token whose role was already revoked -- is the partial state SEC-03
+          // exists to close. If revocation throws, the whole transaction rolls back and neither
+          // the new hash nor the new role survives.
+          if (effective) updates.push('security_version = security_version + 1');
+          updates.push("updated_at = datetime('now')");
+          params.push(id);
+          db.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+          if (effective) revokeUserSessions(db, id);
+        }
+
+        return db
+          .prepare(
+            `SELECT u.id, u.username, u.display_name, u.role_id, r.name AS role_name, u.is_active, u.created_at
+             FROM users u
+             JOIN roles r ON u.role_id = r.id
+             WHERE u.id = ?`
+          )
+          .get(id) as UserRow;
+      })
+      .immediate();
+  } catch (err: any) {
+    // Only the two constraint failures a schema-validated request can actually cause are the
+    // caller's fault: a username that already exists, and a role_id with no matching role. Any
+    // other constraint error is a server-side defect, so it must surface as one instead of being
+    // disguised as a client-input response.
+    if (err && (err.code === 'SQLITE_CONSTRAINT_UNIQUE' || err.code === 'SQLITE_CONSTRAINT_FOREIGNKEY')) {
+      throw Object.assign(new Error('Violação de restrição de banco de dados (Nome de usuário já existe ou role_id inválido).'), { statusCode: 400 });
     }
+    throw err;
   }
-
-  return db
-    .prepare(
-      `SELECT u.id, u.username, u.display_name, u.role_id, r.name AS role_name, u.is_active, u.created_at
-       FROM users u
-       JOIN roles r ON u.role_id = r.id
-       WHERE u.id = ?`
-    )
-    .get(id) as UserRow;
 }
 
 export function deleteUser(db: Database.Database, id: number): boolean {
