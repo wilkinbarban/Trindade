@@ -383,8 +383,8 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRoutesOp
       const db = fastify.db;
 
       const user = db
-        .prepare('SELECT password_hash FROM users WHERE id = ?')
-        .get(userId) as { password_hash: string } | undefined;
+        .prepare('SELECT password_hash, security_version FROM users WHERE id = ?')
+        .get(userId) as { password_hash: string; security_version: number } | undefined;
 
       if (!user) {
         return reply.status(404).send({ error: 'User not found' });
@@ -396,20 +396,57 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRoutesOp
       }
 
       const newHash = bcrypt.hashSync(newPassword, 10);
-      db.prepare("UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?").run(newHash, userId);
 
-      // The credential changed, so every session established with the old one ends. Other
-      // devices must re-authenticate instead of riding a token minted under the password
-      // that was just replaced.
-      revokeUserSessions(db, userId);
+      // `bcrypt.compare` yields, so another request may already have changed this account by the
+      // time it resolves. Every fact the change depends on is therefore re-read inside the same
+      // write lock that performs it: the hash that was compared against, the version read before
+      // the comparison, the version the caller's own token was minted under, and the active state.
+      // The loser of such a race is refused instead of silently overwriting the winner's password.
+      const changed = db.transaction(() => {
+        const current = db
+          .prepare('SELECT password_hash, security_version, is_active FROM users WHERE id = ?')
+          .get(userId) as { password_hash: string; security_version: number; is_active: number } | undefined;
+        if (
+          !current ||
+          current.is_active !== 1 ||
+          current.password_hash !== user.password_hash ||
+          current.security_version !== user.security_version ||
+          current.security_version !== request.user!.security_version
+        ) {
+          return false;
+        }
 
-      auditLog(fastify.db, {
-        userId: userId,
-        action: 'update',
-        entityType: 'user',
-        entityId: userId,
-        ipAddress: request.ip,
-      });
+        // The credential and the death of every session minted from it commit together. The version
+        // bump alone would leave a live refresh token able to mint a fresh access token under the
+        // new credential; the revocation alone would leave the old access token valid. If
+        // revocation throws, the transaction rolls back and the old password survives intact.
+        db.prepare(
+          "UPDATE users SET password_hash = ?, security_version = security_version + 1, updated_at = datetime('now') WHERE id = ?"
+        ).run(newHash, userId);
+        // Other devices must re-authenticate instead of riding a token minted under the password
+        // that was just replaced.
+        revokeUserSessions(db, userId);
+        return true;
+      }).immediate();
+
+      if (!changed) {
+        return reply.status(409).send({ error: 'Password or account changed; sign in again' });
+      }
+
+      // Audit is best-effort: the credential is replaced and the sessions are revoked, so failing
+      // the response over a log write would report the change as unsuccessful and invite a retry
+      // with a session that no longer exists.
+      try {
+        auditLog(fastify.db, {
+          userId: userId,
+          action: 'update',
+          entityType: 'user',
+          entityId: userId,
+          ipAddress: request.ip,
+        });
+      } catch (err) {
+        request.log.warn({ err, userId }, 'Password changed but its audit record could not be persisted');
+      }
 
       return reply.send({ success: true });
     }

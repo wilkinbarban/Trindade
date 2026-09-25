@@ -443,11 +443,15 @@ describe('Auth Routes', () => {
       assert.strictEqual((await refresh(first.refreshToken)).statusCode, 401);
       assert.strictEqual((await refresh(second.refreshToken)).statusCode, 401);
 
+      // The password change revoked every prior session, so the pre-change token is no longer
+      // accepted. Mint a fresh session with the changed password before restoring the fixture.
+      const reauthenticated = await loginWithSession(fixtures.worker.username, 'changed-password-2026');
+
       // Restore the fixture credential so tests declared elsewhere in this file keep working.
       const restore = await app.inject({
         method: 'POST',
         url: '/api/auth/change-password',
-        headers: { authorization: `Bearer ${first.token}` },
+        headers: { authorization: `Bearer ${reauthenticated.token}` },
         payload: { currentPassword: 'changed-password-2026', newPassword: fixtures.worker.password },
       });
       assert.strictEqual(restore.statusCode, 200, restore.body);
