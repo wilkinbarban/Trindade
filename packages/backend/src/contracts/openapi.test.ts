@@ -7,6 +7,7 @@ import {
   LoginResponseSchema,
   ProfileResponseSchema,
   RefreshResponseSchema,
+  RegisterResponseSchema,
 } from '../modules/auth/auth.schema.js';
 import { SuccessResponseSchema } from './common.schema.js';
 import { ErrorEnvelopeSchema } from './error.schema.js';
@@ -32,6 +33,7 @@ const EXPECTED_PATHS = [
   '/api/auth/me',
   '/api/auth/profile',
   '/api/auth/refresh',
+  '/api/auth/register',
   '/api/auth/setup',
   '/api/auth/setup/status',
   '/api/dashboard/summary',
@@ -126,6 +128,20 @@ describe('API contract', () => {
       expectMatch(SuccessResponseSchema, res.body);
     });
 
+    it('register returns the declared register shape', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/auth/register',
+        payload: {
+          username: 'worker_contract_test',
+          display_name: 'Worker Contract Test',
+          password: 'password123',
+        },
+      });
+      assert.strictEqual(res.statusCode, 200, res.body);
+      expectMatch(RegisterResponseSchema, res.body);
+    });
+
     it('a failure returns the declared error envelope', async () => {
       const res = await app.inject({
         method: 'POST',
@@ -153,6 +169,13 @@ describe('API contract', () => {
       assert.strictEqual(document.openapi, '3.1.0');
       assert.ok(document.info.title);
       assert.ok(document.info.version);
+    });
+
+    it('documents retired HTTP setup as a 410-only operation without a credential request', () => {
+      const operation = buildOpenApiDocument().paths?.['/api/auth/setup']?.post;
+      assert.ok(operation);
+      assert.deepStrictEqual(Object.keys(operation.responses ?? {}), ['410']);
+      assert.equal(operation.requestBody, undefined);
     });
 
     it('documents the declared paths and no others', () => {

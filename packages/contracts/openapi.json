@@ -196,22 +196,15 @@
         ],
         "additionalProperties": false
       },
-      "SetupResponse": {
+      "RegisterResponse": {
         "type": "object",
         "properties": {
-          "success": {
-            "type": "boolean",
-            "enum": [
-              true
-            ]
-          },
-          "userId": {
-            "type": "integer"
+          "message": {
+            "type": "string"
           }
         },
         "required": [
-          "success",
-          "userId"
+          "message"
         ],
         "additionalProperties": false
       },
@@ -2251,25 +2244,28 @@
         },
         "additionalProperties": false
       },
-      "SetupRequest": {
+      "RegisterRequest": {
         "type": "object",
         "properties": {
           "username": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "maxLength": 50
           },
-          "displayName": {
+          "display_name": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "maxLength": 100
           },
           "password": {
             "type": "string",
-            "minLength": 8
+            "minLength": 8,
+            "maxLength": 72
           }
         },
         "required": [
           "username",
-          "displayName",
+          "display_name",
           "password"
         ],
         "additionalProperties": false
@@ -3782,6 +3778,16 @@
                 }
               }
             }
+          },
+          "429": {
+            "description": "Too many login attempts or concurrent password checks; Retry-After gives seconds to wait",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
           }
         }
       }
@@ -3825,6 +3831,16 @@
           },
           "401": {
             "description": "The refresh token is unknown, expired, revoked, or its family was revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many refresh attempts; Retry-After gives seconds to wait",
             "content": {
               "application/json": {
                 "schema": {
@@ -4106,8 +4122,29 @@
     },
     "/api/auth/setup": {
       "post": {
-        "summary": "Create the first administrator",
-        "description": "Available only while no user exists. Refused once the installation has an administrator.",
+        "summary": "Legacy administrator setup endpoint (retired)",
+        "description": "Always refused. Provision the first administrator using the operator CLI, never over public HTTP.",
+        "tags": [
+          "auth"
+        ],
+        "responses": {
+          "410": {
+            "description": "Public administrator provisioning is permanently unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/register": {
+      "post": {
+        "summary": "Submit a worker self-registration request pending administrator approval",
+        "description": "Unauthenticated: allows workers to request an account. Returns a neutral confirmation message whether the account was newly registered or the username was already taken. The created account is inactive until approved by an administrator.",
         "tags": [
           "auth"
         ],
@@ -4115,18 +4152,18 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SetupRequest"
+                "$ref": "#/components/schemas/RegisterRequest"
               }
             }
           }
         },
         "responses": {
-          "201": {
-            "description": "The administrator was created",
+          "200": {
+            "description": "Registration request received. Returns a neutral confirmation message.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SetupResponse"
+                  "$ref": "#/components/schemas/RegisterResponse"
                 }
               }
             }
@@ -4142,7 +4179,27 @@
             }
           },
           "409": {
-            "description": "Initial setup is already complete, or could not create the administrator",
+            "description": "Initial administrator setup is required before users can register",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many registration attempts or concurrent requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An internal error occurred while processing the registration request",
             "content": {
               "application/json": {
                 "schema": {

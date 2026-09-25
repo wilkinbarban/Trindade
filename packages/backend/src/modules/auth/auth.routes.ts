@@ -8,8 +8,20 @@ import {
   loginSchema,
   logoutSchema,
   refreshSessionSchema,
+  registerSchema,
+  REGISTER_NEUTRAL_MESSAGE,
   updateProfileSchema,
 } from './auth.schema.js';
+import {
+  defaultRegistrationRateLimiter,
+  normalizeDisplayName,
+  normalizeUsername,
+  type RegistrationRateLimiter,
+} from './auth.rate-limiter.js';
+import {
+  isBootstrapRequired,
+  registerWorkerUser,
+} from './auth.service.js';
 import {
   issueSession,
   revokeSession,
@@ -37,6 +49,8 @@ export interface AuthRoutesOptions {
    * that has since appeared.
    */
   sessionStoreAvailable?: () => boolean;
+  /** Rate limiter and admission controller for public worker registration. */
+  rateLimiter?: RegistrationRateLimiter;
   authAdmissionLimiter?: AuthAdmissionLimiter;
 }
 
@@ -53,6 +67,7 @@ interface UserRow {
 export async function authRoutes(fastify: FastifyInstance, options: AuthRoutesOptions) {
   const refreshTokenTtlDays = options.refreshTokenTtlDays ?? DEFAULT_REFRESH_TOKEN_TTL_DAYS;
   const sessionStoreAvailable = options.sessionStoreAvailable ?? (() => true);
+  const rateLimiter = options.rateLimiter ?? defaultRegistrationRateLimiter;
   const admissionLimiter = options.authAdmissionLimiter ?? defaultAuthAdmissionLimiter;
 
   function refuseAdmission(reply: FastifyReply, retryAfterSeconds: number) {
@@ -94,15 +109,27 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRoutesOp
 
       if (!sessionStoreAvailable()) return refuseWithoutSessionStore(request, reply);
 
-      const user = db
-        .prepare(
-          `SELECT u.id, u.username, u.password_hash, u.display_name,
-                  u.is_active, u.security_version, r.name AS role
-           FROM users u
-           JOIN roles r ON u.role_id = r.id
-           WHERE u.username = ?`
-        )
-        .get(username) as UserRow | undefined;
+      const selectByUsername = db.prepare(
+        `SELECT u.id, u.username, u.password_hash, u.display_name,
+                u.is_active, u.security_version, r.name AS role
+         FROM users u
+         JOIN roles r ON u.role_id = r.id
+         WHERE u.username = ?`
+      );
+
+      // Resolve the account by the exact spelling the caller typed first. Administrator tooling
+      // stores usernames verbatim, so a legacy mixed-case account keeps logging in with its own
+      // spelling. Only when no account carries the typed spelling fall back to the normalized
+      // (trimmed, lowercase) form that public registration stores. Exact first also prevents
+      // account confusion when two accounts exist that differ only by case: a typed spelling that
+      // matches one of them resolves to that account and never falls through to its case twin.
+      let user = selectByUsername.get(username) as UserRow | undefined;
+      if (!user) {
+        const normalizedUsername = normalizeUsername(username);
+        if (normalizedUsername !== username) {
+          user = selectByUsername.get(normalizedUsername) as UserRow | undefined;
+        }
+      }
 
       if (!user || !user.is_active) {
         return reply.status(401).send({ error: 'Invalid credentials' });
@@ -487,6 +514,78 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRoutesOp
       });
 
       return reply.send({ success: true });
+    }
+  );
+
+  // POST /api/auth/register — public worker self-registration pending admin approval
+  fastify.post(
+    '/register',
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const parse = registerSchema.safeParse(request.body);
+      if (!parse.success) {
+        return reply.status(400).send({
+          error: 'Invalid input',
+          details: parse.error.flatten(),
+        });
+      }
+
+      const { username, display_name, password } = parse.data;
+      const normalizedUsername = normalizeUsername(username);
+
+      // 1. Admission control: bounded global and normalized username rate limits
+      // before CPU-intensive work. Never trusts X-Forwarded-For or wildcard trustProxy.
+      const rateLimitCheck = rateLimiter.checkAndRecordAttempt(normalizedUsername);
+      if (!rateLimitCheck.allowed) {
+        reply.header('Retry-After', rateLimitCheck.retryAfterSeconds);
+        return reply.status(429).send({
+          error: 'Limite de solicitações excedido. Tente novamente mais tarde.',
+        });
+      }
+
+      // 2. Critical bootstrap invariant: when users table is empty, reject registration
+      // without inserting so first-run administrator setup cannot be preempted.
+      if (isBootstrapRequired(fastify.db)) {
+        return reply.status(409).send({
+          error: 'A configuração inicial do administrador é necessária antes de registrar usuários.',
+        });
+      }
+
+      // 3. Admission control: concurrent hash cap to bound bcrypt CPU load
+      if (!rateLimiter.tryAcquireHashSlot()) {
+        return reply.status(429).send({
+          error: 'Muitas solicitações simultâneas. Tente novamente em instantes.',
+        });
+      }
+
+      try {
+        const passwordHash = await bcrypt.hash(password, 10);
+        const result = registerWorkerUser(fastify.db, {
+          username: normalizedUsername,
+          displayName: normalizeDisplayName(display_name),
+          passwordHash,
+          ipAddress: request.ip,
+          logger: request.log,
+        });
+
+        if (result.outcome === 'bootstrap_required') {
+          return reply.status(409).send({
+            error: 'A configuração inicial do administrador é necessária antes de registrar usuários.',
+          });
+        }
+      } catch (err: any) {
+        request.log.error({ err }, 'Unexpected database error during worker registration');
+        return reply.status(500).send({
+          error: 'Erro interno ao processar a solicitação.',
+        });
+      } finally {
+        rateLimiter.releaseHashSlot();
+      }
+
+      // Both newly created accounts and duplicate usernames return the same neutral
+      // conditional response without falsely promising creation.
+      return reply.status(200).send({
+        message: REGISTER_NEUTRAL_MESSAGE,
+      });
     }
   );
 }
