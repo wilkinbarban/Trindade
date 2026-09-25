@@ -62,6 +62,31 @@ export const setupSchema = z
 
 export type SetupBody = z.infer<typeof setupSchema>;
 
+export const registerSchema = z
+  .object({
+    username: z
+      .string()
+      .trim()
+      .min(1, 'Username is required')
+      .max(50, 'Username must not exceed 50 characters'),
+    display_name: z
+      .string()
+      .trim()
+      .min(1, 'Display name is required')
+      .max(100, 'Display name must not exceed 100 characters'),
+    password: z
+      .string()
+      .min(8, 'Password must be at least 8 characters long')
+      .max(72, 'Password must not exceed 72 characters')
+      .refine(
+        (val) => Buffer.byteLength(val, 'utf8') <= 72,
+        'Password must not exceed 72 bytes',
+      ),
+  })
+  .strict();
+
+export type RegisterBody = z.infer<typeof registerSchema>;
+
 // ---- Response Schemas ----
 //
 // Response shapes are schemas rather than TypeScript interfaces so the contract generator
@@ -117,3 +142,14 @@ export const SetupResponseSchema = z
     userId: z.number().int(),
   })
   .strict();
+
+export const RegisterResponseSchema = z
+  .object({
+    message: z.string(),
+  })
+  .strict();
+
+export type RegisterResponse = z.infer<typeof RegisterResponseSchema>;
+
+export const REGISTER_NEUTRAL_MESSAGE =
+  'Solicitação de cadastro recebida. Se o acesso for aprovado pelo administrador, a conta será ativada. Entre em contato com a administração se não conseguir acessar.';
