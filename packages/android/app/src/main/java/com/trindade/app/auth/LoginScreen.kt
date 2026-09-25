@@ -143,9 +143,8 @@ fun LoginScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            // The failure messages are rendered differently on purpose, and the split is by origin rather
-            // than by case. Text from the server is shown exactly as it arrives, because it describes what
-            // happened and this client has no better words for it. The app's own sentences cover everything
+            // Failures remain split by origin. Only the server's exact known credential refusal is
+            // translated here; other server text is preserved verbatim. The app's own sentences cover everything
             // else: a timeout, a failed secure transport and an unreadable reply each have one of their own;
             // a host with no route to it gets the network sentence, "Sem conexão com o servidor", because
             // that is the one failure a network explains; and a Throwable this taxonomy could not name gets a
@@ -156,7 +155,11 @@ fun LoginScreen(
                 Spacer(Modifier.height(12.dp))
                 Text(
                     text = when (message) {
-                        is LoginMessage.FromServer -> message.text
+                        is LoginMessage.FromServer -> if (message.text == "Invalid credentials") {
+                            stringResource(R.string.login_invalid_credentials)
+                        } else {
+                            message.text
+                        }
                         else -> stringResource(appSentenceOf(message))
                     },
                     color = MaterialTheme.colorScheme.error,
@@ -219,8 +222,8 @@ fun LoginRoute(
  * renders was asserted nowhere until this existed. With the mapping here, swapping two ids is a
  * failing test instead of a screen that quietly says the wrong thing.
  *
- * [LoginMessage.FromServer] has no resource by construction -- that sentence is the contract's own
- * text and is rendered from the value it carries, not looked up -- so asking for one is a
+ * [LoginMessage.FromServer] has no generic resource by construction -- except for the exact
+ * credential refusal localized at the presentation boundary, server text is rendered verbatim. Asking for one is a
  * programming error and says so rather than returning something plausible.
  */
 @StringRes

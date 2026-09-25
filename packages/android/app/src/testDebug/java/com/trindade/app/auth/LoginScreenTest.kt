@@ -85,6 +85,36 @@ class LoginScreenTest {
     private val titleLabel: String
         get() = ApplicationProvider.getApplicationContext<Context>().getString(R.string.login_title)
 
+    @Test
+    fun `known server credential refusal is shown in Portuguese`() {
+        val translated = ApplicationProvider.getApplicationContext<Context>()
+            .getString(R.string.login_invalid_credentials)
+        composeRule.setContent {
+            TrindadeTheme {
+                LoginScreen(
+                    state = LoginViewModel.UiState(message = LoginMessage.FromServer("Invalid credentials")),
+                    onUsernameChange = {}, onPasswordChange = {}, onSubmit = {},
+                )
+            }
+        }
+        composeRule.onNodeWithText(translated).assertIsDisplayed()
+        composeRule.onNodeWithText("Invalid credentials").assertDoesNotExist()
+    }
+
+    @Test
+    fun `unknown server refusal remains unchanged`() {
+        val refusal = "Account pending approval"
+        composeRule.setContent {
+            TrindadeTheme {
+                LoginScreen(
+                    state = LoginViewModel.UiState(message = LoginMessage.FromServer(refusal)),
+                    onUsernameChange = {}, onPasswordChange = {}, onSubmit = {},
+                )
+            }
+        }
+        composeRule.onNodeWithText(refusal).assertIsDisplayed()
+    }
+
     /**
      * The regression itself: the screen must scroll to the button on a viewport too short to hold the
      * branding, the fields and the button.

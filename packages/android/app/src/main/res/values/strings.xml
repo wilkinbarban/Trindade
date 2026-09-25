@@ -32,6 +32,7 @@
          borrow from `login_unreachable`, which sent the operator to check a network the failure had not been
          shown to involve. -->
     <string name="login_unknown">Não foi possível entrar. Tente de novo.</string>
+    <string name="login_invalid_credentials">Usuário ou senha inválidos.</string>
 
     <string name="report_submit">Salvar relatório</string>
     <string name="report_created">Relatório %1$d salvo.</string>
