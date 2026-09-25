@@ -4,31 +4,26 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import Fastify from 'fastify';
 import Database from 'better-sqlite3';
-import bcrypt from 'bcryptjs';
 import { bootstrapRoutes } from './bootstrap.routes.js';
 
-describe('administrator bootstrap', () => {
+describe('administrator bootstrap HTTP boundary', () => {
   const db = new Database(':memory:');
   const app = Fastify({ logger: false });
   db.exec(readFileSync(join(import.meta.dirname, '../../db/schema.sql'), 'utf8'));
   db.exec(readFileSync(join(import.meta.dirname, '../../db/seed.sql'), 'utf8'));
-  app.decorate('db', db); app.decorate('authenticate', async () => {});
+  app.decorate('db', db);
   before(async () => { await app.register(bootstrapRoutes, { prefix: '/api/auth' }); await app.ready(); });
   after(async () => { await app.close(); db.close(); });
 
-  it('creates exactly one active Administrador and closes setup', async () => {
-    const payload = { username: 'owner', displayName: 'Administrador', password: 'strong-password' };
+  it('reports an empty installation without granting HTTP provisioning', async () => {
     assert.equal((await app.inject({ method: 'GET', url: '/api/auth/setup/status' })).json().setupRequired, true);
-    const attempts = await Promise.all([
-      app.inject({ method: 'POST', url: '/api/auth/setup', payload }),
-      app.inject({ method: 'POST', url: '/api/auth/setup', payload }),
-    ]);
-    assert.deepEqual(attempts.map(({ statusCode }) => statusCode).sort(), [201, 409]);
-    const user = db.prepare(`SELECT u.password_hash, u.is_active, r.name role FROM users u JOIN roles r ON r.id=u.role_id`).get() as any;
-    assert.equal(user.role, 'Administrador');
-    assert.equal(user.is_active, 1);
-    assert.equal(await bcrypt.compare(payload.password, user.password_hash), true);
-    assert.equal(user.password_hash.includes(payload.password), false);
+    const attempts = await Promise.all(Array.from({ length: 12 }, (_, index) =>
+      app.inject({ method: 'POST', url: '/api/auth/setup', payload: index % 2
+        ? { username: 'owner', displayName: 'Owner', password: 'strong-password' }
+        : { password: 'another-secret' } })));
+    assert.deepEqual(attempts.map((response) => response.statusCode), Array(12).fill(410));
+    assert.ok(attempts.every((response) => !response.body.includes('another-secret')));
+    assert.equal(db.prepare('SELECT COUNT(*) FROM users').pluck().get(), 0);
+    assert.equal((await app.inject({ method: 'GET', url: '/api/auth/setup/status' })).json().setupRequired, true);
   });
-
 });
