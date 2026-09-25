@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import { afterEach, describe, it } from 'node:test';
 import Database from 'better-sqlite3';
 import { openDatabase } from './db/index.js';
+import { stampSchemaVersion } from './db/schema-version.js';
 import { captureRecoverySet, verifyIsolatedRestore } from './recovery.js';
 
 const digest = (path: string) => createHash('sha256').update(readFileSync(path)).digest('hex');
@@ -42,6 +43,7 @@ describe('stage-one installation invariants', () => {
     seed.exec(readFileSync(join(import.meta.dirname, 'db/schema.sql'), 'utf8'));
     seed.exec(readFileSync(join(import.meta.dirname, 'db/seed.sql'), 'utf8'));
     seed.prepare("INSERT INTO settings VALUES ('preserved','yes',datetime('now'))").run();
+    stampSchemaVersion(seed);
     seed.close();
 
     const before = { database: digest(databasePath), asset: digest(join(photos, 'proof.txt')) };

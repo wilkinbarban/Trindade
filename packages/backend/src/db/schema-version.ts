@@ -9,11 +9,12 @@ import type Database from 'better-sqlite3';
  *   `report_items.selected_products` as JSON) and left 14 user tables.
  * - 2: adds `auth_sessions` for refresh-token persistence (token hash, rotation
  *   family, revocation), bringing the schema to 15 user tables.
+ * - 3: adds users.security_version and revokes preexisting live sessions.
  *
  * Databases created before versioning carry `user_version = 0` and are reported as
  * `unversioned`; nothing about them is assumed, and no startup path rewrites them.
  */
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 /**
  * The tables a database created by revision 1 must contain: the baseline the

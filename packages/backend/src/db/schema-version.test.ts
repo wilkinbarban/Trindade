@@ -65,7 +65,7 @@ describe('schema revision', () => {
 
     const revisionTwo = classifySchema({ version: 2, integrity: 'ok', tables: [...SCHEMA_TABLES] });
     assert.deepEqual(revisionTwo.missingTables, []);
-    assert.equal(revisionTwo.verdict, 'current');
+    assert.equal(revisionTwo.verdict, 'outdated');
 
     // A table missing from the revision the database actually claims is still a failure.
     const damaged = classifySchema({
@@ -106,7 +106,8 @@ describe('schema revision', () => {
     seed.close();
 
     const before = digest(databasePath);
-    const existing = openDatabase(databasePath);
+    assert.throws(() => openDatabase(databasePath), /Database startup refused: unversioned/);
+    const existing = new Database(databasePath, { readonly: true });
     const report = readSchemaReport(existing);
     existing.close();
 
@@ -115,11 +116,24 @@ describe('schema revision', () => {
     assert.equal(digest(databasePath), before, 'startup modified an existing database');
   });
 
+  it('refuses outdated and newer existing databases without changing their bytes', () => {
+    for (const version of [2, SCHEMA_VERSION + 1]) {
+      const path = join(fixtureRoot(), `revision-${version}.db`);
+      const build = openDatabase(path);
+      if (version === 2) build.exec('ALTER TABLE users DROP COLUMN security_version');
+      build.pragma(`user_version = ${version}`);
+      build.close();
+      const before = digest(path);
+      assert.throws(() => openDatabase(path), new RegExp(version === 2 ? 'outdated' : 'newer'));
+      assert.equal(digest(path), before);
+    }
+  });
+
   it('classifies every revision state without touching a database', () => {
     assert.equal(classifySchema(observation()).verdict, 'current');
     assert.equal(classifySchema(observation({ version: 0 })).verdict, 'unversioned');
-    assert.equal(classifySchema(observation(), 3).verdict, 'outdated');
-    assert.equal(classifySchema(observation({ version: 4 }), 3).verdict, 'newer');
+    assert.equal(classifySchema(observation(), 4).verdict, 'outdated');
+    assert.equal(classifySchema(observation({ version: 5 }), 4).verdict, 'newer');
     assert.equal(
       classifySchema(observation({ tables: SCHEMA_TABLES.filter((t) => t !== 'reports') })).verdict,
       'incompatible',
@@ -147,9 +161,9 @@ describe('schema revision', () => {
     assert.deepEqual(formatReport('/tmp/fresh.db', classifySchema(observation())), [
       'database: /tmp/fresh.db',
       'integrity: ok',
-      'schema revision: 2 (this build supports 2)',
+      'schema revision: 3 (this build supports 3)',
       'tables: 15 observed, 0 missing, 0 unexpected',
-      'verdict: current — revision 2; 15 tables present',
+      'verdict: current — revision 3; 15 tables present',
     ]);
 
     const missing = formatReport(

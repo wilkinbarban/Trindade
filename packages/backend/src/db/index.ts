@@ -2,7 +2,7 @@ import Database, { type Database as DatabaseType } from 'better-sqlite3';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { classifyInstallation } from './install-lifecycle.js';
-import { stampSchemaVersion } from './schema-version.js';
+import { readSchemaReport, stampSchemaVersion } from './schema-version.js';
 
 export function openDatabase(databasePath: string): DatabaseType {
   const installation = classifyInstallation(databasePath);
@@ -13,6 +13,17 @@ export function openDatabase(databasePath: string): DatabaseType {
   const db = new Database(databasePath, installation.kind === 'existing'
     ? { fileMustExist: true }
     : undefined);
+  if (installation.kind === 'existing') {
+    try {
+      const report = readSchemaReport(db);
+      if (report.verdict !== 'current') {
+        throw new Error(`Database startup refused: ${report.verdict} — ${report.summary}`);
+      }
+    } catch (error) {
+      db.close();
+      throw error;
+    }
+  }
   db.pragma('foreign_keys = ON');
   if (installation.kind === 'fresh') {
     const schema = readFileSync(join(import.meta.dirname, 'schema.sql'), 'utf8');

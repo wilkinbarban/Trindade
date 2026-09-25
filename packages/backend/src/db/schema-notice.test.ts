@@ -4,6 +4,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, it } from 'node:test';
+import Database from 'better-sqlite3';
 import { openDatabase } from './index.js';
 import { schemaNoticeForStartup } from './schema-notice.js';
 import { SCHEMA_VERSION } from './schema-version.js';
@@ -41,7 +42,8 @@ describe('startup schema notice', () => {
     created.close();
     const before = digest(path);
 
-    const db = openDatabase(path);
+    assert.throws(() => openDatabase(path), /Database startup refused: unversioned/);
+    const db = new Database(path, { readonly: true });
     const notice = schemaNoticeForStartup(db);
     assert.equal(notice.level, 'info');
     assert.equal(notice.payload.verdict, 'unversioned');
@@ -58,7 +60,8 @@ describe('startup schema notice', () => {
     created.close();
     const before = digest(path);
 
-    const db = openDatabase(path);
+    assert.throws(() => openDatabase(path), /Database startup refused: newer/);
+    const db = new Database(path, { readonly: true });
     const notice = schemaNoticeForStartup(db);
     assert.equal(notice.level, 'warn');
     assert.equal(notice.payload.verdict, 'newer');
@@ -76,12 +79,15 @@ describe('startup schema notice', () => {
     created.pragma('foreign_keys = ON');
     created.close();
 
-    const db = openDatabase(path);
+    const before = digest(path);
+    assert.throws(() => openDatabase(path), /Database startup refused: incompatible/);
+    const db = new Database(path, { readonly: true });
     const notice = schemaNoticeForStartup(db);
     assert.equal(notice.level, 'warn');
     assert.equal(notice.payload.verdict, 'incompatible');
     assert.deepEqual(notice.payload.missingTables, ['settings']);
     db.close();
+    assert.equal(digest(path), before, 'refused startup modified the incompatible database');
   });
 
   it('reports an unavailable notice instead of throwing when the database cannot be read', () => {

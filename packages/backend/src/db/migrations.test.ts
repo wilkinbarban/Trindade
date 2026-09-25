@@ -22,6 +22,7 @@ const digest = (path: string) => createHash('sha256').update(readFileSync(path))
  */
 function makeRevisionOneShape(db: Database.Database): void {
   db.exec('DROP TABLE auth_sessions');
+  db.exec('ALTER TABLE users DROP COLUMN security_version');
   db.pragma('user_version = 1');
 }
 
@@ -97,6 +98,7 @@ describe('schema migration', () => {
     build.exec(schema);
     build.exec(seed);
     makeLegacyShape(build);
+    build.exec('ALTER TABLE users DROP COLUMN security_version');
     build.close();
 
     const db = new Database(path);
@@ -120,7 +122,8 @@ describe('schema migration', () => {
   it('stamps without rebuilding when the legacy shape is already migrated', () => {
     const path = join(fixtureRoot(), 'production-shape.db');
     const fresh = openDatabase(path);
-    fresh.pragma('user_version = 0'); // a database created before versioning, in the current shape
+    fresh.exec('ALTER TABLE users DROP COLUMN security_version');
+    fresh.pragma('user_version = 0'); // revision 2 shape before versioning
     fresh.close();
 
     const db = new Database(path);
@@ -201,10 +204,11 @@ describe('schema migration', () => {
       .all() as string[];
     assert.ok(tables.includes('auth_sessions'), 'the revision 2 step did not create auth_sessions');
 
-    assert.deepEqual(db.prepare('SELECT username, display_name, is_active FROM users WHERE id = ?').get(userId), {
+    assert.deepEqual(db.prepare('SELECT username, display_name, is_active, security_version FROM users WHERE id = ?').get(userId), {
       username: 'legacy-admin',
       display_name: 'legacy-admin',
       is_active: 1,
+      security_version: 1,
     });
     assert.deepEqual(db.prepare('SELECT user_id, turno, report_date FROM reports WHERE id = ?').get(reportId), {
       user_id: userId,
@@ -258,6 +262,7 @@ describe('schema migration', () => {
     build.exec(schema);
     build.exec(seed);
     makeLegacyShape(build);
+    build.exec('ALTER TABLE users DROP COLUMN security_version');
     const userId = insertUser(build, 'legacy-reader');
     const reportId = Number(
       build
@@ -294,7 +299,7 @@ describe('schema migration', () => {
   // a revision its steps cannot reach would leave every migrated database stamped low.
   it('leaves every lower revision stamped at exactly the supported revision', () => {
     const cases: ReadonlyArray<{ from: number; prepare: (db: Database.Database) => void }> = [
-      { from: 0, prepare: (db) => { db.pragma('user_version = 0'); } },
+      { from: 0, prepare: (db) => { db.exec('ALTER TABLE users DROP COLUMN security_version'); db.pragma('user_version = 0'); } },
       { from: 1, prepare: (db) => { makeRevisionOneShape(db); } },
     ];
 
@@ -331,7 +336,7 @@ describe('schema migration', () => {
     assert.equal(code, 0, output);
     assert.match(output, /before  verdict: outdated/);
     assert.match(output, /migrate: legacy report_temperatures already current/);
-    assert.match(output, /migrate: stamped user_version = 2/);
+    assert.match(output, /migrate: stamped user_version = 3/);
     assert.match(output, /after  verdict: current/);
   });
 
@@ -341,12 +346,13 @@ describe('schema migration', () => {
     build.exec(schema);
     build.exec(seed);
     makeLegacyShape(build);
+    build.exec('ALTER TABLE users DROP COLUMN security_version');
     build.close();
 
     const { code, output } = await runMigrate(path);
     assert.equal(code, 0, output);
     assert.match(output, /migrate: rebuilt legacy report_temperatures/);
-    assert.match(output, /migrate: stamped user_version = 2/);
+    assert.match(output, /migrate: stamped user_version = 3/);
     assert.match(output, /after  verdict: current/);
   });
 
@@ -358,6 +364,6 @@ describe('schema migration', () => {
 
     const { code, output } = await runMigrate(path);
     assert.equal(code, 1, output);
-    assert.match(output, /refused — revision 3 is newer/);
+    assert.match(output, /refused — revision 4 is newer/);
   });
 });

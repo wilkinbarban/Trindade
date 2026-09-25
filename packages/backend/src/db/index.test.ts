@@ -7,6 +7,7 @@ import { spawn } from 'node:child_process';
 import Database from 'better-sqlite3';
 import bcrypt from 'bcryptjs';
 import { openDatabase } from './index.js';
+import { stampSchemaVersion } from './schema-version.js';
 
 describe('safe database startup', () => {
   const directories: string[] = [];
@@ -35,6 +36,7 @@ describe('safe database startup', () => {
     const path = target();
     const seed = new Database(path);
     seed.exec(readFileSync(join(import.meta.dirname, 'schema.sql'), 'utf8'));
+    stampSchemaVersion(seed);
     seed.close();
 
     const db = openDatabase(path);
@@ -47,6 +49,7 @@ describe('safe database startup', () => {
     const seed = new Database(path);
     seed.exec(readFileSync(join(import.meta.dirname, 'schema.sql'), 'utf8'));
     seed.prepare("INSERT INTO settings VALUES ('preserved','yes',datetime('now'))").run();
+    stampSchemaVersion(seed);
     seed.close();
 
     const db = openDatabase(path);
@@ -66,6 +69,7 @@ describe('safe database startup', () => {
       .run(reportId, 'expired.jpg', 7, 'image/jpeg', 'expired-token', '2000-01-01 00:00:00');
     seed.prepare('INSERT INTO report_photos (report_id,file_path,file_size,mime_type,public_token,created_at) VALUES (?,?,?,?,?,?)')
       .run(reportId, 'retained.jpg', 8, 'image/jpeg', 'retained-token', '2999-01-01 00:00:00');
+    stampSchemaVersion(seed);
     seed.close();
     const photosDir = join(path, '..', 'photos');
     mkdirSync(photosDir, { recursive: true });

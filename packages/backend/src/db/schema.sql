@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS users (
   display_name   TEXT    NOT NULL,
   role_id        INTEGER NOT NULL REFERENCES roles(id),
   is_active      INTEGER NOT NULL DEFAULT 1,
+  security_version INTEGER NOT NULL DEFAULT 1 CHECK (security_version >= 1),
   created_at     TEXT    NOT NULL DEFAULT (datetime('now')),
   updated_at     TEXT    NOT NULL DEFAULT (datetime('now'))
 );
