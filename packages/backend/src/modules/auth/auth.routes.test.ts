@@ -1,4 +1,4 @@
-import { describe, it, before, after } from 'node:test';
+import { describe, it, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert';
 import bcrypt from 'bcryptjs';
 import Fastify from 'fastify';
@@ -6,6 +6,7 @@ import type { FastifyInstance } from 'fastify';
 import type Database from 'better-sqlite3';
 
 import { authRoutes } from './auth.routes.js';
+import { defaultAuthAdmissionLimiter } from './auth.admission-limiter.js';
 import { createAuthenticate } from './auth.middleware.js';
 import { buildAuthTestApp, type TestFixtures } from './auth-test-helper.js';
 
@@ -33,6 +34,12 @@ describe('Auth Routes', () => {
     db = result.db; // eslint-disable-line @typescript-eslint/no-unused-vars
     fixtures = result.fixtures;
   });
+
+  // The routes share one process-wide admission limiter. Its budgets are intentionally low
+  // (five logins per normalized username per 15 minutes), so without a per-test reset the
+  // accumulated logins from earlier cases would 429 later ones. Reset restores the state a
+  // fresh process would start with; it never weakens the production defaults.
+  beforeEach(() => defaultAuthAdmissionLimiter.reset());
 
   after(async () => {
     await app.close();

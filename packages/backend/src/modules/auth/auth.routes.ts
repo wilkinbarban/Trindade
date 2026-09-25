@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import { defaultAuthAdmissionLimiter, type AuthAdmissionLimiter } from './auth.admission-limiter.js';
 import { log as auditLog } from '../audit/audit.service.js';
 import {
   changePasswordSchema,
@@ -36,6 +37,7 @@ export interface AuthRoutesOptions {
    * that has since appeared.
    */
   sessionStoreAvailable?: () => boolean;
+  authAdmissionLimiter?: AuthAdmissionLimiter;
 }
 
 interface UserRow {
@@ -50,6 +52,13 @@ interface UserRow {
 export async function authRoutes(fastify: FastifyInstance, options: AuthRoutesOptions) {
   const refreshTokenTtlDays = options.refreshTokenTtlDays ?? DEFAULT_REFRESH_TOKEN_TTL_DAYS;
   const sessionStoreAvailable = options.sessionStoreAvailable ?? (() => true);
+  const admissionLimiter = options.authAdmissionLimiter ?? defaultAuthAdmissionLimiter;
+
+  function refuseAdmission(reply: FastifyReply, retryAfterSeconds: number) {
+    return reply.header('Retry-After', String(retryAfterSeconds)).status(429).send({
+      error: 'Too many requests',
+    });
+  }
 
   /**
    * Refuse a session request with an operator-facing reason instead of letting the driver error
@@ -78,6 +87,8 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRoutesOp
       }
 
       const { username, password } = parse.data;
+      const admission = admissionLimiter.login(username);
+      if (!admission.allowed) return refuseAdmission(reply, admission.retryAfterSeconds);
       const db = fastify.db;
 
       if (!sessionStoreAvailable()) return refuseWithoutSessionStore(request, reply);
@@ -96,7 +107,13 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRoutesOp
         return reply.status(401).send({ error: 'Invalid credentials' });
       }
 
-      const valid = await bcrypt.compare(password, user.password_hash);
+      if (!admissionLimiter.acquireCompare()) return refuseAdmission(reply, 1);
+      let valid: boolean;
+      try {
+        valid = await bcrypt.compare(password, user.password_hash);
+      } finally {
+        admissionLimiter.releaseCompare();
+      }
 
       if (!valid) {
         return reply.status(401).send({ error: 'Invalid credentials' });
@@ -150,6 +167,8 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRoutesOp
         });
       }
 
+      const admission = admissionLimiter.refresh(parse.data.refreshToken);
+      if (!admission.allowed) return refuseAdmission(reply, admission.retryAfterSeconds);
       if (!sessionStoreAvailable()) return refuseWithoutSessionStore(request, reply);
 
       const result = rotateSession(fastify.db, parse.data.refreshToken, refreshTokenTtlDays, request.ip);
