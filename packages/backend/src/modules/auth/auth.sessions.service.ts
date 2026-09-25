@@ -26,7 +26,12 @@ import type Database from 'better-sqlite3';
 const TOKEN_BYTES = 32;
 
 export type RotateSessionResult =
-  | { outcome: 'rotated'; userId: number; refreshToken: string }
+  /**
+   * `rotated` carries the authority read inside the transaction that inserted the successor
+   * session, so the caller can sign the new access token from that state rather than from a
+   * later query or from the previous token's claims.
+   */
+  | { outcome: 'rotated'; userId: number; username: string; role: string; securityVersion: number; refreshToken: string }
   | { outcome: 'unknown' }
   | { outcome: 'expired' }
   | { outcome: 'reused' }
@@ -168,10 +173,11 @@ export function rotateSession(
       return { outcome: 'expired' };
     }
 
-    const user = db.prepare('SELECT is_active FROM users WHERE id = ?').get(row.user_id) as
-      | { is_active: number }
+    const user = db.prepare(`SELECT u.is_active, u.username, u.security_version, r.name AS role
+      FROM users u JOIN roles r ON r.id = u.role_id WHERE u.id = ?`).get(row.user_id) as
+      | { is_active: number; username: string; security_version: number; role: string }
       | undefined;
-    if (!user || user.is_active !== 1) {
+    if (!user || user.is_active !== 1 || !Number.isSafeInteger(user.security_version) || user.security_version <= 0) {
       revokeFamily(db, row.family_id);
       return { outcome: 'inactive-user' };
     }
@@ -185,10 +191,14 @@ export function rotateSession(
        WHERE id = ?`,
     ).run(nextHash, row.id);
 
-    return { outcome: 'rotated', userId: row.user_id, refreshToken };
+    return { outcome: 'rotated', userId: row.user_id, username: user.username,
+      role: user.role, securityVersion: user.security_version, refreshToken };
   });
 
-  return rotate();
+  // `immediate` takes the write lock before the lookup rather than upgrading mid-transaction:
+  // the authority captured for the new token is then the authority at the moment of the write,
+  // not a reading another writer could have moved past between the SELECT and the INSERT.
+  return rotate.immediate();
 }
 
 /**

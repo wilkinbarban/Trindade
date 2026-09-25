@@ -69,6 +69,9 @@ describe('auth session service', () => {
     const result = rotateSession(db, first, 30);
     if (result.outcome !== 'rotated') assert.fail(`expected rotated, got ${result.outcome}`);
     assert.equal(result.userId, adminId);
+    assert.equal(result.username, 'session-admin');
+    assert.equal(result.role, 'Administrador');
+    assert.equal(result.securityVersion, 1);
     assert.notEqual(result.refreshToken, first);
     assert.equal(familyOf(db, result.refreshToken), familyBefore, 'rotation left the family');
 
@@ -77,6 +80,36 @@ describe('auth session service', () => {
       .get(hashRefreshToken(first)) as { revoked_at: string | null; replaced_by: string | null };
     assert.ok(previous.revoked_at, 'the rotated-away token was not revoked');
     assert.equal(previous.replaced_by, hashRefreshToken(result.refreshToken));
+  });
+
+  // SEC-04: a session created before a demotion must not keep minting an access token that
+  // claims the old role. The rotation returns the authority it read inside its own transaction,
+  // which is what lets the route sign from a state no later write has moved past.
+  it('captures the current role and version of the account it rotates for', () => {
+    const first = issueSession(db, adminId, 30);
+    db.prepare('UPDATE users SET role_id = 2, security_version = security_version + 1 WHERE id = ?').run(adminId);
+
+    const result = rotateSession(db, first, 30);
+    if (result.outcome !== 'rotated') assert.fail(`expected rotated, got ${result.outcome}`);
+    assert.equal(result.username, 'session-admin');
+    assert.equal(result.role, 'Trabalhador');
+    assert.equal(result.securityVersion, 2);
+  });
+
+  // The rev3 cutover revokes every live session rather than deleting it, so a refresh token
+  // issued by the previous build reaches the route and must be refused as an ended session
+  // ("revoked"), not as reuse — the whole family was already ended by the operator.
+  it('refuses a session revoked by the rev3 cutover without revoking anything else', () => {
+    const preCutover = issueSession(db, adminId, 30);
+    const postCutover = issueSession(db, workerId, 30);
+    db.prepare("UPDATE auth_sessions SET revoked_at = datetime('now') WHERE user_id = ?").run(adminId);
+
+    assert.deepEqual(rotateSession(db, preCutover, 30), { outcome: 'revoked' });
+    assert.equal(
+      rotateSession(db, postCutover, 30).outcome,
+      'rotated',
+      'a cutover revocation must not reach a session created after it',
+    );
   });
 
   it('revokes the whole family when a token rotated long ago is presented', () => {

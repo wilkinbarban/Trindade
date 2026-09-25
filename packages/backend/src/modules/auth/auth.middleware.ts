@@ -3,11 +3,16 @@ import jwt from 'jsonwebtoken';
 
 // --------------- Type Declarations ---------------
 
-/** JWT payload embedded in access tokens */
+/**
+ * JWT payload embedded in access tokens. `security_version` is the persisted
+ * `users.security_version` the token was minted under; role and username are convenience
+ * copies that the middleware always overwrites from the database.
+ */
 export interface JwtPayload {
   sub: number;
   username: string;
   role: string;
+  security_version: number;
 }
 
 /** Fastify instance augmentation — adds db and authenticate */
@@ -51,14 +56,25 @@ export function createAuthenticate(jwtSecret: string) {
     try {
       const decoded = jwt.verify(token, jwtSecret) as unknown as JwtPayload;
 
-      const user = request.server.db
-        .prepare('SELECT is_active FROM users WHERE id = ?')
-        .get(decoded.sub) as { is_active: number } | undefined;
-      if (!user || user.is_active !== 1) {
-        return reply.status(401).send({ error: 'User is inactive or deleted' });
+      // A token minted before the rev3 cutover carries no version, and a tampered one can carry
+      // anything. Either is refused before a query runs.
+      if (!Number.isSafeInteger(decoded.sub) || decoded.sub <= 0 ||
+          !Number.isSafeInteger(decoded.security_version) || decoded.security_version <= 0) {
+        return reply.status(401).send({ error: 'Invalid or expired token' });
       }
 
-      request.user = decoded;
+      // Authority comes from the database, never from the token body, so a stale role in the
+      // token is harmless and a version that no longer matches means the credential changed.
+      const user = request.server.db
+        .prepare(`SELECT u.is_active, u.security_version, u.username, r.name AS role
+                  FROM users u JOIN roles r ON r.id = u.role_id WHERE u.id = ?`)
+        .get(decoded.sub) as { is_active: number; security_version: number; username: string; role: string } | undefined;
+      if (!user || user.is_active !== 1 || user.security_version !== decoded.security_version) {
+        return reply.status(401).send({ error: 'Invalid or expired token' });
+      }
+
+      request.user = { sub: decoded.sub, username: user.username, role: user.role,
+        security_version: user.security_version };
     } catch {
       return reply.status(401).send({ error: 'Invalid or expired token' });
     }

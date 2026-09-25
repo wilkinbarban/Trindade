@@ -47,6 +47,7 @@ interface UserRow {
   display_name: string;
   is_active: number;
   role: string;
+  security_version: number;
 }
 
 export async function authRoutes(fastify: FastifyInstance, options: AuthRoutesOptions) {
@@ -96,7 +97,7 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRoutesOp
       const user = db
         .prepare(
           `SELECT u.id, u.username, u.password_hash, u.display_name,
-                  u.is_active, r.name AS role
+                  u.is_active, u.security_version, r.name AS role
            FROM users u
            JOIN roles r ON u.role_id = r.id
            WHERE u.username = ?`
@@ -119,23 +120,49 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRoutesOp
         return reply.status(401).send({ error: 'Invalid credentials' });
       }
 
-      const token = jwt.sign(
-        { sub: user.id, username: user.username, role: user.role },
-        options.jwtSecret,
-        { expiresIn: ACCESS_TOKEN_TTL_SECONDS }
-      );
+      // bcrypt yields. Re-read the credential and the authority inside the same write lock
+      // that creates the session, so a password replaced, an account deactivated, or a role
+      // changed while the comparison was pending cannot survive into the issued token.
+      const issued = db.transaction(() => {
+        const current = db
+          .prepare(
+            `SELECT u.id, u.username, u.password_hash, u.is_active, u.security_version,
+                    r.name AS role
+             FROM users u JOIN roles r ON r.id = u.role_id WHERE u.id = ?`
+          )
+          .get(user.id) as UserRow | undefined;
+        if (!current || current.is_active !== 1 || current.password_hash !== user.password_hash ||
+            !Number.isSafeInteger(current.security_version) || current.security_version <= 0) {
+          return null;
+        }
 
-      const refreshToken = issueSession(db, user.id, refreshTokenTtlDays, request.ip);
+        // Session and token are minted from `current`, so both describe the account as it is
+        // now rather than as it looked before the comparison yielded.
+        const refreshToken = issueSession(db, current.id, refreshTokenTtlDays, request.ip);
+        const token = jwt.sign(
+          { sub: current.id, username: current.username, role: current.role,
+            security_version: current.security_version },
+          options.jwtSecret,
+          { expiresIn: ACCESS_TOKEN_TTL_SECONDS }
+        );
+        return { current, refreshToken, token };
+      }).immediate();
+
+      if (!issued) {
+        return reply.status(401).send({ error: 'Invalid credentials' });
+      }
+
+      const { current, refreshToken, token } = issued;
 
       try {
         auditLog(fastify.db, {
-          userId: user.id,
+          userId: current.id,
           action: 'login',
           entityType: 'auth',
           ipAddress: request.ip,
         });
       } catch (err) {
-        request.log.warn({ err, userId: user.id }, 'Login succeeded but its audit record could not be persisted');
+        request.log.warn({ err, userId: current.id }, 'Login succeeded but its audit record could not be persisted');
       }
 
       return reply.send({
@@ -143,9 +170,9 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRoutesOp
         refreshToken,
         expiresIn: ACCESS_TOKEN_TTL_SECONDS,
         user: {
-          id: user.id,
-          username: user.username,
-          role: user.role,
+          id: current.id,
+          username: current.username,
+          role: current.role,
         },
       });
     }
@@ -190,35 +217,25 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRoutesOp
         return reply.status(401).send({ error: 'Invalid or expired session' });
       }
 
-      const user = fastify.db
-        .prepare(
-          `SELECT u.id, u.username, r.name AS role
-           FROM users u
-           JOIN roles r ON u.role_id = r.id
-           WHERE u.id = ?`
-        )
-        .get(result.userId) as { id: number; username: string; role: string } | undefined;
-
-      if (!user) {
-        return reply.status(401).send({ error: 'Invalid or expired session' });
-      }
-
+      // Signed from the authority the rotation captured, not from a second query that could
+      // observe a later state than the session it accompanies.
       const token = jwt.sign(
-        { sub: user.id, username: user.username, role: user.role },
+        { sub: result.userId, username: result.username, role: result.role,
+          security_version: result.securityVersion },
         options.jwtSecret,
         { expiresIn: ACCESS_TOKEN_TTL_SECONDS }
       );
 
       try {
         auditLog(fastify.db, {
-          userId: user.id,
+          userId: result.userId,
           action: 'refresh',
           entityType: 'auth',
           ipAddress: request.ip,
         });
       } catch (err) {
         request.log.warn(
-          { err, userId: user.id },
+          { err, userId: result.userId },
           'Session refreshed but its audit record could not be persisted'
         );
       }
