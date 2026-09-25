@@ -25,24 +25,60 @@ This runbook defines the operational procedure for deploying updates to Trindade
 
 ### Deployment order rule
 
-The runbook migrates **before** switching traffic. That order is not a preference, it is a
-requirement of how the two application versions tolerate each other, and it holds only while the
-migration is **additive**:
-
-- An **additive** migration (adds a table or a column that the old code never reads) can be
-  applied first, because the old code keeps serving unchanged against the newer shape. Revision 1
-  to 2 is additive: it adds `auth_sessions`, which the revision-1 code does not know about.
-- A **destructive** migration (drops, renames, or rebuilds a table the old code reads) cannot be
-  applied first, because the old code would break against the new shape. That case needs a
-  bounded window: stop the API, migrate, start the new code.
-
-Deciding which case applies is a per-release judgement made at Section 4, and getting it wrong
-is what produces the failure this rule exists to prevent: the revision-2 code requires
-`auth_sessions` **at request time**, because a successful login inserts into it, so running the
-new code against an unmigrated database makes login answer `500 no such table: auth_sessions`
-rather than degrade.
+Revision 3 is a controlled cutover, not an additive live migration. Stop the API before
+capturing the final consistent recovery set and running the explicit migration. Validate the
+new schema before starting the new API. Never run a revision-2 binary against a revision-3
+database; it cannot safely enforce the new security-version rules. Every existing session, including
+administrator sessions, is invalidated at cutover. Operators must sign in again. Rollback after
+migration requires restoring the verified pre-cutover database **and** its matching old code;
+never restore old sessions into a revision-3 database.
 
 ---
+
+### First administrator (SEC-01)
+
+Public `POST /api/auth/setup` is retired and always returns 410; `GET /api/auth/setup/status`
+only reports whether users exist. No browser or mobile client can create the first administrator.
+Provision from the operator container only, after an approved recovery snapshot and after
+`db:status` reports a **current revision-3** schema with `auth_sessions`. The CLI refuses an existing user,
+missing database, or obsolete session schema, and rechecks those conditions inside an immediate
+SQLite transaction. Run it only on the intended empty installation; never run `db:reset` against
+production. Keep the account password out of arguments, environment, shell history, and logs.
+
+In a restricted operator session, prepare a one-line password on stdin using a protected pipe or
+secret manager that does not expose it as an argument. For an interactive Bash shell, use a
+private terminal session. The subshell prevents an existing `set -x` in the operator shell from
+tracing the password; its first command disables tracing before the read. Cleanup restores
+terminal echo and clears the variable on normal exit, read/command failure, or interruption:
+
+```bash
+(
+  set +x
+  cleanup_admin_password() {
+    stty echo
+    unset ADMIN_PASSWORD
+  }
+  trap cleanup_admin_password EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+  set -o pipefail
+  stty -echo || exit 1
+  IFS= read -r ADMIN_PASSWORD || exit 1
+  stty echo || exit 1
+  printf '\n'
+  printf '%s\n' "$ADMIN_PASSWORD" | docker compose run --rm --no-deps -T --entrypoint node api \
+    packages/backend/dist/db/provision-admin.js /app/packages/backend/data/trindade.db owner 'Administrator'
+)
+```
+
+Do not paste a password into a command line or keep this shell variable longer than necessary.
+The CLI refuses terminal stdin to prevent echoed secrets. Confirm the administrator can log in
+through the usual login endpoint; subsequent provisioning must fail. If provisioning fails,
+inspect schema status and user counts without dumping password material. Roll back only through
+the verified pre-write recovery set; restoring it also removes the new administrator and any
+post-snapshot data, so obtain approval before restoring. Rolling back application code alone
+reopens the old public setup endpoint **if the users table is empty**: never deploy that version
+against an empty live installation.
 
 ## 2. Pre-Deployment Gate (Code Verification)
 
@@ -60,7 +96,7 @@ rather than degrade.
    - Clean-checkout proof on `node:24-bookworm-slim`.
    - Zero deprecation or `install-scripts` warnings.
    - `found 0 vulnerabilities`.
-   - All backend tests passing (296 tests).
+   - All backend tests passing.
    - Built schema CLIs verified (`scripts/verify-schema-clis.sh`).
    - The committed API contract matches the schemas it is generated from
      (`scripts/verify-openapi-artifact.sh`).
@@ -76,19 +112,19 @@ rather than degrade.
    docker exec trindade-api-1 node packages/backend/dist/db/status.js
    curl -sS https://trindademasas.duckdns.org/api/health
    ```
-   Confirm the running service is healthy and **record the current schema verdict**. The verdict
-   decides Section 4:
-   - `unversioned` (revision 0) — predates versioning; the migration runs every step.
-   - `outdated` (a lower stamped revision, e.g. revision 1) — the migration runs only the pending
-     steps. This is the state of an installation running the pre-revision-2 code.
-   - `current` — no migration is pending; Section 5 is a no-op.
-   - `incompatible`, `newer` — stop. The migration refuses both, and deploying will not fix them.
+   Confirm the running service is healthy and record its database revision **and the revision
+   supported by that running image**. The old revision-2 image normally reports `current` at
+   revision 2; that does **not** mean the new revision-3 image has no migration to run. Section
+   5 reclassifies the stopped database using the new image and determines the pending steps.
+   If the old service reports `incompatible` or `newer`, stop and investigate before building.
 
 ---
 
 ## 3. Pre-Deployment Recovery Set Capture (Backup)
 
-Capture a verified recovery set before touching container images or database files:
+Capture a preliminary verified recovery set before touching container images or database files.
+Capture a **second, final** set after stopping the API in Section 5; only that final set is the
+rollback boundary for the cutover:
 
 ```bash
 make db-backup
@@ -114,45 +150,53 @@ make db-backup
 
 ## 4. Build the New Images (No Traffic Switched)
 
-Build the new images and decide, from the verdict recorded in Section 2, whether the pending
-migration is additive or destructive (Section 1).
+Build the new images while the old API is still serving. Revision 3 always requires the
+controlled cutover in Section 5.
 
 1. Build the updated production container images:
    ```bash
    docker compose build
    ```
-   **Nothing is redeployed yet.** The currently running containers keep serving this whole step
-   and the next one.
+   **Nothing is redeployed yet.** The old containers serve only until the Section 5 stop.
 
 2. Confirm the new image carries the migration this release needs. The status command prints
-   the revision it supports, so Section 5's first command answers this as a side effect:
+   the revision it supports, so Section 5's classification command answers this as a side effect:
    a line reading `schema revision: <n> (this build supports <m>)`. If `<m>` is not the revision
    this release introduces, the image is stale and will refuse to migrate.
 
-3. If Section 2 recorded `incompatible` or `newer`, **stop here**. Neither is repaired by
-   deploying, and the migration command refuses both.
+3. If either the running-image check in Section 2 or new-image check in Section 5 reports
+   `incompatible` or `newer`, **stop**. Neither is repaired by deploying, and the migration
+   command refuses both.
 
 ---
 
-## 5. Schema Migration (Deliberate Operator Write — Before Rollout)
+## 5. Controlled Revision-3 Cutover (Deliberate Operator Write)
 
-If Section 2 recorded `unversioned` or `outdated`, migrate now, **while the previous application
-version is still serving**. This is what makes the rollout in Section 6 have no login outage: the
-old code keeps answering requests against the newer schema.
+Schedule a maintenance window. Stop the old API **before** the final backup and migration.
+Do not permit any other database writers during the window. Existing sessions, administrator
+sessions included, will not survive the revision-3 migration.
 
 > **Important**: Never run migrations without the approved recovery set from Section 3. Migrations mutate production data and must remain an explicit, operator-invoked step.
 
-1. Classify the database read-only, **from the new image**, without starting the service:
+1. Stop the API and capture the final consistent recovery set with Section 3's `make db-backup`.
+   Record its approved `setId` and verify the isolated restore proof. Do not continue without it:
+   ```bash
+   docker compose stop api
+   make db-backup
+   ```
+
+2. Classify the database read-only, **from the new image**, without starting the service:
    ```bash
    docker compose run --rm --no-deps --entrypoint node api \
      packages/backend/dist/db/status.js
    ```
-   This must report the same verdict Section 2 recorded. `docker compose run` mounts the same
+   Compare the database revision, **not the verdict**, with Section 2: revision 2 is normally
+   `current` for the old image and `outdated` for the new revision-3 image. `docker compose run` mounts the same
    `trindade_sqlite_data` volume and inherits the service's `DATABASE_PATH`, so it inspects the
    real production database and not a fresh one. Do not use `docker exec` here: the new
    container is not running yet, and the old one carries the old code and its old migrations.
 
-2. Execute the migration:
+3. Execute the migration:
    ```bash
    docker compose run --rm --no-deps --entrypoint node api \
      packages/backend/dist/db/migrate.js
@@ -166,27 +210,20 @@ old code keeps answering requests against the newer schema.
      | Step | What it does |
      | --- | --- |
      | 0 → 1 | Rebuilds the legacy `report_temperatures` table into the `reading_index` shape. Idempotent: it no-ops once `reading_index` exists. |
-     | 1 → 2 | Additive only: creates `auth_sessions` and its indexes with `IF NOT EXISTS`. No rebuild and no data movement. |
+     | 1 → 2 | Creates `auth_sessions` and its indexes. |
+     | 2 → 3 | Adds `users.security_version`, revokes all live refresh sessions, and stamps revision 3. |
 
-   - A revision 1 database therefore runs only the second step and its temperature data is never
-     touched.
+   - A revision-2 database runs only the 2 → 3 step. Never restart the old API after this step.
 
-   The old container keeps serving during this step. The migration takes a write lock only
-   briefly, and `better-sqlite3`'s default `busy_timeout` of 5000 ms means a collision with a
-   concurrent request retries instead of failing.
-
-3. Confirm the database is now `current`, still from the new image:
+4. Confirm the database is now `current` at revision 3, still from the new image:
    ```bash
    docker compose run --rm --no-deps --entrypoint node api \
      packages/backend/dist/db/status.js
    ```
-   Must exit 0 and print `verdict: current`. **Do not proceed to Section 6 until it does.** At
-   this point the database is ahead of the code that is still serving, which is safe precisely
-   because the migration was additive.
+   Must exit 0 and print `verdict: current` at revision 3. **Do not start the API until it does.**
 
-4. If the migration failed, stop and go to Section 8, Scenario B. Because the old code tolerates
-   a migrated database, a partially migrated database is still recoverable by restoring the
-   Section 3 set.
+5. If migration or validation fails, keep the API stopped and use Section 8, Scenario B with
+   the final recovery set. Do not boot any revision-2 binary against revision 3.
 
 ---
 
@@ -207,12 +244,9 @@ old code keeps answering requests against the newer schema.
    ```bash
    docker logs trindade-api-1 | grep "database schema notice"
    ```
-   - **For a database predating versioning**: `level=30` (info), `verdict=unversioned`,
-     `revision=0`. Only if Section 5 was deliberately skipped.
-   - **For a migrated database**: `level=30` (info), `verdict=current`, `revision=2`.
+   - **For a migrated database**: `level=30` (info), `verdict=current`, `revision=3`.
    - `level=40` (warn) with `verdict=outdated` or `newer` means the rollout is running against the
-     wrong schema. Stop and go to Section 8. This is the notice that would have appeared instead
-     of a login outage had Section 5 been skipped.
+     wrong schema. Stop the API and investigate before proceeding.
 
 4. Verify the healthcheck endpoint:
    ```bash
@@ -220,14 +254,11 @@ old code keeps answering requests against the newer schema.
    ```
    Expect HTTP 200 with `{"status":"ok","timestamp":"..."}`.
 
-5. Verify a real login, which is what exercises the new `auth_sessions` table end to end:
-   ```bash
-   curl -sS -X POST https://trindademasas.duckdns.org/api/auth/login \
-     -H 'content-type: application/json' \
-     -d '{"username":"<operator>","password":"<password>"}'
-   ```
-   Expect HTTP 200, a `token`, a `refreshToken` and `expiresIn`. A `500` naming
-   `no such table: auth_sessions` means Section 5 did not run.
+5. Every user, including administrators, must sign in again. Verify a real login through
+   the HTTPS web or Android client, without placing credentials or tokens in shell history,
+   terminal output, or logs. A successful login must transition to the correct role. Any
+   authentication failure after migration is a failed rollout gate; keep the API stopped
+   while investigating or restore the final recovery set with matching old code.
 
 ---
 
@@ -253,12 +284,9 @@ If any gate or verification fails, execute the appropriate rollback procedure im
 
 Use this if the new container fails to boot, crashes, or exhibits a frontend regression.
 
-**This scenario also covers a rollout that failed AFTER the migration ran.** That is the point of
-migrating first: the previous application version serves a migrated database normally, because
-the migration was additive and it does not read the table that was added. Rolling the code back
-therefore needs no data restore. Verified against a revision-2 database running the pre-revision-2
-code: login returned 200, health returned 200, and the boot notice reported `verdict: newer` with
-`level=40` (warn), which is the expected and harmless report of a database ahead of the code.
+Only use code-only rollback **before** revision-3 migration. After migration, stop the API
+and use Scenario B with the final pre-cutover recovery set and matching old code. Never boot
+revision-2 code on a revision-3 database or attempt to transplant old sessions into revision 3.
 
 1. Revert Git to the previous known-good commit:
    ```bash
@@ -276,9 +304,8 @@ code: login returned 200, health returned 200, and the boot notice reported `ver
    curl -sS https://trindademasas.duckdns.org/api/health
    ```
 
-4. Expect `make db-status` to exit non-zero with `verdict: newer` while the reverted code runs.
-   That is correct, not a failure: the reverted build supports revision 1 and is reporting a
-   database it must not touch. Do not "fix" it by reverting the data.
+4. Confirm schema status is compatible with the reverted build. If migration already ran,
+   use Scenario B instead; a `newer` verdict is a stop condition.
 
 ---
 
@@ -292,7 +319,10 @@ after database writes.
    docker compose stop api
    ```
 
-2. Restore the pre-deployment recovery set:
+2. Restore the **final pre-cutover** recovery set captured after stopping the API in Section 5.
+   Obtain approval for loss of any post-snapshot writes. Restore only with matching old code.
+   **Restoring the pre-cutover snapshot also restores its live refresh sessions**; do not
+   start the API until those sessions are revoked in the restored database:
    ```bash
    make db-restore BACKUP_DIR="./backups/recovery-<timestamp>" CONFIRM=--confirm
    # Or directly:
@@ -304,17 +334,32 @@ after database writes.
    - Overwrites `/app/packages/backend/data/trindade.db` with the verified `snapshot.db`.
    - **Deletes stale `-wal` and `-shm` sidecars**: SQLite WAL mode requires that sidecars from a prior session are removed, so SQLite does not replay mismatched WAL pages onto the restored database.
    - Synchronizes `/app/packages/backend/data/photos` from the recovery set assets.
-   - Restarts `trindade-api-1`.
+   - Restarts `trindade-api-1` **only if it was running at invocation**. The API must
+     already be stopped; confirm it stays stopped after restore. If it restarted, stop it
+     immediately and treat any interim traffic as a security incident.
    - Verifies database integrity (`PRAGMA integrity_check`) and schema status.
 
-3. Revert code to the previous commit (Scenario A) if the rollback requires the previous application version:
+3. While the API remains stopped, revoke every restored refresh session in the revision-2
+   database and rotate `JWT_SECRET` to a new protected value before restart. Revoking
+   refresh sessions alone does **not** invalidate previously issued access JWTs; rotating
+   the signing secret does. This is a mandatory rollback gate, not optional cleanup.
+   From the current image solely as a SQLite client, with the production database volume
+   mounted (this command does not start the API or run its schema-dependent server):
+   ```bash
+   docker compose run --rm --no-deps --entrypoint node api -e \
+     'const Database = require("better-sqlite3"); const db = new Database(process.env.DATABASE_PATH); db.prepare("UPDATE auth_sessions SET revoked_at = datetime(\x27now\x27) WHERE revoked_at IS NULL").run(); db.close()'
+   ```
+   Verify the session update succeeded and the new signing secret is configured before
+   bringing traffic back. Never transplant the old refresh sessions into revision 3.
+
+4. Revert code to the previous commit (Scenario A) if the rollback requires the previous application version:
    ```bash
    git checkout <previous-commit-or-tag>
    docker compose build
    docker compose up -d
    ```
 
-4. Confirm health and schema status:
+5. Confirm health and schema status:
    ```bash
    docker exec trindade-api-1 node packages/backend/dist/db/status.js
    curl -sS https://trindademasas.duckdns.org/api/health
@@ -349,7 +394,8 @@ In the unlikely event that scripts or Docker Compose tooling fail:
        rm -rf /data/photos && \
        cp -r /backup/assets /data/photos
      '
-   docker compose start api
+   # Do not start api yet: first complete Scenario B step 3 (revoke restored refresh
+   # sessions and rotate JWT_SECRET), restore matching code, then validate before restart.
    ```
 
 ---
@@ -420,18 +466,22 @@ sudo nginx -t && sudo systemctl reload nginx
 ```
 
 ### Step 4: Launch container stack
+Build images first, then follow the controlled Section 5 sequence (stop API, final backup,
+status, migrate if required, validate). Only after revision 3 is current:
 ```bash
-docker compose up -d --build
+docker compose up -d
 ```
 
 **Seed behavior**:
-A fresh volume automatically loads `seed.sql`, creating the complete operational catalog: all 6 categories, all 57 tasks, all 6 company vehicles, and all 30 drivers/fleteros, stamped to `user_version = 2`. Open `https://trindademasas.duckdns.org` to create the administrator account.
+A fresh volume loads the operational catalog. Confirm revision 3 with `db:status` before
+starting the API; if outdated, stop the API and follow Section 5. Provision the first
+administrator out of band with the operator CLI in Section 1. The browser cannot create it.
 
 ### Step 5: Transfer existing live database (Optional)
 
 A database transferred from another host arrives at whatever revision it was stamped with. If it
-predates the current build, run Sections 4 and 5 after the transfer, from the same image that is
-serving, before declaring the installation complete. Do not assume the transfer also migrated it.
+predates the current build, follow Sections 4 and 5 after the transfer using the new image,
+with the API stopped. Never start an older image on a revision-3 transferred database. Do not assume the transfer also migrated it.
 
 ```bash
 # On the source server:

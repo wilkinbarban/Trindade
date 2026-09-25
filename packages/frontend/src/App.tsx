@@ -68,7 +68,19 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 
 function SetupGate({ children }: { children: React.ReactNode }) {
   const [required, setRequired] = useState<boolean | null>(null);
-  useEffect(() => { void api.get<{ setupRequired: boolean }>('/auth/setup/status').then(r => setRequired(r.setupRequired)); }, []);
+  const [error, setError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    let active = true;
+    void api.get<{ setupRequired: boolean }>('/auth/setup/status')
+      .then(r => { if (active) setRequired(r.setupRequired); })
+      .catch(() => { if (active) setError(true); });
+    return () => { active = false; };
+  }, [attempt]);
+  if (error) return <main className="min-h-screen flex flex-col items-center justify-center gap-4" role="alert">
+    <p>Não foi possível verificar a configuração inicial.</p>
+    <button type="button" onClick={() => { setError(false); setAttempt(value => value + 1); }} className="underline">Tentar novamente</button>
+  </main>;
   if (required === null) return <LazyFallback />;
   if (required) return <SetupPage onComplete={() => setRequired(false)} />;
   return <>{children}</>;
