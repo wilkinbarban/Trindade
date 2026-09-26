@@ -9,8 +9,6 @@ import com.trindade.app.contract.models.RefreshRequest
 import com.trindade.app.contract.models.RefreshResponse
 import com.trindade.app.contract.models.RegisterRequest
 import com.trindade.app.contract.models.RegisterResponse
-import com.trindade.app.contract.models.SetupRequest
-import com.trindade.app.contract.models.SetupResponse
 import com.trindade.app.contract.models.SetupStatusResponse
 import com.trindade.app.contract.models.SuccessResponse
 import com.trindade.app.contract.models.UpdateProfileRequest
@@ -71,11 +69,13 @@ interface AuthApi {
     @POST("api/auth/change-password")
     suspend fun changePassword(@Body body: ChangePasswordRequest): Response<SuccessResponse>
 
-    /** Create the first administrator. Answers 201. */
-    @POST("api/auth/setup")
-    suspend fun setup(@Body body: SetupRequest): Response<SetupResponse>
-
-    /** Whether setup is still required, which is only true while no user exists at all. */
+    /**
+     * Whether setup is still required, which is only true while no user exists at all.
+     *
+     * `POST api/auth/setup` is deliberately absent here: SEC-01 retired it, the contract documents it as
+     * always answering 410 with no request or response body, and a callable declaration for an endpoint that
+     * cannot succeed would state a shape the wire does not have.
+     */
     @GET("api/auth/setup/status")
     suspend fun setupStatus(): Response<SetupStatusResponse>
 
