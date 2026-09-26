@@ -16,7 +16,7 @@ TDD: the generic Gentle AI skill prescribes RED/GREEN/REFACTOR when tests exist;
 ## Units
 
 - [x] R1 Repository: `AuthRepository.register` and `RegisterResult` plus `AuthRepositoryTest`. Closed at `b92f36e`; native review `review-8c0401a59001c145`.
-- [ ] R2 ViewModel: `RegisterViewModel.kt` and `RegisterViewModelTest.kt`. Split into R2a (form state, updates/reset, basic validation and minimal callable submission/result contract), R2b (boundary/UTF-8 cases), R2c (detailed refusal/transport mapping). R2a closed at `3e2a31d`, acknowledged native review `review-9be6cf207d466d59`. R2b implementation awaits successful isolated verification; R2c and R2 overall remain pending. Do not mistake compile errors for behavioral RED.
+- [ ] R2 ViewModel: `RegisterViewModel.kt` and `RegisterViewModelTest.kt`. Split into R2a (form state, updates/reset, basic validation and minimal callable submission/result contract), R2b (boundary/UTF-8 cases), R2c (detailed refusal/transport mapping). R2a closed at `3e2a31d`, acknowledged native review `review-9be6cf207d466d59`. R2b closed at `2d5792e`, native review `review-98a65f1822c4363d`. R2c1 HTTP result/refusal verified in isolation; R2c2 transport variants and R2 overall remain pending. Do not mistake compile errors for behavioral RED.
 - [ ] R3 UI: `RegisterScreen.kt`, `RegisterScreenTest.kt`, registration strings in `strings.xml`, and the registration link in `LoginScreen.kt`. About 457 lines; inspect actual PR budget.
 - [ ] R4 Navigation: only registration navigation hunks in `MainActivity.kt` plus registration-specific `MainActivityNavigationTest.kt` assertions; do not port unrelated admin/navigation changes.
 
@@ -54,6 +54,17 @@ The generation is incremented by reset, and completion updates only when its cap
 ## R2b verification (pending)
 
 Added focused exact-limit, transmitted-trim, 73 UTF-16-unit and 25-euro-sign (75 UTF-8-byte) cases. A test-only isolated snapshot `/var/tmp/trindade-r2b-verify.FarVZ7` was built from `git archive HEAD` (`3e2a31d`) with only the allowed tracked test diff. The attempted focused RED command did not reach tests: Gradle wrapper could not create `/gradle-home/wrapper/dists/gradle-9.6.0-bin/42k10rwplmzkhuboz9kdazi7s/gradle-9.6.0-bin.zip.lck` under host uid:gid (permission denied), both with the local `.gradle` bind and the `trindade-gradle` volume. This is an environment failure, not behavioral RED. Independent verifier then reconstructed `/var/tmp/trindade-r2b-independent.UqNPUK` from `3e2a31d` plus exactly the three tracked diffs, confirmed byte identity and a writable wrapper lock under host UID:GID 1001:1001, and ran separate pinned-image checks: focused 8/8, full 293/293 across 35 XML (0 failures/errors/skips), contract check exit 0, and debug assembly successful. The prior failed test-only attempt remains **no observed behavioral RED**; no emulator or production behavior was verified. R2c remains pending.
+
+## R2c1 verification (isolated snapshot)
+
+From `git archive HEAD` (`2d5792e`), snapshot `/var/tmp/trindade-r2c1-verify.gFvwpX` received only the allowed ViewModel and test tracked diffs. Pinned SDK `ghcr.io/cirruslabs/android-sdk:35@sha256:c724009e305b4607157287624033ab97f319af44c244bfc9f73b6293f3bb01b9` ran as UID:GID 1001:1001 with cached Gradle/SDK mounts, `GRADLE_USER_HOME=HOME=/gradle-home` and workdir `/work/packages/android`. The first focused run failed 1/14 because the test reused a consumed Retrofit error body across four submissions; this was a test fixture defect, not behavioral RED. Rebuilding the response on each iteration corrected it. No pre-implementation behavioral RED was observed: the provisional HTTP mapping already implemented these outcomes. The HTTP mapping was extracted into a named helper without changing the reset generation guard or 72-byte validation.
+
+- `./gradlew :app:testDebugUnitTest --tests com.trindade.app.auth.RegisterViewModelTest --rerun-tasks --no-daemon`: exit 0, 14 tests, 0 failures/errors/skips.
+- `./gradlew :app:testDebugUnitTest --rerun-tasks --no-daemon`: exit 0, 35 XML suites, 299 tests, 0 failures/errors/skips.
+- `bash /work/scripts/check-android-contract-types.sh`: exit 0, contract types current.
+- `./gradlew :app:assembleDebug --no-daemon`: exit 0, debug APK assembled (not release-signed).
+
+Six registration-specific tests cover conditional neutral success/password clearing, 400 default translation, 409 server words, 429 with numeric and unusable Retry-After, and clearing HTTP errors on editing each field. Independent verifier reconstructed `/var/tmp/trindade-r2c1-independent.AHtEJs` from `2d5792e` plus exactly these three diffs, confirmed byte identity and separately passed focused 14/14, full 299/299 (0 failures/errors/skips), contract check and debug assembly in the pinned SDK. Transport variants are explicitly reserved for R2c2; R2 overall remains pending. No release-signed APK or production verification is claimed.
 
 ## Closure checks
 

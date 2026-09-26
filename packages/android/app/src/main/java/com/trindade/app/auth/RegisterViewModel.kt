@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** Presentation contract for enrollment errors; detailed mappings are covered in R2c. */
+/** Presentation contract for enrollment validation, HTTP refusals, and transport failures. */
 sealed interface RegisterMessage {
     data class Validation(val text: String) : RegisterMessage
     data class FromServer(val text: String) : RegisterMessage
@@ -84,9 +84,7 @@ class RegisterViewModel @Inject constructor(private val repository: AuthReposito
                     )
                     is RegisterResult.Rejected -> previous.copy(
                         submitting = false,
-                        message = if (result.statusCode == 429) {
-                            RegisterMessage.RateLimited(result.message, result.retryAfterSeconds)
-                        } else RegisterMessage.FromServer(result.message),
+                        message = result.toHttpMessage(),
                     )
                     is RegisterResult.Unreachable -> previous.copy(
                         submitting = false,
@@ -102,6 +100,10 @@ class RegisterViewModel @Inject constructor(private val repository: AuthReposito
             }
         }
     }
+
+    private fun RegisterResult.Rejected.toHttpMessage(): RegisterMessage =
+        if (statusCode == 429) RegisterMessage.RateLimited(message, retryAfterSeconds)
+        else RegisterMessage.FromServer(message)
 
     companion object {
         const val USERNAME_MAX_LENGTH = 50

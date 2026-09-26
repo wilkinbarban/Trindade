@@ -8,6 +8,9 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import kotlinx.serialization.json.Json
+import okhttp3.Headers
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
@@ -129,14 +132,91 @@ class RegisterViewModelTest {
         assertEquals(1, api.calls)
     }
 
+    @Test fun `neutral conditional success clears passwords without issuing a session`() {
+        api.response = Response.success(RegisterResponse(message = NEUTRAL_MESSAGE))
+        fill()
+        model.submit()
+        assertEquals(1, api.calls)
+        assertEquals(NEUTRAL_MESSAGE, model.state.value.successMessage)
+        assertNull(model.state.value.message)
+        assertEquals("", model.state.value.password)
+        assertEquals("", model.state.value.confirmPassword)
+        assertFalse(model.state.value.canSubmit)
+    }
+
+    @Test fun `400 default validation refusal shows Portuguese correction`() {
+        api.response = Response.error(400, """{"error":"Invalid input"}""".toResponseBody("application/json".toMediaType()))
+        fill()
+        model.submit()
+        assertEquals(1, api.calls)
+        assertFalse(model.state.value.submitting)
+        assertNull(model.state.value.successMessage)
+        assertEquals(RegisterMessage.FromServer("Dados de cadastro inválidos. Verifique as informações e tente novamente."), model.state.value.message)
+        assertEquals("senha12345", model.state.value.password)
+    }
+
+    @Test fun `409 bootstrap refusal preserves server words`() {
+        val refusal = "A configuração inicial do administrador é necessária antes de registrar usuários."
+        api.response = Response.error(409, """{"error":"$refusal"}""".toResponseBody("application/json".toMediaType()))
+        fill()
+        model.submit()
+        assertEquals(1, api.calls)
+        assertFalse(model.state.value.submitting)
+        assertNull(model.state.value.successMessage)
+        assertEquals(RegisterMessage.FromServer(refusal), model.state.value.message)
+    }
+
+    @Test fun `429 refusal exposes Retry-After seconds`() {
+        val refusal = "Limite de solicitações excedido. Tente novamente mais tarde."
+        api.rejectWithHeaders(429, refusal, Headers.Builder().add("Retry-After", "90").build())
+        fill()
+        model.submit()
+        assertEquals(1, api.calls)
+        assertFalse(model.state.value.submitting)
+        assertNull(model.state.value.successMessage)
+        assertEquals(RegisterMessage.RateLimited(refusal, 90), model.state.value.message)
+    }
+
+    @Test fun `429 without usable Retry-After retains rate limit without duration`() {
+        api.rejectWithHeaders(429, "Tente novamente mais tarde.", Headers.Builder().add("Retry-After", "tomorrow").build())
+        fill()
+        model.submit()
+        assertEquals(RegisterMessage.RateLimited("Tente novamente mais tarde.", null), model.state.value.message)
+    }
+
+    @Test fun `editing any field clears stale HTTP refusal`() {
+        val changes = listOf<(String) -> Unit>(model::onUsernameChange, model::onDisplayNameChange, model::onPasswordChange, model::onConfirmPasswordChange)
+        for (change in changes) {
+            api.response = Response.error(409, """{"error":"Bootstrap required"}""".toResponseBody("application/json".toMediaType()))
+            fill()
+            model.submit()
+            assertEquals(RegisterMessage.FromServer("Bootstrap required"), model.state.value.message)
+            change("updated")
+            assertNull(model.state.value.message)
+        }
+        assertEquals(4, api.calls)
+    }
+
+    private companion object {
+        const val NEUTRAL_MESSAGE = "Solicitação de cadastro recebida. Se o acesso for aprovado pelo administrador, a conta será ativada. Entre em contato com a administração se não conseguir acessar."
+    }
+
     private class TestApi : AuthApi {
         var calls = 0
         var request: RegisterRequest? = null
         var pending: CompletableDeferred<Response<RegisterResponse>>? = null
+        var response: Response<RegisterResponse> = Response.success(RegisterResponse(message = "received"))
+        fun rejectWithHeaders(code: Int, message: String, headers: Headers) {
+            val raw = okhttp3.Response.Builder()
+                .code(code).message("Refused").protocol(okhttp3.Protocol.HTTP_1_1)
+                .request(okhttp3.Request.Builder().url("http://localhost/").build())
+                .headers(headers).build()
+            response = Response.error("""{"error":"$message"}""".toResponseBody("application/json".toMediaType()), raw)
+        }
         override suspend fun register(body: RegisterRequest): Response<RegisterResponse> {
             calls++
             request = body
-            return pending?.await() ?: Response.success(RegisterResponse(message = "received"))
+            return pending?.await() ?: response
         }
         override suspend fun login(body: LoginRequest): Response<LoginResponse> = error("unused")
         override suspend fun refresh(body: RefreshRequest): Response<RefreshResponse> = error("unused")
