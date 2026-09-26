@@ -70,14 +70,14 @@ require_cli 0 'verdict: current' 'npm run db:status: reached the same verdict th
 run_cli node "$migrate_cli" "$db_path"
 require_cli 0 'already current' 'migrate: left a current database alone (exit 0)'
 
-# The operator adoption path: an existing database in the current shape, created before
-# versioning, is stamped rather than rebuilt. This is the production adoption case.
-# It runs every step above revision 0, which for a database already in the current shape
-# is a no-op rebuild plus the additive revision 2 step, and ends at the supported revision.
+# The operator adoption path: model a pre-versioning database by removing the revision 3
+# column from a fresh fixture before clearing its version. Adoption retains existing data,
+# runs the additive revisions, and stamps revision 3 without rebuilding the database.
 DB_PATH="$db_path" node -e "
   const { createRequire } = require('node:module');
   const Database = createRequire(process.cwd() + '/package.json')('better-sqlite3');
   const base = new Database(process.env.DB_PATH);
+  base.exec('ALTER TABLE users DROP COLUMN security_version');
   base.pragma('user_version = 0');
   base.close();
 "
@@ -86,7 +86,7 @@ run_cli node "$status_cli" "$db_path"
 require_cli 1 'verdict: unversioned' 'status: reported an unversioned database (exit 1)'
 
 run_cli node "$migrate_cli" "$db_path"
-require_cli 0 'stamped user_version = 2' 'migrate: adopted an unversioned database by stamping revision 2 (exit 0)'
+require_cli 0 'stamped user_version = 3' 'migrate: adopted an unversioned database by stamping revision 3 (exit 0)'
 
 run_cli node "$status_cli" "$db_path"
 require_cli 0 'verdict: current' 'status: reported the adopted database as current (exit 0)'
