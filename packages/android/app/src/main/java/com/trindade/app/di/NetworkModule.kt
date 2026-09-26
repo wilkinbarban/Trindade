@@ -2,6 +2,7 @@ package com.trindade.app.di
 
 import com.trindade.app.BuildConfig
 import com.trindade.app.auth.AuthInterceptor
+import com.trindade.app.network.AdminApi
 import com.trindade.app.network.AuthApi
 import com.trindade.app.network.LoadingApi
 import com.trindade.app.network.ReportsApi
@@ -205,6 +206,10 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideReportsApi(@BackendClient retrofit: Retrofit): ReportsApi = retrofit.create(ReportsApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideAdminApi(@BackendClient retrofit: Retrofit): AdminApi = retrofit.create(AdminApi::class.java)
 
     @Provides
     @Singleton

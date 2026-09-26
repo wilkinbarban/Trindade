@@ -807,6 +807,15 @@ One surface per work unit, in dependency order: `tasks` and `drivers` are the tw
 `Trabalhador` can write, so they are the two whose role gating must be right first.
 
 ### C1. Task types (`tasks`) — Administrador + Trabalhador
+
+C1a network/repository vertical slice: typed categories and tasks reads plus task create,
+update and delete calls, with server refusals preserved as HTTP statuses. UI/form and
+role-specific ownership controls remain for later C1 work; this slice does not claim C1 complete.
+The backend permits both roles to read/write task types, but workers see only active tasks,
+may update/delete only their own, and may not change `is_active`. The client does not
+substitute its own role decision for those guards. Generated `UpdateAdminTaskRequest.IsActive`
+serializes as a string enum; the repository writes its integer value to satisfy the backend's
+numeric 0/1 Zod schema. DELETE's success body is deliberately ignored.
 ### C2. Drivers (`drivers`) — Administrador + Trabalhador
 ### C3. Categories (`categories`) — read for both, write Administrador only
 ### C4. Vehicles (`vehicles`) — Administrador
