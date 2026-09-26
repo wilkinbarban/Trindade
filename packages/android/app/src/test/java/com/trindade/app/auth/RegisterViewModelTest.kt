@@ -67,6 +67,39 @@ class RegisterViewModelTest {
         assertEquals(0, api.calls)
     }
 
+    @Test fun `name limits use transmitted trimmed values`() {
+        fill()
+        model.onUsernameChange("  " + "u".repeat(50) + "  ")
+        model.onDisplayNameChange("  " + "d".repeat(100) + "  ")
+        model.submit()
+        assertEquals(1, api.calls)
+        assertEquals("u".repeat(50), api.request?.username)
+        assertEquals("d".repeat(100), api.request?.displayName)
+    }
+
+    @Test fun `password length and UTF-8 byte limits reject before API`() {
+        for ((password, expected) in listOf(
+            "p".repeat(73) to RegisterViewModel.PASSWORD_TOO_LONG,
+            "€".repeat(25) to RegisterViewModel.PASSWORD_TOO_MANY_BYTES,
+        )) {
+            model.reset()
+            fill(password)
+            model.submit()
+            assertEquals(RegisterMessage.Validation(expected), model.state.value.message)
+            assertEquals(0, api.calls)
+        }
+    }
+
+    @Test fun `password at both exact limits reaches API`() {
+        for (password in listOf("p".repeat(72), "€".repeat(24))) {
+            model.reset()
+            fill(password)
+            model.submit()
+            assertEquals(password, api.request?.password)
+        }
+        assertEquals(2, api.calls)
+    }
+
     @Test fun `reset ignores completion of an in-flight registration`() {
         val pending = CompletableDeferred<Response<RegisterResponse>>()
         api.pending = pending

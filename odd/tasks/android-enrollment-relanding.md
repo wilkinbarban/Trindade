@@ -16,7 +16,7 @@ TDD: the generic Gentle AI skill prescribes RED/GREEN/REFACTOR when tests exist;
 ## Units
 
 - [x] R1 Repository: `AuthRepository.register` and `RegisterResult` plus `AuthRepositoryTest`. Closed at `b92f36e`; native review `review-8c0401a59001c145`.
-- [ ] R2 ViewModel: `RegisterViewModel.kt` and `RegisterViewModelTest.kt`. Split into R2a (form state, updates/reset, basic validation and minimal callable submission/result contract), R2b (boundary/UTF-8 cases), R2c (detailed refusal/transport mapping). R2a remains uncommitted and R2 incomplete; verify focused tests, full JVM tests, contract types and debug assembly in an isolated pinned-SDK snapshot. Do not mistake compile errors for behavioral RED.
+- [ ] R2 ViewModel: `RegisterViewModel.kt` and `RegisterViewModelTest.kt`. Split into R2a (form state, updates/reset, basic validation and minimal callable submission/result contract), R2b (boundary/UTF-8 cases), R2c (detailed refusal/transport mapping). R2a closed at `3e2a31d`, acknowledged native review `review-9be6cf207d466d59`. R2b implementation awaits successful isolated verification; R2c and R2 overall remain pending. Do not mistake compile errors for behavioral RED.
 - [ ] R3 UI: `RegisterScreen.kt`, `RegisterScreenTest.kt`, registration strings in `strings.xml`, and the registration link in `LoginScreen.kt`. About 457 lines; inspect actual PR budget.
 - [ ] R4 Navigation: only registration navigation hunks in `MainActivity.kt` plus registration-specific `MainActivityNavigationTest.kt` assertions; do not port unrelated admin/navigation changes.
 
@@ -50,6 +50,10 @@ The earlier R2a verification above describes the **pre-correction** snapshot wit
 - `./gradlew :app:assembleDebug --no-daemon`: exit 0; debug APK packaged, not a signed release artifact.
 
 The generation is incremented by reset, and completion updates only when its captured generation is current; ordinary successful completion remains covered by the existing focused test. Independent verifier reconstructed `/var/tmp/trindade-r2a-independent.GNlpYs` from `b92f36e` plus exactly the three changed files, confirmed byte identity, and independently passed focused 5/5, full 290/290 (0 failures/errors/skips), contract check and debug assembly in separate pinned-image invocations. R2b/R2c remain pending; this is not release APK evidence.
+
+## R2b verification (pending)
+
+Added focused exact-limit, transmitted-trim, 73 UTF-16-unit and 25-euro-sign (75 UTF-8-byte) cases. A test-only isolated snapshot `/var/tmp/trindade-r2b-verify.FarVZ7` was built from `git archive HEAD` (`3e2a31d`) with only the allowed tracked test diff. The attempted focused RED command did not reach tests: Gradle wrapper could not create `/gradle-home/wrapper/dists/gradle-9.6.0-bin/42k10rwplmzkhuboz9kdazi7s/gradle-9.6.0-bin.zip.lck` under host uid:gid (permission denied), both with the local `.gradle` bind and the `trindade-gradle` volume. This is an environment failure, not behavioral RED. Independent verifier then reconstructed `/var/tmp/trindade-r2b-independent.UqNPUK` from `3e2a31d` plus exactly the three tracked diffs, confirmed byte identity and a writable wrapper lock under host UID:GID 1001:1001, and ran separate pinned-image checks: focused 8/8, full 293/293 across 35 XML (0 failures/errors/skips), contract check exit 0, and debug assembly successful. The prior failed test-only attempt remains **no observed behavioral RED**; no emulator or production behavior was verified. R2c remains pending.
 
 ## Closure checks
 

@@ -63,6 +63,8 @@ class RegisterViewModel @Inject constructor(private val repository: AuthReposito
             displayName.length > DISPLAY_NAME_MAX_LENGTH -> DISPLAY_NAME_TOO_LONG
             form.password != form.confirmPassword -> PASSWORD_MISMATCH
             form.password.length < PASSWORD_MIN_LENGTH -> PASSWORD_TOO_SHORT
+            form.password.length > PASSWORD_MAX_LENGTH -> PASSWORD_TOO_LONG
+            form.password.toByteArray(Charsets.UTF_8).size > PASSWORD_MAX_BYTES -> PASSWORD_TOO_MANY_BYTES
             else -> null
         }
         if (validation != null) {
@@ -105,9 +107,13 @@ class RegisterViewModel @Inject constructor(private val repository: AuthReposito
         const val USERNAME_MAX_LENGTH = 50
         const val DISPLAY_NAME_MAX_LENGTH = 100
         const val PASSWORD_MIN_LENGTH = 8
+        const val PASSWORD_MAX_LENGTH = 72
+        const val PASSWORD_MAX_BYTES = 72
         const val USERNAME_TOO_LONG = "O nome de usuário deve ter no máximo 50 caracteres."
         const val DISPLAY_NAME_TOO_LONG = "O nome de exibição deve ter no máximo 100 caracteres."
         const val PASSWORD_MISMATCH = "As senhas não coincidem."
         const val PASSWORD_TOO_SHORT = "A senha deve ter pelo menos 8 caracteres."
+        const val PASSWORD_TOO_LONG = "A senha deve ter no máximo 72 caracteres."
+        const val PASSWORD_TOO_MANY_BYTES = "A senha deve ter no máximo 72 bytes."
     }
 }
