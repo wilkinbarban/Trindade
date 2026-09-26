@@ -821,6 +821,9 @@ numeric 0/1 Zod schema. DELETE's success body is deliberately ignored.
 `TasksViewModel` uses authenticated profile identity; admins edit/toggle/delete, workers edit only own active tasks.
 It validates category, names and readings per backend rules; refusals retain status, writes reload, and reads cancel stale work.
 
+#### C1c1. Catalog Compose screen and rendered tests — DELIVERED
+`TasksScreen` renders the catalog, role-specific actions, confirmed deletion, refresh, form errors and saving state. It receives `TasksViewModel.UiState` and callbacks directly, so Compose tests need no Activity or Hilt; navigation remains in C1c2. Five focused rendered tests pass; the full JVM suite passes at 40 classes / 331 tests, with no failures, errors or skips.
+
 ### C2. Drivers (`drivers`) — Administrador + Trabalhador
 ### C3. Categories (`categories`) — read for both, write Administrador only
 ### C4. Vehicles (`vehicles`) — Administrador
