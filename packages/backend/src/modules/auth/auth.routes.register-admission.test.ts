@@ -18,7 +18,7 @@ import { defaultRegistrationRateLimiter, RegistrationRateLimiter } from './auth.
 // and audit guards live in auth.routes.register-negative.test.ts.
 describe('POST /api/auth/register admission and input guards', () => {
   let app: FastifyInstance;
-  let db: Database.Database;
+  let db: Database;
 
   before(async () => {
     const result = await buildAuthTestApp();

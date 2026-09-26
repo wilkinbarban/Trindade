@@ -20,7 +20,7 @@ import { bootstrapRoutes } from './bootstrap.routes.js';
 // need a broken schema build an isolated in-memory app instead of sharing the file-level fixtures.
 describe('POST /api/auth/register bootstrap, storage, and audit guards', () => {
   let app: FastifyInstance;
-  let db: Database.Database;
+  let db: Database;
 
   before(async () => {
     const result = await buildAuthTestApp();
