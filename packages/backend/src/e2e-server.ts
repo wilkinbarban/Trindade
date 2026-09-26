@@ -9,13 +9,16 @@
  *         PORT=3001 npx tsx src/e2e-server.ts
  */
 import { buildTestApp, type TestFixtures } from './test-helper.js';
+import { AuthAdmissionLimiter } from './modules/auth/auth.admission-limiter.js';
 
 export type E2EFixtures = Pick<TestFixtures, 'admin' | 'worker'>;
 
 const port = parseInt(process.env.PORT || '3099', 10);
 const host = process.env.HOST || '0.0.0.0';
 
-const { app } = await buildTestApp();
+const { app } = await buildTestApp({
+  authAdmissionLimiter: new AuthAdmissionLimiter({ maxUsernameLogin: 200, maxGlobalLogin: 400 }),
+});
 
 try {
   await app.listen({ port, host });

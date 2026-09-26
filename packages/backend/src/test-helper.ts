@@ -8,7 +8,7 @@ import bcrypt from 'bcryptjs';
 import { randomUUID } from 'node:crypto';
 
 import { createAuthenticate } from './modules/auth/auth.middleware.js';
-import { authRoutes } from './modules/auth/auth.routes.js';
+import { authRoutes, type AuthRoutesOptions } from './modules/auth/auth.routes.js';
 import { bootstrapRoutes } from './modules/auth/bootstrap.routes.js';
 import { dashboardRoutes } from './modules/dashboard/dashboard.routes.js';
 import { reportsRoutes } from './modules/reports/reports.routes.js';
@@ -55,7 +55,7 @@ function assertTemperatureTasks(tasks: { name_pt: string }[]): asserts tasks is 
   if (tasks.length === 0) throw new Error('Test fixture requires at least one active temperature task');
 }
 
-export async function buildTestApp(): Promise<{
+export async function buildTestApp(options: Pick<AuthRoutesOptions, 'authAdmissionLimiter'> = {}): Promise<{
   app: import('fastify').FastifyInstance;
   db: import('better-sqlite3').Database;
   photosDir: string;
@@ -113,7 +113,7 @@ export async function buildTestApp(): Promise<{
   app.decorate('authenticate', createAuthenticate(fixtures.jwtSecret));
 
   // Register routes
-  await app.register(authRoutes, { prefix: '/api/auth', jwtSecret: fixtures.jwtSecret });
+  await app.register(authRoutes, { prefix: '/api/auth', jwtSecret: fixtures.jwtSecret, ...options });
   await app.register(bootstrapRoutes, { prefix: '/api/auth' });
   await app.register(dashboardRoutes, { prefix: '/api/dashboard' });
   await app.register(reportsRoutes, { prefix: '/api/reports', photosDir, publicBaseUrl: 'https://example.test' });
