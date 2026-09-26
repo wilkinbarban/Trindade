@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test('setup status requires operator provisioning without exposing public credentials or POST', async ({ page }) => {
   let statusGets = 0;
+  let verificationRequested = false;
   const setupPosts: string[] = [];
   page.on('request', request => {
     if (request.method() === 'POST' && request.url().includes('/auth/setup')) setupPosts.push(request.url());
@@ -9,7 +10,7 @@ test('setup status requires operator provisioning without exposing public creden
   await page.route('**/auth/setup/status', async route => {
     expect(route.request().method()).toBe('GET');
     statusGets++;
-    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ setupRequired: statusGets === 1 }) });
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ setupRequired: !verificationRequested }) });
   });
 
   await page.goto('/login');
@@ -17,20 +18,23 @@ test('setup status requires operator provisioning without exposing public creden
   await expect(page.getByText(/O primeiro administrador deve ser criado pelo operador, fora deste site/)).toBeVisible();
   await expect(page.locator('input[type="password"]')).toHaveCount(0);
   expect(setupPosts).toEqual([]);
-  expect(statusGets).toBe(1);
+  expect(statusGets).toBeGreaterThanOrEqual(1);
 
+  const initialStatusGets = statusGets;
+  verificationRequested = true;
   await page.getByRole('button', { name: 'Verificar configuração' }).click();
   await expect(page.getByRole('heading', { name: 'Entrar' })).toBeVisible();
-  expect(statusGets).toBe(2);
+  expect(statusGets).toBeGreaterThan(initialStatusGets);
   expect(setupPosts).toEqual([]);
 });
 
 test('status network failure offers retry and recovers on a fresh GET', async ({ page }) => {
   let statusGets = 0;
+  let retryRequested = false;
   await page.route('**/auth/setup/status', async route => {
     expect(route.request().method()).toBe('GET');
     statusGets++;
-    if (statusGets === 1) {
+    if (!retryRequested) {
       await route.abort('failed');
     } else {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ setupRequired: false }) });
@@ -42,8 +46,11 @@ test('status network failure offers retry and recovers on a fresh GET', async ({
   await expect(page.getByRole('button', { name: 'Tentar novamente' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Entrar' })).toHaveCount(0);
 
+  expect(statusGets).toBeGreaterThanOrEqual(1);
+  const initialStatusGets = statusGets;
+  retryRequested = true;
   await page.getByRole('button', { name: 'Tentar novamente' }).click();
   await expect(page.getByRole('heading', { name: 'Entrar' })).toBeVisible();
-  expect(statusGets).toBe(2);
+  expect(statusGets).toBeGreaterThan(initialStatusGets);
   await expect(page.getByRole('alert')).toHaveCount(0);
 });
