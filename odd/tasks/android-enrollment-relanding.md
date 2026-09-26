@@ -18,8 +18,8 @@ TDD: the generic Gentle AI skill prescribes RED/GREEN/REFACTOR when tests exist;
 - [x] R1 Repository: `AuthRepository.register` and `RegisterResult` plus `AuthRepositoryTest`. Closed at `b92f36e`; native review `review-8c0401a59001c145`.
 - [x] R2 ViewModel: `RegisterViewModel.kt` and `RegisterViewModelTest.kt`. Split into R2a (form state, updates/reset, basic validation and minimal callable submission/result contract), R2b (boundary/UTF-8 cases), R2c (detailed refusal/transport mapping). R2a closed at `3e2a31d`, acknowledged native review `review-9be6cf207d466d59`. R2b closed at `2d5792e`, native review `review-98a65f1822c4363d`. R2c1 HTTP result/refusal verified in isolation and native review `review-9eb94dff01b00bea` closed; R2c2 transport behavior verified in isolation. R2 closed at `6720364`; native review `review-8dd5b2bf1f2586f1` closed. Do not mistake compile errors for behavioral RED.
 - [ ] R3 UI, split for review budget:
-  - [ ] R3a1: bounded `RegisterScreen.kt` foundation, screen-owned strings, and three Compose render/submit/success tests. Parent commit/review pending.
-  - [ ] R3a2: remaining UI tests, including 320dp scroll and refusal variants.
+  - [ ] R3a1: bounded `RegisterScreen.kt` foundation, screen-owned strings, and three Compose render/submit/success tests. Closed at `1c6a43c`; native review `review-d5645ad85b33e2e2` approved and acknowledged with nonblocking informational warnings only. Leave the checkbox open until the parent closes R3.
+  - [ ] R3a2: remaining UI tests, including 320dp scroll and refusal variants. Six focused Compose tests independently verified (9/9 focused, 311/311 full); parent commit/review pending.
   - [ ] R3b: registration link in `LoginScreen.kt` and its tests.
 - [ ] R4 Navigation: only registration navigation hunks in `MainActivity.kt` plus registration-specific `MainActivityNavigationTest.kt` assertions; do not port unrelated admin/navigation changes.
 
@@ -90,6 +90,23 @@ Parent snapshot `/var/tmp/trindade-r3a1-verify.LDXYLo` from `git archive HEAD` (
 - `./gradlew :app:assembleDebug --no-daemon`: exit 0; debug APK 13,698,646 bytes, not release-signed.
 
 No behavioral RED observed; source and focused tests establish initial worker notice, disabled empty/pending submit, and success replacing the form with a back callback. Refusal rendering, short-viewport reachability, emulator and production remain outside R3a1. A nonfatal Gradle cache trace did not affect results. The verifier also left a 42-byte external snapshot pointer; it is not part of the candidate and will be handled in rolling cleanup after review.
+
+R3a1 is closed: commit `1c6a43c` is the reviewed candidate, and native review `review-d5645ad85b33e2e2` is approved and acknowledged with only nonblocking informational warnings. R3a1 is not reopened by R3a2; R3a2 changes only the test file and this document.
+
+## R3a2 implementation (verification pending)
+
+Six focused Compose tests were added to `RegisterScreenTest.kt`, taking the class from three to nine tests. They pin: (a) `Validation` and `FromServer` refusals rendered verbatim, and the previous refusal leaving the screen when the message is replaced; (b) `RateLimited` with `retryAfterSeconds = 45` rendering the formatted `register_rate_limit_wait` sentence with the server's own words suppressed, and the same message with no seconds rendering the server words instead of the formatted sentence; (c) all five transport causes (`Timeout`, `Tls`, `UnreadableBody`, `Unreachable`, `Unknown`) rendering their own distinct sentence; (d) a 400dp x 320dp viewport where the submit action is off-screen, keeps its 40dp minimum height, and is reachable through `performScrollTo`; (e) both secret fields drawing the `PasswordVisualTransformation` mask (one U+2022 bullet per character) and staying declared as obscured through `SemanticsProperties.Password`; (f) a pending submission disabling the back action, with the click callback observed not to fire. The `text` helper gained a `vararg` argument list so the formatted rate-limit string is selected by resource id rather than by a literal typed in the test.
+
+`RegisterScreen.kt` was **not** changed. None of the behaviors above revealed a gap: each one is the behavior the R3a1 screen already implements, so the slice is test-only rather than a speculative production edit. One candidate gap is deliberately left to the parent as a human decision instead of being guessed at here: while a submission is pending, the button's label is replaced by a bare `CircularProgressIndicator` (R3a1 pins the label's absence), and the pinned Material3 1.4.0 indeterminate circular indicator publishes no `ProgressBarRangeInfo` semantics, so the pending action is announced as an unlabeled disabled button. Fixing it needs either a new pending string (outside this unit's allowed edit surface) or a reuse decision, so it is recorded as an R3a2 finding with no code change.
+
+The delegated writer did not run a check; the independent verifier reconstructed `/var/tmp/trindade-r3a2-independent.iiaGP7` from `git archive HEAD` (`1c6a43c`) plus exactly the two tracked diffs. Both source files byte-matched the worktree before and after four separate pinned SDK `ghcr.io/cirruslabs/android-sdk:35@sha256:c724009e305b4607157287624033ab97f319af44c244bfc9f73b6293f3bb01b9` runs as host UID:GID:
+
+- `./gradlew :app:testDebugUnitTest --tests com.trindade.app.auth.RegisterScreenTest --rerun-tasks --no-daemon`: 9 tests, 0 failures/errors/skips.
+- `./gradlew :app:testDebugUnitTest --rerun-tasks --no-daemon`: 36 XML suites, 311 tests, 0 failures/errors/skips.
+- `bash /work/scripts/check-android-contract-types.sh`: exit 0, contract types current.
+- `./gradlew :app:assembleDebug --no-daemon`: exit 0, 13,698,646-byte **debug** APK, not release-signed.
+
+RED: no behavioral RED observed; the existing screen already implements these outcomes. The shared Gradle cache emitted a nonfatal `CorruptedCacheException` for `/gradle-home/caches/journal-1/file-access.bin` in all runs; no cache repair or deletion was performed. Emulator and production behavior remain unverified; commit and parent-owned native review remain pending.
 
 ## Closure checks
 
