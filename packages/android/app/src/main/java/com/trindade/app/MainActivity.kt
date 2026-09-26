@@ -22,6 +22,7 @@ import androidx.compose.ui.res.stringResource
 import com.trindade.app.auth.AuthRepository
 import com.trindade.app.auth.LoginRoute
 import com.trindade.app.auth.ProfileRoute
+import com.trindade.app.auth.RegisterRoute
 import com.trindade.app.auth.RolePolicy
 import com.trindade.app.dashboard.DashboardRoute
 import com.trindade.app.loading.LoadingEditRoute
@@ -71,6 +72,11 @@ class MainActivity : ComponentActivity() {
                 // frame of the wrong screen for a question that can be answered now. When sign-in
                 // gains an asynchronous path this becomes a state flow like any other.
                 var signedIn by remember { mutableStateOf(authRepository.hasSession()) }
+                // Whether the worker registration form is showing instead of the login form. It is a
+                // signed-out destination, so it is only ever reachable with no session: the branch
+                // below reads it beside `signedIn` rather than in place of it. Registration is a
+                // request for access, not access, so nothing here ever sets `signedIn`.
+                var registerOpen by remember { mutableStateOf(false) }
                 // Which report the operator is looking at, if any. Null means the generator.
                 var openReportId by remember { mutableStateOf<Int?>(null) }
                 // Which report is being edited, if any. A destination of its own rather than a mode of
@@ -151,6 +157,7 @@ class MainActivity : ComponentActivity() {
                  */
                 fun endSession() {
                     profileOpen = false
+                    registerOpen = false
                     openReportId = null
                     editingReportId = null
                     editingScheduleId = null
@@ -165,6 +172,13 @@ class MainActivity : ComponentActivity() {
                 }
 
                 when {
+                    // Registration is reached *from* the login form, so it is drawn ahead of it: the
+                    // login branch below would otherwise win while `registerOpen` is still set, and the
+                    // link would look like it did nothing. Its own back action drops the flag and that is
+                    // the whole return trip -- there is no signed-out surface behind it to land on.
+                    !signedIn && registerOpen -> RegisterRoute(
+                        onBackToLogin = { registerOpen = false },
+                    )
                     !signedIn -> LoginRoute(
                         // Nothing is checked here on purpose. This used to re-read `hasSession()` before
                         // entering, because login's view model is scoped to the activity and its flag
@@ -180,6 +194,10 @@ class MainActivity : ComponentActivity() {
                         // hiding place rather than an invariant. `signedIn` still starts from
                         // `hasSession()` above, which is the one place the store genuinely decides.
                         onSignedIn = { signedIn = true },
+                        // The login form's own way into registration. Nothing is checked here because
+                        // the screen owns the errand and reports one entry per press; this only records
+                        // that the operator asked for the registration form.
+                        onNavigateToRegister = { registerOpen = true },
                     )
                     // Ahead of both histories, and that order is the whole of this navigation: each
                     // history opens something over itself, so the open thing has to win while the
