@@ -816,6 +816,11 @@ may update/delete only their own, and may not change `is_active`. The client doe
 substitute its own role decision for those guards. Generated `UpdateAdminTaskRequest.IsActive`
 serializes as a string enum; the repository writes its integer value to satisfy the backend's
 numeric 0/1 Zod schema. DELETE's success body is deliberately ignored.
+
+#### C1b. Catalog ViewModel state and form rules — DELIVERED
+`TasksViewModel` uses authenticated profile identity; admins edit/toggle/delete, workers edit only own active tasks.
+It validates category, names and readings per backend rules; refusals retain status, writes reload, and reads cancel stale work.
+
 ### C2. Drivers (`drivers`) — Administrador + Trabalhador
 ### C3. Categories (`categories`) — read for both, write Administrador only
 ### C4. Vehicles (`vehicles`) — Administrador
