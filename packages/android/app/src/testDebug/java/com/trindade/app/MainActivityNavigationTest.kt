@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -15,6 +16,9 @@ import com.trindade.app.auth.LoginScreen
 import com.trindade.app.auth.LoginViewModel
 import com.trindade.app.auth.RegisterScreen
 import com.trindade.app.auth.RegisterViewModel
+import com.trindade.app.auth.RolePolicy
+import com.trindade.app.admin.TasksScreen
+import com.trindade.app.admin.TasksViewModel
 import com.trindade.app.ui.theme.TrindadeTheme
 import org.junit.Assert.assertFalse
 import org.junit.Rule
@@ -127,6 +131,49 @@ class MainActivityNavigationTest {
 
         composeRule.onNodeWithText(copy(R.string.login_submit)).assertIsDisplayed()
         assertFalse(signedIn)
+    }
+
+    /**
+     * The task-tab branch as MainActivity draws it: the policy supplies the row and the selected tab
+     * selects the catalog. This is a rendered branch mirror, not Activity instrumentation; Hilt's
+     * activity owner is intentionally outside this JVM test lane.
+     */
+    @Test
+    fun `task tab is reachable for administrator and worker but not unknown roles`() {
+        var role by mutableStateOf(RolePolicy.ADMIN)
+        var selected by mutableStateOf(false)
+        composeRule.setContent {
+            TrindadeTheme {
+                if (selected) {
+                    TasksScreen(
+                        state = TasksViewModel.UiState(loading = false, role = role),
+                        onBack = { selected = false }, onRefresh = {}, onCategoryChange = {},
+                        onNamePtChange = {}, onNameEsChange = {}, onReadingsChange = {},
+                        onSave = {}, onCancel = {}, onEdit = {}, onToggle = {}, onDelete = {},
+                    )
+                } else {
+                    Column {
+                        RolePolicy.visibleDestinations(role, listOf(
+                            RolePolicy.EntryPoint.CATALOG_TASKS to "Tarefas",
+                        )).filter { role == RolePolicy.ADMIN || role == RolePolicy.WORKER }
+                            .forEach { label ->
+                            androidx.compose.material3.TextButton(onClick = { selected = true }) {
+                                androidx.compose.material3.Text(label)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        listOf(RolePolicy.ADMIN, RolePolicy.WORKER).forEach { allowedRole ->
+            role = allowedRole
+            composeRule.onNodeWithText("Tarefas").performClick()
+            composeRule.onNodeWithText("Nova tarefa").assertIsDisplayed()
+            composeRule.onNodeWithText("Voltar").performClick()
+            composeRule.onNodeWithText("Tarefas").assertIsDisplayed()
+        }
+        role = "unknown"
+        composeRule.onNodeWithText("Tarefas").assertDoesNotExist()
     }
 
     /**

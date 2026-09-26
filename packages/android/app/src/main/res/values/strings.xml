@@ -150,6 +150,7 @@
 
     <string name="nav_reports">Relatórios</string>
     <string name="nav_loading">Horários</string>
+    <string name="nav_tasks">Tarefas</string>
 
     <!-- The account. Its entry point is not a third tab: it sits at the far end of the tab row, because
          the two tabs are the app's jobs and this is who the operator is. The labels are the words the

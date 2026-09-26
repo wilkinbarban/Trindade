@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -24,6 +25,8 @@ import com.trindade.app.auth.LoginRoute
 import com.trindade.app.auth.ProfileRoute
 import com.trindade.app.auth.RegisterRoute
 import com.trindade.app.auth.RolePolicy
+import com.trindade.app.admin.TasksScreen
+import com.trindade.app.admin.TasksViewModel
 import com.trindade.app.dashboard.DashboardRoute
 import com.trindade.app.loading.LoadingEditRoute
 import com.trindade.app.loading.LoadingHistoryRoute
@@ -33,6 +36,8 @@ import com.trindade.app.reports.ReportEditRoute
 import com.trindade.app.reports.ReportGeneratorRoute
 import com.trindade.app.reports.ReportsHistoryRoute
 import com.trindade.app.ui.theme.TrindadeTheme
+import androidx.compose.runtime.collectAsState
+import androidx.hilt.navigation.compose.hiltViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -44,6 +49,7 @@ class MainActivity : ComponentActivity() {
         DASHBOARD(R.string.nav_dashboard),
         REPORTS(R.string.nav_reports),
         LOADING(R.string.nav_loading),
+        TASKS(R.string.nav_tasks),
     }
 
     /**
@@ -57,6 +63,7 @@ class MainActivity : ComponentActivity() {
         RolePolicy.EntryPoint.DASHBOARD to Tab.DASHBOARD,
         RolePolicy.EntryPoint.REPORTS to Tab.REPORTS,
         RolePolicy.EntryPoint.LOADING to Tab.LOADING,
+        RolePolicy.EntryPoint.CATALOG_TASKS to Tab.TASKS,
     )
 
     @Inject
@@ -353,7 +360,9 @@ class MainActivity : ComponentActivity() {
                             // The row is drawn from the policy, not from `destinations` alone: the list says what
                             // the app has and the policy says what this role may open, and this is the one place
                             // the two meet.
-                            RolePolicy.visibleDestinations(role, destinations).forEach { destination ->
+                            RolePolicy.visibleDestinations(role, destinations)
+                                .filter { it != Tab.TASKS || role == RolePolicy.ADMIN || role == RolePolicy.WORKER }
+                                .forEach { destination ->
                                 TextButton(onClick = { tab = destination }) { Text(stringResource(destination.label)) }
                             }
                             Spacer(Modifier.weight(1f))
@@ -378,10 +387,39 @@ class MainActivity : ComponentActivity() {
                             // `when` exhaustive: a tab added to the enum would fail to compile here instead of
                             // silently rendering the report generator.
                             Tab.LOADING -> Unit
+                            Tab.TASKS -> TasksTabRoute(
+                                sessionKey = sessionKey,
+                                onBack = { tab = Tab.DASHBOARD },
+                            )
                         }
                     }
                 }
             }
         }
     }
+}
+
+/** Session-owned catalog route; each tab arrival loads once and refresh stays an explicit action. */
+@Composable
+private fun TasksTabRoute(
+    sessionKey: String,
+    onBack: () -> Unit,
+    viewModel: TasksViewModel = hiltViewModel(key = sessionKey),
+) {
+    val state by viewModel.state.collectAsState()
+    LaunchedEffect(Unit) { viewModel.load() }
+    TasksScreen(
+        state = state,
+        onBack = onBack,
+        onRefresh = viewModel::load,
+        onCategoryChange = viewModel::onCategoryChange,
+        onNamePtChange = viewModel::onNamePtChange,
+        onNameEsChange = viewModel::onNameEsChange,
+        onReadingsChange = viewModel::onTemperatureReadingsChange,
+        onSave = viewModel::save,
+        onCancel = viewModel::cancelEdit,
+        onEdit = viewModel::edit,
+        onToggle = viewModel::toggle,
+        onDelete = viewModel::delete,
+    )
 }

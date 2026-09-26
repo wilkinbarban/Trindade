@@ -824,6 +824,11 @@ It validates category, names and readings per backend rules; refusals retain sta
 #### C1c1. Catalog Compose screen and rendered tests — DELIVERED
 `TasksScreen` renders the catalog, role-specific actions, confirmed deletion, refresh, form errors and saving state. It receives `TasksViewModel.UiState` and callbacks directly, so Compose tests need no Activity or Hilt; navigation remains in C1c2. Five focused rendered tests pass; the full JVM suite passes at 40 classes / 331 tests, with no failures, errors or skips.
 
+#### C1c2. Task tab and navigation — DELIVERED
+`MainActivity` now offers the task tab to recognized `Administrador` and `Trabalhador` sessions, keyed to the session's Hilt ViewModel. Entry loads once, refresh calls `load`, back returns to Dashboard, and every catalog state/action callback is wired. Unknown roles fail closed for this tab even though `RolePolicy`'s shared fallback includes catalog capabilities. Login, registration and logout state transitions remain unchanged; the tab `when` stays exhaustive.
+
+The rendered navigation test composes the task screen and mirrors the role-filter/branch decisions; it does **not** launch or instrument `MainActivity` or its Hilt graph. Focused verification on the pinned Android SDK image: `:app:testDebugUnitTest --tests com.trindade.app.MainActivityNavigationTest` passed (3 tests). The non-root run could not transform a pre-existing root-owned `DashboardScreenTest.class`; rerunning the same command as root in the same pinned image passed. Strict-TDD RED was not captured as a clean pre-implementation behavioral failure: early test attempts first hit test-source compilation/setup failures. GREEN is the successful focused run above. No emulator/manual screen inspection is claimed.
+
 ### C2. Drivers (`drivers`) — Administrador + Trabalhador
 ### C3. Categories (`categories`) — read for both, write Administrador only
 ### C4. Vehicles (`vehicles`) — Administrador
