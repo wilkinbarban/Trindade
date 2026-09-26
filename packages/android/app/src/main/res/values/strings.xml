@@ -34,6 +34,19 @@
     <string name="login_unknown">Não foi possível entrar. Tente de novo.</string>
     <string name="login_invalid_credentials">Usuário ou senha inválidos.</string>
 
+    <string name="register_title">Solicitar Cadastro</string>
+    <string name="register_worker_role_notice">O cadastro solicita acesso com a função Trabalhador e requer aprovação de um administrador antes do primeiro acesso.</string>
+    <string name="register_username">Nome de Usuário</string>
+    <string name="register_display_name">Nome de Exibição</string>
+    <string name="register_password">Senha</string>
+    <string name="register_confirm_password">Confirmar Senha</string>
+    <string name="register_password_helper">Mínimo 8 caracteres</string>
+    <string name="register_submit">Solicitar cadastro</string>
+    <string name="register_back_to_login">Voltar para o login</string>
+    <string name="register_success_title">Solicitação Enviada</string>
+    <string name="register_rate_limit_wait">Limite de solicitações excedido. Tente novamente em %1$d segundos.</string>
+    <string name="register_unknown">Não foi possível concluir o cadastro. Tente de novo.</string>
+
     <string name="report_submit">Salvar relatório</string>
     <string name="report_created">Relatório %1$d salvo.</string>
     <!-- The edit surface, the web's own `ReportEditPage`. Each is that page's own `pt-BR` text for the
