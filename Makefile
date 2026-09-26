@@ -25,7 +25,13 @@ ci:
 #     no-op instead of a re-download.
 ci-clone:
 	@set -euo pipefail; \
-	clone_dir="$$(mktemp -d /tmp/trindade-ci.XXXXXX)"; \
+	clone_parent="$${TMPDIR:-/tmp}"; \
+	if [ ! -d "$$clone_parent" ] || [ ! -w "$$clone_parent" ]; then \
+		printf 'ci-clone: TMPDIR must be an available directory: %s\n' "$$clone_parent" >&2; exit 1; \
+	fi; \
+	clone_dir="$$(mktemp -d -- "$$clone_parent/trindade-ci.XXXXXX")" || { \
+		printf 'ci-clone: cannot create temporary clone in %s\n' "$$clone_parent" >&2; exit 1; \
+	}; \
 	cleanup() { rm -rf "$$clone_dir"; }; \
 	trap cleanup EXIT; \
 	git clone --no-local "$$(git rev-parse --show-toplevel)" "$$clone_dir"; \
