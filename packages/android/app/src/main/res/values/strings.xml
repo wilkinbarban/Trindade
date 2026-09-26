@@ -33,6 +33,12 @@
          shown to involve. -->
     <string name="login_unknown">Não foi possível entrar. Tente de novo.</string>
     <string name="login_invalid_credentials">Usuário ou senha inválidos.</string>
+    <!-- The login form's only way into worker self-registration, and the only string this screen adds for
+         it: the registration screen owns every other word of that flow. It matches the wording the
+         registration screen's own submit action ships (`register_submit`), so the operator reads one name
+         for the errand on both screens instead of a link that promises something the next screen calls
+         something else. -->
+    <string name="login_register_link">Solicitar cadastro</string>
 
     <string name="register_title">Solicitar Cadastro</string>
     <string name="register_worker_role_notice">O cadastro solicita acesso com a função Trabalhador e requer aprovação de um administrador antes do primeiro acesso.</string>

@@ -10,10 +10,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -21,6 +24,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.trindade.app.R
 import com.trindade.app.ui.theme.TrindadeTheme
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -84,6 +88,103 @@ class LoginScreenTest {
 
     private val titleLabel: String
         get() = ApplicationProvider.getApplicationContext<Context>().getString(R.string.login_title)
+
+    private val registerLinkLabel: String
+        get() = ApplicationProvider.getApplicationContext<Context>().getString(R.string.login_register_link)
+    /**
+     * The registration entry, drawn on the form and reported to the caller.
+     *
+     * The link is found by the resource the app ships rather than by a string typed here, for the same
+     * reason the submit button is: a selector that cannot drift from the copy. One press has to produce
+     * exactly one report -- the callback is the only thing this screen owns about the errand, and the
+     * screen does not navigate itself -- so a second dispatch per press would be a defect this pins.
+     */
+    @Test
+    fun `the registration link is shown and reports exactly one click per press`() {
+        var registerClicks = 0
+        composeRule.setContent {
+            TrindadeTheme {
+                LoginScreen(
+                    state = LoginViewModel.UiState(),
+                    onUsernameChange = {},
+                    onPasswordChange = {},
+                    onSubmit = {},
+                    onRegisterClick = { registerClicks++ },
+                )
+            }
+        }
+
+        composeRule.onNodeWithText(registerLinkLabel).assertIsDisplayed().performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(1, registerClicks)
+    }
+
+    /**
+     * The link is available to a form the operator has not filled, and unavailable while a sign-in is in
+     * flight.
+     *
+     * The first half is deliberate rather than incidental: registering is not conditional on having typed a
+     * credential, so the link must not borrow the submit button's `canSubmit`. The second half is the
+     * suppression this slice exists for: leaving then would abandon a request already being waited on, so
+     * the press must do nothing at all and recovery must be automatic once the request settles.
+     *
+     * The assertion pairs the disabled declaration with the observed callback count, because a disabled
+     * `TextButton` that still dispatched would be exactly the failure an enabled-state assertion alone
+     * cannot catch.
+     */
+    @Test
+    fun `the registration link stays available on an empty form and stops while a sign-in is pending`() {
+        var registerClicks = 0
+        val state = mutableStateOf(LoginViewModel.UiState())
+        composeRule.setContent {
+            TrindadeTheme {
+                LoginScreen(
+                    state = state.value,
+                    onUsernameChange = {},
+                    onPasswordChange = {},
+                    onSubmit = {},
+                    onRegisterClick = { registerClicks++ },
+                )
+            }
+        }
+
+        // Blank fields: the submit action is disabled, the registration link is not.
+        composeRule.onNodeWithText(registerLinkLabel).assertIsEnabled()
+
+        composeRule.runOnUiThread {
+            state.value = state.value.copy(username = "operador", password = "segredo", submitting = true)
+        }
+        val pendingLink = composeRule.onNodeWithText(registerLinkLabel)
+        pendingLink.assertIsNotEnabled().performClick()
+        composeRule.waitForIdle()
+        assertEquals("a disabled registration link dispatched its click while a sign-in was pending", 0, registerClicks)
+
+        composeRule.runOnUiThread { state.value = state.value.copy(submitting = false) }
+        composeRule.onNodeWithText(registerLinkLabel).assertIsEnabled().performClick()
+        composeRule.waitForIdle()
+        assertEquals(1, registerClicks)
+    }
+
+    /**
+     * The registration link on the same viewport the squeeze regression was measured on.
+     *
+     * The link sits below the button, so it is the first thing to leave a short viewport and the last to
+     * come back. The precondition is asserted, not assumed: if the content ever fits here,
+     * "reachable" stops meaning anything. Reachability is then the scroll, which is the shared
+     * `verticalScroll` doing the same job for this child as for the button above it.
+     */
+    @Test
+    fun `a short viewport scrolls to the registration link instead of losing it`() {
+        composeRule.setContent {
+            Box(Modifier.size(width = 400.dp, height = 320.dp)) { TestLoginScreen() }
+        }
+
+        val link = composeRule.onNodeWithText(registerLinkLabel)
+
+        link.assertIsNotDisplayed()
+        link.performScrollTo().assertIsDisplayed()
+    }
 
     @Test
     fun `known server credential refusal is shown in Portuguese`() {
