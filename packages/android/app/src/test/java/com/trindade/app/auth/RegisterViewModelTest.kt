@@ -2,11 +2,16 @@ package com.trindade.app.auth
 
 import com.trindade.app.contract.models.*
 import com.trindade.app.network.AuthApi
+import java.io.IOException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
+import javax.net.ssl.SSLException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import okhttp3.Headers
 import okhttp3.MediaType.Companion.toMediaType
@@ -197,6 +202,54 @@ class RegisterViewModelTest {
         assertEquals(4, api.calls)
     }
 
+    @Test fun `transport causes clear submitting without creating success or a session`() {
+        val cases = listOf(
+            SocketTimeoutException("timeout") to RegisterMessage.Timeout,
+            SSLException("tls") to RegisterMessage.Tls,
+            SerializationException("unreadable") to RegisterMessage.UnreadableBody,
+            UnknownHostException("no route") to RegisterMessage.Unreachable,
+            IOException("other") to RegisterMessage.Unknown,
+        )
+        for ((failure, expected) in cases) {
+            model.reset()
+            api.failure = failure
+            fill()
+            model.submit()
+            assertEquals(expected, model.state.value.message)
+            assertFalse(model.state.value.submitting)
+            assertNull(model.state.value.successMessage)
+            assertEquals("senha12345", model.state.value.password)
+        }
+        assertEquals(cases.size, api.calls)
+    }
+
+    @Test fun `transport failure clears on edit and permits a new submission`() {
+        api.failure = SocketTimeoutException("timeout")
+        fill()
+        model.submit()
+        assertEquals(RegisterMessage.Timeout, model.state.value.message)
+        model.onUsernameChange("another")
+        assertNull(model.state.value.message)
+        api.failure = null
+        model.submit()
+        assertEquals(2, api.calls)
+        assertEquals("another", api.request?.username)
+        assertEquals("received", model.state.value.successMessage)
+    }
+
+    @Test fun `duplicate submission is ignored while pending and reset ignores late transport failure`() {
+        val pending = CompletableDeferred<Response<RegisterResponse>>()
+        api.pending = pending
+        fill()
+        model.submit()
+        model.submit()
+        assertEquals(1, api.calls)
+        assertFalse(model.state.value.canSubmit)
+        model.reset()
+        pending.completeExceptionally(SocketTimeoutException("late timeout"))
+        assertEquals(RegisterViewModel.UiState(), model.state.value)
+    }
+
     private companion object {
         const val NEUTRAL_MESSAGE = "Solicitação de cadastro recebida. Se o acesso for aprovado pelo administrador, a conta será ativada. Entre em contato com a administração se não conseguir acessar."
     }
@@ -205,6 +258,7 @@ class RegisterViewModelTest {
         var calls = 0
         var request: RegisterRequest? = null
         var pending: CompletableDeferred<Response<RegisterResponse>>? = null
+        var failure: Throwable? = null
         var response: Response<RegisterResponse> = Response.success(RegisterResponse(message = "received"))
         fun rejectWithHeaders(code: Int, message: String, headers: Headers) {
             val raw = okhttp3.Response.Builder()
@@ -216,6 +270,7 @@ class RegisterViewModelTest {
         override suspend fun register(body: RegisterRequest): Response<RegisterResponse> {
             calls++
             request = body
+            failure?.let { throw it }
             return pending?.await() ?: response
         }
         override suspend fun login(body: LoginRequest): Response<LoginResponse> = error("unused")

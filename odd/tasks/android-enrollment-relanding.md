@@ -16,7 +16,7 @@ TDD: the generic Gentle AI skill prescribes RED/GREEN/REFACTOR when tests exist;
 ## Units
 
 - [x] R1 Repository: `AuthRepository.register` and `RegisterResult` plus `AuthRepositoryTest`. Closed at `b92f36e`; native review `review-8c0401a59001c145`.
-- [ ] R2 ViewModel: `RegisterViewModel.kt` and `RegisterViewModelTest.kt`. Split into R2a (form state, updates/reset, basic validation and minimal callable submission/result contract), R2b (boundary/UTF-8 cases), R2c (detailed refusal/transport mapping). R2a closed at `3e2a31d`, acknowledged native review `review-9be6cf207d466d59`. R2b closed at `2d5792e`, native review `review-98a65f1822c4363d`. R2c1 HTTP result/refusal verified in isolation; R2c2 transport variants and R2 overall remain pending. Do not mistake compile errors for behavioral RED.
+- [ ] R2 ViewModel: `RegisterViewModel.kt` and `RegisterViewModelTest.kt`. Split into R2a (form state, updates/reset, basic validation and minimal callable submission/result contract), R2b (boundary/UTF-8 cases), R2c (detailed refusal/transport mapping). R2a closed at `3e2a31d`, acknowledged native review `review-9be6cf207d466d59`. R2b closed at `2d5792e`, native review `review-98a65f1822c4363d`. R2c1 HTTP result/refusal verified in isolation and native review `review-9eb94dff01b00bea` closed; R2c2 transport behavior verified in isolation. R2 behavior is accounted for, but work-unit commit/review remain pending. Do not mistake compile errors for behavioral RED.
 - [ ] R3 UI: `RegisterScreen.kt`, `RegisterScreenTest.kt`, registration strings in `strings.xml`, and the registration link in `LoginScreen.kt`. About 457 lines; inspect actual PR budget.
 - [ ] R4 Navigation: only registration navigation hunks in `MainActivity.kt` plus registration-specific `MainActivityNavigationTest.kt` assertions; do not port unrelated admin/navigation changes.
 
@@ -64,7 +64,18 @@ From `git archive HEAD` (`2d5792e`), snapshot `/var/tmp/trindade-r2c1-verify.gFv
 - `bash /work/scripts/check-android-contract-types.sh`: exit 0, contract types current.
 - `./gradlew :app:assembleDebug --no-daemon`: exit 0, debug APK assembled (not release-signed).
 
-Six registration-specific tests cover conditional neutral success/password clearing, 400 default translation, 409 server words, 429 with numeric and unusable Retry-After, and clearing HTTP errors on editing each field. Independent verifier reconstructed `/var/tmp/trindade-r2c1-independent.AHtEJs` from `2d5792e` plus exactly these three diffs, confirmed byte identity and separately passed focused 14/14, full 299/299 (0 failures/errors/skips), contract check and debug assembly in the pinned SDK. Transport variants are explicitly reserved for R2c2; R2 overall remains pending. No release-signed APK or production verification is claimed.
+Six registration-specific tests cover conditional neutral success/password clearing, 400 default translation, 409 server words, 429 with numeric and unusable Retry-After, and clearing HTTP errors on editing each field. Independent verifier reconstructed `/var/tmp/trindade-r2c1-independent.AHtEJs` from `2d5792e` plus exactly these three diffs, confirmed byte identity and separately passed focused 14/14, full 299/299 (0 failures/errors/skips), contract check and debug assembly in the pinned SDK. Transport variants are explicitly reserved for R2c2; R2 overall remains pending. R2c1 native review `review-9eb94dff01b00bea` closed. No release-signed APK or production verification is claimed.
+
+## R2c2 verification (isolated snapshot)
+
+Snapshot `/var/tmp/trindade-r2c2-verify.HxQGaO` from `git archive HEAD` (`553983a`) received only tracked diffs for the two ViewModel paths and this task document. The pinned SDK image `ghcr.io/cirruslabs/android-sdk:35@sha256:c724009e305b4607157287624033ab97f319af44c244bfc9f73b6293f3bb01b9` ran as host UID:GID, with `GRADLE_USER_HOME=HOME=/gradle-home`, cached Gradle/SDK mounts and `/work/packages/android`. Separate foreground checks:
+
+- `./gradlew :app:testDebugUnitTest --tests com.trindade.app.auth.RegisterViewModelTest --rerun-tasks --no-daemon`: exit 0; focused suite 17 tests, 0 failures/errors/skips.
+- `./gradlew :app:testDebugUnitTest --rerun-tasks --no-daemon`: exit 0; 35 XML suites, 302 tests, 0 failures/errors/skips.
+- `bash /work/scripts/check-android-contract-types.sh`: exit 0; Android contract types current.
+- `./gradlew :app:assembleDebug --no-daemon`: exit 0; debug APK assembled, not release-signed.
+
+RED: no behavioral RED observed; pre-existing ViewModel transport mapping already satisfies the added tests. GREEN: focused tests pass with no production change. Five transport causes (Timeout, Tls, UnreadableBody, NoRoute, Unknown) are pinned with refusal state, no success/session outcome and password retention; a subsequent edit clears the failure and permits retry. Duplicate submit while pending and reset before late transport failure preserve initial state. Existing R2a/R2b/R2c1 tests cover validation, boundaries, neutral success/password clearing, HTTP refusals and late success. Independent verifier reconstructed `/var/tmp/trindade-r2c2-independent.D4Pr41` from `553983a` plus only the test/document diffs, confirmed byte identity, and passed focused 17/17, full 302/302 (0 failures/errors/skips), contract check and debug assembly in separate pinned-image runs. It created one extraneous external snapshot-path pointer at `/var/tmp/trindade-r2c2-snapshot-path`; this is not a repository change and remains for later cleanup inventory. R2 behavior is accounted for; leave the work-unit checkbox open until parent-controlled commit and review. No emulator or production claim.
 
 ## Closure checks
 
