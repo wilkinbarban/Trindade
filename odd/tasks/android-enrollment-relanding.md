@@ -15,8 +15,8 @@ TDD: the generic Gentle AI skill prescribes RED/GREEN/REFACTOR when tests exist;
 
 ## Units
 
-- [ ] R1 Repository: `AuthRepository.register` and `RegisterResult` plus `AuthRepositoryTest`. Expected paths: `packages/android/app/src/main/java/com/trindade/app/auth/AuthRepository.kt` and new `packages/android/app/src/test/java/com/trindade/app/auth/AuthRepositoryTest.kt`. Implementation and verification passed; commit and native review still pending.
-- [ ] R2 ViewModel: `RegisterViewModel.kt` and `RegisterViewModelTest.kt`. About 766 lines; find honest review slices or request an explicit size exception.
+- [x] R1 Repository: `AuthRepository.register` and `RegisterResult` plus `AuthRepositoryTest`. Closed at `b92f36e`; native review `review-8c0401a59001c145`.
+- [ ] R2 ViewModel: `RegisterViewModel.kt` and `RegisterViewModelTest.kt`. Split into R2a (form state, updates/reset, basic validation and minimal callable submission/result contract), R2b (boundary/UTF-8 cases), R2c (detailed refusal/transport mapping). R2a remains uncommitted and R2 incomplete; verify focused tests, full JVM tests, contract types and debug assembly in an isolated pinned-SDK snapshot. Do not mistake compile errors for behavioral RED.
 - [ ] R3 UI: `RegisterScreen.kt`, `RegisterScreenTest.kt`, registration strings in `strings.xml`, and the registration link in `LoginScreen.kt`. About 457 lines; inspect actual PR budget.
 - [ ] R4 Navigation: only registration navigation hunks in `MainActivity.kt` plus registration-specific `MainActivityNavigationTest.kt` assertions; do not port unrelated admin/navigation changes.
 
@@ -34,6 +34,22 @@ RED: no pre-implementation failure observed; first attempted focused run was aft
 Independent verifier reconstructed `/var/tmp/trindade-r1-independent.AUFBEB` from `00cc293`: both Kotlin files byte-match the target, and all 577 other versioned files match the base. Its first full run timed out and a retry encountered the shared Gradle cache lock; no test-suite claim is made from that attempt. After a read-only incident diagnosis found no remaining Gradle process or container, a fresh foreground run in the same pinned image passed: `:app:testDebugUnitTest --rerun-tasks --no-daemon` exit 0, **34 XML, 285 tests, 0 failures/errors/skips**; `:app:assembleDebug --no-daemon` exit 0, debug APK 13,677,102 bytes. Contract check exit 0 was observed on the independent snapshot before the timeout. This debug APK is not the signed release artifact.
 
 The complete R1 work unit (101 production + 314 test + 38 planning lines before this evidence addendum) exceeds the 400-line PR gate. The operator explicitly authorized a **size exception for R1** rather than splitting the inseparable behavior/tests; preserve test coverage and record the final changed-line count when the commit is formed.
+
+## R2a verification (isolated snapshot)
+
+Snapshot `/var/tmp/trindade-r2a-verify.YJiLFX` from `git archive HEAD` (`b92f36e`), with only the two new ViewModel Kotlin files and the task document copied; pinned SDK image and cache mounts match R1, Docker runs as host uid:gid. Focused `./gradlew :app:testDebugUnitTest --tests com.trindade.app.auth.RegisterViewModelTest --rerun-tasks --no-daemon` passed (4 tests); full `./gradlew :app:testDebugUnitTest --rerun-tasks --no-daemon` passed (35 XML suites, 289 tests, 0 failures/errors/skips). `bash /work/scripts/check-android-contract-types.sh` passed and `./gradlew :app:assembleDebug --no-daemon` passed. RED: no legitimate pre-implementation behavioral failure observed; a missing new class would only cause compilation failure, not behavioral RED. GREEN: focused test run passed after implementation. R2a changed lines: 106 production + 111 tests + 2 doc substitutions (4 diff lines) before this evidence paragraph; below 400. R2b/R2c remain pending. No commit or review in this delegated slice.
+
+## R2a reset-in-flight correction (new isolated snapshot)
+
+The earlier R2a verification above describes the **pre-correction** snapshot with four focused tests and 289 full-suite tests; it does not establish reset safety. New snapshot `/var/tmp/trindade-r2a-reset-verify.cldutS` was created from `git archive HEAD` (`b92f36e`) and copied exactly the two ViewModel Kotlin files and this document. Verification used pinned `ghcr.io/cirruslabs/android-sdk:35@sha256:c724009e305b4607157287624033ab97f319af44c244bfc9f73b6293f3bb01b9`, host uid:gid, `GRADLE_USER_HOME=HOME=/gradle-home`, cached Gradle/SDK mounts and `/work/packages/android`.
+
+- RED: test-only snapshot, `./gradlew :app:testDebugUnitTest --tests com.trindade.app.auth.RegisterViewModelTest --rerun-tasks --no-daemon` exited 1: 5 tests completed, 1 failed (`reset ignores completion of an in-flight registration`, assertion at `RegisterViewModelTest.kt:80`); the late success overwrote reset state.
+- GREEN: after copying the production generation guard into the same snapshot, the identical focused command exited 0 (5 tests, 0 failures/errors/skips).
+- `./gradlew :app:testDebugUnitTest --rerun-tasks --no-daemon`: exit 0; 35 XML suites, 290 tests, 0 failures/errors/skips.
+- `bash /work/scripts/check-android-contract-types.sh`: exit 0; contract types current.
+- `./gradlew :app:assembleDebug --no-daemon`: exit 0; debug APK packaged, not a signed release artifact.
+
+The generation is incremented by reset, and completion updates only when its captured generation is current; ordinary successful completion remains covered by the existing focused test. Independent verifier reconstructed `/var/tmp/trindade-r2a-independent.GNlpYs` from `b92f36e` plus exactly the three changed files, confirmed byte identity, and independently passed focused 5/5, full 290/290 (0 failures/errors/skips), contract check and debug assembly in separate pinned-image invocations. R2b/R2c remain pending; this is not release APK evidence.
 
 ## Closure checks
 
