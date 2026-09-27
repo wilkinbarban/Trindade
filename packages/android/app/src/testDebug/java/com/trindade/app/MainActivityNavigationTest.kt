@@ -17,6 +17,8 @@ import com.trindade.app.auth.LoginViewModel
 import com.trindade.app.auth.RegisterScreen
 import com.trindade.app.auth.RegisterViewModel
 import com.trindade.app.auth.RolePolicy
+import com.trindade.app.admin.CategoriesScreen
+import com.trindade.app.admin.CategoriesViewModel
 import com.trindade.app.admin.DriversScreen
 import com.trindade.app.admin.DriversViewModel
 import com.trindade.app.admin.TasksScreen
@@ -217,6 +219,66 @@ class MainActivityNavigationTest {
         assert(refreshes == 2)
         role = "unknown"
         composeRule.onNodeWithText(copy(R.string.nav_drivers)).assertDoesNotExist()
+    }
+
+    /**
+     * Mirrors MainActivity's categories destination branch and role filter. This renders the screen and
+     * exercises its callbacks, but does not launch or instrument MainActivity or its Hilt graph.
+     */
+    @Test
+    fun `categories tab is reachable for administrator but not worker, unknown or null roles`() {
+        var role by mutableStateOf<String?>(RolePolicy.ADMIN)
+        var selected by mutableStateOf(false)
+        var refreshes = 0
+        composeRule.setContent {
+            TrindadeTheme {
+                if (selected) {
+                    CategoriesScreen(
+                        state = CategoriesViewModel.UiState(loading = false, role = role),
+                        onBack = { selected = false },
+                        onRefresh = { refreshes++ },
+                        onNameChange = {},
+                        onNamePtChange = {},
+                        onNameEsChange = {},
+                        onCategoryTypeChange = {},
+                        onSortOrderChange = {},
+                        onSave = {},
+                        onCancel = {},
+                        onEdit = {},
+                        onToggle = {},
+                        onRequestDelete = {},
+                        onConfirmDelete = {},
+                        onDismissDelete = {},
+                    )
+                } else {
+                    Column {
+                        RolePolicy.visibleDestinations(
+                            role,
+                            listOf(
+                                RolePolicy.EntryPoint.CATEGORIES to copy(R.string.nav_categories),
+                            ),
+                        ).filter { role == RolePolicy.ADMIN }
+                            .forEach { label ->
+                                androidx.compose.material3.TextButton(onClick = { selected = true }) {
+                                    androidx.compose.material3.Text(label)
+                                }
+                            }
+                    }
+                }
+            }
+        }
+        role = RolePolicy.ADMIN
+        composeRule.onNodeWithText(copy(R.string.nav_categories)).performClick()
+        composeRule.onNodeWithText("Categorias").assertIsDisplayed()
+        composeRule.onNodeWithText("Atualizar").performClick()
+        composeRule.onNodeWithText("Voltar").performClick()
+        composeRule.onNodeWithText(copy(R.string.nav_categories)).assertIsDisplayed()
+        assert(refreshes == 1)
+
+        listOf(RolePolicy.WORKER, "unknown", null).forEach { disallowedRole ->
+            role = disallowedRole
+            composeRule.onNodeWithText(copy(R.string.nav_categories)).assertDoesNotExist()
+        }
     }
 
     /**

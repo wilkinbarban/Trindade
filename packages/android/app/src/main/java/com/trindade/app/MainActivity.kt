@@ -25,6 +25,8 @@ import com.trindade.app.auth.LoginRoute
 import com.trindade.app.auth.ProfileRoute
 import com.trindade.app.auth.RegisterRoute
 import com.trindade.app.auth.RolePolicy
+import com.trindade.app.admin.CategoriesScreen
+import com.trindade.app.admin.CategoriesViewModel
 import com.trindade.app.admin.DriversScreen
 import com.trindade.app.admin.DriversViewModel
 import com.trindade.app.admin.TasksScreen
@@ -53,6 +55,7 @@ class MainActivity : ComponentActivity() {
         LOADING(R.string.nav_loading),
         TASKS(R.string.nav_tasks),
         DRIVERS(R.string.nav_drivers),
+        CATEGORIES(R.string.nav_categories),
     }
 
     /**
@@ -68,6 +71,7 @@ class MainActivity : ComponentActivity() {
         RolePolicy.EntryPoint.LOADING to Tab.LOADING,
         RolePolicy.EntryPoint.CATALOG_TASKS to Tab.TASKS,
         RolePolicy.EntryPoint.CATALOG_DRIVERS to Tab.DRIVERS,
+        RolePolicy.EntryPoint.CATEGORIES to Tab.CATEGORIES,
     )
 
     @Inject
@@ -366,8 +370,12 @@ class MainActivity : ComponentActivity() {
                             // the two meet.
                             RolePolicy.visibleDestinations(role, destinations)
                                 .filter {
-                                    it !in setOf(Tab.TASKS, Tab.DRIVERS) ||
-                                        role == RolePolicy.ADMIN || role == RolePolicy.WORKER
+                                    when (it) {
+                                        Tab.CATEGORIES -> role == RolePolicy.ADMIN
+                                        Tab.TASKS, Tab.DRIVERS ->
+                                            role == RolePolicy.ADMIN || role == RolePolicy.WORKER
+                                        else -> true
+                                    }
                                 }
                                 .forEach { destination ->
                                 TextButton(onClick = { tab = destination }) { Text(stringResource(destination.label)) }
@@ -402,12 +410,44 @@ class MainActivity : ComponentActivity() {
                                 sessionKey = sessionKey,
                                 onBack = { tab = Tab.DASHBOARD },
                             )
+                            Tab.CATEGORIES -> CategoriesTabRoute(
+                                sessionKey = sessionKey,
+                                onBack = { tab = Tab.DASHBOARD },
+                            )
                         }
                     }
                 }
             }
         }
     }
+}
+
+/** Session-owned catalog route; each tab arrival loads once and refresh stays an explicit action. */
+@Composable
+private fun CategoriesTabRoute(
+    sessionKey: String,
+    onBack: () -> Unit,
+    viewModel: CategoriesViewModel = hiltViewModel(key = sessionKey),
+) {
+    val state by viewModel.state.collectAsState()
+    LaunchedEffect(Unit) { viewModel.load() }
+    CategoriesScreen(
+        state = state,
+        onBack = onBack,
+        onRefresh = viewModel::load,
+        onNameChange = viewModel::onNameChange,
+        onNamePtChange = viewModel::onNamePtChange,
+        onNameEsChange = viewModel::onNameEsChange,
+        onCategoryTypeChange = viewModel::onCategoryTypeChange,
+        onSortOrderChange = viewModel::onSortOrderChange,
+        onSave = viewModel::save,
+        onCancel = viewModel::cancelEdit,
+        onEdit = viewModel::edit,
+        onToggle = viewModel::toggle,
+        onRequestDelete = viewModel::requestDelete,
+        onConfirmDelete = viewModel::confirmDelete,
+        onDismissDelete = viewModel::cancelDelete,
+    )
 }
 
 /** Session-owned catalog route; each tab arrival loads once and refresh stays an explicit action. */
