@@ -845,6 +845,12 @@ The server remains the authority: `catalogGuard` allows both roles; workers rece
 
 `DriversViewModelTest` covers role/ownership policy, create/edit payloads, validation, write outcomes, reload and stale-read cancellation. The initial local Gradle attempt lacked Java and an offline container lacked the Gradle distribution; neither counts as behavioral RED. A cached pinned-SDK run passed 340/340 tests. A new unknown-role/invalid-type regression test then failed behaviorally (an unknown role created a driver), and passed after fail-closed role/type validation; the full pinned-SDK suite passed **341/341 tests**, zero failures/errors/skips, with debug Kotlin compilation.
 
+#### C2c1. Drivers Compose screen and rendered tests — DELIVERED
+
+`DriversScreen` renders loading/errors, the driver list, create/edit form and save progress using the `DriversViewModel.UiState` and callbacks directly. Both roles may create; only administrators see the casa/fletero selector and active toggle. Workers see edit only when `state.canEdit` permits their own fletero; there is no delete control or navigation wiring (C2c2 owns that).
+
+Five rendered tests cover admin list/toggle, create fields and type selection, worker create/ownership/no admin controls, back/refresh, and loading/error/saving. Strict TDD: a compilable empty-screen stub produced behavioral RED (4 tests failed); after implementation, focused GREEN passed 5/5. The pinned SDK full JVM run passed **346 tests, 0 failures, 0 skipped**, plus `:app:compileDebugKotlin`. The exact source+test budget is 252 lines (258 total including this ledger entry); no navigation/MainActivity changes.
+
 ### C3. Categories (`categories`) — read for both, write Administrador only
 ### C4. Vehicles (`vehicles`) — Administrador
 ### C5. Time slots (`time-slots`) — Administrador, `PUT` replaces the set
