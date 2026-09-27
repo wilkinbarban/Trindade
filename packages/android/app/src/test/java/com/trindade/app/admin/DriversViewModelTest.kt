@@ -203,6 +203,10 @@ private class DriverApi(var rows: List<AdminDriverResponseDriver> = emptyList())
     override suspend fun deleteVehicle(id: Int): Response<Unit> = error("vehicle API is not used by driver tests")
     override suspend fun timeSlots(): Response<TimeSlotsResponse> = error("time-slots API is not used by driver tests")
     override suspend fun updateTimeSlots(body: UpdateTimeSlotsRequest): Response<TimeSlotsResponse> = error("time-slots API is not used by driver tests")
+    override suspend fun users(): Response<AdminUsersResponse> = error("user API is not used by driver tests")
+    override suspend fun createUser(body: JsonObject): Response<AdminUserResponse> = error("user API is not used by driver tests")
+    override suspend fun updateUser(id: Int, body: JsonObject): Response<AdminUserResponse> = error("user API is not used by driver tests")
+    override suspend fun deleteUser(id: Int): Response<Unit> = error("user API is not used by driver tests")
 }
 
 private class DriverProfileApi(role: String) : AuthApi {

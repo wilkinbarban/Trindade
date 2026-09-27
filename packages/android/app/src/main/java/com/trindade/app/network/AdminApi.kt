@@ -6,6 +6,8 @@ import com.trindade.app.contract.models.AdminDriverResponse
 import com.trindade.app.contract.models.AdminDriversResponse
 import com.trindade.app.contract.models.AdminTaskResponse
 import com.trindade.app.contract.models.AdminTasksResponse
+import com.trindade.app.contract.models.AdminUserResponse
+import com.trindade.app.contract.models.AdminUsersResponse
 import com.trindade.app.contract.models.AdminVehicleResponse
 import com.trindade.app.contract.models.AdminVehiclesResponse
 import com.trindade.app.contract.models.CreateAdminCategoryRequest
@@ -77,4 +79,16 @@ interface AdminApi {
 
     @PUT("api/admin/time-slots")
     suspend fun updateTimeSlots(@Body body: UpdateTimeSlotsRequest): Response<TimeSlotsResponse>
+
+    @GET("api/admin/users")
+    suspend fun users(): Response<AdminUsersResponse>
+
+    @POST("api/admin/users")
+    suspend fun createUser(@Body body: JsonObject): Response<AdminUserResponse>
+
+    @PATCH("api/admin/users/{id}")
+    suspend fun updateUser(@Path("id") id: Int, @Body body: JsonObject): Response<AdminUserResponse>
+
+    @DELETE("api/admin/users/{id}")
+    suspend fun deleteUser(@Path("id") id: Int): Response<Unit>
 }

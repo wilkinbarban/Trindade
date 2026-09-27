@@ -9,6 +9,8 @@ import com.trindade.app.contract.models.AdminDriverResponse
 import com.trindade.app.contract.models.AdminDriversResponse
 import com.trindade.app.contract.models.AdminTaskResponse
 import com.trindade.app.contract.models.AdminTasksResponse
+import com.trindade.app.contract.models.AdminUserResponse
+import com.trindade.app.contract.models.AdminUsersResponse
 import com.trindade.app.contract.models.AdminVehicleResponse
 import com.trindade.app.contract.models.AdminVehiclesResponse
 import com.trindade.app.contract.models.ChangePasswordRequest
@@ -361,6 +363,10 @@ private class CategoryApi(var rows: List<AdminCategoryResponseCategory> = emptyL
     override suspend fun deleteVehicle(id: Int): Response<Unit> = error("unused")
     override suspend fun timeSlots(): Response<TimeSlotsResponse> = error("unused")
     override suspend fun updateTimeSlots(body: UpdateTimeSlotsRequest): Response<TimeSlotsResponse> = error("unused")
+    override suspend fun users(): Response<AdminUsersResponse> = error("unused")
+    override suspend fun createUser(body: JsonObject): Response<AdminUserResponse> = error("unused")
+    override suspend fun updateUser(id: Int, body: JsonObject): Response<AdminUserResponse> = error("unused")
+    override suspend fun deleteUser(id: Int): Response<Unit> = error("unused")
 }
 
 private class CategoryProfileApi(role: String) : AuthApi {

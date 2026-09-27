@@ -8,6 +8,8 @@ import com.trindade.app.contract.models.AdminDriverResponse
 import com.trindade.app.contract.models.AdminDriversResponse
 import com.trindade.app.contract.models.AdminTaskResponse
 import com.trindade.app.contract.models.AdminTasksResponse
+import com.trindade.app.contract.models.AdminUserResponse
+import com.trindade.app.contract.models.AdminUsersResponse
 import com.trindade.app.contract.models.AdminVehicleResponse
 import com.trindade.app.contract.models.AdminVehiclesResponse
 import com.trindade.app.contract.models.ChangePasswordRequest
@@ -300,6 +302,10 @@ private class TimeSlotApi(
     override suspend fun createVehicle(body: CreateAdminVehicleRequest): Response<AdminVehicleResponse> = error("unused")
     override suspend fun updateVehicle(id: Int, body: JsonObject): Response<AdminVehicleResponse> = error("unused")
     override suspend fun deleteVehicle(id: Int): Response<Unit> = error("unused")
+    override suspend fun users(): Response<AdminUsersResponse> = error("unused")
+    override suspend fun createUser(body: JsonObject): Response<AdminUserResponse> = error("unused")
+    override suspend fun updateUser(id: Int, body: JsonObject): Response<AdminUserResponse> = error("unused")
+    override suspend fun deleteUser(id: Int): Response<Unit> = error("unused")
 }
 
 private class TimeSlotProfileApi(

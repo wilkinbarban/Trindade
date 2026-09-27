@@ -967,6 +967,12 @@ Strict TDD: a compilable behavioral RED was captured on the new navigation test 
 
 ### C6. Users (`users`) — Administrador
 
+#### C6a. Users typed API and repository — DELIVERED
+
+`AdminApi` exposes typed user `GET`, `POST`, `PATCH` and `DELETE` operations; `UsersRepository` distinguishes a failed read (returning `null`) from an empty or successful read, and maps writes to `Saved(user)`, `Refused(status)` or `Unreachable`, preserving the HTTP refusal status separately from transport failure. The generated `role_id` (create and update) and `is_active` (update) enums serialize as strings in OpenAPI generator output, so create and update replace these fields with their numeric values (`1` or `2` for `role_id`, `0` or `1` for `is_active`) to satisfy backend Zod literal schemas. An unchanged or empty password is completely omitted from the PATCH body rather than sent as placeholder or empty string. DELETE treats both 204 No Content (empty body) and 200 (`{"success":true}`) as `UserWriteResult.Saved()`. All four endpoints enforce `adminGuard` on the server; the app introduces no local policy. Existing `AdminApi` test fakes in `CategoriesViewModelTest`, `DriversViewModelTest`, `TasksViewModelTest`, `TimeSlotsViewModelTest`, and `VehiclesViewModelTest` fail loudly if user API methods are unexpectedly called.
+
+`UsersRepositoryTest` covers the GET/POST/PATCH/DELETE endpoints, empty versus refused reads, successful writes with numeric `role_id` and `is_active`, password omission when unchanged/empty versus inclusion when provided, refusal statuses (e.g. 400 validation error, 403 self-delete or self-role change, 404 missing user) and unreachable transport. Strict-TDD RED was observed against the compilable repository scaffold: 4 of 4 focused tests failed (`java.lang.AssertionError`, `java.util.NoSuchElementException`, exit code 1). GREEN: the focused class passed 4 of 4 tests (exit code 0). The full pinned SDK run passed **428 tests, 0 failures, 0 errors, 0 skipped** across 53 classes, along with `:app:compileDebugKotlin` and the `ci-android` lane (exit code 0). No ViewModel, UI, navigation, backend, or DI changes were introduced.
+
 Each surface: list, create, edit, deactivate/delete where the web allows it, an inline form
 matching the web's fields, and the same validation the server enforces stated where the operator
 types instead of discovered as a 400. Each carries its own review unit.
