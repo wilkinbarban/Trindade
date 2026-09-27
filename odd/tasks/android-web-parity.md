@@ -874,6 +874,23 @@ SDK run passed **350 tests, 0 failures, 0 errors, 0 skipped**, and `:app:compile
 driver API fakes now fail loudly if category writes are unexpectedly called. No UI, navigation, backend or DI
 changes are included.
 
+#### C3b. Category ViewModel state, policy and form — DELIVERED
+
+`CategoriesViewModel` enforces admin-only writes while sharing category reads with all authenticated roles;
+it fails closed for workers or unrecognized roles, rejecting create, edit, toggle and delete attempts.
+It cancels stale reads, reloads on write success, preserves HTTP refusal statuses distinctly from unreachable
+transport errors, and validates at least one nonblank name, valid category type (`check`, `temperature`,
+`check_assai`, `check_normal`) and non-negative integer sort order. In alignment with SPA behavior, create sends
+only the current-language name (`name_pt` for Portuguese, `name_es` for Spanish) without parent category
+selection, while edit updates both names. Confirmed delete state and active toggle are managed directly in
+`UiState` for subsequent screen binding.
+
+`CategoriesViewModelTest` covers policy gating, locale-sensitive create payloads, edit with both names,
+validation rules, toggle invert logic, confirmed delete workflow, refusal versus unreachable errors, and stale
+read cancellation. Compilable behavioral RED: 8 of 8 tests failed against the initial stub. GREEN: 8 of 8 passed.
+Full pinned SDK run passed **358 tests, 0 failures, 0 errors, 0 skipped**, and `:app:compileDebugKotlin`.
+No UI, navigation or DI additions are included.
+
 ### C4. Vehicles (`vehicles`) — Administrador
 ### C5. Time slots (`time-slots`) — Administrador, `PUT` replaces the set
 ### C6. Users (`users`) — Administrador
