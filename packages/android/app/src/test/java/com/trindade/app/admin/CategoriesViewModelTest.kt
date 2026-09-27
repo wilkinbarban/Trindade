@@ -9,10 +9,13 @@ import com.trindade.app.contract.models.AdminDriverResponse
 import com.trindade.app.contract.models.AdminDriversResponse
 import com.trindade.app.contract.models.AdminTaskResponse
 import com.trindade.app.contract.models.AdminTasksResponse
+import com.trindade.app.contract.models.AdminVehicleResponse
+import com.trindade.app.contract.models.AdminVehiclesResponse
 import com.trindade.app.contract.models.ChangePasswordRequest
 import com.trindade.app.contract.models.CreateAdminCategoryRequest
 import com.trindade.app.contract.models.CreateAdminDriverRequest
 import com.trindade.app.contract.models.CreateAdminTaskRequest
+import com.trindade.app.contract.models.CreateAdminVehicleRequest
 import com.trindade.app.contract.models.LoginRequest
 import com.trindade.app.contract.models.LoginResponse
 import com.trindade.app.contract.models.LogoutRequest
@@ -350,6 +353,10 @@ private class CategoryApi(var rows: List<AdminCategoryResponseCategory> = emptyL
     override suspend fun createTask(body: CreateAdminTaskRequest): Response<AdminTaskResponse> = error("unused")
     override suspend fun updateTask(id: Int, body: JsonObject): Response<AdminTaskResponse> = error("unused")
     override suspend fun deleteTask(id: Int): Response<Unit> = error("unused")
+    override suspend fun vehicles(): Response<AdminVehiclesResponse> = error("unused")
+    override suspend fun createVehicle(body: CreateAdminVehicleRequest): Response<AdminVehicleResponse> = error("unused")
+    override suspend fun updateVehicle(id: Int, body: JsonObject): Response<AdminVehicleResponse> = error("unused")
+    override suspend fun deleteVehicle(id: Int): Response<Unit> = error("unused")
 }
 
 private class CategoryProfileApi(role: String) : AuthApi {

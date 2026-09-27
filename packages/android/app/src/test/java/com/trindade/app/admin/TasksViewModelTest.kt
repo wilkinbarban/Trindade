@@ -227,6 +227,10 @@ private class CatalogApi(
     override suspend fun drivers(): Response<AdminDriversResponse> = error("driver API is not used by task tests")
     override suspend fun createDriver(body: CreateAdminDriverRequest): Response<AdminDriverResponse> = error("driver API is not used by task tests")
     override suspend fun updateDriver(id: Int, body: JsonObject): Response<AdminDriverResponse> = error("driver API is not used by task tests")
+    override suspend fun vehicles(): Response<AdminVehiclesResponse> = error("vehicle API is not used by task tests")
+    override suspend fun createVehicle(body: CreateAdminVehicleRequest): Response<AdminVehicleResponse> = error("vehicle API is not used by task tests")
+    override suspend fun updateVehicle(id: Int, body: JsonObject): Response<AdminVehicleResponse> = error("vehicle API is not used by task tests")
+    override suspend fun deleteVehicle(id: Int): Response<Unit> = error("vehicle API is not used by task tests")
 }
 
 private class ProfileApi(role: String) : AuthApi {

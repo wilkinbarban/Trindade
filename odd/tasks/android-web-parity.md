@@ -904,6 +904,23 @@ The categories destination uses `RolePolicy.EntryPoint.CATEGORIES`, is exposed e
 Strict-TDD RED attempt stopped at test compilation because string resource `nav_categories` did not yet exist; this was setup failure, not behavioral RED. No valid behavioral RED was captured: the JVM navigation lane intentionally mirrors rather than launches the Activity. GREEN: the focused navigation test passed (5/5 tests in `MainActivityNavigationTest`); the pinned full suite and `:app:compileDebugKotlin` passed (**372 tests, 0 failures, 0 errors, 0 skipped** across 46 classes). Diff is under 100 lines across the implementation and test files before this ledger entry; no commit, push, emulator or direct Activity instrumentation is claimed.
 
 ### C4. Vehicles (`vehicles`) — Administrador
+
+#### C4a. Typed API and repository — DELIVERED
+
+`AdminApi` exposes vehicle `GET`, `POST`, `PATCH` and `DELETE`; `VehiclesRepository` preserves failed reads as
+`null` rather than an empty list and returns `Saved`, `Refused(status)` or `Unreachable` for writes, including
+delete. The generated `is_active` enum serializes as a string, so PATCH replaces that field with its numeric
+value to match the backend's 0/1 schema. DELETE treats a 200/204 response as success even when the response
+body is empty. All four endpoints enforce `adminGuard` on the server; the app introduces no local policy.
+
+`VehiclesRepositoryTest` covers the GET/POST/PATCH/DELETE routes, empty versus refused reads, successful
+writes, numeric `is_active`, refusal status (e.g. 400 foreign key constraint, 404 missing) and unreachable
+transport. Strict-TDD RED was observed against the compilable repository scaffold: 2 of 3 focused tests failed
+with behavioral assertion failures. GREEN: the focused class passed 3/3. The full pinned SDK run passed
+**375 tests, 0 failures, 0 errors, 0 skipped** across 47 classes, and `:app:compileDebugKotlin`. Existing task,
+driver and category API fakes in ViewModel tests now fail loudly if vehicle API methods are unexpectedly called.
+No UI, navigation, backend or DI changes are included.
+
 ### C5. Time slots (`time-slots`) — Administrador, `PUT` replaces the set
 ### C6. Users (`users`) — Administrador
 

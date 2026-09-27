@@ -197,6 +197,10 @@ private class DriverApi(var rows: List<AdminDriverResponseDriver> = emptyList())
     override suspend fun createTask(body: CreateAdminTaskRequest): Response<AdminTaskResponse> = error("unused")
     override suspend fun updateTask(id: Int, body: JsonObject): Response<AdminTaskResponse> = error("unused")
     override suspend fun deleteTask(id: Int): Response<Unit> = error("drivers have no delete")
+    override suspend fun vehicles(): Response<AdminVehiclesResponse> = error("vehicle API is not used by driver tests")
+    override suspend fun createVehicle(body: CreateAdminVehicleRequest): Response<AdminVehicleResponse> = error("vehicle API is not used by driver tests")
+    override suspend fun updateVehicle(id: Int, body: JsonObject): Response<AdminVehicleResponse> = error("vehicle API is not used by driver tests")
+    override suspend fun deleteVehicle(id: Int): Response<Unit> = error("vehicle API is not used by driver tests")
 }
 
 private class DriverProfileApi(role: String) : AuthApi {

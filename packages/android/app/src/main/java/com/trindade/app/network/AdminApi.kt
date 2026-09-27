@@ -6,9 +6,12 @@ import com.trindade.app.contract.models.AdminDriverResponse
 import com.trindade.app.contract.models.AdminDriversResponse
 import com.trindade.app.contract.models.AdminTaskResponse
 import com.trindade.app.contract.models.AdminTasksResponse
+import com.trindade.app.contract.models.AdminVehicleResponse
+import com.trindade.app.contract.models.AdminVehiclesResponse
 import com.trindade.app.contract.models.CreateAdminCategoryRequest
 import com.trindade.app.contract.models.CreateAdminDriverRequest
 import com.trindade.app.contract.models.CreateAdminTaskRequest
+import com.trindade.app.contract.models.CreateAdminVehicleRequest
 import com.trindade.app.contract.models.UpdateAdminDriverRequest
 import kotlinx.serialization.json.JsonObject
 import retrofit2.Response
@@ -53,4 +56,16 @@ interface AdminApi {
 
     @DELETE("api/admin/tasks/{id}")
     suspend fun deleteTask(@Path("id") id: Int): Response<Unit>
+
+    @GET("api/admin/vehicles")
+    suspend fun vehicles(): Response<AdminVehiclesResponse>
+
+    @POST("api/admin/vehicles")
+    suspend fun createVehicle(@Body body: CreateAdminVehicleRequest): Response<AdminVehicleResponse>
+
+    @PATCH("api/admin/vehicles/{id}")
+    suspend fun updateVehicle(@Path("id") id: Int, @Body body: JsonObject): Response<AdminVehicleResponse>
+
+    @DELETE("api/admin/vehicles/{id}")
+    suspend fun deleteVehicle(@Path("id") id: Int): Response<Unit>
 }
