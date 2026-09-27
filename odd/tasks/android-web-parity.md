@@ -891,6 +891,12 @@ read cancellation. Compilable behavioral RED: 8 of 8 tests failed against the in
 Full pinned SDK run passed **358 tests, 0 failures, 0 errors, 0 skipped**, and `:app:compileDebugKotlin`.
 No UI, navigation or DI additions are included.
 
+#### C3c1. Category catalog UI and rendered tests — DELIVERED
+
+`CategoriesScreen` renders category cards, create/edit form, loading indicators, empty notice, refusal status and error messages using `CategoriesViewModel.UiState` and direct callbacks without Hilt or Activity bindings. Admin sessions see "Nova categoria", locale-sensitive name entry on create (`name_es` for Spanish, `name_pt` for Portuguese via `onNameChange`) and both names on edit (`onNamePtChange` and `onNameEsChange`), category type selection (`check`, `temperature`, `check_assai`, `check_normal`), non-negative sort order, active toggle ("Desativar" / "Ativar"), and confirmed delete dialogs. Worker and unrecognized roles are restricted to read-only views with explicit "Somente leitura" notices, failing closed against create, edit, toggle and delete controls. In parity with the SPA, no parent-category selector is exposed. The delete contract is strictly narrowed: list item Excluir invokes `onRequestDelete` once, dialog Confirm invokes solely `onConfirmDelete` once, and dialog Cancel invokes solely `onDismissDelete` once, eliminating ambiguous dual delete APIs.
+
+Thirteen rendered tests in `CategoriesScreenTest` cover admin details rendering, active toggle, locale-sensitive create form, Spanish create, edit form with both names, create-only callback isolation, worker and unknown role fail-closed enforcement, confirmed delete workflows via UiState target and list item trigger (asserting single request and single confirm invocations), loading/error/refusal feedback, empty list state, and back/refresh wiring. Strict TDD: regression RED reproduced 2 failed tests (`expected:<1> but was:<2>` on request count and `expected:<0> but was:<1>` on create callback isolation); after the fix, focused GREEN passed 13/13 tests. Pinned SDK verification passed **371 tests, 0 failures, 0 errors, 0 skipped** across 46 test classes, along with `:app:compileDebugKotlin`. No navigation or DI wiring is included (reserved for C3c2).
+
 ### C4. Vehicles (`vehicles`) — Administrador
 ### C5. Time slots (`time-slots`) — Administrador, `PUT` replaces the set
 ### C6. Users (`users`) — Administrador
