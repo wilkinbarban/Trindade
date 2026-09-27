@@ -921,6 +921,12 @@ with behavioral assertion failures. GREEN: the focused class passed 3/3. The ful
 driver and category API fakes in ViewModel tests now fail loudly if vehicle API methods are unexpectedly called.
 No UI, navigation, backend or DI changes are included.
 
+#### C4b. Vehicle catalog state, policy and form rules — DELIVERED
+
+`VehiclesViewModel` enforces administrator-only management for the vehicle catalog; all endpoints enforce `adminGuard` on the server and the ViewModel fails closed for worker, unknown, or null roles, blocking create, edit, toggle, and delete operations. Vehicles strictly model the backend schema without invented fields (`description`, `license_plate`, `is_active`). Create requires both a nonblank description and nonblank license plate. Edit allows PATCH to carry either field (or both) while trimming inputs, and toggle inverts `is_active` as numeric 0/1. Confirmed-delete workflow is surfaced directly in `UiState` via `deleteTarget` (`requestDelete`, `confirmDelete`, `cancelDelete`, plus `delete`), eliminating the need for local dialog state on future screens. Stale catalog reads are cancelled on new requests, successful writes reload the catalog, and refusal HTTP statuses are captured distinctly from unreachable transport errors. Form input changes reset error and refusal feedback.
+
+`VehiclesViewModelTest` covers authenticated admin policy reachability, worker and unknown role fail-closed enforcement across all mutations, nonblank create validation, single- and multi-field PATCH updates, edit reset on cancel, active toggling, confirmed-delete lifecycle, refusal status versus unreachable transport handling with reload on success, superseded read cancellation, and form input change error clearing. Strict TDD: a compilable scaffold produced behavioral RED with 8 of 8 focused tests failing (`AssertionError`). GREEN: all 8 focused tests passed in `VehiclesViewModelTest`. The full pinned SDK run passed **383 tests, 0 failures, 0 errors, 0 skipped** across 48 classes, and `:app:compileDebugKotlin`. No UI, navigation, backend, or DI changes were introduced.
+
 ### C5. Time slots (`time-slots`) — Administrador, `PUT` replaces the set
 ### C6. Users (`users`) — Administrador
 
