@@ -927,6 +927,12 @@ No UI, navigation, backend or DI changes are included.
 
 `VehiclesViewModelTest` covers authenticated admin policy reachability, worker and unknown role fail-closed enforcement across all mutations, nonblank create validation, single- and multi-field PATCH updates, edit reset on cancel, active toggling, confirmed-delete lifecycle, refusal status versus unreachable transport handling with reload on success, superseded read cancellation, and form input change error clearing. Strict TDD: a compilable scaffold produced behavioral RED with 8 of 8 focused tests failing (`AssertionError`). GREEN: all 8 focused tests passed in `VehiclesViewModelTest`. The full pinned SDK run passed **383 tests, 0 failures, 0 errors, 0 skipped** across 48 classes, and `:app:compileDebugKotlin`. No UI, navigation, backend, or DI changes were introduced.
 
+#### C4c1. Vehicle Compose UI and rendered tests — DELIVERED
+
+`VehiclesScreen` renders the vehicle management UI consuming `VehiclesViewModel.UiState` and callbacks directly. The interface is strictly role-gated: administrators access the create form ("Novo veículo"), vehicle editing, active/inactive status toggle, and confirmed-delete actions; worker and unknown roles fail closed with "Somente leitura" notices and no management controls. The delete contract wires exclusively through `onRequestDelete`, `onConfirmDelete`, and `onDismissDelete` without redundant aliases or direct ViewModel deletion calls. List item deletion triggers request-delete, while the confirmation dialog is gated by `state.canDelete(vehicle)` to fail closed against non-admin states and executes confirm-delete or dismissal without re-requesting. Loading indicator, empty catalog notice, error and HTTP refusal status feedback, create/edit form with numeric-free validation display, saving progress, and confirmed-delete dialog are rendered.
+
+`VehiclesScreenTest` provides Hilt-free, Activity-free Robolectric rendered tests with one `setContent` per test. Strict TDD: a compilable scaffold produced behavioral RED with 13 of 13 focused tests failing (`AssertionError`). GREEN: all 13 focused tests passed in `VehiclesScreenTest`. The full pinned SDK run passed **396 tests, 0 failures, 0 errors, 0 skipped** across 49 classes, and `:app:compileDebugSources :app:compileDebugUnitTestSources`. No navigation wiring or DI changes were introduced.
+
 ### C5. Time slots (`time-slots`) — Administrador, `PUT` replaces the set
 ### C6. Users (`users`) — Administrador
 
