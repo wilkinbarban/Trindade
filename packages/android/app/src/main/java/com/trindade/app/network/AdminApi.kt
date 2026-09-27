@@ -1,10 +1,12 @@
 package com.trindade.app.network
 
 import com.trindade.app.contract.models.AdminCategoriesResponse
+import com.trindade.app.contract.models.AdminCategoryResponse
 import com.trindade.app.contract.models.AdminDriverResponse
 import com.trindade.app.contract.models.AdminDriversResponse
 import com.trindade.app.contract.models.AdminTaskResponse
 import com.trindade.app.contract.models.AdminTasksResponse
+import com.trindade.app.contract.models.CreateAdminCategoryRequest
 import com.trindade.app.contract.models.CreateAdminDriverRequest
 import com.trindade.app.contract.models.CreateAdminTaskRequest
 import com.trindade.app.contract.models.UpdateAdminDriverRequest
@@ -17,10 +19,19 @@ import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
 
-/** Only the catalog read and task-type operations used by the task surface. */
+/** Admin catalog operations used by the task and category surfaces. */
 interface AdminApi {
     @GET("api/admin/categories")
     suspend fun categories(): Response<AdminCategoriesResponse>
+
+    @POST("api/admin/categories")
+    suspend fun createCategory(@Body body: CreateAdminCategoryRequest): Response<AdminCategoryResponse>
+
+    @PATCH("api/admin/categories/{id}")
+    suspend fun updateCategory(@Path("id") id: Int, @Body body: JsonObject): Response<AdminCategoryResponse>
+
+    @DELETE("api/admin/categories/{id}")
+    suspend fun deleteCategory(@Path("id") id: Int): Response<Unit>
 
     @GET("api/admin/tasks")
     suspend fun tasks(): Response<AdminTasksResponse>

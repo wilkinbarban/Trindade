@@ -855,9 +855,25 @@ Five rendered tests cover admin list/toggle, create fields and type selection, w
 
 The drivers destination uses `RolePolicy.CATALOG_DRIVERS`, is exposed to exact `Administrador` and `Trabalhador` sessions, and fails closed for unknown roles despite the policy's shared fallback. Its Hilt ViewModel is keyed by the session generation, loads once on entry, and wires back, refresh, form, save/cancel, edit and toggle callbacks; logout's existing reset path is unchanged. The navigation test keeps the task branch mirror and adds a drivers branch mirror that renders `DriversScreen`, checks both known roles and unknown-role exclusion, and exercises back/refresh. It explicitly does not instrument `MainActivity` or Hilt.
 
-Strict-TDD RED attempt stopped at test compilation because the new string resource did not yet exist; this was setup failure, not behavioral RED. No valid behavioral RED was captured: the JVM navigation lane intentionally mirrors rather than launches the Activity. GREEN: the focused navigation test passed (4 tests); the pinned full suite and `:app:compileDebugKotlin` passed (**347 tests, 0 failures, 0 errors, 0 skipped**). Diff is 98 changed lines across the three implementation/test files before this ledger entry; no emulator or direct Activity instrumentation is claimed.
+Strict-TDD RED attempt stopped at test compilation because the new string resource did not yet exist; this was setup failure, not behavioral RED. No valid behavioral RED was captured: the JVM navigation lane intentionally mirrors rather than launches the Activity. GREEN: the focused navigation test passed (4 tests); the pinned full suite and `:app:compileDebugKotlin` passed (**347 tests, 0 failures, 0 errors, 0 skipped**). An independent archive of committed `31f4a90` repeated the focused 4/4 and full 347/347 checks in the pinned SDK, with all 602 committed source files byte-identical to HEAD. Native review `review-f4b9a83bec70a5ea` approved and acknowledged; its single reliability warning is informational. Diff is 98 changed lines across the three implementation/test files before this ledger entry; no emulator or direct Activity instrumentation is claimed.
 
 ### C3. Categories (`categories`) — read for both, write Administrador only
+
+#### C3a. Typed API and repository — DELIVERED
+
+`AdminApi` exposes category `POST`, `PATCH` and `DELETE`; `CategoriesRepository` preserves failed reads as
+`null` rather than an empty list and returns `Saved`, `Refused(status)` or `Unreachable` for writes, including
+delete. The generated `is_active` enum serializes as a string, so PATCH replaces that field with its numeric
+value to match the backend's 0/1 schema. DELETE ignores its success body. The server's `catalogGuard` read and
+`adminGuard` write split remains the authorization boundary; the app adds no local policy.
+
+`CategoriesRepositoryTest` covers the GET/POST/PATCH/DELETE routes, empty versus refused reads, successful
+writes, numeric `is_active`, refusal status and unreachable transport. Strict-TDD RED was observed against the
+compilable repository scaffold: 2 of 3 focused tests failed. GREEN: the focused class passed 3/3. The full pinned
+SDK run passed **350 tests, 0 failures, 0 errors, 0 skipped**, and `:app:compileDebugKotlin`. Existing task and
+driver API fakes now fail loudly if category writes are unexpectedly called. No UI, navigation, backend or DI
+changes are included.
+
 ### C4. Vehicles (`vehicles`) — Administrador
 ### C5. Time slots (`time-slots`) — Administrador, `PUT` replaces the set
 ### C6. Users (`users`) — Administrador

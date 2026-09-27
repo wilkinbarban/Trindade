@@ -188,6 +188,11 @@ private class DriverApi(var rows: List<AdminDriverResponseDriver> = emptyList())
         DriverWriteResult.Unreachable -> throw java.io.IOException("offline")
     }
     override suspend fun categories(): Response<AdminCategoriesResponse> = error("unused")
+    override suspend fun createCategory(body: CreateAdminCategoryRequest): Response<AdminCategoryResponse> =
+        error("category API is not used by driver tests")
+    override suspend fun updateCategory(id: Int, body: JsonObject): Response<AdminCategoryResponse> =
+        error("category API is not used by driver tests")
+    override suspend fun deleteCategory(id: Int): Response<Unit> = error("category API is not used by driver tests")
     override suspend fun tasks(): Response<AdminTasksResponse> = error("unused")
     override suspend fun createTask(body: CreateAdminTaskRequest): Response<AdminTaskResponse> = error("unused")
     override suspend fun updateTask(id: Int, body: JsonObject): Response<AdminTaskResponse> = error("unused")

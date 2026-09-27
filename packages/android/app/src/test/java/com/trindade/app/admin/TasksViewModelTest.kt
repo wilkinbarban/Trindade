@@ -191,6 +191,11 @@ private class CatalogApi(
     override suspend fun categories(): Response<AdminCategoriesResponse> = if (refuseCategories) {
         Response.error(403, okhttp3.ResponseBody.create(null, ""))
     } else Response.success(AdminCategoriesResponse(fixtureCategories))
+    override suspend fun createCategory(body: CreateAdminCategoryRequest): Response<AdminCategoryResponse> =
+        error("category writes are not used by task tests")
+    override suspend fun updateCategory(id: Int, body: JsonObject): Response<AdminCategoryResponse> =
+        error("category writes are not used by task tests")
+    override suspend fun deleteCategory(id: Int): Response<Unit> = error("category writes are not used by task tests")
     override suspend fun tasks(): Response<AdminTasksResponse> {
         taskReads++
         val result = if (taskReads == 1) firstTasksRead?.await() else null
