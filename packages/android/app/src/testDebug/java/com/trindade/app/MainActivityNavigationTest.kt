@@ -23,6 +23,8 @@ import com.trindade.app.admin.DriversScreen
 import com.trindade.app.admin.DriversViewModel
 import com.trindade.app.admin.TasksScreen
 import com.trindade.app.admin.TasksViewModel
+import com.trindade.app.admin.TimeSlotsScreen
+import com.trindade.app.admin.TimeSlotsViewModel
 import com.trindade.app.admin.VehiclesScreen
 import com.trindade.app.admin.VehiclesViewModel
 import com.trindade.app.ui.theme.TrindadeTheme
@@ -337,6 +339,57 @@ class MainActivityNavigationTest {
         listOf(RolePolicy.WORKER, "unknown", null).forEach { disallowedRole ->
             role = disallowedRole
             composeRule.onNodeWithText(copy(R.string.nav_vehicles)).assertDoesNotExist()
+        }
+    }
+
+    /**
+     * Mirrors MainActivity's time slots destination branch and role filter. This renders the screen and
+     * exercises its callbacks, but does not launch or instrument MainActivity or its Hilt graph.
+     */
+    @Test
+    fun `time slots tab is reachable for administrator but not worker, unknown or null roles`() {
+        var role by mutableStateOf<String?>(RolePolicy.ADMIN)
+        var selected by mutableStateOf(false)
+        var refreshes = 0
+        composeRule.setContent {
+            TrindadeTheme {
+                if (selected) {
+                    TimeSlotsScreen(
+                        state = TimeSlotsViewModel.UiState(loading = false, role = role),
+                        onBack = { selected = false },
+                        onRefresh = { refreshes++ },
+                        onInputChange = {},
+                        onAddTimeSlot = {},
+                        onRemoveTimeSlot = {},
+                    )
+                } else {
+                    Column {
+                        RolePolicy.visibleDestinations(
+                            role,
+                            listOf(
+                                RolePolicy.EntryPoint.TIME_SLOTS to copy(R.string.nav_time_slots),
+                            ),
+                        ).filter { role == RolePolicy.ADMIN }
+                            .forEach { label ->
+                                androidx.compose.material3.TextButton(onClick = { selected = true }) {
+                                    androidx.compose.material3.Text(label)
+                                }
+                            }
+                    }
+                }
+            }
+        }
+        role = RolePolicy.ADMIN
+        composeRule.onNodeWithText(copy(R.string.nav_time_slots)).performClick()
+        composeRule.onNodeWithText("Horários").assertIsDisplayed()
+        composeRule.onNodeWithText("Atualizar").performClick()
+        composeRule.onNodeWithText("Voltar").performClick()
+        composeRule.onNodeWithText(copy(R.string.nav_time_slots)).assertIsDisplayed()
+        assert(refreshes == 1)
+
+        listOf(RolePolicy.WORKER, "unknown", null).forEach { disallowedRole ->
+            role = disallowedRole
+            composeRule.onNodeWithText(copy(R.string.nav_time_slots)).assertDoesNotExist()
         }
     }
 

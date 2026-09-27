@@ -31,6 +31,8 @@ import com.trindade.app.admin.DriversScreen
 import com.trindade.app.admin.DriversViewModel
 import com.trindade.app.admin.TasksScreen
 import com.trindade.app.admin.TasksViewModel
+import com.trindade.app.admin.TimeSlotsScreen
+import com.trindade.app.admin.TimeSlotsViewModel
 import com.trindade.app.admin.VehiclesScreen
 import com.trindade.app.admin.VehiclesViewModel
 import com.trindade.app.dashboard.DashboardRoute
@@ -59,6 +61,7 @@ class MainActivity : ComponentActivity() {
         DRIVERS(R.string.nav_drivers),
         CATEGORIES(R.string.nav_categories),
         VEHICLES(R.string.nav_vehicles),
+        TIME_SLOTS(R.string.nav_time_slots),
     }
 
     /**
@@ -76,6 +79,7 @@ class MainActivity : ComponentActivity() {
         RolePolicy.EntryPoint.CATALOG_DRIVERS to Tab.DRIVERS,
         RolePolicy.EntryPoint.CATEGORIES to Tab.CATEGORIES,
         RolePolicy.EntryPoint.VEHICLES to Tab.VEHICLES,
+        RolePolicy.EntryPoint.TIME_SLOTS to Tab.TIME_SLOTS,
     )
 
     @Inject
@@ -375,7 +379,7 @@ class MainActivity : ComponentActivity() {
                             RolePolicy.visibleDestinations(role, destinations)
                                 .filter {
                                     when (it) {
-                                        Tab.CATEGORIES, Tab.VEHICLES -> role == RolePolicy.ADMIN
+                                        Tab.CATEGORIES, Tab.VEHICLES, Tab.TIME_SLOTS -> role == RolePolicy.ADMIN
                                         Tab.TASKS, Tab.DRIVERS ->
                                             role == RolePolicy.ADMIN || role == RolePolicy.WORKER
                                         else -> true
@@ -422,12 +426,35 @@ class MainActivity : ComponentActivity() {
                                 sessionKey = sessionKey,
                                 onBack = { tab = Tab.DASHBOARD },
                             )
+                            Tab.TIME_SLOTS -> TimeSlotsTabRoute(
+                                sessionKey = sessionKey,
+                                onBack = { tab = Tab.DASHBOARD },
+                            )
                         }
                     }
                 }
             }
         }
     }
+}
+
+/** Session-owned catalog route; each tab arrival loads once and refresh stays an explicit action. */
+@Composable
+private fun TimeSlotsTabRoute(
+    sessionKey: String,
+    onBack: () -> Unit,
+    viewModel: TimeSlotsViewModel = hiltViewModel(key = sessionKey),
+) {
+    val state by viewModel.state.collectAsState()
+    LaunchedEffect(Unit) { viewModel.load() }
+    TimeSlotsScreen(
+        state = state,
+        onBack = onBack,
+        onRefresh = viewModel::load,
+        onInputChange = viewModel::onInputChange,
+        onAddTimeSlot = viewModel::addTimeSlot,
+        onRemoveTimeSlot = viewModel::removeTimeSlot,
+    )
 }
 
 /** Session-owned catalog route; each tab arrival loads once and refresh stays an explicit action. */
