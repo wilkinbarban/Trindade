@@ -839,6 +839,12 @@ The server remains the authority: `catalogGuard` allows both roles; workers rece
 
 **Evidence:** `DriversRepositoryTest` covers the GET/POST/PATCH wire paths, empty versus refused reads, successful writes, numeric `is_active`, refusal status and unreachable transport. On the pinned Android SDK image, the focused class passed (3 tests); the full JVM suite passed at **41 classes / 335 tests**, 0 failures, 0 errors, 0 skipped. The `CatalogApi` fake used by task ViewModel tests now fails loudly if any driver API method is unexpectedly called.
 
+#### C2b. Driver ViewModel policy and form — DELIVERED
+
+`DriversViewModel` resolves role and owner identity from the authenticated profile, limits worker edits to their own `fletero` rows, and exposes active-state toggling only to administrators. Workers create `fletero` drivers only; administrators can create or edit either driver type. The form requires a nonblank name, treats a blank plate as absent, preserves HTTP refusal status separately from unreachable writes, reloads after successful writes, and cancels superseded catalog reads. There is no delete action or repository call.
+
+`DriversViewModelTest` covers role/ownership policy, create/edit payloads, validation, write outcomes, reload and stale-read cancellation. The initial local Gradle attempt lacked Java and an offline container lacked the Gradle distribution; neither counts as behavioral RED. A cached pinned-SDK run passed 340/340 tests. A new unknown-role/invalid-type regression test then failed behaviorally (an unknown role created a driver), and passed after fail-closed role/type validation; the full pinned-SDK suite passed **341/341 tests**, zero failures/errors/skips, with debug Kotlin compilation.
+
 ### C3. Categories (`categories`) — read for both, write Administrador only
 ### C4. Vehicles (`vehicles`) — Administrador
 ### C5. Time slots (`time-slots`) — Administrador, `PUT` replaces the set
