@@ -12,7 +12,9 @@ import com.trindade.app.contract.models.CreateAdminCategoryRequest
 import com.trindade.app.contract.models.CreateAdminDriverRequest
 import com.trindade.app.contract.models.CreateAdminTaskRequest
 import com.trindade.app.contract.models.CreateAdminVehicleRequest
+import com.trindade.app.contract.models.TimeSlotsResponse
 import com.trindade.app.contract.models.UpdateAdminDriverRequest
+import com.trindade.app.contract.models.UpdateTimeSlotsRequest
 import kotlinx.serialization.json.JsonObject
 import retrofit2.Response
 import retrofit2.http.Body
@@ -20,6 +22,7 @@ import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.PATCH
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Path
 
 /** Admin catalog operations used by the task and category surfaces. */
@@ -68,4 +71,10 @@ interface AdminApi {
 
     @DELETE("api/admin/vehicles/{id}")
     suspend fun deleteVehicle(@Path("id") id: Int): Response<Unit>
+
+    @GET("api/admin/time-slots")
+    suspend fun timeSlots(): Response<TimeSlotsResponse>
+
+    @PUT("api/admin/time-slots")
+    suspend fun updateTimeSlots(@Body body: UpdateTimeSlotsRequest): Response<TimeSlotsResponse>
 }

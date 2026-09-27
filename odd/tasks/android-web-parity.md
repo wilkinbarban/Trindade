@@ -940,6 +940,13 @@ The vehicles destination uses `RolePolicy.EntryPoint.VEHICLES`, is exposed exclu
 Strict TDD: a compilable behavioral RED was captured on the new navigation test by leaving the refresh callback unwired in the mirror, failing with `java.lang.AssertionError` (1 of 6 tests failed, tests: 6, failures: 1, errors: 0, skipped: 0; exit code 1). GREEN: wiring the refresh callback passed all 6/6 tests in `MainActivityNavigationTest` (exit code 0). The full pinned SDK run passed **397 tests, 0 failures, 0 errors, 0 skipped** across 49 classes, along with `:app:compileDebugKotlin` (exit code 0). Diff is under 100 lines across the implementation and test files before this ledger entry; no commit, push, emulator or direct Activity instrumentation is claimed.
 
 ### C5. Time slots (`time-slots`) — Administrador, `PUT` replaces the set
+
+#### C5a. Typed API and repository — DELIVERED
+
+`AdminApi` exposes time-slot `GET` and `PUT` operations returning `Response<TimeSlotsResponse>`; `TimeSlotsRepository` distinguishes a failed read (`null`) from an empty catalog read (`emptyList()`) and maps writes to `Saved`, `Refused(status)` or `Unreachable`, preserving HTTP refusal status codes distinctly from transport failure. `PUT` replaces the complete configured slot list using `UpdateTimeSlotsRequest(time_slots = ...)`. The repository introduces no invented validation, per-slot quotas, ordering rules, or duplicate rejections, matching the web implementation and server contract.
+
+`TimeSlotsRepositoryTest` covers `GET` and `PUT` operations, distinguishing empty from failed reads, successful writes with typed request bodies, refusal status preservation (e.g. 400 invalid input, 403 non-admin, 500 server error) and unreachable transport failure. Strict TDD: a compilable repository scaffold produced behavioral RED with 2 of 3 focused tests failing (`AssertionError`: expected `[04:00, 04:30, 05:00]` but got `null`, and expected `Refused(400)` but got `Unreachable`; tests: 3, failures: 2, errors: 0, skipped: 0; exit code 1). GREEN: the focused repository implementation passed all 3/3 tests (tests: 3, failures: 0, errors: 0, skipped: 0; exit code 0). The full pinned SDK run passed **400 tests, 0 failures, 0 errors, 0 skipped** across 50 classes along with `:app:compileDebugKotlin` (exit code 0). All existing task, driver, category, and vehicle API fakes in ViewModel tests now fail loudly if time-slot endpoints are called unexpectedly. No UI, navigation, backend, or DI changes were introduced.
+
 ### C6. Users (`users`) — Administrador
 
 Each surface: list, create, edit, deactivate/delete where the web allows it, an inline form

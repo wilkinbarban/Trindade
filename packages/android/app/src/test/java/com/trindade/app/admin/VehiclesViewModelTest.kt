@@ -27,7 +27,9 @@ import com.trindade.app.contract.models.RegisterRequest
 import com.trindade.app.contract.models.RegisterResponse
 import com.trindade.app.contract.models.SetupStatusResponse
 import com.trindade.app.contract.models.SuccessResponse
+import com.trindade.app.contract.models.TimeSlotsResponse
 import com.trindade.app.contract.models.UpdateAdminVehicleRequest
+import com.trindade.app.contract.models.UpdateTimeSlotsRequest
 import com.trindade.app.contract.models.UpdateProfileRequest
 import com.trindade.app.network.AdminApi
 import com.trindade.app.network.AuthApi
@@ -358,6 +360,8 @@ private class VehicleApi(var rows: List<AdminVehicleResponseVehicle> = emptyList
     override suspend fun createTask(body: CreateAdminTaskRequest): Response<AdminTaskResponse> = error("unused")
     override suspend fun updateTask(id: Int, body: JsonObject): Response<AdminTaskResponse> = error("unused")
     override suspend fun deleteTask(id: Int): Response<Unit> = error("unused")
+    override suspend fun timeSlots(): Response<TimeSlotsResponse> = error("unused")
+    override suspend fun updateTimeSlots(body: UpdateTimeSlotsRequest): Response<TimeSlotsResponse> = error("unused")
 }
 
 private class VehicleProfileApi(role: String) : AuthApi {

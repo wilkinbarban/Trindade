@@ -231,6 +231,8 @@ private class CatalogApi(
     override suspend fun createVehicle(body: CreateAdminVehicleRequest): Response<AdminVehicleResponse> = error("vehicle API is not used by task tests")
     override suspend fun updateVehicle(id: Int, body: JsonObject): Response<AdminVehicleResponse> = error("vehicle API is not used by task tests")
     override suspend fun deleteVehicle(id: Int): Response<Unit> = error("vehicle API is not used by task tests")
+    override suspend fun timeSlots(): Response<TimeSlotsResponse> = error("time-slots API is not used by task tests")
+    override suspend fun updateTimeSlots(body: UpdateTimeSlotsRequest): Response<TimeSlotsResponse> = error("time-slots API is not used by task tests")
 }
 
 private class ProfileApi(role: String) : AuthApi {
