@@ -23,6 +23,8 @@ import com.trindade.app.admin.DriversScreen
 import com.trindade.app.admin.DriversViewModel
 import com.trindade.app.admin.TasksScreen
 import com.trindade.app.admin.TasksViewModel
+import com.trindade.app.admin.VehiclesScreen
+import com.trindade.app.admin.VehiclesViewModel
 import com.trindade.app.ui.theme.TrindadeTheme
 import org.junit.Assert.assertFalse
 import org.junit.Rule
@@ -278,6 +280,63 @@ class MainActivityNavigationTest {
         listOf(RolePolicy.WORKER, "unknown", null).forEach { disallowedRole ->
             role = disallowedRole
             composeRule.onNodeWithText(copy(R.string.nav_categories)).assertDoesNotExist()
+        }
+    }
+
+    /**
+     * Mirrors MainActivity's vehicles destination branch and role filter. This renders the screen and
+     * exercises its callbacks, but does not launch or instrument MainActivity or its Hilt graph.
+     */
+    @Test
+    fun `vehicles tab is reachable for administrator but not worker, unknown or null roles`() {
+        var role by mutableStateOf<String?>(RolePolicy.ADMIN)
+        var selected by mutableStateOf(false)
+        var refreshes = 0
+        composeRule.setContent {
+            TrindadeTheme {
+                if (selected) {
+                    VehiclesScreen(
+                        state = VehiclesViewModel.UiState(loading = false, role = role),
+                        onBack = { selected = false },
+                        onRefresh = { refreshes++ },
+                        onDescriptionChange = {},
+                        onLicensePlateChange = {},
+                        onSave = {},
+                        onCancel = {},
+                        onEdit = {},
+                        onToggle = {},
+                        onRequestDelete = {},
+                        onConfirmDelete = {},
+                        onDismissDelete = {},
+                    )
+                } else {
+                    Column {
+                        RolePolicy.visibleDestinations(
+                            role,
+                            listOf(
+                                RolePolicy.EntryPoint.VEHICLES to copy(R.string.nav_vehicles),
+                            ),
+                        ).filter { role == RolePolicy.ADMIN }
+                            .forEach { label ->
+                                androidx.compose.material3.TextButton(onClick = { selected = true }) {
+                                    androidx.compose.material3.Text(label)
+                                }
+                            }
+                    }
+                }
+            }
+        }
+        role = RolePolicy.ADMIN
+        composeRule.onNodeWithText(copy(R.string.nav_vehicles)).performClick()
+        composeRule.onNodeWithText("Veículos").assertIsDisplayed()
+        composeRule.onNodeWithText("Atualizar").performClick()
+        composeRule.onNodeWithText("Voltar").performClick()
+        composeRule.onNodeWithText(copy(R.string.nav_vehicles)).assertIsDisplayed()
+        assert(refreshes == 1)
+
+        listOf(RolePolicy.WORKER, "unknown", null).forEach { disallowedRole ->
+            role = disallowedRole
+            composeRule.onNodeWithText(copy(R.string.nav_vehicles)).assertDoesNotExist()
         }
     }
 

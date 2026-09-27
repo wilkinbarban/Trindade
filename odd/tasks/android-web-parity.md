@@ -933,6 +933,12 @@ No UI, navigation, backend or DI changes are included.
 
 `VehiclesScreenTest` provides Hilt-free, Activity-free Robolectric rendered tests with one `setContent` per test. Strict TDD: a compilable scaffold produced behavioral RED with 13 of 13 focused tests failing (`AssertionError`). GREEN: all 13 focused tests passed in `VehiclesScreenTest`. The full pinned SDK run passed **396 tests, 0 failures, 0 errors, 0 skipped** across 49 classes, and `:app:compileDebugSources :app:compileDebugUnitTestSources`. No navigation wiring or DI changes were introduced.
 
+#### C4c2. Vehicle admin tab and navigation — DELIVERED
+
+The vehicles destination uses `RolePolicy.EntryPoint.VEHICLES`, is exposed exclusively to exact `Administrador` sessions, and fails closed for worker, unknown or null roles despite RolePolicy's shared fallback. Its Hilt ViewModel is keyed by the session generation, loads once on entry via `LaunchedEffect(Unit)`, and wires back, refresh, description change, license plate change, save, cancel, edit, toggle, and exactly three deletion callbacks: request, confirm and dismiss (`onRequestDelete = viewModel::requestDelete`, `onConfirmDelete = viewModel::confirmDelete`, `onDismissDelete = viewModel::cancelDelete`), strictly omitting any direct delete binding. Logout's existing reset path and task, driver and category catalog routes are preserved intact. The navigation test suite retains existing branch mirrors and adds a vehicles branch mirror rendering `VehiclesScreen`, verifying administrator reachability alongside back and refresh interactions, and asserting fail-closed exclusion across worker, unknown and null roles. The test honestly mirrors the activity branch without launching or instrumenting `MainActivity` or its Hilt graph.
+
+Strict TDD: a compilable behavioral RED was captured on the new navigation test by leaving the refresh callback unwired in the mirror, failing with `java.lang.AssertionError` (1 of 6 tests failed, tests: 6, failures: 1, errors: 0, skipped: 0; exit code 1). GREEN: wiring the refresh callback passed all 6/6 tests in `MainActivityNavigationTest` (exit code 0). The full pinned SDK run passed **397 tests, 0 failures, 0 errors, 0 skipped** across 49 classes, along with `:app:compileDebugKotlin` (exit code 0). Diff is under 100 lines across the implementation and test files before this ledger entry; no commit, push, emulator or direct Activity instrumentation is claimed.
+
 ### C5. Time slots (`time-slots`) — Administrador, `PUT` replaces the set
 ### C6. Users (`users`) — Administrador
 

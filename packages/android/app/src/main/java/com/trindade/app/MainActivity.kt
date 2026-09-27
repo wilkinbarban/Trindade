@@ -31,6 +31,8 @@ import com.trindade.app.admin.DriversScreen
 import com.trindade.app.admin.DriversViewModel
 import com.trindade.app.admin.TasksScreen
 import com.trindade.app.admin.TasksViewModel
+import com.trindade.app.admin.VehiclesScreen
+import com.trindade.app.admin.VehiclesViewModel
 import com.trindade.app.dashboard.DashboardRoute
 import com.trindade.app.loading.LoadingEditRoute
 import com.trindade.app.loading.LoadingHistoryRoute
@@ -56,6 +58,7 @@ class MainActivity : ComponentActivity() {
         TASKS(R.string.nav_tasks),
         DRIVERS(R.string.nav_drivers),
         CATEGORIES(R.string.nav_categories),
+        VEHICLES(R.string.nav_vehicles),
     }
 
     /**
@@ -72,6 +75,7 @@ class MainActivity : ComponentActivity() {
         RolePolicy.EntryPoint.CATALOG_TASKS to Tab.TASKS,
         RolePolicy.EntryPoint.CATALOG_DRIVERS to Tab.DRIVERS,
         RolePolicy.EntryPoint.CATEGORIES to Tab.CATEGORIES,
+        RolePolicy.EntryPoint.VEHICLES to Tab.VEHICLES,
     )
 
     @Inject
@@ -371,7 +375,7 @@ class MainActivity : ComponentActivity() {
                             RolePolicy.visibleDestinations(role, destinations)
                                 .filter {
                                     when (it) {
-                                        Tab.CATEGORIES -> role == RolePolicy.ADMIN
+                                        Tab.CATEGORIES, Tab.VEHICLES -> role == RolePolicy.ADMIN
                                         Tab.TASKS, Tab.DRIVERS ->
                                             role == RolePolicy.ADMIN || role == RolePolicy.WORKER
                                         else -> true
@@ -414,12 +418,41 @@ class MainActivity : ComponentActivity() {
                                 sessionKey = sessionKey,
                                 onBack = { tab = Tab.DASHBOARD },
                             )
+                            Tab.VEHICLES -> VehiclesTabRoute(
+                                sessionKey = sessionKey,
+                                onBack = { tab = Tab.DASHBOARD },
+                            )
                         }
                     }
                 }
             }
         }
     }
+}
+
+/** Session-owned catalog route; each tab arrival loads once and refresh stays an explicit action. */
+@Composable
+private fun VehiclesTabRoute(
+    sessionKey: String,
+    onBack: () -> Unit,
+    viewModel: VehiclesViewModel = hiltViewModel(key = sessionKey),
+) {
+    val state by viewModel.state.collectAsState()
+    LaunchedEffect(Unit) { viewModel.load() }
+    VehiclesScreen(
+        state = state,
+        onBack = onBack,
+        onRefresh = viewModel::load,
+        onDescriptionChange = viewModel::onDescriptionChange,
+        onLicensePlateChange = viewModel::onLicensePlateChange,
+        onSave = viewModel::save,
+        onCancel = viewModel::cancelEdit,
+        onEdit = viewModel::edit,
+        onToggle = viewModel::toggle,
+        onRequestDelete = viewModel::requestDelete,
+        onConfirmDelete = viewModel::confirmDelete,
+        onDismissDelete = viewModel::cancelDelete,
+    )
 }
 
 /** Session-owned catalog route; each tab arrival loads once and refresh stays an explicit action. */
