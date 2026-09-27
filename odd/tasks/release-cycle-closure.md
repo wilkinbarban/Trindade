@@ -44,11 +44,42 @@ behavior they verify, so a cohesive unit whose tests cannot be separated without
 | `1241183` task catalog state and rules | 405 | pre-existing authorized exception |
 | `1e773f1` category catalog state and rules | 659 | **`size:exception` accepted (operator, 2026-09-27)** — ViewModel and its behavioral tests are one unit; splitting tests from code would leave each half unverifiable |
 | `9ae8431` category catalog controls | 563 | **`size:exception` accepted (operator, 2026-09-27)** — Robolectric rendered flow needs the real screen and its 13 assertions together |
+| `dc267039` vehicle catalog state and rules | 595 | **`size:exception` accepted** — ViewModel plus its behavioral tests are one unit; the delete/toggle/validation policy is not verifiable in halves |
+| `8cec02be` vehicle catalog controls | 532 | **`size:exception` accepted** — the Robolectric rendered flow needs the real screen and its 13 assertions together, including the non-admin fail-closed guard |
 | all other commits | 7–405 | within budget |
 
 One honest slicing pass was performed for `1e773f1` and `9ae8431` before asking; no cohesive split brings both under 400, so the
 accepted exceptions above are the recorded outcome, and the commits are not to be shrunk by removing comments, blank lines, docs or
 tests. New units after C3 (C4–C6, D1) are planned to stay near the budget; any new overage is recorded in this same table.
+
+**Blocker recorded 2026-09-27: the native reviewer relay is failing deterministically.** Five of five review captures returned
+`pi-host-relay-transport-failure` (stage `pi`, "WebSocket error", 83–85 s elapsed, `mutation: none`), so the candidate stays frozen and
+the slot is reoffered after each fresh STATUS. Refuted with evidence: concurrent load, `gentle-shell` version skew (realigned to 3.7.0 and
+the stale host killed), and a wedged relay host; `gentle-ai doctor` is healthy. Because this blocks every new review, the vehicle units
+above are committed and independently verified but their native reviews cannot close until the transport is restored. The one untried
+route is the in-process reviewer transport, which needs a fresh session without `GENTLE_PI_REVIEW_RELAY_EXTENSIONS` and
+`GENTLE_PI_REVIEW_RELAY_CONTRACT`.
+
+## Review-candidate risk assessment standard
+
+The native `gentle-ai review assess` verb is read-only and usable, but it refuses with exit 1 whenever the repository has eligible
+untracked files and the caller did not declare the untracked scope. Its refusal is itself a valid `gentle-ai.review-assessment/v1`
+envelope carrying `risk: high` and an actionable `unassessable` reason, yet the Pi facade only accepts a *failure* envelope on a
+non-zero exit, so the actionable reason surface as an opaque `schema-incompatible` and the candidate is treated as unassessable.
+
+Standard for this feature, so a real tier is obtained instead of a fail-closed default:
+
+1. Assess **at a clean point**: immediately after a work-unit commit and before launching the next writer, when the tree has no
+   eligible untracked files. Verified on this repository: a clean clone assessed the C4a candidate as `medium` (7 paths, 203 lines).
+2. When untracked files do exist, **declare the scope** in the assess input:
+   `{"baseRef":"<ref>","committedOnly":true,"untrackedScope":"exclude","expectedUntrackedInventory":"sha256:<eligible_untracked_inventory from STATUS>"}`.
+   Use `untrackedScope: "select"` with `intendedUntracked: [...]` when the new files are part of the candidate. Verified: the same
+   input that failed without the declaration returned exit 0 and `risk: passive` with the declaration.
+3. Pass `writerModelId` and `writerEffort` when the writer's real profile is known. An unknown profile is treated as small, which
+   raises a medium tier to high for verification purposes and adds an independent verifier run that the profile would not require.
+
+Until the facade returns the native envelope on a non-zero assess exit, an unassessable result is never evidence of a low tier: it
+keeps the fail-closed path, so this standard is an efficiency and fidelity improvement, never a way to lower the verification bar.
 
 ## Work-unit evidence
 
