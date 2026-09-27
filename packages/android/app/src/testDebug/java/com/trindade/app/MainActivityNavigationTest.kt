@@ -17,6 +17,8 @@ import com.trindade.app.auth.LoginViewModel
 import com.trindade.app.auth.RegisterScreen
 import com.trindade.app.auth.RegisterViewModel
 import com.trindade.app.auth.RolePolicy
+import com.trindade.app.admin.DriversScreen
+import com.trindade.app.admin.DriversViewModel
 import com.trindade.app.admin.TasksScreen
 import com.trindade.app.admin.TasksViewModel
 import com.trindade.app.ui.theme.TrindadeTheme
@@ -133,11 +135,7 @@ class MainActivityNavigationTest {
         assertFalse(signedIn)
     }
 
-    /**
-     * The task-tab branch as MainActivity draws it: the policy supplies the row and the selected tab
-     * selects the catalog. This is a rendered branch mirror, not Activity instrumentation; Hilt's
-     * activity owner is intentionally outside this JVM test lane.
-     */
+    /** The task tab's existing role and branch mirror remains covered beside the drivers destination. */
     @Test
     fun `task tab is reachable for administrator and worker but not unknown roles`() {
         var role by mutableStateOf(RolePolicy.ADMIN)
@@ -174,6 +172,51 @@ class MainActivityNavigationTest {
         }
         role = "unknown"
         composeRule.onNodeWithText("Tarefas").assertDoesNotExist()
+    }
+
+    /**
+     * Mirrors MainActivity's drivers destination branch and role filter. This renders the screen and
+     * exercises its callbacks, but does not launch or instrument MainActivity or its Hilt graph.
+     */
+    @Test
+    fun `drivers tab is reachable for administrator and worker but not unknown roles`() {
+        var role by mutableStateOf(RolePolicy.ADMIN)
+        var selected by mutableStateOf(false)
+        var refreshes = 0
+        composeRule.setContent {
+            TrindadeTheme {
+                if (selected) {
+                    DriversScreen(
+                        state = DriversViewModel.UiState(loading = false, role = role),
+                        onBack = { selected = false }, onRefresh = { refreshes++ },
+                        onNameChange = {}, onLicensePlateChange = {}, onDriverTypeChange = {},
+                        onSave = {}, onCancel = {}, onEdit = {}, onToggle = {},
+                    )
+                } else {
+                    Column {
+                        RolePolicy.visibleDestinations(role, listOf(
+                            RolePolicy.EntryPoint.CATALOG_DRIVERS to copy(R.string.nav_drivers),
+                        )).filter { role == RolePolicy.ADMIN || role == RolePolicy.WORKER }
+                            .forEach { label ->
+                            androidx.compose.material3.TextButton(onClick = { selected = true }) {
+                                androidx.compose.material3.Text(label)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        listOf(RolePolicy.ADMIN, RolePolicy.WORKER).forEach { allowedRole ->
+            role = allowedRole
+            composeRule.onNodeWithText(copy(R.string.nav_drivers)).performClick()
+            composeRule.onNodeWithText("Motoristas").assertIsDisplayed()
+            composeRule.onNodeWithText("Atualizar").performClick()
+            composeRule.onNodeWithText("Voltar").performClick()
+            composeRule.onNodeWithText(copy(R.string.nav_drivers)).assertIsDisplayed()
+        }
+        assert(refreshes == 2)
+        role = "unknown"
+        composeRule.onNodeWithText(copy(R.string.nav_drivers)).assertDoesNotExist()
     }
 
     /**

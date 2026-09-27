@@ -25,6 +25,8 @@ import com.trindade.app.auth.LoginRoute
 import com.trindade.app.auth.ProfileRoute
 import com.trindade.app.auth.RegisterRoute
 import com.trindade.app.auth.RolePolicy
+import com.trindade.app.admin.DriversScreen
+import com.trindade.app.admin.DriversViewModel
 import com.trindade.app.admin.TasksScreen
 import com.trindade.app.admin.TasksViewModel
 import com.trindade.app.dashboard.DashboardRoute
@@ -44,26 +46,28 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
-    /** The three top-level surfaces this build can draw. Nothing else is a destination yet. */
+    /** The top-level surfaces this build can draw. */
     private enum class Tab(@StringRes val label: Int) {
         DASHBOARD(R.string.nav_dashboard),
         REPORTS(R.string.nav_reports),
         LOADING(R.string.nav_loading),
         TASKS(R.string.nav_tasks),
+        DRIVERS(R.string.nav_drivers),
     }
 
     /**
      * What this build can draw, in the order the row shows them.
      *
      * What the app *has* is this list; whether a role may see one is `RolePolicy`'s answer, asked in the row
-     * below. The admin surfaces the parity track commits to are missing here because they are not built yet, not
-     * because nobody may see them: when one lands it joins this list and the policy decides who gets it.
+     * below. The remaining admin surfaces the parity track commits to are not built yet; when each lands it
+     * joins this list and the policy decides who gets it.
      */
     private val destinations = listOf(
         RolePolicy.EntryPoint.DASHBOARD to Tab.DASHBOARD,
         RolePolicy.EntryPoint.REPORTS to Tab.REPORTS,
         RolePolicy.EntryPoint.LOADING to Tab.LOADING,
         RolePolicy.EntryPoint.CATALOG_TASKS to Tab.TASKS,
+        RolePolicy.EntryPoint.CATALOG_DRIVERS to Tab.DRIVERS,
     )
 
     @Inject
@@ -133,7 +137,7 @@ class MainActivity : ComponentActivity() {
                 // product change rather than a gap -- but the two doors are what the order below has to
                 // tell apart, so the origin is carried explicitly rather than assumed.
                 var loadingDayFromHistory by remember { mutableStateOf(false) }
-                // Which of the three top-level surfaces is showing. The dashboard is what the app opens on,
+                // Which top-level tab is showing. The dashboard is what the app opens on,
                 // and it is the web's own answer to the same question: a signed-in operator lands on
                 // `/dashboard` there, both from its `*` route and from its post-login redirect. The start is
                 // a literal because the dashboard is visible to every role -- `RolePolicy` has it in the set
@@ -361,7 +365,10 @@ class MainActivity : ComponentActivity() {
                             // the app has and the policy says what this role may open, and this is the one place
                             // the two meet.
                             RolePolicy.visibleDestinations(role, destinations)
-                                .filter { it != Tab.TASKS || role == RolePolicy.ADMIN || role == RolePolicy.WORKER }
+                                .filter {
+                                    it !in setOf(Tab.TASKS, Tab.DRIVERS) ||
+                                        role == RolePolicy.ADMIN || role == RolePolicy.WORKER
+                                }
                                 .forEach { destination ->
                                 TextButton(onClick = { tab = destination }) { Text(stringResource(destination.label)) }
                             }
@@ -391,12 +398,39 @@ class MainActivity : ComponentActivity() {
                                 sessionKey = sessionKey,
                                 onBack = { tab = Tab.DASHBOARD },
                             )
+                            Tab.DRIVERS -> DriversTabRoute(
+                                sessionKey = sessionKey,
+                                onBack = { tab = Tab.DASHBOARD },
+                            )
                         }
                     }
                 }
             }
         }
     }
+}
+
+/** Session-owned catalog route; each tab arrival loads once and refresh stays an explicit action. */
+@Composable
+private fun DriversTabRoute(
+    sessionKey: String,
+    onBack: () -> Unit,
+    viewModel: DriversViewModel = hiltViewModel(key = sessionKey),
+) {
+    val state by viewModel.state.collectAsState()
+    LaunchedEffect(Unit) { viewModel.load() }
+    DriversScreen(
+        state = state,
+        onBack = onBack,
+        onRefresh = viewModel::load,
+        onNameChange = viewModel::onNameChange,
+        onLicensePlateChange = viewModel::onLicensePlateChange,
+        onDriverTypeChange = viewModel::onDriverTypeChange,
+        onSave = viewModel::save,
+        onCancel = viewModel::cancelEdit,
+        onEdit = viewModel::edit,
+        onToggle = viewModel::toggle,
+    )
 }
 
 /** Session-owned catalog route; each tab arrival loads once and refresh stays an explicit action. */

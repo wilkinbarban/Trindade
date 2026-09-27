@@ -851,6 +851,12 @@ The server remains the authority: `catalogGuard` allows both roles; workers rece
 
 Five rendered tests cover admin list/toggle, create fields and type selection, worker create/ownership/no admin controls, back/refresh, and loading/error/saving. Strict TDD: a compilable empty-screen stub produced behavioral RED (4 tests failed); after implementation, focused GREEN passed 5/5. The pinned SDK full JVM run passed **346 tests, 0 failures, 0 skipped**, plus `:app:compileDebugKotlin`. The exact source+test budget is 252 lines (258 total including this ledger entry); no navigation/MainActivity changes.
 
+#### C2c2. Drivers tab and navigation — DELIVERED
+
+The drivers destination uses `RolePolicy.CATALOG_DRIVERS`, is exposed to exact `Administrador` and `Trabalhador` sessions, and fails closed for unknown roles despite the policy's shared fallback. Its Hilt ViewModel is keyed by the session generation, loads once on entry, and wires back, refresh, form, save/cancel, edit and toggle callbacks; logout's existing reset path is unchanged. The navigation test keeps the task branch mirror and adds a drivers branch mirror that renders `DriversScreen`, checks both known roles and unknown-role exclusion, and exercises back/refresh. It explicitly does not instrument `MainActivity` or Hilt.
+
+Strict-TDD RED attempt stopped at test compilation because the new string resource did not yet exist; this was setup failure, not behavioral RED. No valid behavioral RED was captured: the JVM navigation lane intentionally mirrors rather than launches the Activity. GREEN: the focused navigation test passed (4 tests); the pinned full suite and `:app:compileDebugKotlin` passed (**347 tests, 0 failures, 0 errors, 0 skipped**). Diff is 98 changed lines across the three implementation/test files before this ledger entry; no emulator or direct Activity instrumentation is claimed.
+
 ### C3. Categories (`categories`) — read for both, write Administrador only
 ### C4. Vehicles (`vehicles`) — Administrador
 ### C5. Time slots (`time-slots`) — Administrador, `PUT` replaces the set
