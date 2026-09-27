@@ -830,6 +830,15 @@ It validates category, names and readings per backend rules; refusals retain sta
 The rendered navigation test composes the task screen and mirrors the role-filter/branch decisions; it does **not** launch or instrument `MainActivity` or its Hilt graph. Focused verification on the pinned Android SDK image: `:app:testDebugUnitTest --tests com.trindade.app.MainActivityNavigationTest` passed (3 tests). The non-root run could not transform a pre-existing root-owned `DashboardScreenTest.class`; rerunning the same command as root in the same pinned image passed. Strict-TDD RED was not captured as a clean pre-implementation behavioral failure: early test attempts first hit test-source compilation/setup failures. GREEN is the successful focused run above. No emulator/manual screen inspection is claimed.
 
 ### C2. Drivers (`drivers`) — Administrador + Trabalhador
+
+#### C2a. Typed API and repository — DELIVERED
+
+`AdminApi` now exposes only the drivers' `GET`, `POST` and `PATCH` operations; the backend has no driver `DELETE`. `DriversRepository` preserves failed reads as `null` (distinct from an empty list), and writes as `Saved`, `Refused(status)` or `Unreachable`. The generated `is_active` enum would serialize as a string, so the repository emits its numeric value in the PATCH JSON required by the backend.
+
+The server remains the authority: `catalogGuard` allows both roles; workers receive active drivers only, may create only `fletero`, and may update only their own existing `fletero` drivers. Worker PATCHes cannot set `is_active` or change `driver_type` to `casa`. Administrators retain the broader server permissions. No ownership or role rule is duplicated in this repository slice.
+
+**Evidence:** `DriversRepositoryTest` covers the GET/POST/PATCH wire paths, empty versus refused reads, successful writes, numeric `is_active`, refusal status and unreachable transport. On the pinned Android SDK image, the focused class passed (3 tests); the full JVM suite passed at **41 classes / 335 tests**, 0 failures, 0 errors, 0 skipped. The `CatalogApi` fake used by task ViewModel tests now fails loudly if any driver API method is unexpectedly called.
+
 ### C3. Categories (`categories`) — read for both, write Administrador only
 ### C4. Vehicles (`vehicles`) — Administrador
 ### C5. Time slots (`time-slots`) — Administrador, `PUT` replaces the set

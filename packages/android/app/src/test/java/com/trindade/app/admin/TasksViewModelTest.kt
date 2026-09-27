@@ -219,6 +219,9 @@ private class CatalogApi(
         else if (writeResult is TaskWriteResult.Refused) Response.error((writeResult as TaskWriteResult.Refused).status, okhttp3.ResponseBody.create(null, ""))
         else throw java.io.IOException("offline")
     }
+    override suspend fun drivers(): Response<AdminDriversResponse> = error("driver API is not used by task tests")
+    override suspend fun createDriver(body: CreateAdminDriverRequest): Response<AdminDriverResponse> = error("driver API is not used by task tests")
+    override suspend fun updateDriver(id: Int, body: JsonObject): Response<AdminDriverResponse> = error("driver API is not used by task tests")
 }
 
 private class ProfileApi(role: String) : AuthApi {
