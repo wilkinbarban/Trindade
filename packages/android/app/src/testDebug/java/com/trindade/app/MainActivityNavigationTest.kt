@@ -155,7 +155,8 @@ class MainActivityNavigationTest {
                         state = TasksViewModel.UiState(loading = false, role = role),
                         onBack = { selected = false }, onRefresh = {}, onCategoryChange = {},
                         onNamePtChange = {}, onNameEsChange = {}, onReadingsChange = {},
-                        onSave = {}, onCancel = {}, onEdit = {}, onToggle = {}, onDelete = {},
+                        onSave = {}, onCancel = {}, onEdit = {}, onToggle = {},
+                        onRequestDelete = {}, onConfirmDelete = {}, onDismissDelete = {},
                     )
                 } else {
                     Column {

@@ -592,6 +592,8 @@ private fun TasksTabRoute(
         onCancel = viewModel::cancelEdit,
         onEdit = viewModel::edit,
         onToggle = viewModel::toggle,
-        onDelete = viewModel::delete,
+        onRequestDelete = viewModel::requestDelete,
+        onConfirmDelete = viewModel::confirmDelete,
+        onDismissDelete = viewModel::cancelDelete,
     )
 }

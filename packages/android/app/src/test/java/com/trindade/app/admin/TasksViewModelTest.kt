@@ -27,6 +27,46 @@ class TasksViewModelTest {
     @Before fun setMain() { Dispatchers.setMain(UnconfinedTestDispatcher()) }
     @After fun resetMain() { Dispatchers.resetMain() }
 
+    @Test fun `repository deletion is not a public ViewModel action`() {
+        assertFalse(TasksViewModel::class.java.declaredMethods.any {
+            it.name == "delete" && java.lang.reflect.Modifier.isPublic(it.modifiers)
+        })
+    }
+
+    @Test fun `confirmed delete state workflow enforces request cancel and no-replay confirmation`() {
+        val target = task(7, 3, 99, 1)
+        val second = task(8, 3, 99, 1)
+        val api = CatalogApi(taskRows = listOf(target, second))
+        val model = model(api, role = "Administrador")
+        model.load()
+
+        model.confirmDelete()
+        assertEquals(0, api.deletes)
+
+        model.requestDelete(target)
+        assertEquals(target, model.state.value.deleteTarget)
+
+        model.cancelDelete()
+        assertNull(model.state.value.deleteTarget)
+
+        model.confirmDelete()
+        assertEquals(0, api.deletes)
+
+        model.requestDelete(target)
+        api.writeResult = TaskWriteResult.Deleted
+        model.confirmDelete()
+        assertEquals(1, api.deletes)
+        assertNull(model.state.value.deleteTarget)
+
+        model.confirmDelete()
+        assertEquals(1, api.deletes)
+
+        model.requestDelete(second)
+        model.confirmDelete()
+        assertEquals(2, api.deletes)
+        assertNull(model.state.value.deleteTarget)
+    }
+
     @Test fun `loads catalog and resolves current user through authenticated profile`() {
         val api = CatalogApi(taskRows = listOf(task(7, 3, 42, active = 1), task(8, 4, 99, active = 0)))
         val model = model(api)
@@ -52,7 +92,8 @@ class TasksViewModelTest {
         assertFalse(model.state.value.canToggle(model.state.value.tasks[0]))
         assertFalse(model.state.value.canDelete(model.state.value.tasks[0]))
         model.toggle(model.state.value.tasks[0])
-        model.delete(model.state.value.tasks[0])
+        model.requestDelete(model.state.value.tasks[0])
+        model.confirmDelete()
         assertEquals(0, api.updates + api.deletes)
     }
 
@@ -74,7 +115,8 @@ class TasksViewModelTest {
         assertEquals(1, api.updates)
         assertEquals(2, api.taskReads)
         api.writeResult = TaskWriteResult.Deleted
-        model.delete(task)
+        model.requestDelete(task)
+        model.confirmDelete()
         assertEquals(1, api.deletes)
         assertEquals(3, api.taskReads)
     }
@@ -186,7 +228,9 @@ class TasksViewModelTest {
         assertNull(pendingModel.state.value.editingId)
         pendingModel.toggle(targetTask)
         assertEquals(0, pendingApi.updates)
-        pendingModel.delete(targetTask)
+        pendingModel.requestDelete(targetTask)
+        assertNull(pendingModel.state.value.deleteTarget)
+        pendingModel.confirmDelete()
         assertEquals(0, pendingApi.deletes)
         pendingModel.onCategoryChange("3")
         pendingModel.onNamePtChange("Nova")
@@ -218,6 +262,124 @@ class TasksViewModelTest {
         workerModel.load()
         workerModel.save()
         assertEquals(1, workerApi.updates)
+    }
+
+    @Test fun `failed reload clears deleteTarget and permission check blocks unconfirmed or unauthorized deletion`() {
+        val target = task(7, 3, 99, 1)
+        val api = CatalogApi(taskRows = listOf(target))
+        val model = model(api, role = "Administrador")
+        model.load()
+        assertTrue(model.state.value.canDelete(target))
+
+        model.requestDelete(target)
+        assertEquals(target, model.state.value.deleteTarget)
+
+        // Failed reload clears deleteTarget, role, and permissions
+        api.refuseCategories = true
+        model.load()
+        assertEquals(TasksViewModel.UNREACHABLE, model.state.value.error)
+        assertNull(model.state.value.deleteTarget)
+        assertNull(model.state.value.role)
+        assertFalse(model.state.value.canDelete(target))
+
+        // Confirming when deleteTarget is null or permissions failed does nothing
+        model.confirmDelete()
+        assertEquals(0, api.deletes)
+
+        // Worker role cannot request or confirm delete
+        val workerApi = CatalogApi(taskRows = listOf(target))
+        val workerModel = model(workerApi, role = "Trabalhador")
+        workerModel.load()
+        assertFalse(workerModel.state.value.canDelete(target))
+        workerModel.requestDelete(target)
+        assertNull(workerModel.state.value.deleteTarget)
+        workerModel.confirmDelete()
+        assertEquals(0, workerApi.deletes)
+    }
+
+    @Test fun `in-flight load blocks requestDelete and confirmDelete while preserving existing confirmation target`() {
+        val target = task(7, 3, 99, 1)
+        val other = task(8, 3, 99, 1)
+        val api = CatalogApi(taskRows = listOf(target, other))
+        val model = model(api, role = "Administrador")
+        model.load()
+
+        model.requestDelete(target)
+        assertEquals(target, model.state.value.deleteTarget)
+
+        val deferred = CompletableDeferred<List<AdminTasksResponseTasksInner>>()
+        api.deferredRead = deferred
+        model.load()
+        assertTrue(model.state.value.loading)
+
+        // requestDelete for another task is blocked during loading
+        model.requestDelete(other)
+        assertEquals(target, model.state.value.deleteTarget)
+
+        // confirmDelete is blocked during loading
+        model.confirmDelete()
+        assertEquals(0, api.deletes)
+        assertEquals(target, model.state.value.deleteTarget)
+
+        deferred.complete(listOf(target, other))
+        assertFalse(model.state.value.loading)
+
+        // Now confirmDelete succeeds
+        api.writeResult = TaskWriteResult.Deleted
+        model.confirmDelete()
+        assertEquals(1, api.deletes)
+        assertNull(model.state.value.deleteTarget)
+    }
+
+    @Test fun `target removed from catalog between request and reload clears deleteTarget and rejects confirmation`() {
+        val target = task(7, 3, 99, 1)
+        val api = CatalogApi(taskRows = listOf(target))
+        val model = model(api, role = "Administrador")
+        model.load()
+
+        model.requestDelete(target)
+        assertEquals(target, model.state.value.deleteTarget)
+
+        // Target task is removed before next reload
+        api.taskRows = emptyList()
+        model.load()
+        assertNull(model.state.value.deleteTarget)
+
+        // confirmDelete has no effect
+        model.confirmDelete()
+        assertEquals(0, api.deletes)
+    }
+
+    @Test fun `requestDelete selects task by id from current catalog ignoring stale caller object and confirm re-evaluates`() {
+        val canonical = task(7, 3, 99, 1)
+        val api = CatalogApi(taskRows = listOf(canonical))
+        val model = model(api, role = "Administrador")
+        model.load()
+
+        // Stale task object with different name/readings but same ID
+        val stale = canonical.copy(namePt = "Stale name", temperatureReadings = 3)
+        model.requestDelete(stale)
+        // ViewModel selects canonical instance from current catalog
+        assertEquals(canonical, model.state.value.deleteTarget)
+        assertEquals("Task7", model.state.value.deleteTarget?.namePt)
+
+        // Non-existent ID is rejected
+        val nonExistent = task(999, 3, 99, 1)
+        model.requestDelete(nonExistent)
+        // Keeps previous target and does not adopt nonExistent
+        assertEquals(canonical, model.state.value.deleteTarget)
+
+        // If target disappears from tasks list before confirmDelete, confirmation is rejected
+        val pendingApi = CatalogApi(taskRows = listOf(canonical))
+        val pendingModel = model(pendingApi, role = "Administrador")
+        pendingModel.load()
+        pendingModel.requestDelete(canonical)
+        // Simulate task removal from state before confirmDelete
+        pendingApi.taskRows = emptyList()
+        pendingModel.load()
+        pendingModel.confirmDelete()
+        assertEquals(0, pendingApi.deletes)
+        assertNull(pendingModel.state.value.deleteTarget)
     }
 
     private fun model(api: CatalogApi, role: String = "Trabalhador") = TasksViewModel(

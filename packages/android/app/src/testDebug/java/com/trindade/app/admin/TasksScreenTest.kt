@@ -1,5 +1,8 @@
 package com.trindade.app.admin
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertCountEquals
@@ -44,18 +47,21 @@ class TasksScreenTest {
         saving: Boolean = false,
         error: String? = null,
         editingId: Int? = null,
+        deleteTarget: AdminTasksResponseTasksInner? = null,
     ) = TasksViewModel.UiState(
         loading = false, saving = saving, categories = listOf(category), tasks = tasks,
         role = role, currentUserId = 7, editingId = editingId,
         categoryId = category.id.toString(), namePt = "Câmara fria", nameEs = "Cámara fría",
-        temperatureReadings = "2", error = error,
+        temperatureReadings = "2", deleteTarget = deleteTarget, error = error,
     )
 
     private fun render(
         state: TasksViewModel.UiState,
         onEdit: (AdminTasksResponseTasksInner) -> Unit = {},
         onToggle: (AdminTasksResponseTasksInner) -> Unit = {},
-        onDelete: (AdminTasksResponseTasksInner) -> Unit = {},
+        onRequestDelete: (AdminTasksResponseTasksInner) -> Unit = {},
+        onConfirmDelete: () -> Unit = {},
+        onDismissDelete: () -> Unit = {},
         onRefresh: () -> Unit = {},
         onBack: () -> Unit = {},
         onCategoryChange: (String) -> Unit = {},
@@ -68,7 +74,10 @@ class TasksScreenTest {
                 state = state, onBack = onBack, onRefresh = onRefresh,
                 onCategoryChange = onCategoryChange, onNamePtChange = onNamePtChange,
                 onNameEsChange = onNameEsChange, onReadingsChange = onReadingsChange,
-                onSave = {}, onCancel = {}, onEdit = onEdit, onToggle = onToggle, onDelete = onDelete,
+                onSave = {}, onCancel = {}, onEdit = onEdit, onToggle = onToggle,
+                onRequestDelete = onRequestDelete,
+                onConfirmDelete = onConfirmDelete,
+                onDismissDelete = onDismissDelete,
             )
         }
     }
@@ -77,8 +86,13 @@ class TasksScreenTest {
     fun `catalog draws task names readings and admin actions`() {
         var edited = 0
         var toggled = 0
-        var deleted = 0
-        render(state(), onEdit = { edited++ }, onToggle = { toggled++ }, onDelete = { deleted++ })
+        var requested = 0
+        render(
+            state(),
+            onEdit = { edited++ },
+            onToggle = { toggled++ },
+            onRequestDelete = { requested++ },
+        )
 
         composeRule.onNodeWithText("Câmara fria 1").performScrollTo().assertIsDisplayed()
         composeRule.onAllNodesWithText("2 leituras").assertCountEquals(2)
@@ -87,9 +101,8 @@ class TasksScreenTest {
         composeRule.onNodeWithText("Desativar").performScrollTo().performClick()
         assertEquals(1, toggled)
         composeRule.onAllNodesWithText("Excluir")[0].performScrollTo().performClick()
-        composeRule.onNodeWithText("Confirmar exclusão").assertIsDisplayed()
-        composeRule.onNodeWithText("Confirmar").performClick()
-        assertEquals(1, deleted)
+        assertEquals(1, requested)
+        composeRule.onNodeWithText("Confirmar exclusão").assertDoesNotExist()
     }
 
     @Test
@@ -150,5 +163,114 @@ class TasksScreenTest {
         composeRule.onNodeWithText("Atualizar").performClick()
         assertEquals(1, backs)
         assertEquals(1, refreshes)
+    }
+
+    @Test
+    fun `confirmed delete dialog via state target forwards confirmation`() {
+        var confirmed = 0
+        var dismissed = 0
+        render(
+            state(deleteTarget = task(1, 7)),
+            onConfirmDelete = { confirmed++ },
+            onDismissDelete = { dismissed++ },
+        )
+        composeRule.onNodeWithText("Confirmar exclusão").assertIsDisplayed()
+        composeRule.onNodeWithText("Excluir Câmara fria 1?").assertIsDisplayed()
+        composeRule.onNodeWithText("Confirmar").performClick()
+        assertEquals(1, confirmed)
+        assertEquals(0, dismissed)
+    }
+
+    @Test
+    fun `confirmed delete dialog dismissal forwards onDismissDelete`() {
+        var dismissed = 0
+        render(
+            state(deleteTarget = task(1, 7)),
+            onDismissDelete = { dismissed++ },
+        )
+        composeRule.onNodeWithText("Confirmar exclusão").assertIsDisplayed()
+        composeRule.onNodeWithText("Cancelar").performClick()
+        assertEquals(1, dismissed)
+    }
+
+    @Test
+    fun `delete button is disabled during saving`() {
+        render(state(saving = true))
+        composeRule.onAllNodesWithText("Excluir")[0].performScrollTo().assertIsNotEnabled()
+    }
+
+    @Test
+    fun `clicking Excluir invokes request callback but does not open dialog until state recomposes with deleteTarget`() {
+        var requested: AdminTasksResponseTasksInner? = null
+        var uiState by mutableStateOf(state(deleteTarget = null))
+        composeRule.setContent {
+            TrindadeTheme {
+                TasksScreen(
+                    state = uiState,
+                    onBack = {},
+                    onRefresh = {},
+                    onCategoryChange = {},
+                    onNamePtChange = {},
+                    onNameEsChange = {},
+                    onReadingsChange = {},
+                    onSave = {},
+                    onCancel = {},
+                    onEdit = {},
+                    onToggle = {},
+                    onRequestDelete = {
+                        requested = it
+                        uiState = uiState.copy(deleteTarget = it)
+                    },
+                    onConfirmDelete = {},
+                    onDismissDelete = {},
+                )
+            }
+        }
+
+        // Before click: dialog does not exist
+        composeRule.onNodeWithText("Confirmar exclusão").assertDoesNotExist()
+
+        // Clicking Excluir triggers onRequestDelete callback which updates uiState.deleteTarget
+        composeRule.onAllNodesWithText("Excluir")[0].performScrollTo().performClick()
+        assertEquals(1, requested?.id)
+
+        // Now dialog appears because uiState recomposed with non-null deleteTarget
+        composeRule.onNodeWithText("Confirmar exclusão").assertIsDisplayed()
+        composeRule.onNodeWithText("Excluir Câmara fria 1?").assertIsDisplayed()
+    }
+
+    @Test
+    fun `failed reload clears deleteTarget so no lingering dialog survives`() {
+        var uiState by mutableStateOf(state(deleteTarget = task(1, 7)))
+        composeRule.setContent {
+            TrindadeTheme {
+                TasksScreen(
+                    state = uiState,
+                    onBack = {},
+                    onRefresh = {},
+                    onCategoryChange = {},
+                    onNamePtChange = {},
+                    onNameEsChange = {},
+                    onReadingsChange = {},
+                    onSave = {},
+                    onCancel = {},
+                    onEdit = {},
+                    onToggle = {},
+                    onRequestDelete = {},
+                    onConfirmDelete = {},
+                    onDismissDelete = {},
+                )
+            }
+        }
+
+        // Dialog is displayed initially because state.deleteTarget is set
+        composeRule.onNodeWithText("Confirmar exclusão").assertIsDisplayed()
+
+        // Failed reload clears deleteTarget in state
+        uiState = uiState.copy(deleteTarget = null, error = TasksViewModel.UNREACHABLE)
+        composeRule.waitForIdle()
+
+        // Dialog must disappear immediately without lingering local modal
+        composeRule.onNodeWithText("Confirmar exclusão").assertDoesNotExist()
     }
 }

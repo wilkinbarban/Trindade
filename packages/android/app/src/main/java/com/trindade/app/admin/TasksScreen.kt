@@ -41,11 +41,12 @@ fun TasksScreen(
     onCancel: () -> Unit,
     onEdit: (AdminTasksResponseTasksInner) -> Unit,
     onToggle: (AdminTasksResponseTasksInner) -> Unit,
-    onDelete: (AdminTasksResponseTasksInner) -> Unit,
+    onRequestDelete: (AdminTasksResponseTasksInner) -> Unit,
+    onConfirmDelete: () -> Unit,
+    onDismissDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var showForm by remember { mutableStateOf(false) }
-    var deleteTarget by remember { mutableStateOf<AdminTasksResponseTasksInner?>(null) }
     Column(
         modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -53,7 +54,7 @@ fun TasksScreen(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TextButton(onClick = onBack) { Text("Voltar") }
             Text("Tarefas", style = MaterialTheme.typography.titleLarge)
-            TextButton(onClick = onRefresh, enabled = !state.loading) { Text("Atualizar") }
+            TextButton(onClick = onRefresh, enabled = !state.loading && !state.saving) { Text("Atualizar") }
         }
         if (state.loading) CircularProgressIndicator()
         state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
@@ -91,7 +92,14 @@ fun TasksScreen(
                         if (state.canToggle(task)) TextButton(onClick = { onToggle(task) }) {
                             Text(if (task.isActive == 1) "Desativar" else "Ativar")
                         }
-                        if (state.canDelete(task)) TextButton(onClick = { deleteTarget = task }) { Text("Excluir") }
+                        if (state.canDelete(task)) {
+                            TextButton(
+                                onClick = { onRequestDelete(task) },
+                                enabled = !state.saving,
+                            ) {
+                                Text("Excluir")
+                            }
+                        }
                     }
                 }
             }
@@ -99,13 +107,22 @@ fun TasksScreen(
         if (!state.loading && state.tasks.isEmpty()) Text("Nenhuma tarefa")
     }
 
-    deleteTarget?.let { task ->
+    state.deleteTarget?.let { task ->
+        val taskName = task.namePt.ifBlank { task.nameEs }
         AlertDialog(
-            onDismissRequest = { deleteTarget = null },
+            onDismissRequest = onDismissDelete,
             title = { Text("Confirmar exclusão") },
-            text = { Text("Excluir ${task.namePt.ifBlank { task.nameEs }}?") },
-            confirmButton = { TextButton(onClick = { deleteTarget = null; onDelete(task) }) { Text("Confirmar") } },
-            dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text("Cancelar") } },
+            text = { Text("Excluir $taskName?") },
+            confirmButton = {
+                TextButton(onClick = onConfirmDelete) {
+                    Text("Confirmar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismissDelete) {
+                    Text("Cancelar")
+                }
+            },
         )
     }
 }

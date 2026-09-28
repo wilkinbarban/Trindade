@@ -34,6 +34,7 @@ class TasksViewModel @Inject constructor(
         val namePt: String = "",
         val nameEs: String = "",
         val temperatureReadings: String = "1",
+        val deleteTarget: AdminTasksResponseTasksInner? = null,
         val error: String? = null,
         val refusedStatus: Int? = null,
     ) {
@@ -65,13 +66,25 @@ class TasksViewModel @Inject constructor(
                         tasks = emptyList(),
                         role = null,
                         currentUserId = null,
+                        deleteTarget = null,
                     )
                 }
                 return@launch
             }
+            val currentTarget = _state.value.deleteTarget
+            val retainedTarget = if (currentTarget != null && profile.role == ADMIN) {
+                tasks.firstOrNull { it.id == currentTarget.id }
+            } else null
             _state.update {
-                it.copy(loading = false, categories = categories, tasks = tasks, role = profile.role,
-                    currentUserId = profile.id, error = null)
+                it.copy(
+                    loading = false,
+                    categories = categories,
+                    tasks = tasks,
+                    role = profile.role,
+                    currentUserId = profile.id,
+                    deleteTarget = retainedTarget,
+                    error = null,
+                )
             }
         }
     }
@@ -82,7 +95,7 @@ class TasksViewModel @Inject constructor(
     fun onTemperatureReadingsChange(value: String) = changeForm { copy(temperatureReadings = value) }
 
     fun edit(task: AdminTasksResponseTasksInner) {
-        if (_state.value.loading || !_state.value.canEdit(task)) return
+        if (_state.value.loading || !_state.value.canEdit(task) || _state.value.saving) return
         _state.update { it.copy(editingId = task.id, categoryId = task.categoryId.toString(),
             namePt = task.namePt, nameEs = task.nameEs, temperatureReadings = task.temperatureReadings.toString(), error = null) }
     }
@@ -124,14 +137,36 @@ class TasksViewModel @Inject constructor(
     }
 
     fun toggle(task: AdminTasksResponseTasksInner) {
-        if (_state.value.loading || !_state.value.canToggle(task)) return
+        if (_state.value.loading || !_state.value.canToggle(task) || _state.value.saving) return
         write { repository.update(task.id, UpdateAdminTaskRequest(
             isActive = if (task.isActive == 1) UpdateAdminTaskRequest.IsActive._0 else UpdateAdminTaskRequest.IsActive._1,
         )) }
     }
 
-    fun delete(task: AdminTasksResponseTasksInner) {
-        if (_state.value.loading || !_state.value.canDelete(task)) return
+    fun requestDelete(task: AdminTasksResponseTasksInner) {
+        val current = _state.value
+        if (current.loading || current.saving) return
+        val currentTask = current.tasks.firstOrNull { it.id == task.id } ?: return
+        if (!current.canDelete(currentTask)) return
+        _state.update { it.copy(deleteTarget = currentTask, error = null, refusedStatus = null) }
+    }
+
+    fun cancelDelete() {
+        _state.update { it.copy(deleteTarget = null) }
+    }
+
+    fun confirmDelete() {
+        val current = _state.value
+        val target = current.deleteTarget ?: return
+        if (current.loading || current.saving) return
+        val currentTask = current.tasks.firstOrNull { it.id == target.id }
+        _state.update { it.copy(deleteTarget = null) }
+        if (currentTask == null || !current.canDelete(currentTask)) return
+        delete(currentTask)
+    }
+
+    private fun delete(task: AdminTasksResponseTasksInner) {
+        if (!_state.value.canDelete(task)) return
         write { repository.delete(task.id) }
     }
 
@@ -144,7 +179,17 @@ class TasksViewModel @Inject constructor(
     private suspend fun finishWrite(result: TaskWriteResult) {
         when (result) {
             is TaskWriteResult.Saved, TaskWriteResult.Deleted -> {
-                _state.update { it.copy(saving = false, editingId = null, categoryId = "", namePt = "", nameEs = "", temperatureReadings = "1") }
+                _state.update {
+                    it.copy(
+                        saving = false,
+                        editingId = null,
+                        categoryId = "",
+                        namePt = "",
+                        nameEs = "",
+                        temperatureReadings = "1",
+                        deleteTarget = null,
+                    )
+                }
                 load()
             }
             is TaskWriteResult.Refused -> _state.update { it.copy(saving = false, error = REFUSED, refusedStatus = result.status) }
