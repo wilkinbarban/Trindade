@@ -88,7 +88,8 @@ class CategoriesViewModelTest {
         worker.edit(fixtureCategories[0])
         assertNull(worker.state.value.editingId)
         worker.toggle(fixtureCategories[0])
-        worker.delete(fixtureCategories[0])
+        worker.requestDelete(fixtureCategories[0])
+        worker.confirmDelete()
         worker.onNamePtChange("Novo")
         worker.save()
         assertEquals(0, api.creates + api.updates + api.deletes)
@@ -212,6 +213,12 @@ class CategoriesViewModelTest {
         assertEquals(UpdateAdminCategoryRequest.IsActive._1, api.lastUpdate?.isActive)
     }
 
+    @Test fun `repository deletion is not a public ViewModel action`() {
+        assertFalse(CategoriesViewModel::class.java.declaredMethods.any {
+            it.name == "delete" && java.lang.reflect.Modifier.isPublic(it.modifiers)
+        })
+    }
+
     @Test fun `confirmed delete state workflow for later screen`() {
         val api = CategoryApi(rows = fixtureCategories)
         val model = viewModel(api, role = "Administrador")
@@ -231,7 +238,10 @@ class CategoriesViewModelTest {
         assertEquals(target.id, api.lastDeleteId)
         assertNull(model.state.value.deleteTarget)
 
-        model.delete(fixtureCategories[1])
+        model.confirmDelete() // no new request: confirmation cannot be reused
+        assertEquals(1, api.deletes)
+        model.requestDelete(fixtureCategories[1])
+        model.confirmDelete()
         assertEquals(2, api.deletes)
         assertEquals(fixtureCategories[1].id, api.lastDeleteId)
     }
@@ -286,9 +296,12 @@ class CategoriesViewModelTest {
         assertTrue(model.state.value.canToggle(row))
         assertTrue(model.state.value.canDelete(row))
 
+        model.requestDelete(row)
+        assertEquals(row, model.state.value.deleteTarget)
         profileApi.failProfile = true
         model.load()
         assertEquals(CategoriesViewModel.UNREACHABLE, model.state.value.error)
+        assertNull(model.state.value.deleteTarget)
         assertNull(model.state.value.role)
         assertNull(model.state.value.currentUserId)
         assertFalse(model.state.value.isAdmin)
@@ -300,7 +313,10 @@ class CategoriesViewModelTest {
         model.load()
         assertEquals("Administrador", model.state.value.role)
         assertTrue(model.state.value.isAdmin)
+        model.confirmDelete()
+        assertEquals(0, api.deletes)
 
+        model.requestDelete(row)
         api.failCategories = true
         model.load()
         assertEquals(CategoriesViewModel.UNREACHABLE, model.state.value.error)
@@ -310,6 +326,7 @@ class CategoriesViewModelTest {
         assertFalse(model.state.value.canEdit(row))
         assertFalse(model.state.value.canToggle(row))
         assertFalse(model.state.value.canDelete(row))
+        assertNull(model.state.value.deleteTarget)
     }
 
     @Test fun `in-flight read blocks edit requestDelete confirmDelete toggle and save mutations`() {

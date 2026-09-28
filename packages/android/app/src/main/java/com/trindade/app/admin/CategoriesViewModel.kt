@@ -68,7 +68,10 @@ class CategoriesViewModel @Inject constructor(
             val profile = authRepository.profile()
             val categories = repository.categories()
             if (profile == null || categories == null) {
-                _state.update { it.copy(loading = false, categories = emptyList(), role = null, currentUserId = null, error = UNREACHABLE) }
+                _state.update {
+                    it.copy(loading = false, categories = emptyList(), role = null,
+                        currentUserId = null, deleteTarget = null, error = UNREACHABLE)
+                }
                 return@launch
             }
             _state.update {
@@ -138,7 +141,7 @@ class CategoriesViewModel @Inject constructor(
         delete(target)
     }
 
-    fun delete(category: AdminCategoryResponseCategory) {
+    private fun delete(category: AdminCategoryResponseCategory) {
         if (!_state.value.canDelete(category)) return
         write { repository.delete(category.id) }
     }
