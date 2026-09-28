@@ -25,6 +25,8 @@ import com.trindade.app.auth.LoginRoute
 import com.trindade.app.auth.ProfileRoute
 import com.trindade.app.auth.RegisterRoute
 import com.trindade.app.auth.RolePolicy
+import com.trindade.app.admin.AuditScreen
+import com.trindade.app.admin.AuditViewModel
 import com.trindade.app.admin.CategoriesScreen
 import com.trindade.app.admin.CategoriesViewModel
 import com.trindade.app.admin.DriversScreen
@@ -65,6 +67,7 @@ class MainActivity : ComponentActivity() {
         VEHICLES(R.string.nav_vehicles),
         TIME_SLOTS(R.string.nav_time_slots),
         USERS(R.string.nav_users),
+        AUDIT(R.string.nav_audit),
     }
 
     /**
@@ -84,6 +87,7 @@ class MainActivity : ComponentActivity() {
         RolePolicy.EntryPoint.VEHICLES to Tab.VEHICLES,
         RolePolicy.EntryPoint.TIME_SLOTS to Tab.TIME_SLOTS,
         RolePolicy.EntryPoint.USERS to Tab.USERS,
+        RolePolicy.EntryPoint.AUDIT to Tab.AUDIT,
     )
 
     @Inject
@@ -383,7 +387,7 @@ class MainActivity : ComponentActivity() {
                             RolePolicy.visibleDestinations(role, destinations)
                                 .filter {
                                     when (it) {
-                                        Tab.CATEGORIES, Tab.VEHICLES, Tab.TIME_SLOTS, Tab.USERS -> role == RolePolicy.ADMIN
+                                        Tab.CATEGORIES, Tab.VEHICLES, Tab.TIME_SLOTS, Tab.USERS, Tab.AUDIT -> role == RolePolicy.ADMIN
                                         Tab.TASKS, Tab.DRIVERS ->
                                             role == RolePolicy.ADMIN || role == RolePolicy.WORKER
                                         else -> true
@@ -435,6 +439,10 @@ class MainActivity : ComponentActivity() {
                                 onBack = { tab = Tab.DASHBOARD },
                             )
                             Tab.USERS -> UsersTabRoute(
+                                sessionKey = sessionKey,
+                                onBack = { tab = Tab.DASHBOARD },
+                            )
+                            Tab.AUDIT -> AuditTabRoute(
                                 sessionKey = sessionKey,
                                 onBack = { tab = Tab.DASHBOARD },
                             )
@@ -595,5 +603,28 @@ private fun TasksTabRoute(
         onRequestDelete = viewModel::requestDelete,
         onConfirmDelete = viewModel::confirmDelete,
         onDismissDelete = viewModel::cancelDelete,
+    )
+}
+
+/** Session-owned catalog route; each tab arrival loads once and refresh stays an explicit action. */
+@Composable
+private fun AuditTabRoute(
+    sessionKey: String,
+    onBack: () -> Unit,
+    viewModel: AuditViewModel = hiltViewModel(key = sessionKey),
+) {
+    val state by viewModel.state.collectAsState()
+    LaunchedEffect(Unit) { viewModel.load() }
+    AuditScreen(
+        state = state,
+        onBack = onBack,
+        onRefresh = { viewModel.load() },
+        onActionChange = viewModel::onActionChange,
+        onEntityTypeChange = viewModel::onEntityTypeChange,
+        onUserIdChange = viewModel::onUserIdChange,
+        onApplyFilters = viewModel::applyFilters,
+        onClearFilters = viewModel::clearFilters,
+        onPreviousPage = viewModel::previousPage,
+        onNextPage = viewModel::nextPage,
     )
 }
