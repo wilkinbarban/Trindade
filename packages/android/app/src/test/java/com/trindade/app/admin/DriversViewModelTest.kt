@@ -198,6 +198,11 @@ class DriversViewModelTest {
         model.toggle(row)
         assertEquals(0, api.updates)
 
+        model.onNameChange("Nova")
+        model.save()
+        assertEquals(0, api.creates)
+        assertEquals(0, api.updates)
+
         deferred.complete(listOf(row))
         assertFalse(model.state.value.loading)
     }
