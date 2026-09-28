@@ -152,6 +152,74 @@ class TasksViewModelTest {
         assertEquals(7, model.state.value.tasks.single().id)
     }
 
+    @Test fun `failed reload clears identity, mutations are blocked during loading, and save fails closed for unknown role`() {
+        val api = CatalogApi(taskRows = listOf(task(7, 3, 42, 1), task(8, 3, 99, 1)))
+        val model = model(api, role = "Trabalhador")
+        model.load()
+        assertEquals("Trabalhador", model.state.value.role)
+        assertEquals(42, model.state.value.currentUserId)
+
+        // Failed reload clears role and currentUserId
+        api.refuseCategories = true
+        model.load()
+        assertNull(model.state.value.role)
+        assertNull(model.state.value.currentUserId)
+        assertEquals(TasksViewModel.UNREACHABLE, model.state.value.error)
+
+        // Save fails closed for cleared/missing role
+        model.onCategoryChange("3")
+        model.onNamePtChange("Nova")
+        model.save()
+        assertEquals(0, api.creates)
+
+        // Mutations cannot proceed during loading
+        val pendingApi = CatalogApi(taskRows = listOf(task(7, 3, 42, 1)))
+        val pendingModel = model(pendingApi, role = "Administrador")
+        pendingModel.load()
+        assertEquals("Administrador", pendingModel.state.value.role)
+        val deferred = CompletableDeferred<List<AdminTasksResponseTasksInner>>()
+        pendingApi.deferredRead = deferred
+        pendingModel.load()
+        assertTrue(pendingModel.state.value.loading)
+        val targetTask = task(7, 3, 42, 1)
+        pendingModel.edit(targetTask)
+        assertNull(pendingModel.state.value.editingId)
+        pendingModel.toggle(targetTask)
+        assertEquals(0, pendingApi.updates)
+        pendingModel.delete(targetTask)
+        assertEquals(0, pendingApi.deletes)
+        pendingModel.onCategoryChange("3")
+        pendingModel.onNamePtChange("Nova")
+        pendingModel.save()
+        assertEquals(0, pendingApi.creates)
+        deferred.complete(listOf(targetTask))
+        assertFalse(pendingModel.state.value.loading)
+
+        // Save fails closed for unknown role and worker editing unowned target
+        val unknownApi = CatalogApi()
+        val unknownModel = model(unknownApi, role = "Desconhecido")
+        unknownModel.load()
+        unknownModel.onCategoryChange("3")
+        unknownModel.onNamePtChange("Nova")
+        unknownModel.save()
+        assertEquals(0, unknownApi.creates)
+
+        val workerApi = CatalogApi(taskRows = listOf(task(7, 3, 42, 1)))
+        val workerModel = model(workerApi, role = "Trabalhador")
+        workerModel.load()
+        workerModel.edit(workerModel.state.value.tasks.single())
+        assertEquals(7, workerModel.state.value.editingId)
+        // The row changes owner between opening the form and submitting it.
+        workerApi.taskRows = listOf(task(7, 3, 99, 1))
+        workerModel.load()
+        workerModel.save()
+        assertEquals(0, workerApi.updates)
+        workerApi.taskRows = listOf(task(7, 3, 42, 1))
+        workerModel.load()
+        workerModel.save()
+        assertEquals(1, workerApi.updates)
+    }
+
     private fun model(api: CatalogApi, role: String = "Trabalhador") = TasksViewModel(
         TasksRepository(api), AuthRepository(ProfileApi(role), Store(), Json),
     )
@@ -187,6 +255,7 @@ private class CatalogApi(
         AdminTaskResponseTask(1, 3, "Task", "Tarea", 1, 1, 42, "now", AdminTaskResponseTask.TaskType.temperature),
     )
     var firstTasksRead: CompletableDeferred<List<AdminTasksResponseTasksInner>>? = null
+    var deferredRead: CompletableDeferred<List<AdminTasksResponseTasksInner>>? = null
 
     override suspend fun categories(): Response<AdminCategoriesResponse> = if (refuseCategories) {
         Response.error(403, okhttp3.ResponseBody.create(null, ""))
@@ -198,7 +267,7 @@ private class CatalogApi(
     override suspend fun deleteCategory(id: Int): Response<Unit> = error("category writes are not used by task tests")
     override suspend fun tasks(): Response<AdminTasksResponse> {
         taskReads++
-        val result = if (taskReads == 1) firstTasksRead?.await() else null
+        val result = deferredRead?.await() ?: if (taskReads == 1) firstTasksRead?.await() else null
         return Response.success(AdminTasksResponse(result ?: taskRows))
     }
     override suspend fun createTask(body: CreateAdminTaskRequest): Response<AdminTaskResponse> {

@@ -57,7 +57,16 @@ class TasksViewModel @Inject constructor(
             val categories = repository.categories()
             val tasks = repository.tasks()
             if (profile == null || categories == null || tasks == null) {
-                _state.update { it.copy(loading = false, error = UNREACHABLE, categories = emptyList(), tasks = emptyList()) }
+                _state.update {
+                    it.copy(
+                        loading = false,
+                        error = UNREACHABLE,
+                        categories = emptyList(),
+                        tasks = emptyList(),
+                        role = null,
+                        currentUserId = null,
+                    )
+                }
                 return@launch
             }
             _state.update {
@@ -73,7 +82,7 @@ class TasksViewModel @Inject constructor(
     fun onTemperatureReadingsChange(value: String) = changeForm { copy(temperatureReadings = value) }
 
     fun edit(task: AdminTasksResponseTasksInner) {
-        if (!_state.value.canEdit(task)) return
+        if (_state.value.loading || !_state.value.canEdit(task)) return
         _state.update { it.copy(editingId = task.id, categoryId = task.categoryId.toString(),
             namePt = task.namePt, nameEs = task.nameEs, temperatureReadings = task.temperatureReadings.toString(), error = null) }
     }
@@ -85,6 +94,11 @@ class TasksViewModel @Inject constructor(
     fun save() {
         val current = _state.value
         if (current.saving || current.loading) return
+        if (current.role != ADMIN && current.role != WORKER) return
+        if (current.role == WORKER && current.editingId != null) {
+            val target = current.tasks.firstOrNull { it.id == current.editingId }
+            if (target == null || !current.canEdit(target)) return
+        }
         val categoryId = current.categoryId.toIntOrNull()
         val category = current.categories.firstOrNull { it.id == categoryId }
         if (category == null) return validation(CATEGORY)
@@ -110,19 +124,19 @@ class TasksViewModel @Inject constructor(
     }
 
     fun toggle(task: AdminTasksResponseTasksInner) {
-        if (!_state.value.canToggle(task)) return
+        if (_state.value.loading || !_state.value.canToggle(task)) return
         write { repository.update(task.id, UpdateAdminTaskRequest(
             isActive = if (task.isActive == 1) UpdateAdminTaskRequest.IsActive._0 else UpdateAdminTaskRequest.IsActive._1,
         )) }
     }
 
     fun delete(task: AdminTasksResponseTasksInner) {
-        if (!_state.value.canDelete(task)) return
+        if (_state.value.loading || !_state.value.canDelete(task)) return
         write { repository.delete(task.id) }
     }
 
     private fun write(call: suspend () -> TaskWriteResult) {
-        if (_state.value.saving) return
+        if (_state.value.saving || _state.value.loading) return
         _state.update { it.copy(saving = true, error = null, refusedStatus = null) }
         viewModelScope.launch { finishWrite(call()) }
     }
