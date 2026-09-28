@@ -86,7 +86,9 @@ class VehiclesViewModelTest {
         worker.edit(fixtureVehicles[0])
         assertNull(worker.state.value.editingId)
         worker.toggle(fixtureVehicles[0])
-        worker.delete(fixtureVehicles[0])
+        worker.requestDelete(fixtureVehicles[0])
+        assertNull(worker.state.value.deleteTarget)
+        worker.confirmDelete()
         worker.onDescriptionChange("Proibido")
         worker.onLicensePlateChange("PRO-0000")
         worker.save()
@@ -201,11 +203,15 @@ class VehiclesViewModelTest {
         model.load()
         val target = fixtureVehicles[0]
 
+        model.confirmDelete()
+        assertEquals(0, api.deletes)
+
         model.requestDelete(target)
         assertEquals(target, model.state.value.deleteTarget)
 
         model.cancelDelete()
         assertNull(model.state.value.deleteTarget)
+        model.confirmDelete()
         assertEquals(0, api.deletes)
 
         model.requestDelete(target)
@@ -213,10 +219,6 @@ class VehiclesViewModelTest {
         assertEquals(1, api.deletes)
         assertEquals(target.id, api.lastDeleteId)
         assertNull(model.state.value.deleteTarget)
-
-        model.delete(fixtureVehicles[1])
-        assertEquals(2, api.deletes)
-        assertEquals(fixtureVehicles[1].id, api.lastDeleteId)
     }
 
     @Test fun `refusals and unreachable writes differ and successful writes reload`() {
@@ -280,6 +282,107 @@ class VehiclesViewModelTest {
         assertNull(model.state.value.refusedStatus)
     }
 
+    @Test fun `failed profile or catalog reload clears role identity and fail-closes permissions`() {
+        val target = fixtureVehicles[0]
+        val api = VehicleApi(rows = fixtureVehicles)
+        val profileApi = VehicleProfileApi("Administrador")
+        val model = VehiclesViewModel(VehiclesRepository(api), AuthRepository(profileApi, VehicleStore(), Json))
+
+        model.load()
+        assertEquals("Administrador", model.state.value.role)
+        assertEquals(42, model.state.value.currentUserId)
+        assertTrue(model.state.value.isAdmin)
+        assertTrue(model.state.value.canEdit(target))
+        assertTrue(model.state.value.canToggle(target))
+        assertTrue(model.state.value.canDelete(target))
+
+        model.requestDelete(target)
+        assertEquals(target, model.state.value.deleteTarget)
+        profileApi.failProfile = true
+        model.load()
+        assertEquals(VehiclesViewModel.UNREACHABLE, model.state.value.error)
+        assertNull(model.state.value.deleteTarget)
+        assertNull(model.state.value.role)
+        assertNull(model.state.value.currentUserId)
+        assertFalse(model.state.value.isAdmin)
+        assertFalse(model.state.value.canEdit(target))
+        assertFalse(model.state.value.canToggle(target))
+        assertFalse(model.state.value.canDelete(target))
+
+        profileApi.failProfile = false
+        model.load()
+        assertEquals("Administrador", model.state.value.role)
+        assertTrue(model.state.value.isAdmin)
+        model.confirmDelete() // a failed reload must not retain a confirmation for the next session
+        assertEquals(0, api.deletes)
+
+        model.requestDelete(target)
+        assertEquals(target, model.state.value.deleteTarget)
+        api.failVehicles = true
+        model.load()
+        assertEquals(VehiclesViewModel.UNREACHABLE, model.state.value.error)
+        assertNull(model.state.value.role)
+        assertNull(model.state.value.currentUserId)
+        assertFalse(model.state.value.isAdmin)
+        assertFalse(model.state.value.canEdit(target))
+        assertFalse(model.state.value.canToggle(target))
+        assertFalse(model.state.value.canDelete(target))
+        assertNull(model.state.value.deleteTarget)
+    }
+
+    @Test fun `in-flight read blocks edit requestDelete confirmDelete toggle and save mutations`() {
+        val target = fixtureVehicles[0]
+        val api = VehicleApi(rows = fixtureVehicles)
+        val profileApi = VehicleProfileApi("Administrador")
+        val model = VehiclesViewModel(VehiclesRepository(api), AuthRepository(profileApi, VehicleStore(), Json))
+
+        model.load()
+        assertEquals("Administrador", model.state.value.role)
+
+        model.requestDelete(target)
+        assertEquals(target, model.state.value.deleteTarget)
+
+        val deferred = CompletableDeferred<List<AdminVehicleResponseVehicle>>()
+        api.deferredRead = deferred
+        model.load()
+        assertTrue(model.state.value.loading)
+
+        model.edit(target)
+        assertNull(model.state.value.editingId)
+
+        val other = fixtureVehicles[1]
+        model.requestDelete(other)
+        assertEquals(target, model.state.value.deleteTarget)
+
+        model.confirmDelete()
+        assertEquals(0, api.deletes)
+        assertEquals(target, model.state.value.deleteTarget)
+
+        model.toggle(target)
+        assertEquals(0, api.updates)
+
+        model.onDescriptionChange("Nova Van")
+        model.onLicensePlateChange("NOV-1234")
+        model.save()
+        assertEquals(0, api.creates)
+
+        deferred.complete(fixtureVehicles)
+        assertFalse(model.state.value.loading)
+
+        // Post-reload save is accepted once load finishes
+        model.save()
+        assertEquals(1, api.creates)
+        assertEquals("Nova Van", api.lastCreate?.description)
+        assertEquals("NOV-1234", api.lastCreate?.licensePlate)
+
+        // A successful save clears the earlier confirmation target; request it anew.
+        assertNull(model.state.value.deleteTarget)
+        model.requestDelete(target)
+        model.confirmDelete()
+        assertEquals(1, api.deletes)
+        assertNull(model.state.value.deleteTarget)
+    }
+
     private fun viewModel(
         api: VehicleApi,
         role: String = "Trabalhador",
@@ -306,13 +409,17 @@ private class VehicleApi(var rows: List<AdminVehicleResponseVehicle> = emptyList
     var lastUpdateId: Int? = null
     var lastDeleteId: Int? = null
     var firstRead: CompletableDeferred<List<AdminVehicleResponseVehicle>>? = null
+    var deferredRead: CompletableDeferred<List<AdminVehicleResponseVehicle>>? = null
+    var failVehicles = false
     var writeResult: VehicleWriteResult = VehicleWriteResult.Saved(
         AdminVehicleResponseVehicle(5, "Van", "VAN-001", 1, "now"),
     )
 
     override suspend fun vehicles(): Response<AdminVehiclesResponse> {
         reads++
-        val result = if (reads == 1) firstRead?.await() else null
+        if (failVehicles) throw java.io.IOException("failed to read vehicles")
+        val deferred = deferredRead
+        val result = if (deferred != null) deferred.await() else if (reads == 1) firstRead?.await() else null
         return Response.success(AdminVehiclesResponse(result ?: rows))
     }
 
@@ -372,7 +479,9 @@ private class VehicleApi(var rows: List<AdminVehicleResponseVehicle> = emptyList
 
 private class VehicleProfileApi(role: String) : AuthApi {
     private val data = ProfileResponse(user = ProfileResponseUser(42, "admin", "Admin", role))
-    override suspend fun profile() = Response.success(data)
+    var failProfile = false
+    override suspend fun profile(): Response<ProfileResponse> =
+        if (failProfile) Response.error(500, "".toResponseBody(null)) else Response.success(data)
     override suspend fun login(body: LoginRequest): Response<LoginResponse> = error("unused")
     override suspend fun refresh(body: RefreshRequest): Response<RefreshResponse> = error("unused")
     override suspend fun logout(body: LogoutRequest): Response<SuccessResponse> = error("unused")

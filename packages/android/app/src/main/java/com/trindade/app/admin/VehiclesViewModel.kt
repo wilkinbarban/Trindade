@@ -52,7 +52,10 @@ class VehiclesViewModel @Inject constructor(
             val profile = authRepository.profile()
             val vehicles = repository.vehicles()
             if (profile == null || vehicles == null) {
-                _state.update { it.copy(loading = false, error = UNREACHABLE, vehicles = emptyList()) }
+                _state.update {
+                    it.copy(loading = false, vehicles = emptyList(), role = null, currentUserId = null,
+                        deleteTarget = null, error = UNREACHABLE)
+                }
                 return@launch
             }
             _state.update {
@@ -72,7 +75,7 @@ class VehiclesViewModel @Inject constructor(
 
     fun edit(vehicle: AdminVehicleResponseVehicle) {
         val current = _state.value
-        if (!current.canEdit(vehicle) || current.saving) return
+        if (current.loading || !current.canEdit(vehicle) || current.saving) return
         _state.update {
             it.copy(
                 editingId = vehicle.id,
@@ -96,7 +99,7 @@ class VehiclesViewModel @Inject constructor(
 
     fun requestDelete(vehicle: AdminVehicleResponseVehicle) {
         val current = _state.value
-        if (!current.canDelete(vehicle) || current.saving) return
+        if (current.loading || !current.canDelete(vehicle) || current.saving) return
         _state.update { it.copy(deleteTarget = vehicle, error = null, refusedStatus = null) }
     }
 
@@ -107,18 +110,19 @@ class VehiclesViewModel @Inject constructor(
     fun confirmDelete() {
         val current = _state.value
         val target = current.deleteTarget ?: return
-        if (!current.canDelete(target) || current.saving) return
+        if (current.loading || !current.canDelete(target) || current.saving) return
         _state.update { it.copy(deleteTarget = null) }
         delete(target)
     }
 
-    fun delete(vehicle: AdminVehicleResponseVehicle) {
+    private fun delete(vehicle: AdminVehicleResponseVehicle) {
         if (!_state.value.canDelete(vehicle)) return
         write { repository.delete(vehicle.id) }
     }
 
     fun toggle(vehicle: AdminVehicleResponseVehicle) {
-        if (!_state.value.canToggle(vehicle)) return
+        val current = _state.value
+        if (current.loading || !current.canToggle(vehicle) || current.saving) return
         write {
             repository.update(
                 vehicle.id,
@@ -164,7 +168,8 @@ class VehiclesViewModel @Inject constructor(
     }
 
     private fun write(call: suspend () -> VehicleWriteResult) {
-        if (_state.value.saving) return
+        val current = _state.value
+        if (current.loading || current.saving) return
         _state.update { it.copy(saving = true, error = null, refusedStatus = null) }
         viewModelScope.launch { finishWrite(call()) }
     }
