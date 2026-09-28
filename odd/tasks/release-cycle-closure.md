@@ -20,7 +20,7 @@ The source planning document in the original checkout is untracked and remains u
 - [x] Restore the Playwright clean gate without weakening production login limits. **Verified at `2a51e8b`: 55 passed / 0 failed in the clean gate; the production five-per-user default limit remains covered by its own tests.** At `b7574f1`, `TMPDIR=/var/tmp make ci-clone` passed backend 431/431, schema CLI and OpenAPI, but Playwright reported 7 passed/48 failed: 45 error lines say `Login failed: Too many requests`; other locator/assertion failures need independent follow-up. **Task-selected strict TDD:** isolated Node24 fixture test failed behaviorally on sixth E2E login (429 versus 200, RED), then passed 1/1 with E2E-only finite limiter injection (GREEN); focused admission 4/4, root typecheck and backend build+432/432 passed. An initial full suite attempt without building dist failed an unrelated startup test; rebuilding backend then rerunning passed. Directed Playwright and full clean CI remain pending. Production default five-per-user limit remains tested; do not reset global state during live requests. Remove private `/var/tmp/trindade-ci-b7574f1.log` after extracting evidence.
 - [x] Stabilize the two setup Playwright mocks under React StrictMode. **Verified at `2a51e8b`: the previously failing `setup-provisioning` specs pass in the clean gate.** At `a5bb372`, full clean CI passed backend 432/432, schema CLI and OpenAPI, and Playwright 53/55; only `setup-provisioning.spec.ts` missed the initial heading/alert. The mocks use first-versus-second GET counts, but mount effects can issue multiple initial GETs and discard the first. Keep the initial response until an explicit verify/retry action, then switch response; assert requests by phase. **Task-selected strict TDD:** exact targeted runner `npm run test:e2e -w @trindade/frontend -- src/__e2e__/setup-provisioning.spec.ts --project=chromium` on a clean isolated Node24 snapshot first RED, then GREEN, followed by complete clean CI. No product behavior change unless independently demonstrated.
 - [ ] Reconcile the Android enrollment task's stale R4/closure checkboxes with verified `cc5aceb`, without claiming direct activity instrumentation: the two navigation tests render real screens but mirror the activity branch.
-- [ ] Implement Android C1–C6 as six bounded, dependent catalog/admin surfaces: tasks, drivers, categories, vehicles, time slots and users; preserve role guards, API error behavior and each surface's tests/docs. Build one cohesive reviewable work unit at a time. Do not infer implementation from contract types or RolePolicy declarations.
+- [x] Implement Android C1–C6 as six bounded, dependent catalog/admin surfaces: tasks, drivers, categories, vehicles, time slots and users; preserve role guards, API error behavior and each surface's tests/docs. Build one cohesive reviewable work unit at a time. Do not infer implementation from contract types or RolePolicy declarations. **Complete 2026-09-27.** Commits: tasks C1a `e0bdd29`, C1b `1241183`, C1c1 `142d335`, C1c2 `7e22881`; drivers C2a `91fa3e2`, C2b `00bf419`, C2c1 `ad1a0a3`, C2c2 `31f4a90`; categories C3a `c44ddec`, C3b `1e773f1`, C3c1 `9ae8431`, C3c2 `2a51e8b`; vehicles C4a `fdb44cf`, C4b `dc267039`, C4c1 `8cec02be`, C4c2 `74407fd0`; time slots C5a `177ed0de`, C5b `377bd6a3`, C5c1 `4d3fd5e8`, C5c2 `3700e691`; users C6a `81f261f4`, C6b `0df14100`, C6c1 `3fc50202`, C6c2 `3817ff60`. Six of these commits are still awaiting their native review because the relay is down; the last full Android suite run in isolation reported 466 tests across 55 classes with zero failures.
 - [ ] Implement D1 read-only, administrator-only paginated/filtered audit surface with tests; finish E1 as an observed app/device matrix (dashboard/editors already implemented, but not yet visually accepted). Windows emulator access via `ssh windows` is authorized; `adb` is not on PATH there, so discover the installed SDK path read-only before device operations.
 - [ ] Prepare local dependent PR boundaries/description ledger with per-commit additions+deletions and explicit size exceptions; no network publication or branch merge. **Delivery strategy chosen by the operator (2026-09-27): `feature-branch-chain` with a draft/no-merge tracker PR**, so `main` receives the whole chain only after parity C1–D1 and E1 are closed. Measured authored sizes per work-unit commit are recorded below; size exceptions are accepted explicitly, not silently.
 - [ ] Verify release-signed v0.3.0 from a tagged `main` commit with versionCode 300, expected certificate fingerprint, production HTTPS endpoint and GitHub release asset. This requires separate authorization for tag push/publication; no local signing password is available through the current environment.
@@ -46,6 +46,8 @@ behavior they verify, so a cohesive unit whose tests cannot be separated without
 | `9ae8431` category catalog controls | 563 | **`size:exception` accepted (operator, 2026-09-27)** — Robolectric rendered flow needs the real screen and its 13 assertions together |
 | `dc267039` vehicle catalog state and rules | 595 | **`size:exception` accepted** — ViewModel plus its behavioral tests are one unit; the delete/toggle/validation policy is not verifiable in halves |
 | `8cec02be` vehicle catalog controls | 532 | **`size:exception` accepted** — the Robolectric rendered flow needs the real screen and its 13 assertions together, including the non-admin fail-closed guard |
+| `0df14100` user catalog state and rules | 1048 | **`size:exception` accepted** — the largest unit of the feature; 320 source lines plus 720 lines of tests that each pin a security invariant (self-protection, password omission and clearing, fail-closed identity, in-flight guards). Splitting tests from behavior would leave the security rules unpinned |
+| `3fc50202` user catalog controls | 828 | **`size:exception` accepted** — 306 source lines plus 508 lines of rendered tests that pin the self-row restrictions, the masked password field and the confirm-only delete path |
 | all other commits | 7–405 | within budget |
 
 One honest slicing pass was performed for `1e773f1` and `9ae8431` before asking; no cohesive split brings both under 400, so the
@@ -80,6 +82,50 @@ Standard for this feature, so a real tier is obtained instead of a fail-closed d
 
 Until the facade returns the native envelope on a non-zero assess exit, an unassessable result is never evidence of a low tier: it
 keeps the fail-closed path, so this standard is an efficiency and fidelity improvement, never a way to lower the verification bar.
+
+## Deferred native reviews (closed after the relay is restored)
+
+Operator decision 2026-09-27: finish C1–C6 first, then restart the session without `GENTLE_PI_REVIEW_RELAY_EXTENSIONS` and
+`GENTLE_PI_REVIEW_RELAY_CONTRACT` so the reviewer runs in-process, and close every deferred review in this order. Code candidates need
+a lens run and therefore the relay; passive documentation candidates do not, which is why the two ledger commits already closed.
+
+| # | Candidate | Lines | Status |
+| --- | --- | --- | --- |
+| 1 | `dc267039` vehicle catalog state and rules (C4b) | 595 | lineage `review-7f5d029390929383` open, state `reviewing`, slot reoffered — resume with fresh STATUS, do NOT start a new lineage |
+| 2 | C4 remainder, base `dc267039`..`74407fd0` (C4c1 `8cec02be`, C4c2 `74407fd0`) | 647 | fresh START with baseRef `dc267039` |
+| 3 | C5 surface, base `74407fd0`..`3700e691` (`177ed0de`, `377bd6a3`, `4d3fd5e8`, `3700e691`) | 1060 | fresh START with baseRef `74407fd0` |
+| 4 | C6 surface, base `3700e691`..`3817ff60` (`81f261f4`, `0df14100`, `3fc50202`, `3817ff60`) | 2271 | fresh START with baseRef `3700e691`; includes the password and identity hardening inside `0df14100` |
+| 5 | Hardening follow-ups for the already-reviewed catalog ViewModels (stale authorization, in-flight write window, public delete, plus the missing save assertion) | small | implement and review after the surfaces above close |
+
+Review granularity for the restart: one candidate per surface rather than one per commit, because the provider runs one lens per candidate and the surface is the review unit this feature already documents. `dc267039` is the exception and must be resumed rather than re-created, since its lineage is already open.
+
+Known evidence gaps to keep honest, none of them a behaviour gap: the `0df14100` in-flight test never re-asserts a successful save after the reload completes, and the `3817ff60` navigation test cannot observe the private route's password binding because it supplies its own state — the route binding itself was verified by reading `MainActivity.kt:450-455`, and E1 is where that wiring is observed on a device.
+
+For each new candidate the base ref is the previous reviewed boundary, chained in commit order, and `committedOnly: true` is required
+with an explicit base ref. Never re-run a review whose receipt already stands.
+
+## Cross-cutting follow-ups found by independent verification (2026-09-27)
+
+Recorded rather than silently fixed, because they touch units whose review is already closed. Each is defense-in-depth: the server remains the
+authority (`adminGuard`/`catalogGuard`) and refuses an unauthorized write, so none of these is a privilege escalation by itself.
+
+1. **Stale authorization after a null profile reload.** In every catalog ViewModel the load path sets `role` and `currentUserId` from the
+authenticated profile but does not clear them when a later fetch returns a null profile, so mutations can run against the previously loaded
+admin identity. Confirmed in `UsersViewModel` by an independent verifier (cited `UsersViewModel.kt:67-84`, `172-185`, `191`) and corrected inside
+C6b; the same shape exists in the already-committed `TasksViewModel`, `DriversViewModel`, `CategoriesViewModel`, `VehiclesViewModel` and
+`TimeSlotsViewModel`, which need the same one-line fail-closed correction as a small follow-up commit each, reviewed after the relay is restored.
+2. **Public `delete()` bypasses confirmation.** `TasksViewModel`, `DriversViewModel`, `CategoriesViewModel`, `VehiclesViewModel`,
+`TimeSlotsViewModel` (removal) and `UsersViewModel` expose a public entry point that reaches the repository without the modelled request →
+confirm → cancel sequence. The screens never call it and the routes bind only the canonical callbacks, so it is unreachable through the app;
+C6b makes it non-public, and the rest are candidates for the same treatment. `TasksTabRoute` also binds `onDelete = viewModel::delete`
+because `TasksScreen` confirms inside the screen: that is a second, inconsistent delete-confirmation design and belongs to the E1 parity pass.
+3. **Plaintext secrets in public state.** `UsersViewModel.UiState` exposed the password as a public data-class field, so any state dump or log
+would print it; corrected inside C6b by moving it to private state behind a narrow accessor. No other surface handles a secret.
+4. **In-flight write window.** Every catalog ViewModel keeps the previously loaded role while a reload is pending; `UsersViewModel` now guards
+all six mutating entry points on `loading || saving`, and the other catalog ViewModels still only guard on `saving`, so they carry the same
+window. Fold this into the same corrective pass as item 1. Known test gap from the delta verification: the in-flight test asserts zero writes
+during the window and that toggle and delete work afterwards, but does not re-assert a successful save after the reload completes; add that
+assertion in the same pass.
 
 ## Work-unit evidence
 
