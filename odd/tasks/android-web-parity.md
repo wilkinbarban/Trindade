@@ -1017,6 +1017,18 @@ error handling. C1 establishes the form/validation convention; C2–C6 follow it
 
 Read-only, paged, with the same filters the web offers. Depends on `P1` for its schemas.
 
+**Implementation landed locally, closure pending.** The typed audit API/repository (`81c03ff`),
+role-gated ViewModel (`d503a4c`), Compose screen (`9512445`, test correction `3e40138`),
+and administrator-only navigation (`cf76b01`) are committed. Repository, ViewModel,
+and screen slices completed native review; navigation's independent read-only check found
+no blocker, and its mirrored navigation test passed 9/9 in the pinned SDK. This test does
+not launch `MainActivity` or its Hilt graph, so it is not end-to-end route/session evidence.
+The full pinned Android JVM suite and `:app:compileDebugKotlin` passed: 530 tests across
+58 classes, 0 failures/errors/skips. Navigation native review is **not closed**: two
+START attempts returned expired consent bindings without native invocation or lineage;
+the clean detached `/var/tmp/trindade-audit-nav-review` at `cf76b01` is retained for
+recovery. Emulator/manual inspection remains pending under E1; no release action follows.
+
 ---
 
 ## Slice E — Close
