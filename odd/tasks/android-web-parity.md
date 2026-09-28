@@ -981,6 +981,20 @@ Password lifecycle strictly manages credentials in memory: the plaintext passwor
 
 `UsersViewModelTest` covers exact administrator policy reachability, worker and unknown role fail-closed enforcement across all mutations, fail-closed authorization clearing on null profile, in-flight reload write guards preventing toggle/delete/save during pending auth checks, self-protection guards (preventing self-toggle, self-delete, and self-role/status/username changes), required field validation and 4-character backend minimum, advisory password warning behavior without blocking valid saves, password omission on edit, private password containment outside public `UiState`, password clearing after successful writes and cancellations, confirmed-delete workflow lifecycle preventing direct delete bypass, refusal status preservation distinct from unreachable transport, catalog reload on write success, superseding read cancellation, and form error clearing on input change. Strict TDD: a compilable scaffold produced behavioral RED with 14 of 14 focused tests failing (`AssertionError` / `ComparisonFailure`, exit code 1). GREEN: all 17 focused tests passed in `UsersViewModelTest` (exit code 0). The full pinned SDK run passed **445 tests, 0 failures, 0 errors, 0 skipped** across 54 classes, along with `:app:compileDebugKotlin` (exit code 0). No UI, navigation, backend, or DI changes were introduced.
 
+#### C6c1. Users Screen and rendered unit tests — DELIVERED
+
+`UsersScreen` renders the user management administration UI consuming `UsersViewModel.UiState` and direct callbacks without Hilt or Activity coupling. The screen declares direct callbacks following the `on*` convention without aliases (`onBack`, `onRefresh`, `onUsernameChange`, `onDisplayNameChange`, `onPasswordChange`, `onRoleIdChange`, `onIsActiveChange`, `onSave`, `onCancel`, `onEdit`, `onToggle`, `onRequestDelete`, `onConfirmDelete`, `onDismissDelete`). The interface strictly enforces role gating and self-protection rules:
+- Non-admin, unknown, and null roles fail closed into a read-only catalog with "Somente leitura" notices, suppressing create, edit, toggle, and delete controls.
+- Administrators can open the creation form ("Novo usuário"), edit existing users, toggle active status ("Ativar" / "Desativar"), and trigger confirmed deletion.
+- On the self row in the catalog, status toggle and delete controls are strictly hidden, while edit is permitted.
+- In the edit form for the self user, username editing is disabled (`enabled = false`), and role/status selections are completely omitted from the form.
+- In the edit form for other users, username, display name, and password editing are enabled, and role and status selection controls are rendered.
+- Password input is masked using `PasswordVisualTransformation()` and never exposed as plain text in the semantics tree.
+- Advisory password warning (`UsersViewModel.PASSWORD_WARNING`) is rendered when `hasPasswordWarning == true` without blocking save/creation.
+- Confirmed delete dialog displays "Confirmar exclusão" and forwards `onConfirmDelete` and `onDismissDelete` driven by state, preventing unconfirmed or direct deletion.
+
+`UsersScreenTest` provides Hilt-free, Activity-free Robolectric rendered tests with one `setContent` per test method. Strict TDD: a compilable scaffold produced behavioral RED with 17 of 20 tests failing (`java.lang.AssertionError`, exit code 1). GREEN: all 20 focused tests passed in `UsersScreenTest` (tests: 20, failures: 0, errors: 0, skipped: 0; exit code 0). The admin test suite passed **144 tests, 0 failures, 0 errors, 0 skipped** across 18 classes, along with `:app:compileDebugSources` and `:app:compileDebugUnitTestSources` (exit code 0). Navigation wiring in `MainActivity` and DI remain deferred to C6c2.
+
 Each surface: list, create, edit, deactivate/delete where the web allows it, an inline form
 matching the web's fields, and the same validation the server enforces stated where the operator
 types instead of discovered as a 400. Each carries its own review unit.
