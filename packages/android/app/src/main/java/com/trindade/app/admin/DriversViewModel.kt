@@ -52,7 +52,7 @@ class DriversViewModel @Inject constructor(
             val profile = authRepository.profile()
             val drivers = repository.drivers()
             if (profile == null || drivers == null) {
-                _state.update { it.copy(loading = false, drivers = emptyList(), error = UNREACHABLE) }
+                _state.update { it.copy(loading = false, drivers = emptyList(), role = null, currentUserId = null, error = UNREACHABLE) }
                 return@launch
             }
             _state.update { it.copy(loading = false, drivers = drivers, role = profile.role,
@@ -68,7 +68,7 @@ class DriversViewModel @Inject constructor(
 
     fun edit(driver: AdminDriverResponseDriver) {
         val current = _state.value
-        if (!current.canEdit(driver) || current.saving) return
+        if (current.loading || !current.canEdit(driver) || current.saving) return
         _state.update { it.copy(editingId = driver.id, name = driver.name,
             licensePlate = driver.licensePlate.orEmpty(), driverType = driver.driverType.value, error = null) }
     }
@@ -101,7 +101,8 @@ class DriversViewModel @Inject constructor(
     }
 
     fun toggle(driver: AdminDriverResponseDriver) {
-        if (!_state.value.canToggle(driver)) return
+        val current = _state.value
+        if (current.loading || !current.canToggle(driver) || current.saving) return
         write {
             repository.update(driver.id, UpdateAdminDriverRequest(
                 isActive = if (driver.isActive == 1) UpdateAdminDriverRequest.IsActive._0 else UpdateAdminDriverRequest.IsActive._1,
@@ -110,7 +111,8 @@ class DriversViewModel @Inject constructor(
     }
 
     private fun write(call: suspend () -> DriverWriteResult) {
-        if (_state.value.saving) return
+        val current = _state.value
+        if (current.loading || current.saving) return
         _state.update { it.copy(saving = true, error = null, refusedStatus = null) }
         viewModelScope.launch { finishWrite(call()) }
     }

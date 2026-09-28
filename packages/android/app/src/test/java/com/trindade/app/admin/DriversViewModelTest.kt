@@ -141,6 +141,67 @@ class DriversViewModelTest {
         assertEquals("", model.state.value.name)
     }
 
+    @Test fun `failed profile or catalog reload clears role identity and fail-closes permissions`() {
+        val row = driver(1, 42, "casa")
+        val api = DriverApi(rows = listOf(row))
+        val profileApi = DriverProfileApi("Administrador")
+        val model = DriversViewModel(DriversRepository(api), AuthRepository(profileApi, DriverStore(), Json))
+
+        model.load()
+        assertEquals("Administrador", model.state.value.role)
+        assertEquals(42, model.state.value.currentUserId)
+        assertTrue(model.state.value.isAdmin)
+        assertTrue(model.state.value.canEdit(row))
+        assertTrue(model.state.value.canToggle(row))
+
+        profileApi.failProfile = true
+        model.load()
+        assertEquals(DriversViewModel.UNREACHABLE, model.state.value.error)
+        assertNull(model.state.value.role)
+        assertNull(model.state.value.currentUserId)
+        assertFalse(model.state.value.isAdmin)
+        assertFalse(model.state.value.canEdit(row))
+        assertFalse(model.state.value.canToggle(row))
+
+        profileApi.failProfile = false
+        model.load()
+        assertEquals("Administrador", model.state.value.role)
+        assertTrue(model.state.value.isAdmin)
+
+        api.failDrivers = true
+        model.load()
+        assertEquals(DriversViewModel.UNREACHABLE, model.state.value.error)
+        assertNull(model.state.value.role)
+        assertNull(model.state.value.currentUserId)
+        assertFalse(model.state.value.isAdmin)
+        assertFalse(model.state.value.canEdit(row))
+        assertFalse(model.state.value.canToggle(row))
+    }
+
+    @Test fun `in-flight read blocks edit and toggle mutations`() {
+        val row = driver(1, 42, "casa")
+        val api = DriverApi(rows = listOf(row))
+        val profileApi = DriverProfileApi("Administrador")
+        val model = DriversViewModel(DriversRepository(api), AuthRepository(profileApi, DriverStore(), Json))
+
+        model.load()
+        assertEquals("Administrador", model.state.value.role)
+
+        val deferred = CompletableDeferred<List<AdminDriverResponseDriver>>()
+        api.deferredRead = deferred
+        model.load()
+        assertTrue(model.state.value.loading)
+
+        model.edit(row)
+        assertNull(model.state.value.editingId)
+
+        model.toggle(row)
+        assertEquals(0, api.updates)
+
+        deferred.complete(listOf(row))
+        assertFalse(model.state.value.loading)
+    }
+
     private fun viewModel(api: DriverApi, role: String = "Trabalhador") = DriversViewModel(
         DriversRepository(api), AuthRepository(DriverProfileApi(role), DriverStore(), Json),
     )
@@ -158,12 +219,16 @@ private class DriverApi(var rows: List<AdminDriverResponseDriver> = emptyList())
     var lastCreate: CreateAdminDriverRequest? = null
     var lastUpdate: UpdateAdminDriverRequest? = null
     var firstRead: CompletableDeferred<List<AdminDriverResponseDriver>>? = null
+    var deferredRead: CompletableDeferred<List<AdminDriverResponseDriver>>? = null
+    var failDrivers = false
     var writeResult: DriverWriteResult = DriverWriteResult.Saved(
         AdminDriverResponseDriver(5, "Ana", null, AdminDriverResponseDriver.DriverType.fletero, 1, 42, "now"),
     )
     override suspend fun drivers(): Response<AdminDriversResponse> {
         reads++
-        val result = if (reads == 1) firstRead?.await() else null
+        if (failDrivers) throw java.io.IOException("failed to read drivers")
+        val deferred = deferredRead
+        val result = if (deferred != null) deferred.await() else if (reads == 1) firstRead?.await() else null
         return Response.success(AdminDriversResponse(result ?: rows))
     }
     override suspend fun createDriver(body: CreateAdminDriverRequest): Response<AdminDriverResponse> {
@@ -211,7 +276,9 @@ private class DriverApi(var rows: List<AdminDriverResponseDriver> = emptyList())
 
 private class DriverProfileApi(role: String) : AuthApi {
     private val data = ProfileResponse(user = ProfileResponseUser(42, "ana", "Ana", role))
-    override suspend fun profile() = Response.success(data)
+    var failProfile = false
+    override suspend fun profile(): Response<ProfileResponse> =
+        if (failProfile) Response.error(500, okhttp3.ResponseBody.create(null, "")) else Response.success(data)
     override suspend fun login(body: LoginRequest): Response<LoginResponse> = error("unused")
     override suspend fun refresh(body: RefreshRequest): Response<RefreshResponse> = error("unused")
     override suspend fun logout(body: LogoutRequest): Response<SuccessResponse> = error("unused")
