@@ -272,6 +272,89 @@ class CategoriesViewModelTest {
         assertEquals(fixtureCategories, model.state.value.categories)
     }
 
+    @Test fun `failed profile or catalog reload clears role identity and fail-closes permissions`() {
+        val row = fixtureCategories[0]
+        val api = CategoryApi(rows = fixtureCategories)
+        val profileApi = CategoryProfileApi("Administrador")
+        val model = CategoriesViewModel(CategoriesRepository(api), AuthRepository(profileApi, CategoryStore(), Json))
+
+        model.load()
+        assertEquals("Administrador", model.state.value.role)
+        assertEquals(42, model.state.value.currentUserId)
+        assertTrue(model.state.value.isAdmin)
+        assertTrue(model.state.value.canEdit(row))
+        assertTrue(model.state.value.canToggle(row))
+        assertTrue(model.state.value.canDelete(row))
+
+        profileApi.failProfile = true
+        model.load()
+        assertEquals(CategoriesViewModel.UNREACHABLE, model.state.value.error)
+        assertNull(model.state.value.role)
+        assertNull(model.state.value.currentUserId)
+        assertFalse(model.state.value.isAdmin)
+        assertFalse(model.state.value.canEdit(row))
+        assertFalse(model.state.value.canToggle(row))
+        assertFalse(model.state.value.canDelete(row))
+
+        profileApi.failProfile = false
+        model.load()
+        assertEquals("Administrador", model.state.value.role)
+        assertTrue(model.state.value.isAdmin)
+
+        api.failCategories = true
+        model.load()
+        assertEquals(CategoriesViewModel.UNREACHABLE, model.state.value.error)
+        assertNull(model.state.value.role)
+        assertNull(model.state.value.currentUserId)
+        assertFalse(model.state.value.isAdmin)
+        assertFalse(model.state.value.canEdit(row))
+        assertFalse(model.state.value.canToggle(row))
+        assertFalse(model.state.value.canDelete(row))
+    }
+
+    @Test fun `in-flight read blocks edit requestDelete confirmDelete toggle and save mutations`() {
+        val row = fixtureCategories[0]
+        val api = CategoryApi(rows = fixtureCategories)
+        val profileApi = CategoryProfileApi("Administrador")
+        val model = CategoriesViewModel(CategoriesRepository(api), AuthRepository(profileApi, CategoryStore(), Json))
+
+        model.load()
+        assertEquals("Administrador", model.state.value.role)
+
+        model.requestDelete(row)
+        assertEquals(row, model.state.value.deleteTarget)
+
+        val deferred = CompletableDeferred<List<AdminCategoryResponseCategory>>()
+        api.deferredRead = deferred
+        model.load()
+        assertTrue(model.state.value.loading)
+
+        model.edit(row)
+        assertNull(model.state.value.editingId)
+
+        val other = fixtureCategories[1]
+        model.requestDelete(other)
+        assertEquals(row, model.state.value.deleteTarget)
+
+        model.confirmDelete()
+        assertEquals(0, api.deletes)
+        assertEquals(row, model.state.value.deleteTarget)
+
+        model.toggle(row)
+        assertEquals(0, api.updates)
+
+        model.onNamePtChange("Nova")
+        model.save()
+        assertEquals(0, api.creates)
+
+        deferred.complete(fixtureCategories)
+        assertFalse(model.state.value.loading)
+
+        model.confirmDelete()
+        assertEquals(1, api.deletes)
+        assertNull(model.state.value.deleteTarget)
+    }
+
     private fun viewModel(
         api: CategoryApi,
         role: String = "Trabalhador",
@@ -302,13 +385,17 @@ private class CategoryApi(var rows: List<AdminCategoryResponseCategory> = emptyL
     var lastUpdateId: Int? = null
     var lastDeleteId: Int? = null
     var firstRead: CompletableDeferred<List<AdminCategoryResponseCategory>>? = null
+    var deferredRead: CompletableDeferred<List<AdminCategoryResponseCategory>>? = null
+    var failCategories = false
     var writeResult: CategoryWriteResult = CategoryWriteResult.Saved(
         AdminCategoryResponseCategory(5, null, "Laticínios", "Lácteos", AdminCategoryResponseCategory.CategoryType.check, 0, 1, "now"),
     )
 
     override suspend fun categories(): Response<AdminCategoriesResponse> {
         reads++
-        val result = if (reads == 1) firstRead?.await() else null
+        if (failCategories) throw java.io.IOException("failed to read categories")
+        val deferred = deferredRead
+        val result = if (deferred != null) deferred.await() else if (reads == 1) firstRead?.await() else null
         return Response.success(AdminCategoriesResponse(result ?: rows))
     }
 
@@ -371,7 +458,9 @@ private class CategoryApi(var rows: List<AdminCategoryResponseCategory> = emptyL
 
 private class CategoryProfileApi(role: String) : AuthApi {
     private val data = ProfileResponse(user = ProfileResponseUser(42, "admin", "Admin", role))
-    override suspend fun profile() = Response.success(data)
+    var failProfile = false
+    override suspend fun profile(): Response<ProfileResponse> =
+        if (failProfile) Response.error(500, "".toResponseBody(null)) else Response.success(data)
     override suspend fun login(body: LoginRequest): Response<LoginResponse> = error("unused")
     override suspend fun refresh(body: RefreshRequest): Response<RefreshResponse> = error("unused")
     override suspend fun logout(body: LogoutRequest): Response<SuccessResponse> = error("unused")

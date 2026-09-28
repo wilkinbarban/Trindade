@@ -68,7 +68,7 @@ class CategoriesViewModel @Inject constructor(
             val profile = authRepository.profile()
             val categories = repository.categories()
             if (profile == null || categories == null) {
-                _state.update { it.copy(loading = false, error = UNREACHABLE, categories = emptyList()) }
+                _state.update { it.copy(loading = false, categories = emptyList(), role = null, currentUserId = null, error = UNREACHABLE) }
                 return@launch
             }
             _state.update {
@@ -94,7 +94,7 @@ class CategoriesViewModel @Inject constructor(
 
     fun edit(category: AdminCategoryResponseCategory) {
         val current = _state.value
-        if (!current.canEdit(category) || current.saving) return
+        if (current.loading || !current.canEdit(category) || current.saving) return
         _state.update {
             it.copy(
                 editingId = category.id,
@@ -122,7 +122,7 @@ class CategoriesViewModel @Inject constructor(
 
     fun requestDelete(category: AdminCategoryResponseCategory) {
         val current = _state.value
-        if (!current.canDelete(category) || current.saving) return
+        if (current.loading || !current.canDelete(category) || current.saving) return
         _state.update { it.copy(deleteTarget = category, error = null, refusedStatus = null) }
     }
 
@@ -133,7 +133,7 @@ class CategoriesViewModel @Inject constructor(
     fun confirmDelete() {
         val current = _state.value
         val target = current.deleteTarget ?: return
-        if (!current.canDelete(target) || current.saving) return
+        if (current.loading || !current.canDelete(target) || current.saving) return
         _state.update { it.copy(deleteTarget = null) }
         delete(target)
     }
@@ -144,7 +144,8 @@ class CategoriesViewModel @Inject constructor(
     }
 
     fun toggle(category: AdminCategoryResponseCategory) {
-        if (!_state.value.canToggle(category)) return
+        val current = _state.value
+        if (current.loading || !current.canToggle(category) || current.saving) return
         write {
             repository.update(
                 category.id,
@@ -218,7 +219,8 @@ class CategoriesViewModel @Inject constructor(
     }
 
     private fun write(call: suspend () -> CategoryWriteResult) {
-        if (_state.value.saving) return
+        val current = _state.value
+        if (current.loading || current.saving) return
         _state.update { it.copy(saving = true, error = null, refusedStatus = null) }
         viewModelScope.launch { finishWrite(call()) }
     }
