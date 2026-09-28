@@ -156,8 +156,8 @@ class AuditScreenTest {
 
         composeRule.onNodeWithText("Acesso Restrito").assertIsDisplayed()
         composeRule.onNodeWithText("Esta área é exclusiva para administradores.").assertIsDisplayed()
-        composeRule.onNodeWithText("Secret Admin Action").assertDoesNotExist()
-        composeRule.onNodeWithText("Filtrar").assertDoesNotExist()
+        composeRule.onAllNodesWithText("Secret Admin Action").assertCountEquals(0)
+        composeRule.onAllNodesWithText("Filtrar").assertCountEquals(0)
     }
 
     @Test
@@ -166,8 +166,8 @@ class AuditScreenTest {
         render(state(role = null, logs = listOf(entry)))
 
         composeRule.onNodeWithText("Acesso Restrito").assertIsDisplayed()
-        composeRule.onNodeWithText("Secret Unauth Action").assertDoesNotExist()
-        composeRule.onNodeWithText("Filtrar").assertDoesNotExist()
+        composeRule.onAllNodesWithText("Secret Unauth Action").assertCountEquals(0)
+        composeRule.onAllNodesWithText("Filtrar").assertCountEquals(0)
     }
 
     @Test
@@ -176,8 +176,8 @@ class AuditScreenTest {
         render(state(loading = true, logs = listOf(oldEntry)))
 
         composeRule.onNodeWithText("Carregando…").assertIsDisplayed()
-        composeRule.onNodeWithText("Old Stale Log").assertDoesNotExist()
-        composeRule.onNodeWithText("Filtrar").assertDoesNotExist()
+        composeRule.onAllNodesWithText("Old Stale Log").assertCountEquals(0)
+        composeRule.onAllNodesWithText("Filtrar").assertCountEquals(0)
     }
 
     @Test
@@ -331,12 +331,12 @@ class AuditScreenTest {
 
         // First log should show 2 key-value pairs without JSON syntax braces
         composeRule.onNodeWithText("Detalhes: field_a: value_one, field_b: value_two").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText(jsonDetails).assertDoesNotExist()
+        composeRule.onAllNodesWithText(jsonDetails).assertCountEquals(0)
 
         // Second log should be truncated with ellipsis
         val expectedTruncated = "Detalhes: " + "A".repeat(57) + "..."
         composeRule.onNodeWithText(expectedTruncated).performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText(longText).assertDoesNotExist()
+        composeRule.onAllNodesWithText(longText).assertCountEquals(0)
     }
 
     @Test
