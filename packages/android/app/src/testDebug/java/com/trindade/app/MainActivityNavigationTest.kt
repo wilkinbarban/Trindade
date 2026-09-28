@@ -27,6 +27,8 @@ import com.trindade.app.admin.TimeSlotsScreen
 import com.trindade.app.admin.TimeSlotsViewModel
 import com.trindade.app.admin.VehiclesScreen
 import com.trindade.app.admin.VehiclesViewModel
+import com.trindade.app.admin.UsersScreen
+import com.trindade.app.admin.UsersViewModel
 import com.trindade.app.ui.theme.TrindadeTheme
 import org.junit.Assert.assertFalse
 import org.junit.Rule
@@ -421,5 +423,72 @@ class MainActivityNavigationTest {
         composeRule.onNodeWithText(copy(R.string.login_submit)).assertIsDisplayed()
         composeRule.onNodeWithText(copy(R.string.login_register_link)).performScrollTo().assertIsDisplayed()
         assertFalse(signedIn)
+    }
+
+    /**
+     * Mirrors MainActivity's users destination branch and role filter. This renders the screen and
+     * exercises its callbacks, but does not launch or instrument MainActivity or its Hilt graph.
+     */
+    @Test
+    fun `users tab is reachable for administrator but not worker, unknown or null roles`() {
+        var role by mutableStateOf<String?>(RolePolicy.ADMIN)
+        var selected by mutableStateOf(false)
+        var refreshes = 0
+        var passwordState by mutableStateOf("typed-password-123")
+        composeRule.setContent {
+            TrindadeTheme {
+                if (selected) {
+                    UsersScreen(
+                        state = UsersViewModel.UiState(loading = false, role = role),
+                        password = passwordState,
+                        onBack = { selected = false },
+                        onRefresh = { refreshes++ },
+                        onUsernameChange = {},
+                        onDisplayNameChange = {},
+                        onPasswordChange = { passwordState = it },
+                        onRoleIdChange = {},
+                        onIsActiveChange = {},
+                        onSave = {},
+                        onCancel = {},
+                        onEdit = {},
+                        onToggle = {},
+                        onRequestDelete = {},
+                        onConfirmDelete = {},
+                        onDismissDelete = {},
+                    )
+                } else {
+                    Column {
+                        RolePolicy.visibleDestinations(
+                            role,
+                            listOf(
+                                RolePolicy.EntryPoint.USERS to copy(R.string.nav_users),
+                            ),
+                        ).filter { role == RolePolicy.ADMIN }
+                            .forEach { label ->
+                                androidx.compose.material3.TextButton(onClick = { selected = true }) {
+                                    androidx.compose.material3.Text(label)
+                                }
+                            }
+                    }
+                }
+            }
+        }
+        role = RolePolicy.ADMIN
+        composeRule.onNodeWithText(copy(R.string.nav_users)).performClick()
+        composeRule.onNodeWithText("Usuários").assertIsDisplayed()
+        composeRule.onNodeWithText("Atualizar").performClick()
+        assert(refreshes == 1)
+
+        composeRule.onNodeWithText("Novo usuário").performClick()
+        // Verifies password parameter receives the real value from the accessor rather than regressing to empty default
+        composeRule.onNodeWithText("\u2022".repeat("typed-password-123".length)).assertIsDisplayed()
+
+        composeRule.onNodeWithText("Voltar").performClick()
+        composeRule.onNodeWithText(copy(R.string.nav_users)).assertIsDisplayed()
+
+        listOf(RolePolicy.WORKER, "unknown", null).forEach { disallowedRole ->
+            role = disallowedRole
+            composeRule.onNodeWithText(copy(R.string.nav_users)).assertDoesNotExist()
+        }
     }
 }
