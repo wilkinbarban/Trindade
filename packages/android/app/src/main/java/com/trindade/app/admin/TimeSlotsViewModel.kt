@@ -48,7 +48,16 @@ class TimeSlotsViewModel @Inject constructor(
             val profile = authRepository.profile()
             val slots = repository.timeSlots()
             if (profile == null || slots == null) {
-                _state.update { it.copy(loading = false, error = UNREACHABLE, timeSlots = emptyList()) }
+                // A failed read cannot authorize PUT of a replacement list built from an empty catalog.
+                _state.update {
+                    it.copy(
+                        loading = false,
+                        error = UNREACHABLE,
+                        timeSlots = emptyList(),
+                        role = null,
+                        currentUserId = null,
+                    )
+                }
                 return@launch
             }
             _state.update {

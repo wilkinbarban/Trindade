@@ -213,6 +213,27 @@ class TimeSlotsViewModelTest {
         assertEquals(emptyList<String>(), profileFailModel.state.value.timeSlots)
     }
 
+    @Test fun `failed reload cannot replace server slots with an incomplete local catalog`() {
+        val api = TimeSlotApi(slots = fixtureSlots)
+        val model = viewModel(api, role = "Administrador")
+        model.load()
+        assertTrue(model.state.value.isAdmin)
+
+        api.slots = null
+        model.load()
+        assertEquals(emptyList<String>(), model.state.value.timeSlots)
+        model.onInputChange("06:00")
+        model.addTimeSlot()
+        assertEquals(0, api.updates)
+        assertFalse(model.state.value.isAdmin)
+
+        api.slots = fixtureSlots
+        model.load()
+        model.addTimeSlot()
+        assertEquals(1, api.updates)
+        assertEquals((fixtureSlots + "06:00").sorted(), api.lastUpdate?.timeSlots)
+    }
+
     @Test fun `input change clears error and refused status`() {
         val api = TimeSlotApi(slots = listOf("08:00", "09:00"))
         val model = viewModel(api, role = "Administrador")
