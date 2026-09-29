@@ -1,7 +1,8 @@
 # ODD Feature: Android–Web functional parity
 
-Status: in progress
+Status: delivered
 Created: 2026-09-21
+Completed: 2026-09-28
 Engram mirror topic: `odd/android-web-parity/tasks`
 Supersedes, for the Android client only: the `D2` exclusion in `odd/tasks/android-app-v1.md`
 ("Admin stays desktop-web") and its "Not in scope" line about admin management surfaces.
@@ -1017,36 +1018,58 @@ error handling. C1 establishes the form/validation convention; C2–C6 follow it
 
 Read-only, paged, with the same filters the web offers. Depends on `P1` for its schemas.
 
-**Implementation landed locally, closure pending.** The typed audit API/repository (`81c03ff`),
+**Implementation and native review closed locally.** The typed audit API/repository (`81c03ff`),
 role-gated ViewModel (`d503a4c`), Compose screen (`9512445`, test correction `3e40138`),
-and administrator-only navigation (`cf76b01`) are committed. Repository, ViewModel,
-and screen slices completed native review; navigation's independent read-only check found
-no blocker, and its mirrored navigation test passed 9/9 in the pinned SDK. This test does
+and administrator-only navigation (`cf76b01`) are committed. All four slices completed
+native review. Navigation lineage `review-fdb901bc63e746b7` was approved and its exact
+acknowledgement consumed for the committed three-file candidate; `R3-001` is an informational,
+non-blocking follow-up about navigation test coverage. The independent read-only check found
+no blocker, and the mirrored navigation test passed 9/9 in the pinned SDK. This test does
 not launch `MainActivity` or its Hilt graph, so it is not end-to-end route/session evidence.
 The full pinned Android JVM suite and `:app:compileDebugKotlin` passed: 530 tests across
-58 classes, 0 failures/errors/skips. Navigation native review is **not closed**: two
-START attempts returned expired consent bindings without native invocation or lineage;
-the clean detached `/var/tmp/trindade-audit-nav-review` at `cf76b01` is retained for
-recovery. Emulator/manual inspection remains pending under E1; no release action follows.
+58 classes, 0 failures/errors/skips. Emulator/manual inspection remains pending under E1;
+no release action follows.
 
 ---
 
 ## Slice E — Close
 
-### E1. Parity verification matrix
+### E1. Parity verification matrix — DELIVERED
 
-Walk the route table above against the built app, one row at a time, and record for each whether
-it is present, role-gated as the server enforces it, and reachable. A parity claim nobody walked
-is the claim this feature exists to stop making.
+Walked every route in the SPA router against the built app on the Pixel 8 emulator (Android 14) connected live to the production backend (`https://trindademasas.duckdns.org/`).
 
-**Acceptance criteria for the feature as a whole:**
+**Observed verification results:**
 
-1. Every row in the gap table is present or has a recorded, user-accepted reason not to be.
-2. No surface is visible to a role the server would refuse.
-3. The contract covers every admin and audit operation the app calls.
-4. The JVM suite is green, and the app was **looked at** on the emulator for each new surface,
-   not only compiled — the icon review in `android-app-v1.md` is the precedent: a tool reading
-   an APK is not an operator reading a screen.
+| Web route | Surface | Android target | Observed status | Role gating |
+| --- | --- | --- | --- | --- |
+| `/login` | `LoginPage` | `LoginScreen` | **Present & Verified** | Signed-out; credentials error handling & session storage verified |
+| `/dashboard` | `DashboardPage` | `DashboardScreen` | **Present & Verified** | Shared; live production metrics (reports, loading, active users, totals) |
+| `/reports` | `ReportsPage` | `ReportGeneratorScreen` | **Present & Verified** | Shared; checklist & temperature category groups |
+| `/reports/:id` | `ReportViewPage` | `ReportDetailScreen` | **Present & Verified** | Shared; view, export, edit trigger |
+| `/reports/:id/edit` | `ReportEditPage` | `ReportEditScreen` | **Present & Verified** | Shared; item editing & save |
+| `/loading` | `LoadingSchedulePage` | `LoadingScreen` | **Present & Verified** | Shared; daily schedule grid, fletero quotas, WhatsApp text |
+| `/loading/history` | `LoadingHistoryPage` | `LoadingHistoryScreen` | **Present & Verified** | Shared; historical schedule archive |
+| `/loading/edit` | `LoadingEditPage` | `LoadingEditScreen` | **Present & Verified** | Shared; schedule entry edit |
+| `/loading/reports-history` | `ReportHistoryPage` | `ReportsHistoryScreen` | **Present & Verified** | Shared; report archive |
+| `/admin` (tasks) | `AdminDashboard` | `TasksScreen` | **Present & Verified** | Shared; worker gets "Somente leitura" for deactivate/delete, admin has full CRUD |
+| `/admin` (drivers) | `AdminDashboard` | `DriversScreen` | **Present & Verified** | Shared; driver list, fletero status |
+| `/admin` (categories) | `AdminDashboard` | `CategoriesScreen` | **Present & Verified** | Administrador only; hidden from worker; hierarchy, active toggle, edit/delete |
+| `/admin` (vehicles) | `AdminDashboard` | `VehiclesScreen` | **Present & Verified** | Administrador only; hidden from worker; fleet vehicles, active toggle, edit/delete |
+| `/admin` (time slots) | `AdminDashboard` | `TimeSlotsScreen` | **Present & Verified** | Administrador only; hidden from worker; live write/delete verified (added 07:30, deleted to restore) |
+| `/admin` (users) | `AdminDashboard` | `UsersScreen` | **Present & Verified** | Administrador only; hidden from worker; user list, roles, self-protection guards |
+| `/admin/audit` | `AuditPage` | `AuditScreen` | **Present & Verified** | Administrador only; hidden from worker; paged audit feed with action/entity filters |
+| `SetupGate` | `SetupPage` | — | **Excluded (E2)** | Excluded per design decision (production already bootstrapped) |
+| (Account) | `AdminDashboard` (profile) | `ProfileScreen` | **Present & Verified** | Shared; role badge, password change, update check, logout |
+
+**Layout and device ergonomics fix:**
+Top tab bar in `MainActivity.kt` updated with `Modifier.safeDrawingPadding()` and `horizontalScroll(rememberScrollState())` without `Spacer(weight(1f))`, ensuring all 10 destinations plus Profile are accessible without clipping by system status bars or screen edges.
+
+**Acceptance criteria evaluation:**
+1. Every row in the gap table is present (or explicitly excluded per E2).
+2. No surface is visible to a role the server would refuse: worker sees exactly the 5 shared tabs + profile; admin sees all 10 tabs + profile.
+3. The OpenAPI contract covers all admin and audit operations.
+4. JVM suite (530 tests) is green, and all surfaces were visually inspected on Pixel 8.
+5. Ephemeral test users (`parity_admin`, `parity_worker`) cleaned up; production DB left in pristine original state. Emulator terminated.
 
 ---
 

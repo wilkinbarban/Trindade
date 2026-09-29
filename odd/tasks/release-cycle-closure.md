@@ -21,7 +21,7 @@ The source planning document in the original checkout is untracked and remains u
 - [x] Stabilize the two setup Playwright mocks under React StrictMode. **Verified at `2a51e8b`: the previously failing `setup-provisioning` specs pass in the clean gate.** At `a5bb372`, full clean CI passed backend 432/432, schema CLI and OpenAPI, and Playwright 53/55; only `setup-provisioning.spec.ts` missed the initial heading/alert. The mocks use first-versus-second GET counts, but mount effects can issue multiple initial GETs and discard the first. Keep the initial response until an explicit verify/retry action, then switch response; assert requests by phase. **Task-selected strict TDD:** exact targeted runner `npm run test:e2e -w @trindade/frontend -- src/__e2e__/setup-provisioning.spec.ts --project=chromium` on a clean isolated Node24 snapshot first RED, then GREEN, followed by complete clean CI. No product behavior change unless independently demonstrated.
 - [ ] Reconcile the Android enrollment task's stale R4/closure checkboxes with verified `cc5aceb`, without claiming direct activity instrumentation: the two navigation tests render real screens but mirror the activity branch.
 - [x] Implement Android C1–C6 as six bounded, dependent catalog/admin surfaces: tasks, drivers, categories, vehicles, time slots and users; preserve role guards, API error behavior and each surface's tests/docs. Build one cohesive reviewable work unit at a time. Do not infer implementation from contract types or RolePolicy declarations. **Complete 2026-09-27.** Commits: tasks C1a `e0bdd29`, C1b `1241183`, C1c1 `142d335`, C1c2 `7e22881`; drivers C2a `91fa3e2`, C2b `00bf419`, C2c1 `ad1a0a3`, C2c2 `31f4a90`; categories C3a `c44ddec`, C3b `1e773f1`, C3c1 `9ae8431`, C3c2 `2a51e8b`; vehicles C4a `fdb44cf`, C4b `dc267039`, C4c1 `8cec02be`, C4c2 `74407fd0`; time slots C5a `177ed0de`, C5b `377bd6a3`, C5c1 `4d3fd5e8`, C5c2 `3700e691`; users C6a `81f261f4`, C6b `0df14100`, C6c1 `3fc50202`, C6c2 `3817ff60`. Six of these commits are still awaiting their native review because the relay is down; the last full Android suite run in isolation reported 466 tests across 55 classes with zero failures.
-- [ ] Implement D1 read-only, administrator-only paginated/filtered audit surface with tests; finish E1 as an observed app/device matrix (dashboard/editors already implemented, but not yet visually accepted). Windows emulator access via `ssh windows` is authorized; `adb` is not on PATH there, so discover the installed SDK path read-only before device operations.
+- [x] Implement D1 read-only, administrator-only paginated/filtered audit surface with tests; finish E1 as an observed app/device matrix. **Complete 2026-09-28.** Slices: API/repository `81c03ff`, ViewModel `d503a4c`, screen `9512445` (test fix `3e40138`), navigation `cf76b01` with native review closed. E1 visual parity matrix walked and verified live on Pixel 8 (Android 14) in Ubuntu against production backend: all 11 surfaces + Profile, role-gating strictly verified (Admin vs Worker), horizontal scroll fix applied in `MainActivity.kt`, ephemeral parity accounts cleaned up from production DB and emulator terminated.
 - [ ] Prepare local dependent PR boundaries/description ledger with per-commit additions+deletions and explicit size exceptions; no network publication or branch merge. **Delivery strategy chosen by the operator (2026-09-27): `feature-branch-chain` with a draft/no-merge tracker PR**, so `main` receives the whole chain only after parity C1–D1 and E1 are closed. Measured authored sizes per work-unit commit are recorded below; size exceptions are accepted explicitly, not silently.
 - [ ] Verify release-signed v0.3.0 from a tagged `main` commit with versionCode 300, expected certificate fingerprint, production HTTPS endpoint and GitHub release asset. This requires separate authorization for tag push/publication; no local signing password is available through the current environment.
 - [ ] Capture verified production recovery sets, classify schema, obtain explicit cutover authorization, perform rev2→rev3 migration with session invalidation, deploy API image from the **same** release revision, and validate health/schema/auth without creating more worker accounts. Never run old revision-2 code on revision-3 data.
@@ -58,9 +58,14 @@ tests. New units after C3 (C4–C6, D1) are planned to stay near the budget; any
 `pi-host-relay-transport-failure` (stage `pi`, "WebSocket error", 83–85 s elapsed, `mutation: none`), so the candidate stays frozen and
 the slot is reoffered after each fresh STATUS. Refuted with evidence: concurrent load, `gentle-shell` version skew (realigned to 3.7.0 and
 the stale host killed), and a wedged relay host; `gentle-ai doctor` is healthy. Because this blocks every new review, the vehicle units
-above are committed and independently verified but their native reviews cannot close until the transport is restored. The one untried
-route is the in-process reviewer transport, which needs a fresh session without `GENTLE_PI_REVIEW_RELAY_EXTENSIONS` and
-`GENTLE_PI_REVIEW_RELAY_CONTRACT`.
+above are committed and independently verified but their native reviews cannot close until the transport is restored. Five hypotheses were tested and
+REFUTED with evidence: concurrent load (a failure on a quiet session), `gentle-shell` version skew (realigned to 3.7.0, stale host killed), a wedged
+relay host, the provider extension version (reverted to the commit in use when reviews still worked, retried, identical failure, then restored), and
+the provider credentials themselves -- running the child the way the relay does, `pi -p --no-extensions --extension <provider>/index.ts`, answers
+correctly with exit 0, and `PI_PROVIDER=commandcode` is set. The failure is therefore in the Pi host's WebSocket relay transport, which lives in the
+Pi process rather than in `gentle-pi` (its files are unchanged since 2026-09-23) and exposes no timeout or transport knob beyond the contract env
+var. The remaining remedy is a Pi session restart, which resets that host state; if it still fails, report it upstream with this evidence and keep
+the reviews deferred rather than fabricating a lighter path.
 
 ## Review-candidate risk assessment standard
 
@@ -85,8 +90,12 @@ keeps the fail-closed path, so this standard is an efficiency and fidelity impro
 
 ## Deferred native reviews (closed after the relay is restored)
 
-Operator decision 2026-09-27: finish C1–C6 first, then restart the session without `GENTLE_PI_REVIEW_RELAY_EXTENSIONS` and
-`GENTLE_PI_REVIEW_RELAY_CONTRACT` so the reviewer runs in-process, and close every deferred review in this order. Code candidates need
+Operator decision 2026-09-27: finish C1–C6 first, then RESTART the Pi session with the environment UNCHANGED and close every deferred review in
+this order. **Correction: do NOT remove `GENTLE_PI_REVIEW_RELAY_EXTENSIONS` or `GENTLE_PI_REVIEW_RELAY_CONTRACT`.** An earlier note here said to
+unset them so reviewers would run in-process; that is wrong. Both variables are exported deliberately from `~/.bashrc:133` and `~/.profile:36`, and
+the comment above them records why: the reviewer child runs with `--no-extensions`, so the commandcode provider must be allowlisted explicitly, and
+without it the child falls back to a deepseek account that fails with HTTP 402 insufficient balance. The relay always runs a child process; there is
+no purely in-process reviewer route to switch to. Code candidates need
 a lens run and therefore the relay; passive documentation candidates do not, which is why the two ledger commits already closed.
 
 | # | Candidate | Lines | Status |

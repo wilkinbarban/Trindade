@@ -5,10 +5,13 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.StringRes
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -370,7 +373,7 @@ class MainActivity : ComponentActivity() {
                         stale = loadingStale,
                         onStaleRead = { loadingStale = false },
                     )
-                    else -> Column {
+                    else -> Column(modifier = Modifier.safeDrawingPadding()) {
                         // One row of tabs, and the account at the far end of it. The row draws whatever the
                         // policy says this role may open -- today the dashboard, the reports and the schedule --
                         // and the profile is not one of them: it is the operator's own account rather than a
@@ -378,7 +381,9 @@ class MainActivity : ComponentActivity() {
                         // library would be more than this app has places to go, and the back action each
                         // screen already owns is the whole of the routing it needs.
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             // The row is drawn from the policy, not from `destinations` alone: the list says what
@@ -396,7 +401,6 @@ class MainActivity : ComponentActivity() {
                                 .forEach { destination ->
                                 TextButton(onClick = { tab = destination }) { Text(stringResource(destination.label)) }
                             }
-                            Spacer(Modifier.weight(1f))
                             TextButton(onClick = { profileOpen = true }) { Text(stringResource(R.string.profile_title)) }
                         }
                         // What the row switches between. The row is drawn for both, which is where these two differ from the
