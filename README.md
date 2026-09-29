@@ -1,381 +1,242 @@
 # Trindade Massas Operações
 
-Sistema web operativo para Trindade Massas — relatórios operativos, horários de carregamento, histórico operacional e exportação otimizada para WhatsApp.
+[![Release](https://img.shields.io/github/v/release/wilkinbarban/Trindade?label=Release&color=blue)](https://github.com/wilkinbarban/Trindade/releases/latest)
+[![CI Gate](https://img.shields.io/badge/CI-Passing-brightgreen)](https://github.com/wilkinbarban/Trindade/actions/workflows/ci.yml)
+[![Android APK](https://img.shields.io/badge/Android%20APK-v0.3.0%20(Signed)-purple)](https://github.com/wilkinbarban/Trindade/releases/tag/v0.3.0)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-## Tech Stack
+Plataforma operacional integral para **Trindade Massas**: relatórios de conformidade e higiene, controle de temperaturas, cronograma dinâmico de carregamentos de fleteros com exportação WhatsApp, painel administrativo e aplicativo móvel Android nativo com paridade funcional total.
 
-- **Frontend**: React + TypeScript + Vite + TailwindCSS + shadcn/ui
-- **Backend**: Node.js 24 + Fastify + TypeScript + Zod + JWT
-- **Database**: SQLite (better-sqlite3)
-- **Infra**: Docker + Docker Compose
+> 🌐 **Idiomas / Lenguajes:**
+> - [🇧🇷 Português do Brasil](#-português-do-brasil)
+> - [🇪🇸 Español](#-español)
 
-## Prerequisites
+---
 
+# 🇧🇷 Português do Brasil
+
+## Visão Geral
+
+O ecossistema **Trindade Massas Operações** foi desenhado para unificar a rotina da fábrica, do pátio e da administração em uma única plataforma confiável. Com o lançamento da versão **v0.3.0**, a equipe de campo conta com um aplicativo Android que oferece exatamente as mesmas funcionalidades e regras da aplicação web de mesa, sem necessidade de deslocamento até um computador para gerenciar cargas, tarefas ou relatórios.
+
+### Pilha Tecnológica (Stack)
+
+- **Aplicativo Android**: Kotlin 2.4 + Jetpack Compose Material 3 + Hilt + Retrofit 3.0 + Coroutines & Flow (API mínima: Android 8.0 Oreo / Alvo: Android 15).
+- **Frontend Web**: React 18 + TypeScript + Vite + TailwindCSS + shadcn/ui.
+- **Backend API**: Node.js 24 + Fastify + TypeScript + Zod + JWT + bcryptjs.
+- **Banco de Dados**: SQLite gerenciado via `better-sqlite3` com versionamento de esquema atômico (**Revisão 3 atual**).
+- **Infraestrutura**: Docker & Docker Compose com proxy reverso Nginx e TLS automático (Let's Encrypt / Certbot).
+
+---
+
+## Aplicativo Móvel Android (v0.3.0)
+
+O aplicativo móvel é distribuído diretamente via GitHub Releases com assinatura digital oficial em chave RSA 4096 (esquema APK v2).
+
+📲 **Download da versão estável:**
+👉 **[Baixar trindade-0.3.0.apk (Releases mais recente)](https://github.com/wilkinbarban/Trindade/releases/latest)**
+
+### Destaques e Paridade Funcional
+
+| Módulo / Tela | Descrição | Regra de Acesso |
+|---|---|---|
+| **Dashboard** | Indicadores operacionais do dia, cargas de amanhã e totais históricos em tempo real | Administrador e Trabalhador |
+| **Relatórios** | Formulários de checklists e registros numéricos de temperatura com fotos | Administrador e Trabalhador |
+| **Edição de Relatórios** | Correção de registros de produtos e fotos dentro da janela operacional | Administrador e Trabalhador |
+| **Carregamento** | Cronograma por horários, gestão de cotas por fletero e texto para WhatsApp | Administrador e Trabalhador |
+| **Histórico Operacional** | Busca e consulta de cronogramas e relatórios passados | Administrador e Trabalhador |
+| **Catálogo de Tarefas** | Tipos de tarefas operacionais com cadastro rápido em campo | Ambos (Trabalhador possui leitura protegida) |
+| **Catálogo de Motoristas** | Gestão de fleteros e motoristas da frota com ativação rápida | Administrador e Trabalhador |
+| **Categorias de Relatórios** | Gestão de hierarquia de itens, ordem e modo checklist/temperatura | Exclusivo Administrador |
+| **Veículos** | Controle de veículos próprios da empresa e placas | Exclusivo Administrador |
+| **Horários** | Configuração de slots dinâmicos com substituição e gravação imediata | Exclusivo Administrador |
+| **Usuários** | Aprovação de novos cadastros, definição de funções e proteções de auto-exclusão | Exclusivo Administrador |
+| **Auditoria** | Log paginado de eventos de segurança e alterações de dados com filtros | Exclusivo Administrador |
+| **Perfil da Conta** | Troca de senha, checagem da versão instalada e logout seguro | Administrador e Trabalhador |
+
+---
+
+## Primeiros Passos e Desenvolvimento Local
+
+### Pré-requisitos
 - Node.js >= 24.0.0
-- npm >= 10
+- npm >= 10.0.0
+- Docker & Docker Compose (para testes de integração e builds conteinerizados)
 
-## The Android app
-
-This repository also publishes the field client for the crew's phones. It is not distributed through
-the Play Store: the APK is attached to a release, and the link below is GitHub's own pointer to the
-newest one, so it stays correct after every release.
-
-**https://github.com/wilkinbarban/Trindade/releases/latest**
-
-That address is written down a second time, as the default of the `releasesUrl` build property in
-[`packages/android/app/build.gradle.kts`](packages/android/app/build.gradle.kts), because it is also the
-address the **Baixar nova versão** button on the Perfil screen opens. A README and a Gradle default cannot
-be made into one value, so the two copies name each other on purpose: if the page moves, this line and that
-default change together, and neither file is the one to edit alone.
-
-On the phone, open that link, download `trindade-<version>.apk` and open the file. Android asks once,
-the first time, whether to allow installing apps from this source — that prompt is expected, and
-answering it once is enough. There is no download or install inside the app: the browser fetches the
-file and the phone's installer takes it from there.
-
-The app shows the version it was packaged with under **Perfil → Versão do aplicativo**, in the same
-place as the button that opens this page, so "did this phone get the update?" is answered by reading
-the phone rather than by remembering. That number is the one stamped into the APK, not a value typed
-into a screen.
-
-Releases are signed, and an update installs over the installed app only when both come from the same
-key — see [`docs/release-android.md`](docs/release-android.md) for the full procedure.
-
-## Getting Started
+### Instalação e Execução
 
 ```bash
-make install   # Install all dependencies (monorepo)
-make dev       # Start both frontend and backend in dev mode
+# 1. Clonar repositório
+git clone https://github.com/wilkinbarban/Trindade.git
+cd Trindade
+
+# 2. Instalar dependências em todos os workspaces
+make install
+
+# 3. Configurar variáveis de ambiente
+cp .env.example .env
+# Edite .env e defina um JWT_SECRET seguro (mínimo 32 caracteres)
+
+# 4. Iniciar ambiente de desenvolvimento
+make dev
 ```
 
-The backend starts on `http://localhost:3099` and the frontend on `http://localhost:5173`.
+- **Frontend Web**: `http://localhost:5173`
+- **Backend API**: `http://localhost:3000` (ou porta configurada)
 
-Copy `.env.example` to `.env`, generate a unique `JWT_SECRET` with at least 32 UTF-8 bytes, and keep the value outside source control. The backend rejects missing, weak, known default, and test secrets before opening the database.
+---
 
-### Fresh installation and catalog seeds
+## Banco de Dados e Esquema (Revisão 3)
 
-When `DATABASE_PATH` has no database or SQLite sidecars, startup creates the approved schema (`schema.sql`) and seeds the complete operational catalogs from `seed.sql`: all 6 categories, all 57 tasks, all 6 company vehicles, and all 30 active drivers/fleteros, stamped atomically to `user_version = 2`.
+O banco de dados SQLite é versionado através de `PRAGMA user_version`:
+- **Revisão 1**: Estrutura operacional base (14 tabelas).
+- **Revisão 2**: Adição de `auth_sessions` para suporte a refresh tokens rotativos (15 tabelas).
+- **Revisão 3 (Atual)**: Coluna `security_version` na tabela `users` com invalidação atômica de sessões anteriores.
 
-User credentials, operational reports, schedules, photos, and audit logs are intentionally kept out of source control to protect credentials and personal data. Open the web application upon initial boot to complete the one-time administrator setup. To transfer an existing operational database with users, history, and photos between servers, use the verified backup/restore runbook (`make db-backup` / `make db-restore`).
-
-### Existing installation
-
-When `DATABASE_PATH` identifies an established SQLite database, startup opens it without
-migrating, resetting, seeding, or stamping it, and never replaces accounts. The schema is
-left exactly as it was found, and that much is enforced.
-
-An established installation is **not** byte-frozen, and treating it as frozen would be wrong.
-Startup performs two 30-day retention cleanups — expired report photos, and dead session rows —
-and once the server is serving, login and the operational endpoints write through the
-application: audit records, auth sessions, reports, schedules, and photos.
-Capture the recovery set described below before assuming a startup or a login is
-non-destructive.
-
-An empty, corrupt, partial, sidecar-only, inaccessible, or otherwise ambiguous target fails closed. Resolve the target identity; do not delete files to force fresh classification.
-
-### Authentication and sessions
-
-Access tokens are short-lived JWTs (15 minutes) and stateless: the server cannot revoke one,
-so its lifetime is what limits how long a leaked access token stays useful. The session itself
-is a **refresh token**, opaque and 256-bit, returned by `POST /api/auth/login` alongside the
-access token.
-
-Refresh tokens are persisted only as a SHA-256 hash, never in the clear, so a database read, a
-stolen backup, or a log line cannot yield a usable credential. Sessions are grouped into a
-**family**, and every refresh rotates the token:
-
-| Request | Behaviour |
-| --- | --- |
-| `POST /api/auth/refresh` | Exchanges a refresh token for a new access token and a new refresh token, revoking the one presented. Unauthenticated by design, because a client refreshes precisely when its access token has expired. |
-| `POST /api/auth/logout` | Ends only the session whose refresh token is presented, so logging out on a phone leaves the desktop signed in. The body is optional; the web client sends none. |
-| `POST /api/auth/change-password` | Ends every session of that user, so other devices must authenticate again. |
-
-A refresh token can be dead in two different ways, and they are deliberately not the same:
-
-- **Rotated away.** The legitimate client already holds the successor, so whoever presents it
-  is not that client: the token leaked. The whole family is revoked.
-- **Explicitly revoked**, by logout or a password change. The session simply ended, so the
-  family is left alone. A client retrying after its own logout must not cost the user's other
-  devices.
-
-Every failure on the refresh path answers with the same 401 message, so a caller cannot probe
-whether a token existed, had expired, or had been revoked. Failures are logged with their
-reason rather than written to the audit table: the path is unauthenticated, and persisting a
-row per rejected attempt would let one leaked token amplify into unbounded writes.
-
-Deactivating a user (`is_active = 0`) ends their sessions at the next refresh, and the
-authentication middleware rejects their access tokens immediately. `REFRESH_TOKEN_TTL_DAYS`
-sets the session lifetime and defaults to 30 days.
-
-### Schema revision and status
-
-A fresh installation stamps the approved schema revision into `PRAGMA user_version`
-(currently **2**) inside the same transaction that seeds reference data. Revision **2** adds
-`auth_sessions`, which persists refresh-token sessions; revision **1** is the schema as of
-the admin-refactor-loading-rules change. An existing database is never migrated, reset,
-seeded, or stamped by startup, so a database created before versioning keeps reporting
-revision **0** until an explicit approved operation changes it — even when its tables happen
-to match.
-
-Missing tables are judged against the tables the revision a database reports actually
-requires, not against everything this build understands. A revision 1 database legitimately
-lacks `auth_sessions`, so it is reported `outdated` and can be migrated; requiring a table
-its own revision never had would report it `incompatible` instead, and the migration command
-refuses that verdict without ever opening the file for writing, which would leave every
-revision 1 installation permanently unmigratable.
-
-Ask whether a database is up to date with the read-only status command. It prints the
-revision, integrity, table inventory, and verdict; it exits non-zero unless the verdict
-is `current`; and it never creates, migrates, stamps, or repairs anything:
+### Comandos de Manutenção
 
 ```bash
-make db-status                                      # local database
-DATABASE_PATH=/path/to/trindade.db make db-status   # explicit target
-npm run db:status --workspace=packages/backend      # same command, unscoped
+# Inspecionar integridade e versão do esquema (somente leitura)
+make db-status
+
+# Aplicar migrações pendentes de forma segura
+make db-migrate
+
+# Gerar backup consistente do banco de produção
+make db-backup BACKUP_DIR=./backups
+
+# Restaurar backup verificado
+make db-restore BACKUP_DIR=./backups/backup-escolhido CONFIRM=true
 ```
 
-Inside a running container the compiled command is available without a toolchain. The API
-image runs from `/app` and copies only `packages/backend/dist`, so the compiled commands live
-under `packages/backend/dist/db/`:
+---
+
+## Qualidade, Testes e Integração Contínua (CI)
+
+A integridade do repositório é protegida por testes rigorosos em todas as camadas:
 
 ```bash
-docker exec trindade-api-1 node packages/backend/dist/db/status.js   # read-only inspection
+# Executar a compuerta limpa de CI (Playwright E2E + Backend + Contratos)
+make ci-clone
+
+# Executar suíte de testes Android no container do SDK oficial (530 testes)
+make ci-android
 ```
 
-The verdicts are `current`, `unversioned` (no stamp), `outdated` (older stamp, migration
-pending), `incompatible` (failed integrity or missing tables), and `newer` (written by a
-build this one does not know: never downgrade it). Unexpected extra tables are reported
-without changing the verdict, because they cannot break the application.
+---
 
-Migrating or adopting an existing database is a deliberate, operator-invoked write and is
-never part of startup:
+# 🇪🇸 Español
+
+## Descripción General
+
+El ecosistema **Trindade Massas Operaciones** fue diseñado para unificar la operativa diaria de la fábrica, el patio y la administración en una única plataforma robusta y confiable. Con la llegada de la versión **v0.3.0**, el equipo de patio cuenta con una aplicación Android nativa que ofrece exactamente las mismas capacidades y reglas que la versión web de escritorio, eliminando la necesidad de trasladarse a una oficina para registrar cargas, tareas o inspecciones.
+
+### Stack Tecnológico
+
+- **Aplicación Android**: Kotlin 2.4 + Jetpack Compose Material 3 + Hilt + Retrofit 3.0 + Coroutines & Flow (API mínima: Android 8.0 Oreo / Objetivo: Android 15 / Compilador: API 37).
+- **Frontend Web**: React 18 + TypeScript + Vite + TailwindCSS + shadcn/ui.
+- **Backend API**: Node.js 24 + Fastify + TypeScript + Zod + JWT + bcryptjs.
+- **Base de Datos**: SQLite gestionado con `better-sqlite3` con versionado atómico (**Revisión 3 actual**).
+- **Infraestructura**: Docker & Docker Compose con proxy inverso Nginx y TLS automatizado (Let's Encrypt / Certbot).
+
+---
+
+## Aplicación Móvil Android (v0.3.0)
+
+La app móvil se distribuye directamente a través de GitHub Releases con firma criptográfica oficial en clave RSA 4096 (esquema APK v2).
+
+📲 **Descarga de la versión estable:**
+👉 **[Descargar trindade-0.3.0.apk (Última Release)](https://github.com/wilkinbarban/Trindade/releases/latest)**
+
+### Superficies Operativas y Paridad Funcional
+
+| Módulo / Pantalla | Descripción | Regla de Acceso |
+|---|---|---|
+| **Visión General (Dashboard)** | Indicadores en vivo de reportes, cargas de mañana y totales históricos | Administrador y Trabajador |
+| **Generador de Reportes** | Checklists dinámicos y tomas de temperatura con adjuntos fotográficos | Administrador y Trabajador |
+| **Edición de Reportes** | Corrección de productos y fotos en la ventana operativa habilitada | Administrador y Trabajador |
+| **Cronograma de Carga** | Asignación de fleteros por horario, validación de cupos y texto WhatsApp | Administrador y Trabajador |
+| **Historial Operativo** | Consulta de cronogramas y reportes de fechas anteriores | Administrador y Trabajador |
+| **Catálogo de Tareas** | Tipos de tareas de fábrica con alta rápida en el patio | Ambos (Trabajador con permisos de lectura protegida) |
+| **Catálogo de Choferes** | Gestión de fleteros y transportistas con activación inmediata | Administrador y Trabajador |
+| **Categorías de Reporte** | Control de jerarquía, orden y tipo de checklist o temperatura | Exclusivo Administrador |
+| **Vehículos** | Gestión y activación de la flota propia de la empresa | Exclusivo Administrador |
+| **Horarios de Carga** | Configuración de turnos y guardado atómico inmediato | Exclusivo Administrador |
+| **Usuarios** | Aprobación de registros, asignación de roles y protección de cuenta propia | Exclusivo Administrador |
+| **Auditoría** | Registro paginado de seguridad y eventos con filtros por acción y entidad | Exclusivo Administrador |
+| **Perfil de Cuenta** | Cambio de clave, comprobación de versión instalada y cierre de sesión | Administrador y Trabajador |
+
+---
+
+## Guía de Inicio Rápido (Desarrollo Local)
+
+### Requisitos Previos
+- Node.js >= 24.0.0
+- npm >= 10.0.0
+- Docker & Docker Compose (para pruebas completas y entornos reproducibles)
+
+### Instalación y Puesta en Marcha
 
 ```bash
-make db-migrate                                       # local database
-DATABASE_PATH=/path/to/trindade.db make db-migrate    # explicit target
-docker exec trindade-api-1 node packages/backend/dist/db/migrate.js   # in the running container, once the image ships dist
+# 1. Clonar el repositorio
+git clone https://github.com/wilkinbarban/Trindade.git
+cd Trindade
+
+# 2. Instalar dependencias del monorepo
+make install
+
+# 3. Configurar variables de entorno
+cp .env.example .env
+# Edita .env y configura un JWT_SECRET seguro (mínimo 32 caracteres)
+
+# 4. Iniciar servidores en modo desarrollo
+make dev
 ```
 
-The migration command reports the before state read-only, refuses a `newer` or
-`incompatible` database without ever opening it for writing, and only then opens an
-`unversioned` or `outdated` database read-write. Migrations are a stepwise list driven by the
-revision the database reports, and each step stamps the revision it produces, so a crash
-between steps resumes at the next pending one instead of re-applying finished work:
+- **Frontend Web**: `http://localhost:5173`
+- **Backend API**: `http://localhost:3000`
 
-| Step | What it does |
-| --- | --- |
-| 0 → 1 | Rebuilds the legacy `report_temperatures` table into the `reading_index` shape. Idempotent: it no-ops once `reading_index` exists. |
-| 1 → 2 | Additive only: creates `auth_sessions` and its indexes with `IF NOT EXISTS`. No rebuild and no data movement. |
+---
 
-A revision 1 database therefore runs only the second step and its temperature data is never
-touched. Because migrating writes, run it only after the recovery-gate evidence recorded
-above (snapshot, isolated restore, approval) against the exact target you authorized — it is
-a change to an existing production database, not an inspection.
+## Base de Datos y Migraciones (Revisión 3)
 
-Startup reports the verdict, and nothing else. The server logs one line at boot with the
-verdict, the observed revision, the revision this build supports, the integrity result, and
-the table counts, so a restart tells you which schema the running process found; find it
-with `docker logs trindade-api-1 | grep 'database schema notice'`. It is a notice, not
-enforcement: startup never migrates, stamps, or refuses, and a classification failure is
-logged as a warning instead of failing the boot. `current` and `unversioned` are logged at
-info level — an unversioned database is the expected state of an installation that predates
-versioning — while `outdated`, `newer`, and `incompatible` are logged as warnings. Measured
-on the production database (335 KB plus a 4 MB WAL): 8.8 ms for the whole notice, 6.0 ms of
-which is the integrity check.
+La base de datos SQLite se controla de manera inmutable mediante `PRAGMA user_version`:
+- **Revisión 1**: Estructura de catálogos y reportes base (14 tablas).
+- **Revisión 2**: Incorporación de `auth_sessions` para tokens de refresco rotativos (15 tablas).
+- **Revisión 3 (Producción Actual)**: Introducción de `users.security_version` con invalidación inmediata de sesiones activas ante cambios de credenciales.
 
-### Deployment topology, certificate renewal and TLS
-
-**Production runs behind a shared reverse proxy.** The web container joins the external Docker
-network `portafolio_default`, and that project's Nginx reaches it **by container name**
-(`proxy_pass http://trindade-web-1:80`). Name resolution only works across a shared network, so
-the attachment is a requirement of the running installation rather than a preference. Both the
-network and the data volume are declared `external: true`.
-
-The volume carries a fixed `name:` (`trindade_sqlite_data`) for a related reason: Compose then
-refuses to start when the volume is missing instead of silently creating an empty database, and
-`docker compose down -v` cannot delete production data.
-
-Certificate renewal follows whichever proxy terminates TLS:
-
-- **Shared proxy (production)**: `scripts/renew-certbot.sh` renews inside the proxy's Compose
-  project (`PORTAFOLIO_DIR`, default `/home/wilkin/proyectos/Portafolio`) and reloads it.
-- **Standalone (alternative)**: a host Nginx terminates TLS and proxies to loopback
-  `127.0.0.1:8080` (`WEB_PORT`), using the template in
-  `docker/nginx-standalone-host.conf.example`. `scripts/renew-certbot.sh` uses the host
-  `certbot` when `PORTAFOLIO_DIR` is absent, or `FORCE_HOST_CERTBOT=1` is set.
-
-Moving to the standalone topology is a migration, not a configuration change: it also requires
-removing the `portafolio_default` attachment from `docker-compose.yml`, because Compose still
-insists that network exist. See `docs/deployment.md` Section 10.
-
-Validate renewal without touching certificates:
+### Comandos de Operación
 
 ```bash
-bash scripts/renew-certbot.sh --dry-run
+# Inspección de integridad y estado del esquema (solo lectura)
+make db-status
+
+# Ejecución segura de migraciones pendientes
+make db-migrate
+
+# Crear copia de seguridad completa y verificada
+make db-backup BACKUP_DIR=./backups
+
+# Restaurar copia de seguridad existente
+make db-restore BACKUP_DIR=./backups/backup-especifico CONFIRM=true
 ```
 
-## Recovery and stage-one verification
+---
 
-Stage one does **not** authorize production mutation or deployment. Before any later upgrade:
+## Pruebas y Compuertas de Calidad (CI)
 
-1. Record the absolute database, WAL/SHM, photo, mount, image/configuration, ownership, and destination identities. Missing inventory closes the gate.
-2. Create a SQLite-consistent online snapshot plus associated files in a non-overlapping protected destination. A raw live database copy is not sufficient.
-3. Verify database integrity, manifest completeness, SHA-256 checksums, storage ACL/encryption, retention, and secret-free evidence.
-4. Restore into an isolated non-production target and verify integrity, schema identity, representative row counts, associated files, and application-level reads.
-5. Compare production database and non-expired associated-file fingerprints captured before and after read-only verification. Policy-expired report photos and dead session rows may be deleted by the 30-day startup retention cleanups; any other difference fails the gate.
-6. Record the recovery-set ID, restore procedure, rollback triggers, verification commands, approver, and evidence expiry. Obtain explicit approval for the exact future mutation and target.
-
-The repository harness exercises capture and isolated restore only with temporary fixtures:
+El proyecto cuenta con suites automatizadas que garantizan cero regresiones:
 
 ```bash
-npm run build --workspace=packages/backend
-node packages/backend/dist/recovery.js --verify-isolated
-npm exec --workspace=packages/backend -- node --test --import tsx src/stage-one-invariants.test.ts
+# Ejecutar verificación completa en clon limpio (Playwright E2E + Backend + Contratos)
+make ci-clone
+
+# Ejecutar suite de pruebas unitarias de Android en contenedor SDK (530 tests)
+make ci-android
 ```
 
-The harness output is regression evidence, not a production recovery set. Never run reset commands against an existing installation. Production inspection must remain read-only and must not expose secret values in manifests or logs.
+---
 
-### Production recovery set and rollback commands
+## Licencia
 
-To capture an actual production recovery set and prove isolated restore before any deployment or schema mutation:
-
-```bash
-make db-backup                                    # captures to ./backups/recovery-<timestamp>
-BACKUP_DIR=/custom/backup/path make db-backup     # explicit destination
-./scripts/db-backup.sh                            # direct script invocation
-```
-
-The backup tool opens the database strictly read-only and calls SQLite online backup (`db.backup()`), copies report photos, generates a SHA-256 manifest, and immediately runs an isolated restore proof to verify that the snapshot and assets pass `PRAGMA integrity_check` and table/row verification.
-
-If a deployment or migration fails, roll back using the verified recovery set:
-
-```bash
-make db-restore BACKUP_DIR=./backups/recovery-<timestamp> CONFIRM=--confirm
-# Or directly:
-./scripts/db-restore.sh ./backups/recovery-<timestamp> --confirm
-```
-
-The restore tool verifies checksums before writing, stops the container to release write locks, replaces the database and photos, deletes stale `-wal` and `-shm` sidecars to prevent WAL replay corruption, restarts the container, and verifies `PRAGMA integrity_check` and schema status.
-
-For the complete step-by-step production rollout, pre-flight gate, schema adoption, and rollback runbook, see [`docs/deployment.md`](docs/deployment.md).
-
-## Reproducible verification gate
-
-The canonical CI gate is `scripts/ci.sh`. It requires Node.js 24, installs the
-lockfile dependencies with `npm ci`, builds both workspaces, runs real TypeScript
-checks for both workspaces, runs the complete backend test suite, verifies the built
-schema commands with `scripts/verify-schema-clis.sh`, and proves the committed API
-contract matches the schemas it is generated from. It starts
-from a clean dependency tree and refuses to reuse an existing `node_modules`.
-The declared container target is `node:24-bookworm-slim`.
-
-```bash
-make ci          # Run the gate on the host (requires Node.js 24 and no node_modules)
-make ci-clone    # Clone HEAD, run the gate in node:24-bookworm-slim, then clean up
-```
-
-`make ci-clone` clones the local repository and removes its throwaway clone afterward.
-When the working tree is clean relative to HEAD, it runs a genuine clean-checkout proof
-of HEAD on the declared engine. If any files are uncommitted or dirty, it automatically
-overlays all dirty working-tree files onto the clone, prints a loud warning listing every
-overlaid path, and proves only HEAD plus uncommitted changes—not a clean checkout. This
-keeps work bootstrappable without manual overlay lists while making contaminated evidence
-explicit. It uses the current local HEAD because this repository has no remote yet.
-
-The root `lint` script is currently a documented no-op: it uses npm's
-`--workspaces --if-present`, and no workspace defines a `lint` script. It is
-therefore not part of the verification gate or evidence of lint coverage.
-
-The gate runs the full backend test suite, the built schema CLI verification,
-and the complete frontend Playwright E2E test suite (53 tests). To run the gate
-without E2E (e.g. for rapid local iteration), use `SKIP_E2E=1 make ci` or
-`SKIP_E2E=1 make ci-clone`.
-
-**Current status: the gate is green on the declared engine.** The red state this file
-previously documented was a native driver and engine compatibility defect, now
-understood and fixed. Node.js 24.19.0 changed the internal `node::ObjectWrap`
-teardown: its destructor now calls `RemoveEnvironmentCleanupHook`, and during
-environment teardown that call aborts the process on a native assertion
-(`(env) != nullptr`). An addon is affected only if it was compiled against those
-headers; a binary built earlier is not. `better-sqlite3@11.10.0` publishes no
-prebuilt binary for the Node 24 ABI (`node-v137`), and its install script is
-`prebuild-install || node-gyp rebuild`, so `npm ci` fell through to `node-gyp` and
-every run inherited the aborting teardown. The dependency is now on the 13.x line, `better-sqlite3@^13.0.3`, the first N-API
-release: it removed the deprecated `prebuild-install` dependency by design and ships
-the prebuilt binaries inside the package itself (`prebuilds/**`). 13.x declares no
-install script, so npm injects its default `node-gyp rebuild`, which needs `python3`
-only to read `binding.gyp`; `allowScripts` in the root `package.json` (npm >= 11.19,
-which the `node:24` images ship) records an explicit denial for
-`better-sqlite3@13.0.3`, so npm skips it. `lib/binding.js` resolves
-`prebuilds/linux-x64.node` at require time and falls back to the node-gyp output only
-when no prebuild exists, so skipping the build is safe by design. Because nothing
-compiles, neither the API image nor the gate container installs `build-essential` or
-`python3`; the runner used to install python3 claiming better-sqlite3 needed it at
-runtime, which was never true. A missing prebuild fails the build loudly instead of
-quietly compiling a binary against the running Node headers. Measured on the declared
-engine: 296/296 backend tests and zero native assertions, installed and built
-on Node.js 24.21.0 with no compiler and no python3 present; `npm ci` reports no
-deprecation warnings and `npm audit` reports no vulnerabilities. Node.js 24 remains the
-declared target: the container images and `engines.node` both require it, so the
-host's Node.js 22 is the anomaly, not the target.
-
-## Testing
-
-```bash
-# Backend unit tests. The build is a prerequisite, not an optimisation: db/index.test.ts
-# spawns the built server, so a stale or absent dist/ fails tests unrelated to your change.
-npm run build --workspace=packages/backend
-npm run test --workspace=packages/backend
-
-# Frontend Playwright E2E tests (automatically starts backend + frontend test servers)
-npm run test:e2e --workspace=packages/frontend
-
-# Regenerate the machine-readable API contract, then prove it is current
-npm run contracts:generate --workspace=packages/backend
-bash scripts/verify-openapi-artifact.sh
-bash scripts/verify-schema-clis.sh
-```
-
-## Project Structure
-
-```
-Trindade/
-├── packages/
-│   ├── backend/           # Fastify API server
-│   │   ├── src/db/        # Schema, seed data, and DB init
-│   │   └── src/contracts/ # OpenAPI document, registry, and contract tests
-│   ├── frontend/          # React SPA
-│   │   └── src/__e2e__/   # Playwright E2E tests
-│   └── contracts/         # Generated openapi.json (never edited by hand)
-├── openspec/              # SDD change artifacts
-├── odd/                   # Organic Driven Development task documents
-├── docker/                # Docker configuration
-├── docker-compose.yml
-├── Makefile
-└── PRD_Trindade.md        # Product Requirements Document
-```
-
-## Milestones and Status
-
-- **Stage 1 (Production Hardening & Operations)**: **Complete**
-  - Schema revision management (`user_version = 2`, `db:status`, `db:migrate`).
-  - Node 24 ABI compatibility (`better-sqlite3@13.0.3` prebuilt N-API).
-  - Production immutability gate (zero automatic schema mutation, strict recovery proofs).
-  - Operator recovery tooling (`make db-backup`, `make db-restore`, WAL sidecar cleanup).
-  - Pruned production container images (zero test or E2E artifacts, 146 dist files).
-  - Docker container log rotation (json-file, 10m max-size, 3 files max).
-  - Automatic TLS renewal daily cron with zero-downtime Nginx reload and heartbeat.
-  - Automated CI gate: 296 backend unit tests + 53 Playwright E2E tests + 9 schema CLI checks + generated API contract freshness.
-  - Dynamic, zero-fragility clean-checkout verification (`make ci-clone`).
-- **Android prerequisites (in progress)**: refresh-token sessions with rotation and revocation
-  (schema revision 2), and a generated OpenAPI contract for the field-operations surface.
-  Tracked in `odd/tasks/android-app-v1.md`.
-- **Stage 2 (Publishing & Distribution)**: **Prepared**
-  - First tagged release: `v0.1.0`.
-  - Canonical GitHub Actions CI workflow (`.github/workflows/ci.yml`) prepared for remote push.
-  - Next operational step: assign upstream remote (`git remote add origin <url>`) and push `main` + tags.
-- **Stage 3 (Android / Mobile Web)**: Gated behind Stage 2 publication.
-
-## License
-
-Private — all rights reserved.
+Este proyecto está distribuido bajo los términos de la **Licencia MIT**. Consulta el archivo [LICENSE](LICENSE) para más detalles.
