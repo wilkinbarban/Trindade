@@ -6,6 +6,10 @@ import com.trindade.app.contract.models.CreateScheduleRequest
 import com.trindade.app.contract.models.DriversResponseDriversInner
 import com.trindade.app.contract.models.SchedulesResponseSchedulesInner
 import com.trindade.app.contract.models.VehiclesResponseVehiclesInner
+import com.trindade.app.export.NoOpPdfGenerator
+import com.trindade.app.export.NoOpShareManager
+import com.trindade.app.export.PdfGenerator
+import com.trindade.app.export.ShareManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.LocalDate
 import java.time.ZoneId
@@ -21,7 +25,13 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class LoadingViewModel @Inject constructor(
     private val repository: LoadingRepository,
+    private val pdfGenerator: PdfGenerator,
+    private val shareManager: ShareManager,
 ) : ViewModel() {
+
+    internal constructor(
+        repository: LoadingRepository,
+    ) : this(repository, NoOpPdfGenerator, NoOpShareManager)
 
     data class UiState(
         val date: String = saoPauloToday(),
@@ -46,6 +56,7 @@ class LoadingViewModel @Inject constructor(
          */
         val exportText: String? = null,
         val loadingExport: Boolean = false,
+        val exportingPdf: Boolean = false,
     ) {
         /**
          * The slots to draw: the configured ones, plus any slot an entry already sits in.
@@ -268,6 +279,37 @@ class LoadingViewModel @Inject constructor(
         }
     }
 
+    /** Shares the server export text via the platform chooser. */
+    fun shareText() {
+        val text = state.value.exportText ?: return
+        shareManager.shareText(text)
+    }
+
+    /**
+     * Generates an A4 PDF named cronograma-<date>.pdf in cache and launches the platform chooser.
+     */
+    fun sharePdf() {
+        val text = state.value.exportText ?: return
+        val date = state.value.date
+        if (state.value.exportingPdf) return
+
+        _state.update { it.copy(exportingPdf = true, message = null) }
+
+        viewModelScope.launch {
+            try {
+                val file = pdfGenerator.generate(text, "cronograma-$date.pdf")
+                val shared = shareManager.sharePdf(file)
+                if (!shared) {
+                    _state.update { it.copy(message = SHARE_FAILED) }
+                }
+            } catch (_: Throwable) {
+                _state.update { it.copy(message = PDF_FAILED) }
+            } finally {
+                _state.update { it.copy(exportingPdf = false) }
+            }
+        }
+    }
+
     /** Quick-add for a driver who is not in the list yet. Always a `fletero`, per the contract. */
     fun quickAddDriver(name: String, licensePlate: String?) {
         if (name.isBlank() || state.value.busy) return
@@ -316,6 +358,8 @@ class LoadingViewModel @Inject constructor(
         const val UNREACHABLE = "Sem conexão com o servidor. Verifique a rede e tente de novo."
         const val GENERIC = "Não foi possível concluir. Tente de novo."
         const val EXPORT_FAILED = "Não foi possível gerar o texto agora. Tente de novo."
+        const val SHARE_FAILED = "Não foi possível compartilhar. Tente de novo."
+        const val PDF_FAILED = "Não foi possível gerar o PDF. Tente de novo."
 
         /**
          * Today in São Paulo, not on the device.
