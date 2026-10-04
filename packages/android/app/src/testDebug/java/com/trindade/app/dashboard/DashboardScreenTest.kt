@@ -1,13 +1,19 @@
 package com.trindade.app.dashboard
 
 import android.content.Context
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasProgressBarRangeInfo
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.trindade.app.R
@@ -15,6 +21,7 @@ import com.trindade.app.contract.models.DashboardSummary
 import com.trindade.app.ui.theme.TrindadeTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -201,5 +208,48 @@ class DashboardScreenTest {
         // tab and coming back is the retry.
         composeRule.onNodeWithText("0").assertDoesNotExist()
         composeRule.onNodeWithText(copy(R.string.dashboard_reports_today)).assertDoesNotExist()
+    }
+
+    @Test
+    fun `dashboard cards fill full width and meet minimum touch target height of at least 48dp`() {
+        render(state = state())
+
+        for (id in listOf(
+            R.string.dashboard_reports_today,
+            R.string.dashboard_schedules_tomorrow,
+        )) {
+            val node = composeRule.onNodeWithText(copy(id)).performScrollTo()
+            node.assertIsDisplayed()
+            val bounds = node.getUnclippedBoundsInRoot()
+            val width = bounds.right - bounds.left
+            val height = bounds.bottom - bounds.top
+            assertTrue("Card ${copy(id)} width ($width) must fill width >= 280dp", width >= 280.dp)
+            assertTrue("Card ${copy(id)} height ($height) must be >= 48dp", height >= 48.dp)
+        }
+    }
+
+    @Test
+    fun `dashboard on narrow small screen scrolls without clipping all KPI cards and notice`() {
+        composeRule.setContent {
+            TrindadeTheme {
+                Box(modifier = Modifier.width(320.dp).height(480.dp)) {
+                    DashboardScreen(
+                        state = state(),
+                        onOpenReport = {},
+                        onOpenReports = {},
+                        onOpenLoading = {},
+                    )
+                }
+            }
+        }
+
+        // Verify Overview title and all cards can be scrolled into view and displayed on small screen
+        composeRule.onNodeWithText(copy(R.string.dashboard_overview)).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText(copy(R.string.dashboard_reports_today)).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText(copy(R.string.dashboard_schedules_tomorrow)).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText(copy(R.string.dashboard_active_users)).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText(copy(R.string.dashboard_reports_total)).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText(copy(R.string.dashboard_schedules_total)).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText(copy(R.string.dashboard_deferred_notice)).performScrollTo().assertIsDisplayed()
     }
 }

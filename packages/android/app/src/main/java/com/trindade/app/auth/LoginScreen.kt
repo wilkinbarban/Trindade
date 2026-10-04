@@ -5,8 +5,10 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -20,6 +22,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -27,13 +30,20 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.trindade.app.R
@@ -134,14 +144,30 @@ fun LoginScreen(
             )
             Spacer(Modifier.height(12.dp))
 
+            var passwordVisible by rememberSaveable { mutableStateOf(false) }
+
             OutlinedTextField(
                 value = state.password,
                 onValueChange = onPasswordChange,
                 label = { Text(stringResource(R.string.login_password)) },
                 singleLine = true,
                 enabled = !state.submitting,
-                visualTransformation = PasswordVisualTransformation(),
+                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                trailingIcon = {
+                    TextButton(
+                        onClick = { passwordVisible = !passwordVisible },
+                        enabled = !state.submitting,
+                        modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp),
+                    ) {
+                        Text(
+                            text = stringResource(
+                                if (passwordVisible) R.string.login_password_hide else R.string.login_password_show
+                            ),
+                            style = MaterialTheme.typography.labelMedium,
+                        )
+                    }
+                },
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -166,6 +192,9 @@ fun LoginScreen(
                     },
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.semantics {
+                        liveRegion = LiveRegionMode.Assertive
+                    },
                 )
             }
 
@@ -173,26 +202,37 @@ fun LoginScreen(
             Button(
                 onClick = onSubmit,
                 enabled = state.canSubmit,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .defaultMinSize(minHeight = 48.dp),
             ) {
                 if (state.submitting) {
-                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary,
+                        )
+                        Text(stringResource(R.string.login_submit))
+                    }
                 } else {
                     Text(stringResource(R.string.login_submit))
                 }
             }
 
-            // The one way into worker registration from this screen. A text button rather than a second
-            // filled button, so the form keeps a single primary action and the link reads as what it is:
-            // an alternative errand, not a second way to sign in. It stays available while the fields are
-            // empty, because registering is not conditional on having typed a credential, and it goes
-            // unavailable the moment a sign-in is in flight: navigating away then would abandon a request
-            // the operator is already waiting on, and the callback belongs to the caller (navigation in
-            // `MainActivity`), which this screen never reaches into.
+            // The one way into worker registration from this screen. An outlined button rather than a plain
+            // text button, so the form provides an accessible >=48dp touch target and clear interactive
+            // affordance while keeping the filled button as the primary sign-in action.
             Spacer(Modifier.height(12.dp))
-            TextButton(
+            OutlinedButton(
                 onClick = onRegisterClick,
                 enabled = !state.submitting,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .defaultMinSize(minHeight = 48.dp),
             ) {
                 Text(stringResource(R.string.login_register_link))
             }

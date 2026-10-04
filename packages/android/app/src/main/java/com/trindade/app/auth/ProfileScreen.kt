@@ -13,12 +13,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -37,6 +35,9 @@ import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.trindade.app.BuildConfig
 import com.trindade.app.R
+import com.trindade.app.ui.components.AdminDestructiveButton
+import com.trindade.app.ui.components.AdminPrimaryButton
+import com.trindade.app.ui.components.NavigationActionButton
 
 /**
  * The account screen: who is signed in, the display name, the password, and the way out.
@@ -88,7 +89,7 @@ fun ProfileScreen(
         modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        TextButton(onClick = onBack) { Text(stringResource(R.string.report_back)) }
+        NavigationActionButton(onClick = onBack, text = stringResource(R.string.report_back))
         Text(text = stringResource(R.string.profile_title), style = MaterialTheme.typography.titleLarge)
 
         // One line for what went wrong, in the convention the other screens use.
@@ -135,17 +136,13 @@ fun ProfileScreen(
                     enabled = !state.saving,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                Button(
+                AdminPrimaryButton(
                     onClick = onSave,
+                    text = stringResource(R.string.profile_save),
                     enabled = state.canSave,
+                    loading = state.saving,
                     modifier = Modifier.fillMaxWidth(),
-                ) {
-                    if (state.saving) {
-                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                    } else {
-                        Text(stringResource(R.string.profile_save))
-                    }
-                }
+                )
 
                 // The role as a word, from the string the server sent rather than from a control.
                 ReadOnlyField(label = stringResource(R.string.profile_role), value = roleLabel(profile.role))
@@ -182,22 +179,22 @@ fun ProfileScreen(
                     },
                     modifier = Modifier.fillMaxWidth(),
                 )
-                Button(
+                AdminPrimaryButton(
                     onClick = onChangePassword,
+                    text = stringResource(R.string.profile_change_password),
                     enabled = state.canChangePassword,
+                    loading = state.changing,
                     modifier = Modifier.fillMaxWidth(),
-                ) {
-                    if (state.changing) {
-                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                    } else {
-                        Text(stringResource(R.string.profile_change_password))
-                    }
-                }
+                )
 
                 // No confirmation on this one, and that is the difference between it and the report
                 // deletion, which asks twice. Closing a session is undone by signing in again with the
                 // credentials the operator already has; deleting a report is undone by nobody.
-                TextButton(onClick = onSignOut) { Text(stringResource(R.string.profile_sign_out)) }
+                AdminDestructiveButton(
+                    onClick = onSignOut,
+                    text = stringResource(R.string.profile_sign_out),
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
         }
 
@@ -253,12 +250,11 @@ fun ProfileScreen(
         // this is the tap that takes them to where the new one is published. If both were not where a
         // failed profile load still leaves them, the two halves of that one decision would be split apart
         // on exactly the screen where the operator is looking for either.
-        Button(
+        AdminPrimaryButton(
             onClick = { browserUnavailable = !openReleasesPage(context, releasesUrl) },
+            text = stringResource(R.string.profile_download_update),
             modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(stringResource(R.string.profile_download_update))
-        }
+        )
 
         // The answer to a tap that found nothing able to open the address, drawn under the button that was
         // tapped rather than in the message line at the top: this is not a statement about the session, and
@@ -342,12 +338,11 @@ private fun SignedOutPanel(
             text = message ?: stringResource(R.string.profile_signed_out),
             style = MaterialTheme.typography.bodyLarge,
         )
-        Button(
+        AdminPrimaryButton(
             onClick = onBackToLogin,
+            text = stringResource(R.string.profile_back_to_login),
             modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
-        ) {
-            Text(stringResource(R.string.profile_back_to_login))
-        }
+        )
     }
 }
 

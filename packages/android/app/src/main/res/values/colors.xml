@@ -3,4 +3,12 @@
          the same #b42025 the SPA declares as its theme-color, and the red of the logomarca's field. The
          adaptive icon reads it by name, so the launcher and the site cannot drift to two different reds. -->
     <color name="ic_launcher_background">#b42025</color>
+
+    <!-- Brand palette derived from Variant F visual identity: red, gold, and warm neutral -->
+    <color name="brand_red_primary">#b42025</color>
+    <color name="brand_red_on_primary">#ffffff</color>
+    <color name="brand_gold_secondary">#855400</color>
+    <color name="brand_warm_surface">#fff8f6</color>
+    <color name="brand_warm_surface_variant">#f4ddda</color>
+    <color name="brand_warm_on_surface">#221919</color>
 </resources>

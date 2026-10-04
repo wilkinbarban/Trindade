@@ -1,17 +1,22 @@
 package com.trindade.app.dashboard
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -20,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.trindade.app.R
@@ -27,7 +33,7 @@ import com.trindade.app.contract.models.DashboardSummary
 
 /**
  * The dashboard: the five cards the web's own dashboard draws, in the web's order and with the web's
- * words.
+ * words, presented in a structured Material 3 hierarchy with brand-aligned palette.
  *
  * Stateless, so the Compose test lane can render it with a state built by hand and no ViewModel; the
  * same split the login screen makes and for the same reason.
@@ -65,7 +71,9 @@ fun DashboardScreen(
             modifier = modifier.fillMaxSize(),
             contentAlignment = Alignment.Center,
         ) {
-            CircularProgressIndicator()
+            CircularProgressIndicator(
+                color = MaterialTheme.colorScheme.primary,
+            )
         }
 
         // This branch *is* the failure state: not loading and nothing to show means the read did not arrive.
@@ -78,13 +86,15 @@ fun DashboardScreen(
         // model's construction, is what reads: `DashboardRoute` refreshes on every arrival above. The
         // sentence names no cause, for the reason the view model's KDoc gives.
         state.summary == null -> Box(
-            modifier = modifier.fillMaxSize(),
+            modifier = modifier
+                .fillMaxSize()
+                .padding(16.dp),
             contentAlignment = Alignment.Center,
         ) {
             Text(
                 text = stringResource(R.string.dashboard_unreachable),
                 color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodyLarge,
             )
         }
 
@@ -96,11 +106,13 @@ fun DashboardScreen(
                 modifier = modifier
                     .verticalScroll(rememberScrollState())
                     .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Text(
                     text = stringResource(R.string.dashboard_overview),
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Bold,
                 )
 
                 // The two values of the first card, drawn as the web draws them: one line per module
@@ -117,14 +129,18 @@ fun DashboardScreen(
                         if (latestReportId != null) onOpenReport(latestReportId) else onOpenReports()
                     },
                 ) {
-                    Text(
-                        text = stringResource(R.string.dashboard_higiene_count, summary.higieneDone),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Text(
-                        text = stringResource(R.string.dashboard_recepcion_count, summary.recepcionDone),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = stringResource(R.string.dashboard_higiene_count, summary.higieneDone),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        Text(
+                            text = stringResource(R.string.dashboard_recepcion_count, summary.recepcionDone),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
                 }
 
                 DashboardCard(
@@ -194,14 +210,12 @@ fun DashboardRoute(
 /**
  * One card of the dashboard: a label, the value below it, and a click when the web gives the card one.
  *
- * The two clickable cards use Material's own `Card(onClick = ...)` overload rather than a `clickable`
- * modifier inside a plain card: the overload is where the ripple, the interaction source and the
- * button-like semantics come from, and a card that only looks pressable is the failure that overload
- * exists to remove.
+ * Clickable shortcut cards use [OutlinedCard] with primary-tinted labels and explicit boundary to
+ * make actionable destinations visibly evident. Static metric cards use [ElevatedCard] on warm neutral
+ * surface to cleanly distinguish informational counts from shortcuts.
  *
- * The label and the value are one merged node on the clickable cards and two on the others, because
- * that is what `clickable` does to semantics. Nothing here reads the tree, so the difference is only
- * worth knowing when a test selects by the label: on a clickable card the label selects the card.
+ * Both card variants span full width and enforce a minimum height of 72dp to easily exceed the
+ * 48dp touch target accessibility requirement.
  */
 @Composable
 private fun DashboardCard(
@@ -209,22 +223,51 @@ private fun DashboardCard(
     onClick: (() -> Unit)?,
     value: @Composable () -> Unit,
 ) {
+    val isInteractive = onClick != null
     val content: @Composable () -> Unit = {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+        ) {
             Text(
                 text = label,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.titleMedium,
+                color = if (isInteractive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.SemiBold,
             )
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(8.dp))
             value()
         }
     }
 
     if (onClick != null) {
-        Card(onClick = onClick) { content() }
+        OutlinedCard(
+            onClick = onClick,
+            modifier = Modifier
+                .fillMaxWidth()
+                .defaultMinSize(minHeight = 72.dp),
+            colors = CardDefaults.outlinedCardColors(
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+            ),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        ) {
+            content()
+        }
     } else {
-        Card { content() }
+        ElevatedCard(
+            modifier = Modifier
+                .fillMaxWidth()
+                .defaultMinSize(minHeight = 72.dp),
+            colors = CardDefaults.elevatedCardColors(
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+            ),
+            elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp),
+        ) {
+            content()
+        }
     }
 }
 
@@ -234,6 +277,8 @@ private fun DashboardCard(
 private fun SummaryValue(count: Int) {
     Text(
         text = count.toString(),
-        style = MaterialTheme.typography.headlineSmall,
+        style = MaterialTheme.typography.headlineMedium,
+        color = MaterialTheme.colorScheme.onSurface,
+        fontWeight = FontWeight.Bold,
     )
 }

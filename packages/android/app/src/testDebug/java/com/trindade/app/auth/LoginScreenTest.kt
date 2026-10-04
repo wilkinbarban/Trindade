@@ -8,27 +8,52 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.getBoundsInRoot
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.trindade.app.R
+import com.trindade.app.contract.models.ChangePasswordRequest
+import com.trindade.app.contract.models.LoginRequest
+import com.trindade.app.contract.models.LoginResponse
+import com.trindade.app.contract.models.LoginResponseUser
+import com.trindade.app.contract.models.LogoutRequest
+import com.trindade.app.contract.models.ProfileResponse
+import com.trindade.app.contract.models.RefreshRequest
+import com.trindade.app.contract.models.RefreshResponse
+import com.trindade.app.contract.models.RegisterRequest
+import com.trindade.app.contract.models.RegisterResponse
+import com.trindade.app.contract.models.SetupStatusResponse
+import com.trindade.app.contract.models.SuccessResponse
+import com.trindade.app.contract.models.UpdateProfileRequest
+import com.trindade.app.network.AuthApi
 import com.trindade.app.ui.theme.TrindadeTheme
+import kotlinx.serialization.json.Json
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import retrofit2.Response
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
@@ -91,6 +116,252 @@ class LoginScreenTest {
 
     private val registerLinkLabel: String
         get() = ApplicationProvider.getApplicationContext<Context>().getString(R.string.login_register_link)
+
+    private val showPasswordLabel: String
+        get() = ApplicationProvider.getApplicationContext<Context>().getString(R.string.login_password_show)
+
+    private val hidePasswordLabel: String
+        get() = ApplicationProvider.getApplicationContext<Context>().getString(R.string.login_password_hide)
+
+    @Test
+    fun `password visibility toggle is disabled while submission is in flight and suppresses toggle clicks`() {
+        val state = mutableStateOf(LoginViewModel.UiState(password = "segredo123", submitting = true))
+        composeRule.setContent {
+            TrindadeTheme {
+                LoginScreen(
+                    state = state.value,
+                    onUsernameChange = {},
+                    onPasswordChange = {},
+                    onSubmit = {},
+                )
+            }
+        }
+
+        val toggle = composeRule.onNodeWithText(showPasswordLabel)
+        toggle.assertIsDisplayed()
+        toggle.assertIsNotEnabled()
+
+        toggle.performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText(showPasswordLabel).assertIsDisplayed()
+        composeRule.onNodeWithText(hidePasswordLabel).assertDoesNotExist()
+
+        state.value = state.value.copy(submitting = false)
+        composeRule.waitForIdle()
+        toggle.assertIsEnabled()
+    }
+    @Test
+    fun `password field has accessible visibility toggle that toggles transformation and button label`() {
+        val secret = "segredo123"
+        composeRule.setContent {
+            TrindadeTheme {
+                LoginScreen(
+                    state = LoginViewModel.UiState(password = secret),
+                    onUsernameChange = {},
+                    onPasswordChange = {},
+                    onSubmit = {},
+                )
+            }
+        }
+
+        // Semantic assertion: the password field node has SemanticsProperties.Password set
+        composeRule.onAllNodes(SemanticsMatcher.expectValue(SemanticsProperties.Password, Unit)).assertCountEquals(1)
+
+        // 1. Initial hidden state: mask bullets are displayed in EditableText, unmasked secret is not exposed outside password node, toggle label is "Mostrar"
+        composeRule.onAllNodes(SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString("\u2022".repeat(secret.length)))).assertCountEquals(1)
+        composeRule.onAllNodesWithText("\u2022".repeat(secret.length)).assertCountEquals(1)
+        composeRule.onNode(hasText(secret) and !SemanticsMatcher.expectValue(SemanticsProperties.Password, Unit)).assertDoesNotExist()
+
+        val toggle = composeRule.onNodeWithText(showPasswordLabel)
+        toggle.assertIsDisplayed()
+        toggle.assertHeightIsAtLeast(48.dp)
+
+        // 2. Click to toggle to visible state: unmasked secret is in EditableText, mask bullets do not exist, toggle label is "Ocultar"
+        toggle.performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText(hidePasswordLabel).assertIsDisplayed()
+        composeRule.onAllNodes(SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString(secret))).assertCountEquals(1)
+        composeRule.onAllNodesWithText("\u2022".repeat(secret.length)).assertCountEquals(0)
+
+        // 3. Click to toggle back to hidden state: mask bullets are in EditableText again, unmasked secret is no longer in EditableText, toggle label is "Mostrar"
+        composeRule.onNodeWithText(hidePasswordLabel).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText(showPasswordLabel).assertIsDisplayed()
+        composeRule.onAllNodes(SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString("\u2022".repeat(secret.length)))).assertCountEquals(1)
+        composeRule.onAllNodesWithText("\u2022".repeat(secret.length)).assertCountEquals(1)
+        composeRule.onNode(hasText(secret) and !SemanticsMatcher.expectValue(SemanticsProperties.Password, Unit)).assertDoesNotExist()
+    }
+
+    @Test
+    fun `submit button dispatches onSubmit callback once per click when form is valid`() {
+        var submitClicks = 0
+        composeRule.setContent {
+            TrindadeTheme {
+                LoginScreen(
+                    state = LoginViewModel.UiState(username = "operador", password = "segredo"),
+                    onUsernameChange = {},
+                    onPasswordChange = {},
+                    onSubmit = { submitClicks++ },
+                )
+            }
+        }
+
+        val submit = composeRule.onNodeWithText(submitLabel)
+        submit.assertIsEnabled()
+
+        submit.performClick()
+        composeRule.waitForIdle()
+        assertEquals(1, submitClicks)
+
+        submit.performClick()
+        composeRule.waitForIdle()
+        assertEquals(2, submitClicks)
+    }
+
+    @Test
+    fun `disabled submit button suppresses clicks repeatedly when form cannot submit`() {
+        var submitClicks = 0
+        val state = mutableStateOf(LoginViewModel.UiState(username = "", password = ""))
+        composeRule.setContent {
+            TrindadeTheme {
+                LoginScreen(
+                    state = state.value,
+                    onUsernameChange = {},
+                    onPasswordChange = {},
+                    onSubmit = { submitClicks++ },
+                )
+            }
+        }
+
+        val submit = composeRule.onNodeWithText(submitLabel)
+        submit.assertIsNotEnabled()
+
+        submit.performClick()
+        submit.performClick()
+        composeRule.waitForIdle()
+        assertEquals("clicks on empty form submit button must be suppressed", 0, submitClicks)
+
+        // Also test while submitting is in flight
+        state.value = state.value.copy(username = "operador", password = "segredo", submitting = true)
+        composeRule.waitForIdle()
+        submit.assertIsNotEnabled()
+
+        submit.performClick()
+        submit.performClick()
+        composeRule.waitForIdle()
+        assertEquals("clicks during in-flight submission must be suppressed", 0, submitClicks)
+    }
+
+    @Test
+    fun `login route handles sign-in success event by invoking callback exactly once and consuming event`() {
+        var signedInCalled = 0
+        val authRepo = AuthRepository(RouteFakeAuthApi(), RouteFakeTokenStore(), Json { ignoreUnknownKeys = true })
+        val viewModel = LoginViewModel(authRepo)
+
+        composeRule.setContent {
+            TrindadeTheme {
+                LoginRoute(
+                    onSignedIn = { signedInCalled++ },
+                    viewModel = viewModel,
+                )
+            }
+        }
+
+        assertEquals(0, signedInCalled)
+        assertEquals(false, viewModel.state.value.signedIn)
+
+        viewModel.onUsernameChange("operador")
+        viewModel.onPasswordChange("segredo")
+        viewModel.submit()
+
+        composeRule.waitForIdle()
+
+        assertEquals("onSignedIn callback must be invoked exactly once", 1, signedInCalled)
+        assertEquals("signedIn event must be consumed", false, viewModel.state.value.signedIn)
+    }
+
+    @Test
+    fun `login route handles navigation to register callback`() {
+        var registerClicked = 0
+        val authRepo = AuthRepository(RouteFakeAuthApi(), RouteFakeTokenStore(), Json { ignoreUnknownKeys = true })
+        val viewModel = LoginViewModel(authRepo)
+
+        composeRule.setContent {
+            TrindadeTheme {
+                LoginRoute(
+                    onSignedIn = {},
+                    onNavigateToRegister = { registerClicked++ },
+                    viewModel = viewModel,
+                )
+            }
+        }
+
+        composeRule.onNodeWithText(registerLinkLabel).performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(1, registerClicked)
+    }
+
+    @Test
+    fun `submit button preserves submit label and provides at least 48dp touch target during submission`() {
+        composeRule.setContent {
+            TrindadeTheme {
+                LoginScreen(
+                    state = LoginViewModel.UiState(username = "operador", password = "segredo", submitting = true),
+                    onUsernameChange = {},
+                    onPasswordChange = {},
+                    onSubmit = {},
+                )
+            }
+        }
+
+        val submit = composeRule.onNodeWithText(submitLabel)
+        submit.assertIsDisplayed()
+        submit.assertHeightIsAtLeast(48.dp)
+        submit.assertIsNotEnabled()
+    }
+
+    @Test
+    fun `registration action has at least 48dp touch target height`() {
+        composeRule.setContent {
+            TrindadeTheme {
+                LoginScreen(
+                    state = LoginViewModel.UiState(),
+                    onUsernameChange = {},
+                    onPasswordChange = {},
+                    onSubmit = {},
+                )
+            }
+        }
+
+        val link = composeRule.onNodeWithText(registerLinkLabel)
+        link.assertIsDisplayed()
+        link.assertHeightIsAtLeast(48.dp)
+    }
+
+    @Test
+    fun `login error message is marked with assertive live region semantics`() {
+        val unknownError = ApplicationProvider.getApplicationContext<Context>()
+            .getString(R.string.login_unknown)
+        composeRule.setContent {
+            TrindadeTheme {
+                LoginScreen(
+                    state = LoginViewModel.UiState(message = LoginMessage.Unknown),
+                    onUsernameChange = {},
+                    onPasswordChange = {},
+                    onSubmit = {},
+                )
+            }
+        }
+
+        val errorNode = composeRule.onNodeWithText(unknownError)
+        errorNode.assertIsDisplayed()
+        errorNode.assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Assertive))
+    }
+
     /**
      * The registration entry, drawn on the form and reported to the caller.
      *
@@ -327,5 +598,44 @@ class LoginScreenTest {
                 onSubmit = {},
             )
         }
+    }
+
+    private class RouteFakeTokenStore : TokenStore {
+        private var access: String? = null
+        private var refresh: String? = null
+        private var role: String? = null
+
+        override fun accessToken(): String? = access
+        override fun refreshToken(): String? = refresh
+        override fun role(): String? = role
+        override fun save(accessToken: String, refreshToken: String) {
+            access = accessToken
+            refresh = refreshToken
+        }
+        override fun saveRole(role: String) { this.role = role }
+        override fun clear() {
+            access = null
+            refresh = null
+            role = null
+        }
+    }
+
+    private class RouteFakeAuthApi : AuthApi {
+        override suspend fun login(body: LoginRequest): Response<LoginResponse> = Response.success(
+            LoginResponse(
+                token = "jwt_access_token",
+                refreshToken = "jwt_refresh_token",
+                expiresIn = 900,
+                user = LoginResponseUser(id = 1, username = "operador", role = "Trabalhador"),
+            )
+        )
+        override suspend fun refresh(body: RefreshRequest) = Response.error<RefreshResponse>(500, "".toResponseBody())
+        override suspend fun logout(body: LogoutRequest) = Response.success(SuccessResponse(SuccessResponse.Success.`true`))
+        override suspend fun me() = Response.error<ProfileResponse>(500, "".toResponseBody())
+        override suspend fun profile() = Response.error<ProfileResponse>(500, "".toResponseBody())
+        override suspend fun updateProfile(body: UpdateProfileRequest) = Response.error<ProfileResponse>(500, "".toResponseBody())
+        override suspend fun changePassword(body: ChangePasswordRequest) = Response.success(SuccessResponse(SuccessResponse.Success.`true`))
+        override suspend fun setupStatus() = Response.error<SetupStatusResponse>(500, "".toResponseBody())
+        override suspend fun register(body: RegisterRequest) = Response.error<RegisterResponse>(500, "".toResponseBody())
     }
 }
