@@ -50,6 +50,7 @@ fun TimeSlotsAdminScreen(
 ) {
     val handleBack = {
         when {
+            state.deleting || state.form?.saving == true -> Unit
             state.deleteConfirmSlot != null -> onCancelDelete()
             state.form != null -> onCancelForm()
             else -> onBack()

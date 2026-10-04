@@ -143,7 +143,22 @@ class TimeSlotsAdminScreenTest {
         )
 
         composeRule.onNodeWithText(copy(R.string.report_back)).performClick()
-        assertEquals(true, cancelDeleteCalled)
+        assertEquals(false, cancelDeleteCalled)
+        assertEquals(false, backCalled)
+    }
+
+    @Test
+    fun `back button while a form is saving keeps the lockout and never exits`() {
+        var cancelFormCalled = false
+        var backCalled = false
+        render(
+            state(form = TimeSlotsAdminViewModel.FormState(saving = true)),
+            onCancelForm = { cancelFormCalled = true },
+            onBack = { backCalled = true },
+        )
+
+        composeRule.onNodeWithText(copy(R.string.report_back)).performClick()
+        assertEquals(false, cancelFormCalled)
         assertEquals(false, backCalled)
     }
 }
