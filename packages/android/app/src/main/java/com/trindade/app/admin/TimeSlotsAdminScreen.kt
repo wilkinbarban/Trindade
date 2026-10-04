@@ -8,17 +8,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -33,6 +30,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.trindade.app.R
+import com.trindade.app.ui.components.AdminDestructiveButton
+import com.trindade.app.ui.components.AdminDestructiveConfirmButton
+import com.trindade.app.ui.components.AdminPrimaryButton
+import com.trindade.app.ui.components.AdminSecondaryButton
 import com.trindade.app.ui.components.NavigationActionButton
 
 @Composable
@@ -109,9 +110,11 @@ fun TimeSlotsAdminScreen(
             )
         } else {
             if (state.isAdmin) {
-                Button(onClick = onOpenCreate, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.time_slots_add_new))
-                }
+                AdminPrimaryButton(
+                    onClick = onOpenCreate,
+                    modifier = Modifier.fillMaxWidth(),
+                    text = stringResource(R.string.time_slots_add_new),
+                )
             }
             if (state.timeSlots.isEmpty()) {
                 Text(stringResource(R.string.time_slots_empty))
@@ -139,21 +142,19 @@ fun TimeSlotsAdminScreen(
             title = { Text(stringResource(R.string.time_slots_delete_confirm_title)) },
             text = { Text(stringResource(R.string.time_slots_delete_confirm_body, slotToDelete)) },
             confirmButton = {
-                Button(
+                AdminDestructiveConfirmButton(
                     onClick = onConfirmDelete,
                     enabled = !state.deleting,
-                ) {
-                    if (state.deleting) {
-                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                    } else {
-                        Text(stringResource(R.string.time_slots_remove))
-                    }
-                }
+                    loading = state.deleting,
+                    text = stringResource(R.string.time_slots_remove),
+                )
             },
             dismissButton = {
-                TextButton(onClick = onCancelDelete, enabled = !state.deleting) {
-                    Text(stringResource(R.string.time_slots_cancel))
-                }
+                AdminSecondaryButton(
+                    onClick = onCancelDelete,
+                    enabled = !state.deleting,
+                    text = stringResource(R.string.time_slots_cancel),
+                )
             },
         )
     }
@@ -179,9 +180,10 @@ private fun TimeSlotRow(
                 style = MaterialTheme.typography.titleMedium,
             )
             if (isAdmin) {
-                Button(onClick = onRequestDelete) {
-                    Text(stringResource(R.string.time_slots_remove))
-                }
+                AdminDestructiveButton(
+                    onClick = onRequestDelete,
+                    text = stringResource(R.string.time_slots_remove),
+                )
             }
         }
     }
@@ -221,16 +223,17 @@ private fun TimeSlotForm(
             )
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onSave, enabled = form.canSubmit) {
-                    if (form.saving) {
-                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                    } else {
-                        Text(stringResource(R.string.time_slots_add))
-                    }
-                }
-                TextButton(onClick = onCancel, enabled = !form.saving) {
-                    Text(stringResource(R.string.time_slots_cancel))
-                }
+                AdminPrimaryButton(
+                    onClick = onSave,
+                    enabled = form.canSubmit,
+                    loading = form.saving,
+                    text = stringResource(R.string.time_slots_add),
+                )
+                AdminSecondaryButton(
+                    onClick = onCancel,
+                    enabled = !form.saving,
+                    text = stringResource(R.string.time_slots_cancel),
+                )
             }
         }
     }
