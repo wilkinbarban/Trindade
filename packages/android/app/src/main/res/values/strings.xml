@@ -9,6 +9,8 @@
     <string name="login_tagline">Plataforma Operacional</string>
     <string name="login_username">Usuário</string>
     <string name="login_password">Senha</string>
+    <string name="login_password_show">Mostrar</string>
+    <string name="login_password_hide">Ocultar</string>
     <string name="login_submit">Entrar</string>
     <string name="login_unreachable">Sem conexão com o servidor. Verifique a rede e tente de novo.</string>
     <!-- The sentences for the causes that produced no usable answer, which is what UnreachableCause
@@ -152,6 +154,7 @@
     <string name="nav_loading">Horários</string>
     <!-- The branded header title for the top-level app shell. -->
     <string name="nav_brand_title">Trindade Massas</string>
+    <string name="nav_menu">Menu</string>
     <string name="nav_tasks">Tarefas</string>
     <string name="nav_drivers">Motoristas</string>
     <string name="nav_categories">Categorias</string>
