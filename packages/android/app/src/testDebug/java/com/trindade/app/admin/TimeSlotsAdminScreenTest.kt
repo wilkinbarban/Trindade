@@ -37,6 +37,7 @@ class TimeSlotsAdminScreenTest {
         message: String? = null,
         isError: Boolean = false,
         deleteConfirmSlot: String? = null,
+        deleting: Boolean = false,
         loading: Boolean = false,
     ) = TimeSlotsAdminViewModel.UiState(
         loading = loading,
@@ -46,6 +47,7 @@ class TimeSlotsAdminScreenTest {
         message = message,
         isError = isError,
         deleteConfirmSlot = deleteConfirmSlot,
+        deleting = deleting,
     )
 
     private fun render(
@@ -121,6 +123,21 @@ class TimeSlotsAdminScreenTest {
         var backCalled = false
         render(
             state(deleteConfirmSlot = "08:00"),
+            onCancelDelete = { cancelDeleteCalled = true },
+            onBack = { backCalled = true },
+        )
+
+        composeRule.onNodeWithText(copy(R.string.report_back)).performClick()
+        assertEquals(true, cancelDeleteCalled)
+        assertEquals(false, backCalled)
+    }
+
+    @Test
+    fun `back button during an active deletion keeps the lockout and never exits`() {
+        var cancelDeleteCalled = false
+        var backCalled = false
+        render(
+            state(deleteConfirmSlot = "08:00", deleting = true),
             onCancelDelete = { cancelDeleteCalled = true },
             onBack = { backCalled = true },
         )

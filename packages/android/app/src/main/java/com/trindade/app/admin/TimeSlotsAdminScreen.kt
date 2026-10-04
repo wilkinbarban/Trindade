@@ -30,6 +30,7 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.trindade.app.R
 import com.trindade.app.ui.components.NavigationActionButton
@@ -55,7 +56,7 @@ fun TimeSlotsAdminScreen(
         }
     }
 
-    BackHandler(enabled = state.deleteConfirmSlot != null || state.form != null) {
+    BackHandler {
         handleBack()
     }
 
@@ -129,6 +130,11 @@ fun TimeSlotsAdminScreen(
     if (slotToDelete != null) {
         AlertDialog(
             onDismissRequest = onCancelDelete,
+            properties = if (state.deleting) {
+                DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
+            } else {
+                DialogProperties()
+            },
             title = { Text(stringResource(R.string.time_slots_delete_confirm_title)) },
             text = { Text(stringResource(R.string.time_slots_delete_confirm_body, slotToDelete)) },
             confirmButton = {
