@@ -57,6 +57,104 @@ describe('Admin Routes', () => {
     assert.strictEqual(res.statusCode, 401);
   });
 
+  it('unauthenticated requests return 401 for representative catalog and admin writes', async () => {
+    // Representative admin writes: categories POST/PATCH/DELETE
+    const catPost = await app.inject({
+      method: 'POST',
+      url: '/api/admin/categories',
+      payload: { name_pt: 'Unauth Cat', name_es: 'Unauth Cat' },
+    });
+    assert.strictEqual(catPost.statusCode, 401);
+    assert.strictEqual(db.prepare("SELECT id FROM report_categories WHERE name_pt = 'Unauth Cat'").get(), undefined);
+
+    const catPatch = await app.inject({
+      method: 'PATCH',
+      url: '/api/admin/categories/1',
+      payload: { name_pt: 'Unauth Edit' },
+    });
+    assert.strictEqual(catPatch.statusCode, 401);
+
+    const catDelete = await app.inject({
+      method: 'DELETE',
+      url: '/api/admin/categories/1',
+    });
+    assert.strictEqual(catDelete.statusCode, 401);
+    assert.ok(db.prepare('SELECT id FROM report_categories WHERE id = 1').get());
+
+    // Representative admin writes: vehicles POST/PATCH/DELETE
+    const vehPost = await app.inject({
+      method: 'POST',
+      url: '/api/admin/vehicles',
+      payload: { description: 'Unauth Veh', license_plate: 'UNA-0001' },
+    });
+    assert.strictEqual(vehPost.statusCode, 401);
+    assert.strictEqual(db.prepare("SELECT id FROM vehicles WHERE license_plate = 'UNA-0001'").get(), undefined);
+
+    const vehPatch = await app.inject({
+      method: 'PATCH',
+      url: `/api/admin/vehicles/${vehicleId}`,
+      payload: { description: 'Unauth Edit' },
+    });
+    assert.strictEqual(vehPatch.statusCode, 401);
+
+    const vehDelete = await app.inject({
+      method: 'DELETE',
+      url: `/api/admin/vehicles/${vehicleId}`,
+    });
+    assert.strictEqual(vehDelete.statusCode, 401);
+    assert.ok(db.prepare('SELECT id FROM vehicles WHERE id = ?').get(vehicleId));
+
+    // Representative admin writes: time-slots PUT
+    const beforeSlotsSetting = db.prepare("SELECT value FROM settings WHERE key = 'loading_time_slots'").get();
+    const slotPut = await app.inject({
+      method: 'PUT',
+      url: '/api/admin/time-slots',
+      payload: { time_slots: ['00:00'] },
+    });
+    assert.strictEqual(slotPut.statusCode, 401);
+    assert.deepStrictEqual(db.prepare("SELECT value FROM settings WHERE key = 'loading_time_slots'").get(), beforeSlotsSetting);
+
+    // Representative admin writes: users POST/PATCH/DELETE
+    const userPost = await app.inject({
+      method: 'POST',
+      url: '/api/admin/users',
+      payload: { username: 'unauthuser', password: 'password123', display_name: 'Unauth', role_id: 2 },
+    });
+    assert.strictEqual(userPost.statusCode, 401);
+    assert.strictEqual(db.prepare("SELECT id FROM users WHERE username = 'unauthuser'").get(), undefined);
+
+    const userPatch = await app.inject({
+      method: 'PATCH',
+      url: `/api/admin/users/${fixtures.admin.id}`,
+      payload: { display_name: 'Unauth Edit' },
+    });
+    assert.strictEqual(userPatch.statusCode, 401);
+
+    const userDelete = await app.inject({
+      method: 'DELETE',
+      url: `/api/admin/users/${fixtures.admin.id}`,
+    });
+    assert.strictEqual(userDelete.statusCode, 401);
+    assert.ok(db.prepare('SELECT id FROM users WHERE id = ?').get(fixtures.admin.id));
+
+    // Representative catalog writes: tasks POST and drivers POST
+    const taskPost = await app.inject({
+      method: 'POST',
+      url: '/api/admin/tasks',
+      payload: { category_id: 1, name_pt: 'Unauth Task' },
+    });
+    assert.strictEqual(taskPost.statusCode, 401);
+    assert.strictEqual(db.prepare("SELECT id FROM report_tasks WHERE name_pt = 'Unauth Task'").get(), undefined);
+
+    const driverPost = await app.inject({
+      method: 'POST',
+      url: '/api/admin/drivers',
+      payload: { name: 'Unauth Driver', driver_type: 'fletero' },
+    });
+    assert.strictEqual(driverPost.statusCode, 401);
+    assert.strictEqual(db.prepare("SELECT id FROM drivers WHERE name = 'Unauth Driver'").get(), undefined);
+  });
+
   it('non-admin (worker) requests can read categories for the limited panel', async () => {
     const res = await app.inject({
       method: 'GET',
@@ -290,6 +388,55 @@ describe('Admin Routes', () => {
     } finally {
       globalThis.fetch = originalFetch;
     }
+  });
+
+  it('worker is denied (403) from categories POST, PATCH, and DELETE mutations', async () => {
+    // POST denied
+    const postRes = await app.inject({
+      method: 'POST',
+      url: '/api/admin/categories',
+      headers: { authorization: `Bearer ${workerToken}` },
+      payload: {
+        name_pt: 'Worker Category Test',
+        name_es: 'Categoría Worker Test',
+        sort_order: 50,
+      },
+    });
+    assert.strictEqual(postRes.statusCode, 403);
+    assert.strictEqual(
+      db.prepare("SELECT id FROM report_categories WHERE name_pt = 'Worker Category Test'").get(),
+      undefined,
+      'category must not be created'
+    );
+
+    // PATCH denied
+    const beforeCat = db.prepare('SELECT name_pt, sort_order, is_active FROM report_categories WHERE id = 1').get() as {
+      name_pt: string;
+      sort_order: number;
+      is_active: number;
+    };
+    const patchRes = await app.inject({
+      method: 'PATCH',
+      url: '/api/admin/categories/1',
+      headers: { authorization: `Bearer ${workerToken}` },
+      payload: { name_pt: 'Worker Hijacked Name', sort_order: 999, is_active: 0 },
+    });
+    assert.strictEqual(patchRes.statusCode, 403);
+    const afterCat = db.prepare('SELECT name_pt, sort_order, is_active FROM report_categories WHERE id = 1').get() as {
+      name_pt: string;
+      sort_order: number;
+      is_active: number;
+    };
+    assert.deepStrictEqual(afterCat, beforeCat, 'category must not be modified');
+
+    // DELETE denied
+    const deleteRes = await app.inject({
+      method: 'DELETE',
+      url: '/api/admin/categories/1',
+      headers: { authorization: `Bearer ${workerToken}` },
+    });
+    assert.strictEqual(deleteRes.statusCode, 403);
+    assert.ok(db.prepare('SELECT id FROM report_categories WHERE id = 1').get(), 'category must not be deleted');
   });
 
   // ============================================================
@@ -640,6 +787,54 @@ describe('Admin Routes', () => {
     assert.strictEqual(res.statusCode, 404);
   });
 
+  it('worker is denied (403) from vehicles POST, PATCH, and DELETE mutations', async () => {
+    // POST denied
+    const postRes = await app.inject({
+      method: 'POST',
+      url: '/api/admin/vehicles',
+      headers: { authorization: `Bearer ${workerToken}` },
+      payload: {
+        description: 'Worker Denied Vehicle',
+        license_plate: 'WRK-0001',
+      },
+    });
+    assert.strictEqual(postRes.statusCode, 403);
+    assert.strictEqual(
+      db.prepare("SELECT id FROM vehicles WHERE license_plate = 'WRK-0001'").get(),
+      undefined,
+      'vehicle must not be created'
+    );
+
+    // PATCH denied
+    const beforeVeh = db.prepare('SELECT description, license_plate, is_active FROM vehicles WHERE id = ?').get(vehicleId) as {
+      description: string;
+      license_plate: string;
+      is_active: number;
+    };
+    const patchRes = await app.inject({
+      method: 'PATCH',
+      url: `/api/admin/vehicles/${vehicleId}`,
+      headers: { authorization: `Bearer ${workerToken}` },
+      payload: { description: 'Worker Mutated', is_active: 0 },
+    });
+    assert.strictEqual(patchRes.statusCode, 403);
+    const afterVeh = db.prepare('SELECT description, license_plate, is_active FROM vehicles WHERE id = ?').get(vehicleId) as {
+      description: string;
+      license_plate: string;
+      is_active: number;
+    };
+    assert.deepStrictEqual(afterVeh, beforeVeh, 'vehicle must not be modified');
+
+    // DELETE denied
+    const deleteRes = await app.inject({
+      method: 'DELETE',
+      url: `/api/admin/vehicles/${vehicleId}`,
+      headers: { authorization: `Bearer ${workerToken}` },
+    });
+    assert.strictEqual(deleteRes.statusCode, 403);
+    assert.ok(db.prepare('SELECT id FROM vehicles WHERE id = ?').get(vehicleId), 'vehicle must not be deleted');
+  });
+
   // ============================================================
   // Time Slots CRUD
   // ============================================================
@@ -693,6 +888,19 @@ describe('Admin Routes', () => {
     assert.strictEqual(res.statusCode, 400);
   });
 
+  it('worker is denied (403) from time-slots PUT mutations', async () => {
+    const beforeSlotsSetting = db.prepare("SELECT value FROM settings WHERE key = 'loading_time_slots'").get();
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/api/admin/time-slots',
+      headers: { authorization: `Bearer ${workerToken}` },
+      payload: { time_slots: ['01:00', '02:00'] },
+    });
+    assert.strictEqual(res.statusCode, 403);
+    const afterSlotsSetting = db.prepare("SELECT value FROM settings WHERE key = 'loading_time_slots'").get();
+    assert.deepStrictEqual(afterSlotsSetting, beforeSlotsSetting, 'time slots setting must remain unchanged');
+  });
+
   // ============================================================
   // Validation
   // ============================================================
@@ -726,6 +934,64 @@ describe('Admin Routes', () => {
   // ============================================================
 
   describe('Users CRUD', () => {
+    it('invalidates both token types on effective security edits, but not display-only edits', async () => {
+      const created = await app.inject({ method: 'POST', url: '/api/admin/users',
+        headers: { authorization: `Bearer ${adminToken}` },
+        payload: { username: 'security-edit', password: 'password123', display_name: 'Original', role_id: 1 } });
+      assert.strictEqual(created.statusCode, 201);
+      const id = JSON.parse(created.body).user.id;
+      const patch = (payload: object) => app.inject({ method: 'PATCH', url: `/api/admin/users/${id}`,
+        headers: { authorization: `Bearer ${adminToken}` }, payload });
+      const login = async (username: string, password: string) => {
+        const res = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { username, password } });
+        assert.strictEqual(res.statusCode, 200, res.body);
+        return JSON.parse(res.body) as { token: string; refreshToken: string };
+      };
+      const rejected = async (session: { token: string; refreshToken: string }) => {
+        assert.strictEqual((await app.inject({ method: 'GET', url: '/api/auth/me',
+          headers: { authorization: `Bearer ${session.token}` } })).statusCode, 401);
+        assert.strictEqual((await app.inject({ method: 'POST', url: '/api/auth/refresh',
+          payload: { refreshToken: session.refreshToken } })).statusCode, 401);
+      };
+      let session = await login('security-edit', 'password123');
+      assert.strictEqual((await patch({ display_name: 'Renamed' })).statusCode, 200);
+      assert.strictEqual((await app.inject({ method: 'GET', url: '/api/auth/me', headers: { authorization: `Bearer ${session.token}` } })).statusCode, 200);
+      assert.strictEqual((await patch({ role_id: 2 })).statusCode, 200);
+      await rejected(session);
+      session = await login('security-edit', 'password123');
+      assert.strictEqual((await patch({ username: 'security-renamed' })).statusCode, 200);
+      await rejected(session);
+      session = await login('security-renamed', 'password123');
+      assert.strictEqual((await patch({ password: 'replacement123' })).statusCode, 200);
+      await rejected(session);
+      session = await login('security-renamed', 'replacement123');
+      assert.strictEqual((await patch({ is_active: 0 })).statusCode, 200);
+      await rejected(session);
+      assert.strictEqual((await patch({ is_active: 1 })).statusCode, 200);
+      assert.strictEqual((await app.inject({ method: 'POST', url: '/api/auth/login', payload: { username: 'security-renamed', password: 'replacement123' } })).statusCode, 200);
+      const deleted = await app.inject({ method: 'DELETE', url: `/api/admin/users/${id}`,
+        headers: { authorization: `Bearer ${adminToken}` } });
+      assert.strictEqual(deleted.statusCode, 200);
+    });
+
+    it('rolls back user and version if revocation fails and preserves sessions on constraint failure', async () => {
+      const session = await app.inject({ method: 'POST', url: '/api/auth/login', payload: fixtures.worker });
+      const before = db.prepare('SELECT username, display_name, security_version FROM users WHERE id = ?').get(fixtures.worker.id);
+      const token = JSON.parse(session.body).token;
+      db.exec(`CREATE TRIGGER deny_revoke_admin_test BEFORE UPDATE OF revoked_at ON auth_sessions
+        BEGIN SELECT RAISE(ABORT, 'revocation failed'); END`);
+      try {
+        const failed = await app.inject({ method: 'PATCH', url: `/api/admin/users/${fixtures.worker.id}`,
+          headers: { authorization: `Bearer ${adminToken}` }, payload: { username: 'should-not-stick' } });
+        assert.strictEqual(failed.statusCode, 500);
+        assert.deepStrictEqual(db.prepare('SELECT username, display_name, security_version FROM users WHERE id = ?').get(fixtures.worker.id), before);
+      } finally { db.exec('DROP TRIGGER deny_revoke_admin_test'); }
+      const constraint = await app.inject({ method: 'PATCH', url: `/api/admin/users/${fixtures.worker.id}`,
+        headers: { authorization: `Bearer ${adminToken}` }, payload: { username: fixtures.admin.username, display_name: 'Should not stick' } });
+      assert.strictEqual(constraint.statusCode, 400);
+      assert.deepStrictEqual(db.prepare('SELECT username, display_name, security_version FROM users WHERE id = ?').get(fixtures.worker.id), before);
+      assert.strictEqual((await app.inject({ method: 'GET', url: '/api/auth/me', headers: { authorization: `Bearer ${token}` } })).statusCode, 200);
+    });
     it('GET /admin/users lists all users', async () => {
       const res = await app.inject({
         method: 'GET',
@@ -927,6 +1193,58 @@ describe('Admin Routes', () => {
       assert.strictEqual(res.statusCode, 400);
       const body = JSON.parse(res.body);
       assert.ok(body.error.includes('usuário já existe'));
+    });
+
+    it('worker is denied (403) from users POST, PATCH, and DELETE mutations', async () => {
+      // POST denied
+      const postRes = await app.inject({
+        method: 'POST',
+        url: '/api/admin/users',
+        headers: { authorization: `Bearer ${workerToken}` },
+        payload: {
+          username: 'worker-escalation',
+          password: 'password123',
+          display_name: 'Escalation Attempt',
+          role_id: 1,
+        },
+      });
+      assert.strictEqual(postRes.statusCode, 403);
+      assert.strictEqual(
+        db.prepare("SELECT id FROM users WHERE username = 'worker-escalation'").get(),
+        undefined,
+        'user must not be created'
+      );
+
+      // PATCH denied
+      const beforeUser = db.prepare('SELECT username, display_name, role_id, is_active FROM users WHERE id = ?').get(fixtures.admin.id) as {
+        username: string;
+        display_name: string;
+        role_id: number;
+        is_active: number;
+      };
+      const patchRes = await app.inject({
+        method: 'PATCH',
+        url: `/api/admin/users/${fixtures.admin.id}`,
+        headers: { authorization: `Bearer ${workerToken}` },
+        payload: { display_name: 'Hacked Admin', role_id: 2, is_active: 0 },
+      });
+      assert.strictEqual(patchRes.statusCode, 403);
+      const afterUser = db.prepare('SELECT username, display_name, role_id, is_active FROM users WHERE id = ?').get(fixtures.admin.id) as {
+        username: string;
+        display_name: string;
+        role_id: number;
+        is_active: number;
+      };
+      assert.deepStrictEqual(afterUser, beforeUser, 'user must not be modified');
+
+      // DELETE denied
+      const deleteRes = await app.inject({
+        method: 'DELETE',
+        url: `/api/admin/users/${fixtures.admin.id}`,
+        headers: { authorization: `Bearer ${workerToken}` },
+      });
+      assert.strictEqual(deleteRes.statusCode, 403);
+      assert.ok(db.prepare('SELECT id FROM users WHERE id = ?').get(fixtures.admin.id), 'user must not be deleted');
     });
   });
 
