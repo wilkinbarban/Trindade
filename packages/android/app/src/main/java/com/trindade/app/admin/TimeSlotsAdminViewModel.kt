@@ -153,6 +153,18 @@ class TimeSlotsAdminViewModel @Inject constructor(
         }
     }
 
+    fun openAddForm() {
+        val current = _uiState.value
+        if (!current.isAdmin || current.deleting) return
+        _uiState.update {
+            it.copy(
+                form = FormState(),
+                deleteConfirmSlot = null,
+                message = null,
+            )
+        }
+    }
+
     fun closeForm() {
         if (_uiState.value.form?.saving == true) return
         _uiState.update { it.copy(form = null) }
@@ -169,9 +181,195 @@ class TimeSlotsAdminViewModel @Inject constructor(
         }
     }
 
+    fun addTimeSlot() {
+        val current = _uiState.value
+        val form = current.form ?: return
+        if (form.saving || current.deleting || !current.isAdmin) return
+
+        val raw = form.slotInput.trim()
+        if (raw.isEmpty()) {
+            _uiState.update {
+                it.copy(form = form.copy(validationError = "Horário é obrigatório."))
+            }
+            return
+        }
+
+        if (!isValidTimeSlot(raw)) {
+            _uiState.update {
+                it.copy(form = form.copy(validationError = "Formato inválido. Use HH:MM (ex: 08:00)."))
+            }
+            return
+        }
+
+        val normalized = normalizeTimeSlot(raw)
+        if (current.timeSlots.contains(normalized)) {
+            _uiState.update {
+                it.copy(form = form.copy(validationError = "Horário já cadastrado."))
+            }
+            return
+        }
+
+        val updatedSlots = (current.timeSlots + normalized).distinct().sorted()
+
+        _uiState.update { it.copy(form = form.copy(saving = true, validationError = null), message = null) }
+
+        viewModelScope.launch {
+            when (val result = repository.updateTimeSlots(updatedSlots)) {
+                is TimeSlotsAdminWriteResult.Saved -> {
+                    _uiState.update {
+                        it.copy(
+                            form = null,
+                            timeSlots = result.timeSlots.sorted(),
+                            message = "Horário adicionado com sucesso.",
+                            isError = false,
+                        )
+                    }
+                }
+                is TimeSlotsAdminWriteResult.Refused -> {
+                    if (result.statusCode == 403) {
+                        _uiState.update {
+                            it.copy(
+                                form = null,
+                                deleteConfirmSlot = null,
+                                role = null,
+                                timeSlots = emptyList(),
+                                message = "Acesso restrito a administradores.",
+                                isError = true,
+                            )
+                        }
+                    } else {
+                        _uiState.update {
+                            it.copy(
+                                form = form.copy(saving = false),
+                                message = "Não foi possível salvar os horários (${result.statusCode}).",
+                                isError = true,
+                            )
+                        }
+                    }
+                }
+                is TimeSlotsAdminWriteResult.Unreachable -> {
+                    _uiState.update {
+                        it.copy(
+                            form = form.copy(saving = false),
+                            message = "Sem conexão com o servidor. Tente de novo.",
+                            isError = true,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    fun requestDelete(slot: String) {
+        val current = _uiState.value
+        if (!current.isAdmin || current.deleting || current.form?.saving == true) return
+        if (current.timeSlots.size <= 1) {
+            _uiState.update {
+                it.copy(
+                    message = "É necessário manter pelo menos um horário.",
+                    isError = true,
+                )
+            }
+            return
+        }
+        _uiState.update { it.copy(deleteConfirmSlot = slot, message = null) }
+    }
+
     fun cancelDelete() {
         if (_uiState.value.deleting) return
         _uiState.update { it.copy(deleteConfirmSlot = null) }
+    }
+
+    fun confirmDelete() {
+        val current = _uiState.value
+        if (current.deleting || current.form?.saving == true || !current.isAdmin) return
+        val slot = current.deleteConfirmSlot ?: return
+        removeTimeSlot(slot)
+    }
+
+    fun removeTimeSlot(slot: String) {
+        val current = _uiState.value
+        if (!current.isAdmin || current.deleting || current.form?.saving == true) return
+
+        if (current.timeSlots.size <= 1) {
+            _uiState.update {
+                it.copy(
+                    deleteConfirmSlot = null,
+                    message = "É necessário manter pelo menos um horário.",
+                    isError = true,
+                )
+            }
+            return
+        }
+
+        if (!current.timeSlots.contains(slot)) {
+            _uiState.update { it.copy(deleteConfirmSlot = null) }
+            return
+        }
+
+        val remaining = current.timeSlots.filter { it != slot }.sorted()
+        if (remaining.isEmpty()) {
+            _uiState.update {
+                it.copy(
+                    deleteConfirmSlot = null,
+                    message = "É necessário manter pelo menos um horário.",
+                    isError = true,
+                )
+            }
+            return
+        }
+
+        _uiState.update { it.copy(deleting = true, message = null) }
+
+        viewModelScope.launch {
+            when (val result = repository.updateTimeSlots(remaining)) {
+                is TimeSlotsAdminWriteResult.Saved -> {
+                    _uiState.update {
+                        it.copy(
+                            deleting = false,
+                            deleteConfirmSlot = null,
+                            timeSlots = result.timeSlots.sorted(),
+                            message = "Horário removido com sucesso.",
+                            isError = false,
+                        )
+                    }
+                }
+                is TimeSlotsAdminWriteResult.Refused -> {
+                    if (result.statusCode == 403) {
+                        _uiState.update {
+                            it.copy(
+                                deleting = false,
+                                deleteConfirmSlot = null,
+                                role = null,
+                                timeSlots = emptyList(),
+                                form = null,
+                                message = "Acesso restrito a administradores.",
+                                isError = true,
+                            )
+                        }
+                    } else {
+                        _uiState.update {
+                            it.copy(
+                                deleting = false,
+                                deleteConfirmSlot = null,
+                                message = "Não foi possível remover o horário (${result.statusCode}).",
+                                isError = true,
+                            )
+                        }
+                    }
+                }
+                is TimeSlotsAdminWriteResult.Unreachable -> {
+                    _uiState.update {
+                        it.copy(
+                            deleting = false,
+                            deleteConfirmSlot = null,
+                            message = "Sem conexão com o servidor. Tente de novo.",
+                            isError = true,
+                        )
+                    }
+                }
+            }
+        }
     }
 
     fun handleBack(): Boolean {

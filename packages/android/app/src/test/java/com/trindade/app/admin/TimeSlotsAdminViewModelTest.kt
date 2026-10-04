@@ -54,9 +54,9 @@ import org.junit.Test
 import retrofit2.Response
 
 /**
- * Unit tests for [TimeSlotsAdminViewModel] bounded integration unit 2.
+ * Unit tests for [TimeSlotsAdminViewModel].
  *
- * Covers:
+ * All 11 source cases integrated + 5 new = 16 tests present NOTPASS:
  * - Intact lazy load test from source git object 3e4bf1a.
  * - FormState canSubmit property behavior.
  * - UiState isAdmin and canRemove boundary logic.
@@ -69,13 +69,11 @@ import retrofit2.Response
  *   4. `loadData cancels overlapping previous load and latest result wins`
  *   5. `failed read clears stale time slots from state`
  *   6. `403 on timeSlots read fails closed and revokes admin state`
- *
- * Four remaining mutation cases are deferred to subsequent integration units:
- * - Mutation (4):
+ * - Four mutation cases:
  *   1. `addTimeSlot fails closed when backend answers 403`
  *   2. `removeTimeSlot fails closed when backend answers 403`
  *   3. `concurrent delete requests are ignored while delete is in flight`
- *   4. `role revocation clears active form and delete confirmation state` (depends on openAddForm / requestDelete)
+ *   4. `role revocation clears active form and delete confirmation state`
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class TimeSlotsAdminViewModelTest {
@@ -250,6 +248,59 @@ class TimeSlotsAdminViewModelTest {
     }
 
     @Test
+    fun `addTimeSlot fails closed when backend answers 403`() {
+        val adminApi = TestAdminApi(slots = listOf("08:00", "10:00"))
+        val authRepo = createAuthRepository(role = RolePolicy.ADMIN)
+        val repository = TimeSlotsAdminRepository(adminApi)
+        val viewModel = TimeSlotsAdminViewModel(repository, authRepo)
+
+        viewModel.loadData()
+        assertTrue(viewModel.uiState.value.isAdmin)
+
+        viewModel.openAddForm()
+        viewModel.onSlotInputChanged("14:00")
+
+        adminApi.updateResponse = Response.error(403, "".toResponseBody("application/json".toMediaType()))
+
+        viewModel.addTimeSlot()
+
+        val state = viewModel.uiState.value
+        assertFalse(state.isAdmin)
+        assertNull(state.role)
+        assertTrue(state.timeSlots.isEmpty())
+        assertNull(state.form)
+        assertTrue(state.isError)
+        assertEquals("Acesso restrito a administradores.", state.message)
+    }
+
+    @Test
+    fun `removeTimeSlot fails closed when backend answers 403`() {
+        val adminApi = TestAdminApi(slots = listOf("08:00", "10:00"))
+        val authRepo = createAuthRepository(role = RolePolicy.ADMIN)
+        val repository = TimeSlotsAdminRepository(adminApi)
+        val viewModel = TimeSlotsAdminViewModel(repository, authRepo)
+
+        viewModel.loadData()
+        assertTrue(viewModel.uiState.value.isAdmin)
+
+        viewModel.requestDelete("08:00")
+        assertEquals("08:00", viewModel.uiState.value.deleteConfirmSlot)
+
+        adminApi.updateResponse = Response.error(403, "".toResponseBody("application/json".toMediaType()))
+
+        viewModel.confirmDelete()
+
+        val state = viewModel.uiState.value
+        assertFalse(state.isAdmin)
+        assertNull(state.role)
+        assertTrue(state.timeSlots.isEmpty())
+        assertNull(state.deleteConfirmSlot)
+        assertFalse(state.deleting)
+        assertTrue(state.isError)
+        assertEquals("Acesso restrito a administradores.", state.message)
+    }
+
+    @Test
     fun `loadData cancels overlapping previous load and latest result wins`() {
         val adminApi = TestAdminApi()
         val authRepo = createAuthRepository(role = RolePolicy.ADMIN)
@@ -282,6 +333,41 @@ class TimeSlotsAdminViewModelTest {
         // State must NOT be overwritten by Call 1
         val finalState = viewModel.uiState.value
         assertEquals(listOf("08:00", "10:00", "12:00"), finalState.timeSlots)
+    }
+
+    @Test
+    fun `concurrent delete requests are ignored while delete is in flight`() {
+        val adminApi = TestAdminApi(slots = listOf("08:00", "10:00", "12:00"))
+        val authRepo = createAuthRepository(role = RolePolicy.ADMIN)
+        val repository = TimeSlotsAdminRepository(adminApi)
+        val viewModel = TimeSlotsAdminViewModel(repository, authRepo)
+
+        viewModel.loadData()
+        assertEquals(3, viewModel.uiState.value.timeSlots.size)
+
+        val deleteDeferred = CompletableDeferred<Response<TimeSlotsResponse>>()
+        adminApi.updateHandler = {
+            deleteDeferred.await()
+        }
+
+        viewModel.requestDelete("08:00")
+        viewModel.confirmDelete()
+
+        assertTrue(viewModel.uiState.value.deleting)
+        assertEquals(1, adminApi.updateCallCount)
+
+        // Attempt concurrent delete calls while deleting is in progress
+        viewModel.confirmDelete()
+        viewModel.removeTimeSlot("10:00")
+        viewModel.requestDelete("12:00")
+
+        // No additional update requests should have been dispatched
+        assertEquals(1, adminApi.updateCallCount)
+
+        deleteDeferred.complete(Response.success(TimeSlotsResponse(timeSlots = listOf("10:00", "12:00"))))
+
+        assertFalse(viewModel.uiState.value.deleting)
+        assertEquals(listOf("10:00", "12:00"), viewModel.uiState.value.timeSlots)
     }
 
     @Test
@@ -327,6 +413,47 @@ class TimeSlotsAdminViewModelTest {
         assertTrue(state.timeSlots.isEmpty())
         assertTrue(state.isError)
         assertEquals("Acesso restrito a administradores.", state.message)
+    }
+
+    @Test
+    fun `role revocation clears active form and delete confirmation state`() {
+        val adminApi = TestAdminApi(slots = listOf("08:00", "10:00"))
+        var currentRole: String = RolePolicy.ADMIN
+        val authRepo = createAuthRepository(
+            role = RolePolicy.ADMIN,
+            profileResponse = null, // Will use custom call
+        )
+        // Set up api with dynamic role
+        val testAuthApi = TestAuthApi()
+        testAuthApi.profileResponse = profileSuccess(RolePolicy.ADMIN)
+        val dynamicAuthRepo = AuthRepository(
+            api = testAuthApi,
+            tokenStore = TestTokenStore(role = RolePolicy.ADMIN),
+            json = Json { ignoreUnknownKeys = true },
+        )
+        val repository = TimeSlotsAdminRepository(adminApi)
+        val viewModel = TimeSlotsAdminViewModel(repository, dynamicAuthRepo)
+
+        viewModel.loadData()
+        viewModel.openAddForm()
+        viewModel.requestDelete("08:00")
+
+        val stateBefore = viewModel.uiState.value
+        assertTrue(stateBefore.form != null)
+        assertEquals("08:00", stateBefore.deleteConfirmSlot)
+
+        // Role is revoked on backend
+        testAuthApi.profileResponse = profileSuccess(RolePolicy.WORKER)
+
+        viewModel.loadData()
+
+        val stateAfter = viewModel.uiState.value
+        assertFalse(stateAfter.isAdmin)
+        assertNull("Active form must be cleared on role revocation", stateAfter.form)
+        assertNull("Delete confirmation must be cleared on role revocation", stateAfter.deleteConfirmSlot)
+        assertTrue(stateAfter.timeSlots.isEmpty())
+        assertTrue(stateAfter.isError)
+        assertEquals("Acesso restrito a administradores.", stateAfter.message)
     }
 
     @Test
