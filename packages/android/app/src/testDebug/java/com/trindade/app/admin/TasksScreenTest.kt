@@ -3,19 +3,23 @@ package com.trindade.app.admin
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
-import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.trindade.app.contract.models.AdminCategoryResponseCategory
 import com.trindade.app.contract.models.AdminTasksResponseTasksInner
 import com.trindade.app.ui.theme.TrindadeTheme
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -272,5 +276,32 @@ class TasksScreenTest {
 
         // Dialog must disappear immediately without lingering local modal
         composeRule.onNodeWithText("Confirmar exclusão").assertDoesNotExist()
+    }
+
+    @Test
+    fun `critical task administration action controls meet 48dp touch target bounds`() {
+        render(state(editingId = 1, deleteTarget = task(1, 7)))
+
+        val refreshNode = composeRule.onNodeWithText("Atualizar")
+        refreshNode.assertIsDisplayed()
+        val refreshBounds = refreshNode.getUnclippedBoundsInRoot()
+        assertTrue("Atualizar height must be >= 48dp", refreshBounds.bottom - refreshBounds.top >= 48.dp)
+        assertTrue("Atualizar width must be >= 48dp", refreshBounds.right - refreshBounds.left >= 48.dp)
+
+        val cancelNodes = composeRule.onAllNodesWithText("Cancelar")
+        cancelNodes.assertCountEquals(2)
+        val formCancelBounds = cancelNodes[0].getUnclippedBoundsInRoot()
+        assertTrue("Form Cancelar height >= 48dp", formCancelBounds.bottom - formCancelBounds.top >= 48.dp)
+        assertTrue("Form Cancelar width >= 48dp", formCancelBounds.right - formCancelBounds.left >= 48.dp)
+
+        val dialogCancelBounds = cancelNodes[1].getUnclippedBoundsInRoot()
+        assertTrue("Dialog Cancelar height >= 48dp", dialogCancelBounds.bottom - dialogCancelBounds.top >= 48.dp)
+        assertTrue("Dialog Cancelar width >= 48dp", dialogCancelBounds.right - dialogCancelBounds.left >= 48.dp)
+
+        val confirmNode = composeRule.onNodeWithText("Confirmar")
+        confirmNode.assertIsDisplayed()
+        val confirmBounds = confirmNode.getUnclippedBoundsInRoot()
+        assertTrue("Confirmar height >= 48dp", confirmBounds.bottom - confirmBounds.top >= 48.dp)
+        assertTrue("Confirmar width >= 48dp", confirmBounds.right - confirmBounds.left >= 48.dp)
     }
 }

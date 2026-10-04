@@ -18,8 +18,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,6 +31,11 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.trindade.app.contract.models.AdminUserResponseUser
+import com.trindade.app.ui.components.AdminDestructiveButton
+import com.trindade.app.ui.components.AdminDestructiveConfirmButton
+import com.trindade.app.ui.components.AdminPrimaryButton
+import com.trindade.app.ui.components.AdminSecondaryButton
+import com.trindade.app.ui.components.NavigationActionButton
 
 /**
  * Renders the user management administration UI driven strictly by [UsersViewModel.UiState].
@@ -68,10 +73,18 @@ fun UsersScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TextButton(onClick = onBack) { Text("Voltar") }
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            NavigationActionButton(onClick = onBack) { Text("Voltar") }
             Text("Usuários", style = MaterialTheme.typography.titleLarge)
-            TextButton(onClick = onRefresh, enabled = !state.loading && !state.saving) { Text("Atualizar") }
+            NavigationActionButton(
+                onClick = onRefresh,
+                enabled = !state.loading && !state.saving,
+            ) {
+                Text("Atualizar")
+            }
         }
 
         if (state.loading) {
@@ -85,7 +98,11 @@ fun UsersScreen(
         state.refusedStatus?.let { Text("Status: $it", color = MaterialTheme.colorScheme.error) }
 
         if (state.isAdmin) {
-            Button(onClick = { showForm = true }, enabled = !state.saving) { Text("Novo usuário") }
+            AdminPrimaryButton(
+                onClick = { showForm = true },
+                enabled = !state.saving,
+                text = "Novo usuário",
+            )
         }
 
         if (state.isAdmin && (showForm || state.editingId != null)) {
@@ -200,26 +217,20 @@ fun UsersScreen(
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
+                AdminPrimaryButton(
                     onClick = onSave,
                     enabled = !state.saving && !state.loading,
-                ) {
-                    if (state.saving) {
-                        CircularProgressIndicator()
-                        Text("Salvando…")
-                    } else {
-                        Text(if (state.editingId == null) "Criar" else "Salvar")
-                    }
-                }
-                TextButton(
+                    loading = state.saving,
+                    text = if (state.saving) "Salvando…" else if (state.editingId == null) "Criar" else "Salvar",
+                )
+                AdminSecondaryButton(
                     onClick = {
                         showForm = false
                         onCancel()
                     },
                     enabled = !state.saving,
-                ) {
-                    Text("Cancelar")
-                }
+                    text = "Cancelar",
+                )
             }
         }
 
@@ -238,27 +249,30 @@ fun UsersScreen(
                     Text(roleText)
                     Text(if (user.isActive == 1) "Ativo" else "Inativo")
 
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                         if (state.canEdit(user)) {
-                            TextButton(onClick = { onEdit(user) }) { Text("Editar") }
+                            AdminSecondaryButton(onClick = { onEdit(user) }, text = "Editar")
                         } else {
                             Text("Somente leitura", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         if (state.canToggle(user)) {
-                            TextButton(onClick = { onToggle(user) }) {
-                                Text(if (user.isActive == 1) "Desativar" else "Ativar")
-                            }
+                            AdminSecondaryButton(
+                                onClick = { onToggle(user) },
+                                text = if (user.isActive == 1) "Desativar" else "Ativar",
+                            )
                         }
                         if (state.canDelete(user)) {
-                            TextButton(
+                            AdminDestructiveButton(
                                 onClick = {
                                     onRequestDelete(user)
                                     localDeleteTarget = user
                                 },
                                 enabled = !state.saving,
-                            ) {
-                                Text("Excluir")
-                            }
+                                text = "Excluir",
+                            )
                         }
                     }
                 }
@@ -281,26 +295,54 @@ fun UsersScreen(
                 title = { Text("Confirmar exclusão") },
                 text = { Text("Excluir ${user.username}?") },
                 confirmButton = {
-                    TextButton(
+                    AdminDestructiveConfirmButton(
                         onClick = {
                             localDeleteTarget = null
                             onConfirmDelete()
                         },
-                    ) {
-                        Text("Confirmar")
-                    }
+                        text = "Confirmar",
+                    )
                 },
                 dismissButton = {
-                    TextButton(
+                    AdminSecondaryButton(
                         onClick = {
                             localDeleteTarget = null
                             onDismissDelete()
                         },
-                    ) {
-                        Text("Cancelar")
-                    }
+                        text = "Cancelar",
+                    )
                 },
             )
         }
     }
+}
+
+@Composable
+fun UsersRoute(
+    sessionKey: String,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: UsersViewModel = androidx.hilt.navigation.compose.hiltViewModel(key = sessionKey),
+) {
+    val state by viewModel.state.collectAsState()
+    androidx.compose.runtime.LaunchedEffect(Unit) { viewModel.load() }
+    androidx.activity.compose.BackHandler(enabled = true, onBack = onBack)
+    UsersScreen(
+        state = state,
+        onBack = onBack,
+        onRefresh = viewModel::load,
+        onUsernameChange = viewModel::onUsernameChange,
+        onDisplayNameChange = viewModel::onDisplayNameChange,
+        onPasswordChange = viewModel::onPasswordChange,
+        onRoleIdChange = viewModel::onRoleIdChange,
+        onIsActiveChange = viewModel::onIsActiveChange,
+        onSave = viewModel::save,
+        onCancel = viewModel::cancelEdit,
+        onEdit = viewModel::edit,
+        onToggle = viewModel::toggle,
+        onRequestDelete = viewModel::requestDelete,
+        onConfirmDelete = viewModel::confirmDelete,
+        onDismissDelete = viewModel::cancelDelete,
+        modifier = modifier,
+    )
 }

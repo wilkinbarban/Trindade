@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.trindade.app.ui.components.NavigationActionButton
 
 /** Time-slot catalog UI. Consumes ViewModel state and callbacks directly; role gating fails closed for non-admin. */
 @Composable
@@ -42,7 +43,7 @@ fun TimeSlotsScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(onClick = onBack) { Text("Voltar") }
+            NavigationActionButton(onClick = onBack) { Text("Voltar") }
             Text("Horários", style = MaterialTheme.typography.titleLarge)
             TextButton(
                 onClick = onRefresh,

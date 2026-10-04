@@ -4,8 +4,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -22,6 +25,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -30,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.trindade.app.contract.models.AuditResponseLogsInner
+import com.trindade.app.ui.components.NavigationActionButton
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -84,6 +90,7 @@ fun AuditScreen(
 ) {
     var actionMenuExpanded by remember { mutableStateOf(false) }
     var entityMenuExpanded by remember { mutableStateOf(false) }
+    val expandedLogIds = remember { mutableStateMapOf<Int, Boolean>() }
 
     Column(
         modifier = modifier
@@ -101,12 +108,13 @@ fun AuditScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                TextButton(onClick = onBack) { Text("Voltar") }
+                NavigationActionButton(onClick = onBack) { Text("Voltar") }
                 Text("Auditoria", style = MaterialTheme.typography.titleLarge)
             }
             TextButton(
                 onClick = onRefresh,
                 enabled = !state.loading,
+                modifier = Modifier.defaultMinSize(minHeight = 48.dp, minWidth = 48.dp),
             ) {
                 Text("Atualizar")
             }
@@ -161,9 +169,18 @@ fun AuditScreen(
                     Box(modifier = Modifier.fillMaxWidth()) {
                         OutlinedButton(
                             onClick = { actionMenuExpanded = true },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .defaultMinSize(minHeight = 48.dp),
                         ) {
-                            Text("Ação: $currentActionLabel")
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text("Ação: $currentActionLabel")
+                                Text("▼", style = MaterialTheme.typography.labelSmall)
+                            }
                         }
                         DropdownMenu(
                             expanded = actionMenuExpanded,
@@ -186,9 +203,18 @@ fun AuditScreen(
                     Box(modifier = Modifier.fillMaxWidth()) {
                         OutlinedButton(
                             onClick = { entityMenuExpanded = true },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .defaultMinSize(minHeight = 48.dp),
                         ) {
-                            Text("Entidade: $currentEntityLabel")
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text("Entidade: $currentEntityLabel")
+                                Text("▼", style = MaterialTheme.typography.labelSmall)
+                            }
                         }
                         DropdownMenu(
                             expanded = entityMenuExpanded,
@@ -222,13 +248,17 @@ fun AuditScreen(
                     ) {
                         Button(
                             onClick = onApplyFilters,
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier
+                                .weight(1f)
+                                .defaultMinSize(minHeight = 48.dp),
                         ) {
                             Text("Filtrar")
                         }
                         OutlinedButton(
                             onClick = onClearFilters,
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier
+                                .weight(1f)
+                                .defaultMinSize(minHeight = 48.dp),
                         ) {
                             Text("Limpar")
                         }
@@ -299,12 +329,36 @@ fun AuditScreen(
                                 )
                             }
 
+                            val isExpanded = expandedLogIds[log.id] ?: false
                             val detailsSummary = summarizeAuditDetails(log.details)
+                            val isTruncated = isAuditDetailsTruncated(log.details)
+
                             Text(
                                 text = "Detalhes: $detailsSummary",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
+
+                            if (isExpanded) {
+                                val fullDetails = formatAuditFullDetails(log.details)
+                                if (fullDetails.isNotBlank()) {
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(
+                                        text = fullDetails,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                    )
+                                }
+                            }
+
+                            if (isTruncated) {
+                                TextButton(
+                                    onClick = { expandedLogIds[log.id] = !isExpanded },
+                                    modifier = Modifier.defaultMinSize(minHeight = 48.dp, minWidth = 48.dp),
+                                ) {
+                                    Text(if (isExpanded) "Ocultar detalhes" else "Ver detalhes")
+                                }
+                            }
 
                             log.ipAddress?.let { ip ->
                                 Text(
@@ -319,12 +373,11 @@ fun AuditScreen(
             }
 
             // Pagination
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 val recordWord = if (state.total == 1) "registro" else "registros"
                 Text(
@@ -332,16 +385,25 @@ fun AuditScreen(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     OutlinedButton(
                         onClick = onPreviousPage,
                         enabled = state.canGoPrevious,
+                        modifier = Modifier
+                            .weight(1f)
+                            .defaultMinSize(minHeight = 48.dp),
                     ) {
                         Text("Anterior")
                     }
                     OutlinedButton(
                         onClick = onNextPage,
                         enabled = state.canGoNext,
+                        modifier = Modifier
+                            .weight(1f)
+                            .defaultMinSize(minHeight = 48.dp),
                     ) {
                         Text("Próximo")
                     }
@@ -415,4 +477,72 @@ internal fun summarizeAuditDetails(details: String?): String {
     }.getOrElse {
         if (trimmed.length > 60) trimmed.take(57) + "..." else trimmed
     }
+}
+
+internal fun isAuditDetailsTruncated(details: String?): Boolean {
+    if (details.isNullOrBlank()) return false
+    val trimmed = details.trim()
+    return runCatching {
+        val element = Json.parseToJsonElement(trimmed)
+        if (element is JsonObject) {
+            if (element.isEmpty()) return@runCatching false
+            if (element.size > 2) return@runCatching true
+            val preview = element.entries.take(2).joinToString(", ") { (k, v) ->
+                val valueStr = if (v is JsonPrimitive && v.isString) v.content else v.toString()
+                "$k: $valueStr"
+            }
+            preview.length > 60
+        } else {
+            trimmed.length > 60
+        }
+    }.getOrElse {
+        trimmed.length > 60
+    }
+}
+
+internal fun formatAuditFullDetails(details: String?): String {
+    if (details.isNullOrBlank()) return ""
+    val trimmed = details.trim()
+    return runCatching {
+        val element = Json.parseToJsonElement(trimmed)
+        if (element is JsonObject) {
+            if (element.isEmpty()) {
+                ""
+            } else {
+                element.entries.joinToString("\n") { (k, v) ->
+                    val valueStr = if (v is JsonPrimitive && v.isString) v.content else v.toString()
+                    "$k: $valueStr"
+                }
+            }
+        } else {
+            trimmed
+        }
+    }.getOrElse {
+        trimmed
+    }
+}
+
+@Composable
+fun AuditRoute(
+    sessionKey: String,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: AuditViewModel = androidx.hilt.navigation.compose.hiltViewModel(key = sessionKey),
+) {
+    val state by viewModel.state.collectAsState()
+    androidx.compose.runtime.LaunchedEffect(Unit) { viewModel.load() }
+    androidx.activity.compose.BackHandler(enabled = true, onBack = onBack)
+    AuditScreen(
+        state = state,
+        onBack = onBack,
+        onRefresh = { viewModel.load() },
+        onActionChange = viewModel::onActionChange,
+        onEntityTypeChange = viewModel::onEntityTypeChange,
+        onUserIdChange = viewModel::onUserIdChange,
+        onApplyFilters = viewModel::applyFilters,
+        onClearFilters = viewModel::clearFilters,
+        onPreviousPage = viewModel::previousPage,
+        onNextPage = viewModel::nextPage,
+        modifier = modifier,
+    )
 }

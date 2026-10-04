@@ -15,8 +15,8 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -24,6 +24,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.trindade.app.contract.models.AdminCategoryResponseCategory
+import com.trindade.app.ui.components.AdminChoiceChip
+import com.trindade.app.ui.components.AdminDestructiveButton
+import com.trindade.app.ui.components.AdminDestructiveConfirmButton
+import com.trindade.app.ui.components.AdminPrimaryButton
+import com.trindade.app.ui.components.AdminSecondaryButton
+import com.trindade.app.ui.components.NavigationActionButton
 
 /** Category catalog UI. Accepts ViewModel state and callbacks directly; role gating fails closed for non-admin. */
 @Composable
@@ -52,10 +58,18 @@ fun CategoriesScreen(
         modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TextButton(onClick = onBack) { Text("Voltar") }
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        ) {
+            NavigationActionButton(onClick = onBack) { Text("Voltar") }
             Text("Categorias", style = MaterialTheme.typography.titleLarge)
-            TextButton(onClick = onRefresh, enabled = !state.loading && !state.saving) { Text("Atualizar") }
+            NavigationActionButton(
+                onClick = onRefresh,
+                enabled = !state.loading && !state.saving,
+            ) {
+                Text("Atualizar")
+            }
         }
 
         if (state.loading) {
@@ -69,7 +83,11 @@ fun CategoriesScreen(
         state.refusedStatus?.let { Text("Status: $it", color = MaterialTheme.colorScheme.error) }
 
         if (state.isAdmin) {
-            Button(onClick = { showForm = true }, enabled = !state.saving) { Text("Nova categoria") }
+            AdminPrimaryButton(
+                onClick = { showForm = true },
+                enabled = !state.saving,
+                text = "Nova categoria",
+            )
         }
 
         if (state.isAdmin && (showForm || state.editingId != null)) {
@@ -108,22 +126,34 @@ fun CategoriesScreen(
                 )
             }
 
-            Text("Tipo")
+            Text("Tipo", style = MaterialTheme.typography.labelLarge)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = { onCategoryTypeChange(CategoriesViewModel.CHECK) }, enabled = !state.saving) {
-                    Text(if (state.categoryType == CategoriesViewModel.CHECK) "Check ✓" else "Check")
-                }
-                TextButton(onClick = { onCategoryTypeChange(CategoriesViewModel.TEMPERATURE) }, enabled = !state.saving) {
-                    Text(if (state.categoryType == CategoriesViewModel.TEMPERATURE) "Temperatura ✓" else "Temperatura")
-                }
+                AdminChoiceChip(
+                    selected = state.categoryType == CategoriesViewModel.CHECK,
+                    onClick = { onCategoryTypeChange(CategoriesViewModel.CHECK) },
+                    enabled = !state.saving,
+                    label = if (state.categoryType == CategoriesViewModel.CHECK) "Check ✓" else "Check",
+                )
+                AdminChoiceChip(
+                    selected = state.categoryType == CategoriesViewModel.TEMPERATURE,
+                    onClick = { onCategoryTypeChange(CategoriesViewModel.TEMPERATURE) },
+                    enabled = !state.saving,
+                    label = if (state.categoryType == CategoriesViewModel.TEMPERATURE) "Temperatura ✓" else "Temperatura",
+                )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = { onCategoryTypeChange(CategoriesViewModel.CHECK_ASSAI) }, enabled = !state.saving) {
-                    Text(if (state.categoryType == CategoriesViewModel.CHECK_ASSAI) "Check Assaí ✓" else "Check Assaí")
-                }
-                TextButton(onClick = { onCategoryTypeChange(CategoriesViewModel.CHECK_NORMAL) }, enabled = !state.saving) {
-                    Text(if (state.categoryType == CategoriesViewModel.CHECK_NORMAL) "Check Normal ✓" else "Check Normal")
-                }
+                AdminChoiceChip(
+                    selected = state.categoryType == CategoriesViewModel.CHECK_ASSAI,
+                    onClick = { onCategoryTypeChange(CategoriesViewModel.CHECK_ASSAI) },
+                    enabled = !state.saving,
+                    label = if (state.categoryType == CategoriesViewModel.CHECK_ASSAI) "Check Assaí ✓" else "Check Assaí",
+                )
+                AdminChoiceChip(
+                    selected = state.categoryType == CategoriesViewModel.CHECK_NORMAL,
+                    onClick = { onCategoryTypeChange(CategoriesViewModel.CHECK_NORMAL) },
+                    enabled = !state.saving,
+                    label = if (state.categoryType == CategoriesViewModel.CHECK_NORMAL) "Check Normal ✓" else "Check Normal",
+                )
             }
 
             OutlinedTextField(
@@ -135,23 +165,20 @@ fun CategoriesScreen(
             )
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onSave, enabled = !state.saving && !state.loading) {
-                    if (state.saving) {
-                        CircularProgressIndicator()
-                        Text("Salvando…")
-                    } else {
-                        Text(if (state.editingId == null) "Criar" else "Salvar")
-                    }
-                }
-                TextButton(
+                AdminPrimaryButton(
+                    onClick = onSave,
+                    enabled = !state.saving && !state.loading,
+                    loading = state.saving,
+                    text = if (state.saving) "Salvando…" else if (state.editingId == null) "Criar" else "Salvar",
+                )
+                AdminSecondaryButton(
                     onClick = {
                         showForm = false
                         onCancel()
                     },
                     enabled = !state.saving,
-                ) {
-                    Text("Cancelar")
-                }
+                    text = "Cancelar",
+                )
             }
         }
 
@@ -172,27 +199,30 @@ fun CategoriesScreen(
                     Text("Ordem: ${category.sortOrder}")
                     Text(if (category.isActive == 1) "Ativa" else "Inativa")
 
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                    ) {
                         if (state.canEdit(category)) {
-                            TextButton(onClick = { onEdit(category) }) { Text("Editar") }
+                            AdminSecondaryButton(onClick = { onEdit(category) }, text = "Editar")
                         } else {
                             Text("Somente leitura", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         if (state.canToggle(category)) {
-                            TextButton(onClick = { onToggle(category) }) {
-                                Text(if (category.isActive == 1) "Desativar" else "Ativar")
-                            }
+                            AdminSecondaryButton(
+                                onClick = { onToggle(category) },
+                                text = if (category.isActive == 1) "Desativar" else "Ativar",
+                            )
                         }
                         if (state.canDelete(category)) {
-                            TextButton(
+                            AdminDestructiveButton(
                                 onClick = {
                                     onRequestDelete(category)
                                     localDeleteTarget = category
                                 },
                                 enabled = !state.saving,
-                            ) {
-                                Text("Excluir")
-                            }
+                                text = "Excluir",
+                            )
                         }
                     }
                 }
@@ -219,28 +249,57 @@ fun CategoriesScreen(
             title = { Text("Confirmar exclusão") },
             text = { Text("Excluir $categoryName?") },
             confirmButton = {
-                TextButton(
+                AdminDestructiveConfirmButton(
                     onClick = {
                         localDeleteTarget = null
                         onConfirmDelete()
                     },
-                ) {
-                    Text("Confirmar")
-                }
+                    text = "Confirmar",
+                )
             },
             dismissButton = {
-                TextButton(
+                AdminSecondaryButton(
                     onClick = {
                         localDeleteTarget = null
                         onDismissDelete()
                     },
-                ) {
-                    Text("Cancelar")
-                }
+                    text = "Cancelar",
+                )
             },
         )
     }
 }
+
+@Composable
+fun CategoriesRoute(
+    sessionKey: String,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: CategoriesViewModel = androidx.hilt.navigation.compose.hiltViewModel(key = sessionKey),
+) {
+    val state by viewModel.state.collectAsState()
+    androidx.compose.runtime.LaunchedEffect(Unit) { viewModel.load() }
+    androidx.activity.compose.BackHandler(enabled = true, onBack = onBack)
+    CategoriesScreen(
+        state = state,
+        onBack = onBack,
+        onRefresh = viewModel::load,
+        onNameChange = viewModel::onNameChange,
+        onNamePtChange = viewModel::onNamePtChange,
+        onNameEsChange = viewModel::onNameEsChange,
+        onCategoryTypeChange = viewModel::onCategoryTypeChange,
+        onSortOrderChange = viewModel::onSortOrderChange,
+        onSave = viewModel::save,
+        onCancel = viewModel::cancelEdit,
+        onEdit = viewModel::edit,
+        onToggle = viewModel::toggle,
+        onRequestDelete = viewModel::requestDelete,
+        onConfirmDelete = viewModel::confirmDelete,
+        onDismissDelete = viewModel::cancelDelete,
+        modifier = modifier,
+    )
+}
+
 
 private fun AdminCategoryResponseCategory.CategoryType.label(): String = when (this) {
     AdminCategoryResponseCategory.CategoryType.temperature -> "Temperatura"

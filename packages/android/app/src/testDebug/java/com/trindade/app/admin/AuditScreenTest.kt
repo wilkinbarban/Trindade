@@ -1,6 +1,12 @@
 package com.trindade.app.admin
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -10,6 +16,8 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.trindade.app.contract.models.AuditResponseLogsInner
 import com.trindade.app.ui.theme.TrindadeTheme
@@ -106,6 +114,185 @@ class AuditScreenTest {
                 onRefresh = onRefresh,
             )
         }
+    }
+
+    @Test
+    fun `refresh action has touch target height of at least 48dp`() {
+        render(state())
+
+        composeRule.onNodeWithText("Atualizar").assertIsDisplayed().assertHeightIsAtLeast(48.dp)
+    }
+
+    @Test
+    fun `action and entity filter dropdowns display dropdown affordance indicator`() {
+        render(state())
+
+        composeRule.onAllNodesWithText("▼").assertCountEquals(2)
+    }
+
+    @Test
+    fun `filter action buttons have touch target height of at least 48dp`() {
+        render(state())
+
+        composeRule.onNodeWithText("Filtrar").assertIsDisplayed().assertHeightIsAtLeast(48.dp)
+        composeRule.onNodeWithText("Limpar").assertIsDisplayed().assertHeightIsAtLeast(48.dp)
+    }
+
+    @Test
+    fun `pagination controls have touch target height of at least 48dp`() {
+        render(state(page = 2, totalPages = 3, total = 50))
+
+        composeRule.onNodeWithText("Anterior").performScrollTo().assertIsDisplayed().assertHeightIsAtLeast(48.dp)
+        composeRule.onNodeWithText("Próximo").performScrollTo().assertIsDisplayed().assertHeightIsAtLeast(48.dp)
+    }
+
+    @Test
+    fun `truncated audit log details can be expanded to full details and collapsed`() {
+        val jsonDetails = """{"field_a":"value_one","field_b":"value_two","extra":"hidden_field"}"""
+        val entry = logEntry(id = 1, details = jsonDetails)
+        render(state(logs = listOf(entry), total = 1))
+
+        // Initial collapsed state shows summary, does not show hidden field, shows expand button
+        composeRule.onNodeWithText("Detalhes: field_a: value_one, field_b: value_two").performScrollTo().assertIsDisplayed()
+        composeRule.onAllNodesWithText("extra: hidden_field", substring = true).assertCountEquals(0)
+        val expandBtn = composeRule.onNodeWithText("Ver detalhes").performScrollTo()
+        expandBtn.assertIsDisplayed()
+        expandBtn.assertHeightIsAtLeast(48.dp)
+
+        // Expand
+        expandBtn.performClick()
+        composeRule.waitForIdle()
+
+        // Full details should now be visible including hidden field
+        composeRule.onNodeWithText("Ocultar detalhes").performScrollTo().assertIsDisplayed()
+        composeRule.onAllNodesWithText("field_a: value_one\nfield_b: value_two\nextra: hidden_field").assertCountEquals(1)
+
+        // Collapse
+        composeRule.onNodeWithText("Ocultar detalhes").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("Ver detalhes").performScrollTo().assertIsDisplayed()
+        composeRule.onAllNodesWithText("extra: hidden_field", substring = true).assertCountEquals(0)
+    }
+
+    @Test
+    fun `non truncated audit log details do not show expand toggle`() {
+        val simpleDetails = """{"status":"completed"}"""
+        val entry = logEntry(id = 2, details = simpleDetails)
+        render(state(logs = listOf(entry), total = 1))
+
+        composeRule.onNodeWithText("Detalhes: status: completed").performScrollTo().assertIsDisplayed()
+        composeRule.onAllNodesWithText("Ver detalhes").assertCountEquals(0)
+    }
+
+    @Test
+    fun `audit screen at 320dp viewport with enlarged font maintains reachability of filters and pagination controls`() {
+        val entry1 = logEntry(id = 1, displayName = "Carlos Operador", action = "update", entityType = "report")
+        val entry2 = logEntry(id = 2, displayName = "Ana Administradora", action = "create", entityType = "photo")
+        val auditState = state(
+            logs = listOf(entry1, entry2),
+            page = 2,
+            totalPages = 5,
+            total = 100,
+        )
+
+        var applied = 0
+        var cleared = 0
+        var prevClicked = 0
+        var nextClicked = 0
+        var refreshed = 0
+        var backed = 0
+
+        // 1.5x font scale (enlarged accessibility font) on a narrow 320dp viewport
+        val enlargedDensity = Density(density = 1f, fontScale = 1.5f)
+
+        composeRule.setContent {
+            CompositionLocalProvider(LocalDensity provides enlargedDensity) {
+                TrindadeTheme {
+                    Box(modifier = Modifier.size(width = 320.dp, height = 480.dp)) {
+                        AuditScreen(
+                            state = auditState,
+                            onBack = { backed++ },
+                            onRefresh = { refreshed++ },
+                            onApplyFilters = { applied++ },
+                            onClearFilters = { cleared++ },
+                            onPreviousPage = { prevClicked++ },
+                            onNextPage = { nextClicked++ },
+                        )
+                    }
+                }
+            }
+        }
+
+        // Header controls are reachable
+        composeRule.onNodeWithText("Voltar").performScrollTo().assertIsDisplayed().performClick()
+        assertEquals(1, backed)
+        composeRule.onNodeWithText("Auditoria").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Atualizar").performScrollTo().assertIsDisplayed().performClick()
+        assertEquals(1, refreshed)
+
+        // Filter controls are reachable and operable
+        composeRule.onNodeWithText("Ação: Todos").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Entidade: Todos").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("ID Usuário").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Filtrar").performScrollTo().assertIsDisplayed().performClick()
+        assertEquals(1, applied)
+        composeRule.onNodeWithText("Limpar").performScrollTo().assertIsDisplayed().performClick()
+        assertEquals(1, cleared)
+
+        // Audit entries are reachable
+        composeRule.onNodeWithText("Carlos Operador").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Ana Administradora").performScrollTo().assertIsDisplayed()
+
+        // Pagination controls are reachable and operable
+        composeRule.onNodeWithText("100 registros — Página 2 de 5").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Anterior").performScrollTo().assertIsDisplayed().assertIsEnabled().performClick()
+        assertEquals(1, prevClicked)
+        composeRule.onNodeWithText("Próximo").performScrollTo().assertIsDisplayed().assertIsEnabled().performClick()
+        assertEquals(1, nextClicked)
+    }
+
+    @Test
+    fun `audit screen at 320dp viewport with maximum 200 percent font scale maintains reachability of filters and pagination`() {
+        val entry = logEntry(id = 1, displayName = "Operador", action = "update", entityType = "report")
+        val auditState = state(
+            logs = listOf(entry),
+            page = 1,
+            totalPages = 3,
+            total = 50,
+        )
+
+        val maxFontDensity = Density(density = 1f, fontScale = 2.0f)
+
+        composeRule.setContent {
+            CompositionLocalProvider(LocalDensity provides maxFontDensity) {
+                TrindadeTheme {
+                    Box(modifier = Modifier.size(width = 320.dp, height = 480.dp)) {
+                        AuditScreen(
+                            state = auditState,
+                            onBack = {},
+                        )
+                    }
+                }
+            }
+        }
+
+        // Header controls are reachable
+        composeRule.onNodeWithText("Voltar").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Auditoria").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Atualizar").performScrollTo().assertIsDisplayed()
+
+        // Filter controls are reachable
+        composeRule.onNodeWithText("Ação: Todos").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Entidade: Todos").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("ID Usuário").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Filtrar").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Limpar").performScrollTo().assertIsDisplayed()
+
+        // Pagination controls are reachable
+        composeRule.onNodeWithText("50 registros — Página 1 de 3").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Anterior").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Próximo").performScrollTo().assertIsDisplayed()
     }
 
     @Test

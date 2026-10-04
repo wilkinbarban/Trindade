@@ -38,5 +38,3 @@ sealed interface TimeSlotWriteResult {
     data class Refused(val status: Int) : TimeSlotWriteResult
     data object Unreachable : TimeSlotWriteResult
 }
-
-typealias TimeSlotsWriteResult = TimeSlotWriteResult

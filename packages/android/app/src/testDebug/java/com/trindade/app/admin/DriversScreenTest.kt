@@ -1,17 +1,20 @@
 package com.trindade.app.admin
 
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
-import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.trindade.app.contract.models.AdminDriverResponseDriver
 import com.trindade.app.ui.theme.TrindadeTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -126,5 +129,27 @@ class DriversScreenTest {
         composeRule.onNodeWithText("Could not reach the server.").assertIsDisplayed()
         composeRule.onNodeWithText("Salvando…").assertIsDisplayed().assertIsNotEnabled()
         composeRule.onNodeWithText("Atualizar").assertIsNotEnabled()
+    }
+
+    @Test fun `critical driver administration action controls meet 48dp touch target bounds`() {
+        render(state(editingId = 1))
+
+        val refreshNode = composeRule.onNodeWithText("Atualizar")
+        refreshNode.assertIsDisplayed()
+        val refreshBounds = refreshNode.getUnclippedBoundsInRoot()
+        assertTrue("Atualizar height must be >= 48dp", refreshBounds.bottom - refreshBounds.top >= 48.dp)
+        assertTrue("Atualizar width must be >= 48dp", refreshBounds.right - refreshBounds.left >= 48.dp)
+
+        val cancelNode = composeRule.onNodeWithText("Cancelar")
+        cancelNode.assertIsDisplayed()
+        val cancelBounds = cancelNode.getUnclippedBoundsInRoot()
+        assertTrue("Cancelar height >= 48dp", cancelBounds.bottom - cancelBounds.top >= 48.dp)
+        assertTrue("Cancelar width >= 48dp", cancelBounds.right - cancelBounds.left >= 48.dp)
+
+        val saveNode = composeRule.onNodeWithText("Salvar")
+        saveNode.assertIsDisplayed()
+        val saveBounds = saveNode.getUnclippedBoundsInRoot()
+        assertTrue("Salvar height >= 48dp", saveBounds.bottom - saveBounds.top >= 48.dp)
+        assertTrue("Salvar width >= 48dp", saveBounds.right - saveBounds.left >= 48.dp)
     }
 }
