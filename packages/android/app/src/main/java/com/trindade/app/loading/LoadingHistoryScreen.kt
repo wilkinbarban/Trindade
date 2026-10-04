@@ -5,6 +5,7 @@ import android.content.Context
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,7 +19,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -35,6 +35,10 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.trindade.app.R
 import com.trindade.app.contract.models.ScheduleHistoryResponseItemsInner
+import com.trindade.app.ui.components.AdminDestructiveButton
+import com.trindade.app.ui.components.AdminDestructiveConfirmButton
+import com.trindade.app.ui.components.AdminSecondaryButton
+import com.trindade.app.ui.components.NavigationActionButton
 import com.trindade.app.ui.displayDate
 import com.trindade.app.ui.displayMonth
 import com.trindade.app.ui.recentMonths
@@ -92,7 +96,7 @@ fun LoadingHistoryScreen(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         item {
-            TextButton(onClick = onBack) { Text(stringResource(R.string.report_back)) }
+            NavigationActionButton(onClick = onBack, text = stringResource(R.string.report_back))
         }
 
         item {
@@ -116,25 +120,29 @@ fun LoadingHistoryScreen(
         }
 
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { openDayPicker(context, state.date, onDateSelected) }) {
-                    Text(
-                        text = state.date
-                            ?.let { stringResource(R.string.history_filter_day_value, displayDate(it)) }
-                            ?: stringResource(R.string.history_filter_day),
-                    )
-                }
-                OutlinedButton(onClick = { pickingMonth = true }) {
-                    Text(
-                        text = state.month
-                            ?.let { stringResource(R.string.history_filter_month_value, displayMonth(it)) }
-                            ?: stringResource(R.string.history_filter_month),
-                    )
-                }
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                AdminSecondaryButton(
+                    onClick = { openDayPicker(context, state.date, onDateSelected) },
+                    text = state.date
+                        ?.let { stringResource(R.string.history_filter_day_value, displayDate(it)) }
+                        ?: stringResource(R.string.history_filter_day),
+                )
+                AdminSecondaryButton(
+                    onClick = { pickingMonth = true },
+                    text = state.month
+                        ?.let { stringResource(R.string.history_filter_month_value, displayMonth(it)) }
+                        ?: stringResource(R.string.history_filter_month),
+                )
                 // Offered only when there is a filter to clear: a control that does nothing when tapped
                 // is worse than one that is not there, because the operator cannot tell which it is.
                 if (state.date != null || state.month != null) {
-                    TextButton(onClick = onClearFilters) { Text(stringResource(R.string.history_clear_filters)) }
+                    AdminSecondaryButton(
+                        onClick = onClearFilters,
+                        text = stringResource(R.string.history_clear_filters),
+                    )
                 }
             }
         }
@@ -184,10 +192,10 @@ fun LoadingHistoryScreen(
         // above goes out of its way to avoid, one line further down.
         if (state.loaded) {
             item {
-                Row(
+                FlowRow(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Text(
                         text = stringResource(
@@ -201,21 +209,22 @@ fun LoadingHistoryScreen(
                         ),
                         style = MaterialTheme.typography.bodyMedium,
                     )
-                    Row {
-                        TextButton(
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        AdminSecondaryButton(
                             onClick = onPrevious,
                             // Disabled while a page is in flight as well as at the bound, so a second
                             // tap cannot ask for a page relative to an answer that has not arrived.
                             enabled = state.canGoPrevious && !state.loading,
-                        ) {
-                            Text(stringResource(R.string.history_previous))
-                        }
-                        TextButton(
+                            text = stringResource(R.string.history_previous),
+                        )
+                        AdminSecondaryButton(
                             onClick = onNext,
                             enabled = state.canGoNext && !state.loading,
-                        ) {
-                            Text(stringResource(R.string.history_next))
-                        }
+                            text = stringResource(R.string.history_next),
+                        )
                     }
                 }
             }
@@ -253,7 +262,7 @@ fun LoadingHistoryScreen(
                 }
             },
             confirmButton = {
-                TextButton(onClick = { pickingMonth = false }) { Text(stringResource(R.string.loading_cancel)) }
+                AdminSecondaryButton(onClick = { pickingMonth = false }, text = stringResource(R.string.loading_cancel))
             },
         )
     }
@@ -264,19 +273,18 @@ fun LoadingHistoryScreen(
             title = { Text(stringResource(R.string.loading_history_delete_confirm_title, displayDate(batchDate))) },
             text = { Text(stringResource(R.string.loading_history_delete_confirm_body)) },
             confirmButton = {
-                TextButton(
+                AdminDestructiveConfirmButton(
                     onClick = {
                         // Closed first: the dialog is about the tap that is already being acted on, and
                         // leaving it open over a request in flight would invite a second one.
                         confirmingDelete = null
                         onDelete(batchDate)
                     },
-                ) {
-                    Text(stringResource(R.string.history_delete))
-                }
+                    text = stringResource(R.string.history_delete),
+                )
             },
             dismissButton = {
-                TextButton(onClick = { confirmingDelete = null }) { Text(stringResource(R.string.loading_cancel)) }
+                AdminSecondaryButton(onClick = { confirmingDelete = null }, text = stringResource(R.string.loading_cancel))
             },
         )
     }
@@ -304,9 +312,9 @@ private fun BatchRow(
                 .clickable(enabled = !busy, onClick = onOpen)
                 .padding(vertical = 4.dp),
         ) {
-            Row(
+            FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically),
             ) {
                 Text(text = displayDate(batch.batchDate), style = MaterialTheme.typography.bodyLarge)
                 Text(
@@ -341,21 +349,29 @@ private fun BatchRow(
         }
 
         if (offersDeactivate(batch) || offersDelete(batch)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            FlowRow(
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 // Each action is drawn only where the server said it would be accepted, which is the
                 // `== true` inside those two predicates rather than a role decided here: this client does
                 // not know the caller's role, and the flag is the server's own answer to that question.
                 // `canDelete` is known to overstate a Trabalhador on this route, which is why the refusal
                 // has a sentence of its own rather than being folded into "it failed".
                 if (offersDeactivate(batch)) {
-                    TextButton(onClick = onDeactivate, enabled = !busy) {
-                        Text(stringResource(R.string.history_deactivate))
-                    }
+                    AdminSecondaryButton(
+                        onClick = onDeactivate,
+                        enabled = !busy,
+                        text = stringResource(R.string.history_deactivate),
+                    )
                 }
                 if (offersDelete(batch)) {
-                    TextButton(onClick = onDelete, enabled = !busy) {
-                        Text(stringResource(R.string.history_delete))
-                    }
+                    AdminDestructiveButton(
+                        onClick = onDelete,
+                        enabled = !busy,
+                        text = stringResource(R.string.history_delete),
+                    )
                 }
             }
         }

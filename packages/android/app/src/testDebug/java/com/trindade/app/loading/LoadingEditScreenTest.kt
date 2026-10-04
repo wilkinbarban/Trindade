@@ -7,18 +7,21 @@ import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasProgressBarRangeInfo
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.trindade.app.R
 import com.trindade.app.contract.models.SchedulesResponseSchedulesInner
 import com.trindade.app.ui.theme.TrindadeTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -359,6 +362,34 @@ class LoadingEditScreenTest {
         displayed(NOT_FOUND)
         composeRule.onNodeWithText(copy(R.string.loading_pick_slot)).assertDoesNotExist()
         save().assertDoesNotExist()
+    }
+
+    @Test
+    fun `navigation back and option row meet 48dp touch targets`() {
+        var backed = 0
+        composeRule.setContent {
+            TrindadeTheme {
+                LoadingEditScreen(
+                    state = settled(),
+                    onTimeSlotChange = {},
+                    onSubmit = {},
+                    onBack = { backed++ },
+                )
+            }
+        }
+
+        val backNode = composeRule.onNodeWithText(copy(R.string.report_back))
+        backNode.assertIsDisplayed()
+        val backBounds = backNode.getUnclippedBoundsInRoot()
+        assertTrue("Back height >= 48dp", backBounds.bottom - backBounds.top >= 48.dp)
+        assertTrue("Back width >= 48dp", backBounds.right - backBounds.left >= 48.dp)
+        backNode.performClick()
+        assertEquals(1, backed)
+
+        val optionNode = option("04:00", 2)
+        optionNode.assertIsDisplayed()
+        val optionBounds = optionNode.getUnclippedBoundsInRoot()
+        assertTrue("Option height >= 48dp", optionBounds.bottom - optionBounds.top >= 48.dp)
     }
 
     private companion object {

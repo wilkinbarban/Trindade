@@ -1,16 +1,24 @@
 package com.trindade.app.loading
 
 import android.content.Context
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpRect
+import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.trindade.app.R
@@ -20,6 +28,7 @@ import com.trindade.app.network.LoadingApi
 import com.trindade.app.ui.theme.TrindadeTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -78,7 +87,7 @@ class LoadingScreenTest {
         get() = ApplicationProvider.getApplicationContext()
 
     /** One string this screen draws, looked up rather than typed. */
-    private fun copy(id: Int): String = context.getString(id)
+    private fun copy(id: Int, vararg args: Any): String = context.getString(id, *args)
 
     // ---- The day the screen is handed ----
 
@@ -112,7 +121,11 @@ class LoadingScreenTest {
     private val nothingMarked = row(id = NOTHING_MARKED_ID, slot = "06:00", canEdit = false, readOnly = false)
 
     /** The one row the server left open, and the day's positive control. */
-    private val editable = row(id = EDITABLE_ID, slot = "06:30")
+    private val editable = row(id = EDITABLE_ID, slot = "06:30").copy(
+        driverName = "Carlos Lima",
+        vehicleDescription = "Caminhão Toco",
+        vehiclePlate = "TRN-9020",
+    )
 
     private val day = listOf(closedWindow, readOnlyStated, nothingMarked, editable)
 
@@ -127,6 +140,15 @@ class LoadingScreenTest {
         loading = false,
         schedules = day,
         timeSlots = SLOTS,
+    )
+
+    private val responsiveEntry = editable.copy(timeSlot = "04:00")
+
+    private fun responsiveState() = LoadingViewModel.UiState(
+        date = DATE,
+        loading = false,
+        schedules = listOf(responsiveEntry),
+        timeSlots = listOf("04:00"),
     )
 
     // ---- Rendering ----
@@ -196,6 +218,290 @@ class LoadingScreenTest {
         composeRule.waitForIdle()
 
         assertEquals(listOf(EDITABLE_ID to DATE), opened)
+    }
+
+    @Test
+    fun `navigation back, history, edit, and delete meet 48dp touch targets`() {
+        var backed = 0
+        var openedHistory = 0
+        var deletedId = 0
+        composeRule.setContent {
+            TrindadeTheme {
+                LoadingScreen(
+                    state = state(),
+                    onBack = { backed++ },
+                    onOpenHistory = { openedHistory++ },
+                    onStartAdding = {},
+                    onCancelAdding = {},
+                    onDriverSelected = {},
+                    onVehicleSelected = {},
+                    onConfirmAdd = {},
+                    onDelete = { deletedId = it },
+                    onEditEntry = { _, _ -> },
+                    onLoadExport = {},
+                )
+            }
+        }
+
+        val backNode = composeRule.onNodeWithText(copy(R.string.report_back))
+        backNode.assertIsDisplayed()
+        val backBounds = backNode.getUnclippedBoundsInRoot()
+        assertTrue("Back height >= 48dp", backBounds.bottom - backBounds.top >= 48.dp)
+        assertTrue("Back width >= 48dp", backBounds.right - backBounds.left >= 48.dp)
+        backNode.performClick()
+        assertEquals(1, backed)
+
+        val historyNode = composeRule.onNodeWithText(copy(R.string.report_history))
+        historyNode.assertIsDisplayed()
+        val historyBounds = historyNode.getUnclippedBoundsInRoot()
+        assertTrue("History height >= 48dp", historyBounds.bottom - historyBounds.top >= 48.dp)
+        assertTrue("History width >= 48dp", historyBounds.right - historyBounds.left >= 48.dp)
+        historyNode.performClick()
+        assertEquals(1, openedHistory)
+
+        val editNode = composeRule.onNodeWithText(copy(R.string.report_edit))
+        editNode.performScrollTo().assertIsDisplayed()
+        val editBounds = editNode.getUnclippedBoundsInRoot()
+        assertTrue("Edit height >= 48dp", editBounds.bottom - editBounds.top >= 48.dp)
+        assertTrue("Edit width >= 48dp", editBounds.right - editBounds.left >= 48.dp)
+
+        val deleteNodes = composeRule.onAllNodesWithText(copy(R.string.report_photo_remove))
+        val firstDeleteNode = deleteNodes[0].performScrollTo().assertIsDisplayed()
+        val firstDeleteBounds = firstDeleteNode.getUnclippedBoundsInRoot()
+        assertTrue("Delete height >= 48dp", firstDeleteBounds.bottom - firstDeleteBounds.top >= 48.dp)
+        assertTrue("Delete width >= 48dp", firstDeleteBounds.right - firstDeleteBounds.left >= 48.dp)
+        firstDeleteNode.performClick()
+        assertEquals(CLOSED_WINDOW_ID, deletedId)
+    }
+
+    @Test
+    fun `entry edit and remove actions are isolated and do not trigger each other`() {
+        var editedId: Int? = null
+        var editedDate: String? = null
+        var editCount = 0
+        var deletedId: Int? = null
+        var deleteCount = 0
+
+        composeRule.setContent {
+            TrindadeTheme {
+                LoadingScreen(
+                    state = state(),
+                    onBack = {},
+                    onOpenHistory = {},
+                    onStartAdding = {},
+                    onCancelAdding = {},
+                    onDriverSelected = {},
+                    onVehicleSelected = {},
+                    onConfirmAdd = {},
+                    onDelete = {
+                        deleteCount++
+                        deletedId = it
+                    },
+                    onEditEntry = { id, date ->
+                        editCount++
+                        editedId = id
+                        editedDate = date
+                    },
+                    onLoadExport = {},
+                )
+            }
+        }
+
+        // Tap Remove on the same editable row that also has Edit (editable entry, EDITABLE_ID)
+        composeRule.onNodeWithText(describe(editable)).performScrollTo().assertIsDisplayed()
+        val removeButtons = composeRule.onAllNodesWithText(copy(R.string.report_photo_remove))
+        val editableRemoveNode = removeButtons[3].performScrollTo().assertIsDisplayed()
+        editableRemoveNode.performClick()
+        composeRule.waitForIdle()
+
+        assertEquals("Delete callback must be called exactly once for editable row", 1, deleteCount)
+        assertEquals(EDITABLE_ID, deletedId)
+        assertEquals("Edit callback must NOT be dispatched when clicking remove on editable row", 0, editCount)
+        assertEquals(null, editedId)
+
+        // Now tap Edit on that same editable entry
+        val editNode = composeRule.onNodeWithText(copy(R.string.report_edit)).performScrollTo().assertIsDisplayed()
+        editNode.performClick()
+        composeRule.waitForIdle()
+
+        assertEquals("Edit callback must be called exactly once", 1, editCount)
+        assertEquals(EDITABLE_ID, editedId)
+        assertEquals(DATE, editedDate)
+        assertEquals("Delete callback count must remain 1 (no cross-dispatch on edit)", 1, deleteCount)
+    }
+
+    @Test
+    @Config(qualifiers = "w320dp-h1000dp")
+    fun `loading screen header and entry actions at 320dp with 1_5x font wrap and stay within bounds`() {
+        composeRule.setContent {
+            CompositionLocalProvider(
+                LocalDensity provides Density(
+                    density = LocalDensity.current.density,
+                    fontScale = 1.5f,
+                ),
+            ) {
+                TrindadeTheme {
+                    LoadingScreen(
+                        state = responsiveState(),
+                        onBack = {},
+                        onOpenHistory = {},
+                        onStartAdding = {},
+                        onCancelAdding = {},
+                        onDriverSelected = {},
+                        onVehicleSelected = {},
+                        onConfirmAdd = {},
+                        onDelete = {},
+                        onEditEntry = { _, _ -> },
+                        onLoadExport = {},
+                    )
+                }
+            }
+        }
+
+        // Header title and navigation action button
+        val titleNode = composeRule.onNodeWithText(copy(R.string.loading_title)).performScrollTo()
+        assertWithinViewport(titleNode)
+
+        val historyNode = composeRule.onNodeWithText(copy(R.string.report_history)).performScrollTo()
+        assertWithinViewport(historyNode)
+        val historyBounds = historyNode.getUnclippedBoundsInRoot()
+        assertTrue("History button height >= 48dp at 1.5x", historyBounds.bottom - historyBounds.top >= 48.dp)
+        assertTrue("History button width >= 48dp at 1.5x", historyBounds.right - historyBounds.left >= 48.dp)
+
+        // Export action
+        val exportNode = composeRule.onNodeWithText(copy(R.string.export_load)).performScrollTo()
+        assertWithinViewport(exportNode)
+        val exportBounds = exportNode.getUnclippedBoundsInRoot()
+        assertTrue("Export button height >= 48dp at 1.5x", exportBounds.bottom - exportBounds.top >= 48.dp)
+
+        // Slot heading and fletero counter
+        val slotHeadingNode = composeRule.onNodeWithText("04:00").performScrollTo()
+        assertWithinViewport(slotHeadingNode)
+
+        val counterText = copy(R.string.loading_fleteros, 1, FleteroQuota.LIMIT)
+        val counterNode = composeRule.onNodeWithText(counterText).performScrollTo()
+        assertWithinViewport(counterNode)
+
+        // Entry identity text (driver, vehicle, plate)
+        val identityNode = composeRule.onNodeWithText(describe(responsiveEntry)).performScrollTo()
+        assertWithinViewport(identityNode)
+        val identityBounds = identityNode.getUnclippedBoundsInRoot()
+
+        // Edit button on editable row
+        val editNode = composeRule.onNodeWithText(copy(R.string.report_edit)).performScrollTo()
+        assertWithinViewport(editNode)
+        val editBounds = editNode.getUnclippedBoundsInRoot()
+        assertTrue("Edit button height >= 48dp at 1.5x", editBounds.bottom - editBounds.top >= 48.dp)
+        assertTrue("Edit button width >= 48dp at 1.5x", editBounds.right - editBounds.left >= 48.dp)
+
+        // Remove button on editable row
+        val removeNode = composeRule.onNodeWithText(copy(R.string.report_photo_remove)).performScrollTo()
+        assertWithinViewport(removeNode)
+        val removeBounds = removeNode.getUnclippedBoundsInRoot()
+        assertTrue("Remove button height >= 48dp at 1.5x", removeBounds.bottom - removeBounds.top >= 48.dp)
+        assertTrue("Remove button width >= 48dp at 1.5x", removeBounds.right - removeBounds.left >= 48.dp)
+
+        // Assert no overlap
+        assertNoOverlap(editBounds, removeBounds)
+        assertNoOverlap(identityBounds, editBounds)
+        assertNoOverlap(identityBounds, removeBounds)
+        assertTrue("Identity text sits above edit action", identityBounds.bottom <= editBounds.top)
+    }
+
+    @Test
+    @Config(qualifiers = "w320dp-h1000dp")
+    fun `loading screen header and entry actions at 320dp with 2x font wrap and stay within bounds`() {
+        composeRule.setContent {
+            CompositionLocalProvider(
+                LocalDensity provides Density(
+                    density = LocalDensity.current.density,
+                    fontScale = 2.0f,
+                ),
+            ) {
+                TrindadeTheme {
+                    LoadingScreen(
+                        state = responsiveState(),
+                        onBack = {},
+                        onOpenHistory = {},
+                        onStartAdding = {},
+                        onCancelAdding = {},
+                        onDriverSelected = {},
+                        onVehicleSelected = {},
+                        onConfirmAdd = {},
+                        onDelete = {},
+                        onEditEntry = { _, _ -> },
+                        onLoadExport = {},
+                    )
+                }
+            }
+        }
+
+        // Header title and navigation action button
+        val titleNode = composeRule.onNodeWithText(copy(R.string.loading_title)).performScrollTo()
+        assertWithinViewport(titleNode)
+
+        val historyNode = composeRule.onNodeWithText(copy(R.string.report_history)).performScrollTo()
+        assertWithinViewport(historyNode)
+        val historyBounds = historyNode.getUnclippedBoundsInRoot()
+        assertTrue("History button height >= 48dp at 2.0x", historyBounds.bottom - historyBounds.top >= 48.dp)
+        assertTrue("History button width >= 48dp at 2.0x", historyBounds.right - historyBounds.left >= 48.dp)
+
+        // Export action
+        val exportNode = composeRule.onNodeWithText(copy(R.string.export_load)).performScrollTo()
+        assertWithinViewport(exportNode)
+        val exportBounds = exportNode.getUnclippedBoundsInRoot()
+        assertTrue("Export button height >= 48dp at 2.0x", exportBounds.bottom - exportBounds.top >= 48.dp)
+
+        // Slot heading and fletero counter
+        val slotHeadingNode = composeRule.onNodeWithText("04:00").performScrollTo()
+        assertWithinViewport(slotHeadingNode)
+
+        val counterText = copy(R.string.loading_fleteros, 1, FleteroQuota.LIMIT)
+        val counterNode = composeRule.onNodeWithText(counterText).performScrollTo()
+        assertWithinViewport(counterNode)
+
+        // Entry identity text (driver, vehicle, plate)
+        val identityNode = composeRule.onNodeWithText(describe(responsiveEntry)).performScrollTo()
+        assertWithinViewport(identityNode)
+        val identityBounds = identityNode.getUnclippedBoundsInRoot()
+
+        // Edit button on editable row
+        val editNode = composeRule.onNodeWithText(copy(R.string.report_edit)).performScrollTo()
+        assertWithinViewport(editNode)
+        val editBounds = editNode.getUnclippedBoundsInRoot()
+        assertTrue("Edit button height >= 48dp at 2.0x", editBounds.bottom - editBounds.top >= 48.dp)
+        assertTrue("Edit button width >= 48dp at 2.0x", editBounds.right - editBounds.left >= 48.dp)
+
+        // Remove button on editable row
+        val removeNode = composeRule.onNodeWithText(copy(R.string.report_photo_remove)).performScrollTo()
+        assertWithinViewport(removeNode)
+        val removeBounds = removeNode.getUnclippedBoundsInRoot()
+        assertTrue("Remove button height >= 48dp at 2.0x", removeBounds.bottom - removeBounds.top >= 48.dp)
+        assertTrue("Remove button width >= 48dp at 2.0x", removeBounds.right - removeBounds.left >= 48.dp)
+
+        // Assert no overlap
+        assertNoOverlap(editBounds, removeBounds)
+        assertNoOverlap(identityBounds, editBounds)
+        assertNoOverlap(identityBounds, removeBounds)
+        assertTrue("Identity text sits above edit action", identityBounds.bottom <= editBounds.top)
+    }
+
+    private fun assertWithinViewport(
+        node: SemanticsNodeInteraction,
+        viewportWidth: Dp = 320.dp,
+    ) {
+        node.assertIsDisplayed()
+        val unclipped = node.getUnclippedBoundsInRoot()
+        val clipped = node.getBoundsInRoot()
+        assertTrue("Left bound (${unclipped.left}) must be >= 0dp", unclipped.left >= 0.dp)
+        assertTrue("Right bound (${unclipped.right}) must be <= $viewportWidth", unclipped.right <= viewportWidth)
+        assertEquals("Left edge clipped vs unclipped mismatch", unclipped.left, clipped.left)
+        assertEquals("Right edge clipped vs unclipped mismatch", unclipped.right, clipped.right)
+    }
+
+    private fun assertNoOverlap(a: DpRect, b: DpRect) {
+        val overlaps = a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
+        assertFalse("Bounding boxes must not overlap: a=$a, b=$b", overlaps)
     }
 
     // ---- The other rule: where the row an edit moved comes back drawn ----
