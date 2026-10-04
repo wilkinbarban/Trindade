@@ -74,8 +74,8 @@ class TimeSlotsAdminRepositoryTest {
             val repository = repository(server)
 
             val result = repository.updateTimeSlots(listOf("08:00", "10:00", "12:00"))
-            assertTrue(result is TimeSlotsWriteResult.Saved)
-            assertEquals(listOf("08:00", "10:00", "12:00"), (result as TimeSlotsWriteResult.Saved).timeSlots)
+            assertTrue(result is TimeSlotsAdminWriteResult.Saved)
+            assertEquals(listOf("08:00", "10:00", "12:00"), (result as TimeSlotsAdminWriteResult.Saved).timeSlots)
 
             val request = server.takeRequest()
             assertEquals("PUT", request.method)
@@ -94,11 +94,11 @@ class TimeSlotsAdminRepositoryTest {
             val repository = repository(server)
 
             val refusedResult = repository.updateTimeSlots(listOf("08:00"))
-            assertTrue(refusedResult is TimeSlotsWriteResult.Refused)
-            assertEquals(403, (refusedResult as TimeSlotsWriteResult.Refused).statusCode)
+            assertTrue(refusedResult is TimeSlotsAdminWriteResult.Refused)
+            assertEquals(403, (refusedResult as TimeSlotsAdminWriteResult.Refused).statusCode)
 
             val unreachableResult = repository.updateTimeSlots(listOf("08:00"))
-            assertEquals(TimeSlotsWriteResult.Unreachable, unreachableResult)
+            assertEquals(TimeSlotsAdminWriteResult.Unreachable, unreachableResult)
         }
     }
 
