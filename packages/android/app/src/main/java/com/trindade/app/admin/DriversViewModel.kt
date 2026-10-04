@@ -87,7 +87,11 @@ class DriversViewModel @Inject constructor(
             CASA -> CreateAdminDriverRequest.DriverType.casa
             else -> CreateAdminDriverRequest.DriverType.fletero
         }
-        val plate = current.licensePlate.trim().ifEmpty { null }
+        val plate = if (current.editingId != null) {
+            current.licensePlate.trim()
+        } else {
+            current.licensePlate.trim().ifEmpty { null }
+        }
         _state.update { it.copy(saving = true, error = null, refusedStatus = null) }
         viewModelScope.launch {
             val result = current.editingId?.let { id ->

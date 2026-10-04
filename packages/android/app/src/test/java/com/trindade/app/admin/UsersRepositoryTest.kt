@@ -78,6 +78,7 @@ class UsersRepositoryTest {
             assertFalse(updateIsActive.isString)
             assertEquals("0", updateIsActive.content)
             assertFalse("Unchanged password must be omitted from PATCH body", updateBody.containsKey("password"))
+            assertFalse("Untouched username must be omitted without explicit null", updateBody.containsKey("username"))
 
             val delete1 = server.takeRequest()
             assertEquals("DELETE", delete1.method)
@@ -114,6 +115,42 @@ class UsersRepositoryTest {
             val req2 = server.takeRequest()
             val body2 = Json.parseToJsonElement(req2.body.readUtf8()).jsonObject
             assertFalse("Empty password must be omitted from PATCH body", body2.containsKey("password"))
+        }
+    }
+
+    @Test fun `numeric enum serialization and explicit null avoidance for users`() = runBlocking {
+        MockWebServer().use { server ->
+            server.enqueue(json("""{"user":$user}""", 201))
+            server.enqueue(json("""{"user":$user}"""))
+            val repository = repository(server)
+
+            repository.create(CreateAdminUserRequest(
+                username = "admin2",
+                password = "password123",
+                displayName = "Admin Two",
+                roleId = CreateAdminUserRequest.RoleId._1,
+            ))
+            val createReq = server.takeRequest()
+            val createBody = Json.parseToJsonElement(createReq.body.readUtf8()).jsonObject
+            val createRoleId = createBody["role_id"] as JsonPrimitive
+            assertFalse("role_id in create must be a JSON number", createRoleId.isString)
+            assertEquals("1", createRoleId.content)
+
+            repository.update(2, UpdateAdminUserRequest(
+                roleId = UpdateAdminUserRequest.RoleId._2,
+                isActive = UpdateAdminUserRequest.IsActive._1,
+            ))
+            val updateReq = server.takeRequest()
+            val updateBody = Json.parseToJsonElement(updateReq.body.readUtf8()).jsonObject
+            val updateRoleId = updateBody["role_id"] as JsonPrimitive
+            assertFalse("role_id in update must be a JSON number", updateRoleId.isString)
+            assertEquals("2", updateRoleId.content)
+            val updateIsActive = updateBody["is_active"] as JsonPrimitive
+            assertFalse("is_active in update must be a JSON number", updateIsActive.isString)
+            assertEquals("1", updateIsActive.content)
+            assertFalse("Untouched username must be omitted without explicit null", updateBody.containsKey("username"))
+            assertFalse("Untouched display_name must be omitted without explicit null", updateBody.containsKey("display_name"))
+            assertFalse("Untouched password must be omitted without explicit null", updateBody.containsKey("password"))
         }
     }
 

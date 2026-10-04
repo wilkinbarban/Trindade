@@ -5,13 +5,17 @@ import com.trindade.app.contract.models.UpdateAdminDriverRequest
 import com.trindade.app.network.AdminApi
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okhttp3.mockwebserver.SocketPolicy
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
@@ -45,7 +49,37 @@ class DriversRepositoryTest {
             val update = server.takeRequest()
             assertEquals("PATCH", update.method)
             assertEquals("/api/admin/drivers/1", update.path)
-            assertEquals("0", Json.parseToJsonElement(update.body.readUtf8()).jsonObject["is_active"]?.toString())
+            val updateBody = Json.parseToJsonElement(update.body.readUtf8()).jsonObject
+            val isActivePrimitive = updateBody["is_active"] as JsonPrimitive
+            assertFalse("is_active must be numeric, not string", isActivePrimitive.isString)
+            assertEquals("0", isActivePrimitive.content)
+            assertFalse("Untouched license_plate must be omitted without explicit null", updateBody.containsKey("license_plate"))
+            assertFalse("Untouched name must be omitted without explicit null", updateBody.containsKey("name"))
+        }
+    }
+
+    @Test fun `update sends empty string when license plate is cleared and omits untouched fields without explicit null`() = runBlocking {
+        MockWebServer().use { server ->
+            server.enqueue(json("""{"driver":$driver}"""))
+            val repository = repository(server)
+
+            val result = repository.update(1, UpdateAdminDriverRequest(
+                name = "Ana Silva",
+                licensePlate = "",
+                isActive = UpdateAdminDriverRequest.IsActive._1,
+            ))
+            assertEquals("Ana", (result as DriverWriteResult.Saved).driver.name)
+
+            val update = server.takeRequest()
+            assertEquals("PATCH", update.method)
+            assertEquals("/api/admin/drivers/1", update.path)
+            val body = Json.parseToJsonElement(update.body.readUtf8()).jsonObject
+            assertEquals("Ana Silva", body["name"]?.jsonPrimitive?.content)
+            assertEquals("", body["license_plate"]?.jsonPrimitive?.content)
+            val isActive = body["is_active"] as JsonPrimitive
+            assertFalse("is_active must be serialized as JSON number, not string", isActive.isString)
+            assertEquals("1", isActive.content)
+            assertFalse("Untouched driver_type must be omitted from PATCH body, not sent as explicit null", body.containsKey("driver_type"))
         }
     }
 

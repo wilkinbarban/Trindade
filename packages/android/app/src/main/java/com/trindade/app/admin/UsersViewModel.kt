@@ -222,15 +222,15 @@ class UsersViewModel @Inject constructor(
             if (username.isEmpty()) return validation(USERNAME)
             if (displayName.isEmpty()) return validation(DISPLAY_NAME)
             if (pwd.isEmpty()) return validation(PASSWORD)
-            if (pwd.length < 4) return validation(PASSWORD_TOO_SHORT)
+            if (pwd.length < MIN_PASSWORD_LENGTH) return validation(PASSWORD_TOO_SHORT)
         } else {
             if (current.isSelfEditing) {
                 if (displayName.isEmpty()) return validation(DISPLAY_NAME)
-                if (pwd.isNotEmpty() && pwd.length < 4) return validation(PASSWORD_TOO_SHORT)
+                if (pwd.isNotEmpty() && pwd.length < MIN_PASSWORD_LENGTH) return validation(PASSWORD_TOO_SHORT)
             } else {
                 if (username.isEmpty()) return validation(USERNAME)
                 if (displayName.isEmpty()) return validation(DISPLAY_NAME)
-                if (pwd.isNotEmpty() && pwd.length < 4) return validation(PASSWORD_TOO_SHORT)
+                if (pwd.isNotEmpty() && pwd.length < MIN_PASSWORD_LENGTH) return validation(PASSWORD_TOO_SHORT)
             }
         }
 
@@ -309,6 +309,7 @@ class UsersViewModel @Inject constructor(
         const val ADMIN = "Administrador"
         const val WORKER = "Trabalhador"
         const val DEFAULT_ROLE_ID = 2
+        const val MIN_PASSWORD_LENGTH = 4
         const val USERNAME = "Enter a username."
         const val DISPLAY_NAME = "Enter a display name."
         const val PASSWORD = "Enter a password."

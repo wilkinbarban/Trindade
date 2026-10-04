@@ -1,6 +1,12 @@
 package com.trindade.app.network
 
+import com.trindade.app.contract.models.CreateAdminUserRequest
+import com.trindade.app.contract.models.UpdateAdminDriverRequest
+import com.trindade.app.contract.models.UpdateAdminUserRequest
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -54,6 +60,67 @@ class ContractCoverageTest {
     @Test
     fun `every loading interface method is documented in the contract`() {
         assertEveryMethodIsDocumented(LoadingApi::class.java)
+    }
+
+    @Test
+    fun `every admin interface method is documented in the contract`() {
+        assertEveryMethodIsDocumented(AdminApi::class.java)
+    }
+
+    @Test
+    fun `every audit interface method is documented in the contract`() {
+        assertEveryMethodIsDocumented(AuditApi::class.java)
+    }
+
+    @Test
+    fun `admin driver update serializes empty string for cleared plate and omits untouched fields without explicit null`() {
+        val request = UpdateAdminDriverRequest(
+            name = "Ana",
+            licensePlate = "",
+        )
+        val serialized = Json.encodeToString(UpdateAdminDriverRequest.serializer(), request)
+        assertEquals("""{"name":"Ana","license_plate":""}""", serialized)
+    }
+
+    @Test
+    fun `admin driver update with only isActive omits untouched fields without explicit null`() {
+        val request = UpdateAdminDriverRequest(
+            isActive = UpdateAdminDriverRequest.IsActive._0,
+        )
+        val serialized = Json.encodeToString(UpdateAdminDriverRequest.serializer(), request)
+        assertEquals("""{"is_active":"0"}""", serialized)
+
+        val fields = Json.encodeToJsonElement(UpdateAdminDriverRequest.serializer(), request).jsonObject.toMutableMap()
+        request.isActive?.let { fields["is_active"] = JsonPrimitive(it.value) }
+        val fixedJson = JsonObject(fields).toString()
+        assertEquals("""{"is_active":0}""", fixedJson)
+    }
+
+    @Test
+    fun `admin user requests omit untouched fields and convert role_id and is_active to numeric primitives`() {
+        val createRequest = CreateAdminUserRequest(
+            username = "admin2",
+            password = "password123",
+            displayName = "Admin Two",
+            roleId = CreateAdminUserRequest.RoleId._1,
+        )
+        val createFields = Json.encodeToJsonElement(CreateAdminUserRequest.serializer(), createRequest).jsonObject.toMutableMap()
+        createFields["role_id"] = JsonPrimitive(createRequest.roleId.value)
+        val createJson = JsonObject(createFields).toString()
+        assertEquals("""{"username":"admin2","password":"password123","display_name":"Admin Two","role_id":1}""", createJson)
+
+        val updateRequest = UpdateAdminUserRequest(
+            roleId = UpdateAdminUserRequest.RoleId._2,
+            isActive = UpdateAdminUserRequest.IsActive._1,
+        )
+        val updateFields = Json.encodeToJsonElement(UpdateAdminUserRequest.serializer(), updateRequest).jsonObject.toMutableMap()
+        if (updateRequest.password.isNullOrEmpty()) {
+            updateFields.remove("password")
+        }
+        updateRequest.roleId?.let { updateFields["role_id"] = JsonPrimitive(it.value) }
+        updateRequest.isActive?.let { updateFields["is_active"] = JsonPrimitive(it.value) }
+        val updateJson = JsonObject(updateFields).toString()
+        assertEquals("""{"role_id":2,"is_active":1}""", updateJson)
     }
 
     private fun assertEveryMethodIsDocumented(api: Class<*>) {

@@ -105,6 +105,37 @@ class DriversViewModelTest {
         assertEquals(UpdateAdminDriverRequest.IsActive._0, api.lastUpdate?.isActive)
     }
 
+    @Test fun `clearing driver license plate on edit sends empty string not missing or null`() {
+        val api = DriverApi()
+        val model = viewModel(api, role = "Administrador")
+        model.load()
+        model.edit(driver(8, 42, "casa"))
+        model.onLicensePlateChange("   ")
+        model.save()
+        assertEquals("Driver8", api.lastUpdate?.name)
+        assertEquals("", api.lastUpdate?.licensePlate)
+
+        // Worker editing owned fletero driver can also clear license plate to empty string
+        val workerApi = DriverApi(rows = listOf(driver(10, 42, "fletero")))
+        val workerModel = viewModel(workerApi, role = "Trabalhador")
+        workerModel.load()
+        workerModel.edit(workerModel.state.value.drivers[0])
+        workerModel.onLicensePlateChange("")
+        workerModel.save()
+        assertEquals("Driver10", workerApi.lastUpdate?.name)
+        assertEquals("", workerApi.lastUpdate?.licensePlate)
+
+        // Creating driver with blank license plate continues to send null
+        val createApi = DriverApi()
+        val createModel = viewModel(createApi, role = "Administrador")
+        createModel.load()
+        createModel.onNameChange("New Driver")
+        createModel.onLicensePlateChange("   ")
+        createModel.save()
+        assertEquals("New Driver", createApi.lastCreate?.name)
+        assertNull(createApi.lastCreate?.licensePlate)
+    }
+
     @Test fun `refused and unreachable writes differ and successful writes reload`() {
         val api = DriverApi()
         val model = viewModel(api)

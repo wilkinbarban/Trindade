@@ -301,6 +301,7 @@ class UsersViewModelTest {
         assertEquals(0, api.creates)
 
         // Valid create (4 characters passes backend minimum)
+        assertEquals(4, UsersViewModel.MIN_PASSWORD_LENGTH)
         model.onPasswordChange("1234")
         model.onRoleIdChange(2)
         model.save()
@@ -310,6 +311,39 @@ class UsersViewModelTest {
         assertEquals("Novo Usuário", api.lastCreateBody!!["display_name"]?.jsonPrimitive?.content)
         assertEquals("1234", api.lastCreateBody!!["password"]?.jsonPrimitive?.content)
         assertEquals("2", api.lastCreateBody!!["role_id"]?.jsonPrimitive?.content)
+    }
+
+    @Test fun `password minimum validation aligns with backend Zod 4-character rule on edit as well`() {
+        val api = UserAdminApi(rows = fixtureUsers)
+        val model = viewModel(api, role = "Administrador", userId = 42)
+        model.load()
+
+        // 1. Self edit with short password (< 4 chars) fails with PASSWORD_TOO_SHORT
+        model.edit(adminUser)
+        model.onDisplayNameChange("Admin")
+        model.onPasswordChange("123")
+        model.save()
+        assertEquals(UsersViewModel.PASSWORD_TOO_SHORT, model.state.value.error)
+        assertEquals(0, api.updates)
+
+        // Self edit with exactly 4 chars succeeds
+        model.onPasswordChange("1234")
+        model.save()
+        assertEquals(1, api.updates)
+        assertEquals("1234", api.lastUpdateBody!!["password"]?.jsonPrimitive?.content)
+
+        // 2. Edit other user with short password (< 4 chars) fails with PASSWORD_TOO_SHORT
+        model.edit(workerUser)
+        model.onPasswordChange("ab")
+        model.save()
+        assertEquals(UsersViewModel.PASSWORD_TOO_SHORT, model.state.value.error)
+        assertEquals(1, api.updates) // No new update issued
+
+        // Edit other user with exactly 4 chars succeeds
+        model.onPasswordChange("abcd")
+        model.save()
+        assertEquals(2, api.updates)
+        assertEquals("abcd", api.lastUpdateBody!!["password"]?.jsonPrimitive?.content)
     }
 
     @Test fun `edit self updates display name and password while omitting username, role and status`() {
