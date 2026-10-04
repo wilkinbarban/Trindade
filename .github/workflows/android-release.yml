@@ -1,12 +1,16 @@
 name: Android release
 
-# Tag-triggered, and only tag-triggered. The version an APK carries is derived from the tag rather than
-# hand-edited anywhere (the rule is in docs/release-android.md), so a build that is not a tag has no
-# version to derive and is not a release. Pushing a `v<major>.<minor>.<patch>` tag is the whole procedure.
+# Tag-triggered for official releases, and exact branch-triggered for artifact-only repair builds.
+# The version an APK carries is derived from the tag (or the explicit repair branch) rather than
+# hand-edited anywhere (the rule is in docs/release-android.md). Pushing a `v<major>.<minor>.<patch>`
+# tag is the normal release procedure; pushing the exact repair branch builds and signs the APK and
+# uploads an Actions artifact without creating or updating a release.
 on:
   push:
     tags:
       - 'v*'
+    branches:
+      - 'feature/android-v0.3.0-ux-repair'
 
 # Read-only by default. The publish job asks for the one write it needs and nothing else, so a failure
 # anywhere in the signing steps cannot touch the repository.
@@ -47,28 +51,63 @@ jobs:
       - name: Check out the tagged commit
         uses: actions/checkout@v4
 
-      - name: Derive the version from the tag
-        # The encoding is major * 10000 + minor * 100 + patch, which is why it is checked here rather than
-        # assumed: 1.100.0 and 2.0.0 would both encode to 20000, so a tag whose minor or patch is above 99
-        # has to be refused instead of silently producing an APK Android treats as an update to a version
-        # it is not.
+      - name: Derive the version from the tag or repair branch
+        # The standard tag encoding is major * 10000 + minor * 100 + patch, which is why it is checked
+        # here rather than assumed: 1.100.0 and 2.0.0 would both encode to 20000, so a tag whose minor or
+        # patch is above 99 has to be refused instead of silently producing an APK Android treats as an
+        # update to a version it is not.
+        #
+        # Ref agreement contract:
+        # - Tags strictly require GITHUB_REF="refs/tags/<GITHUB_REF_NAME>" and GITHUB_REF_TYPE="tag".
+        # - Repair strictly requires GITHUB_REF="refs/heads/feature/android-v0.3.0-ux-repair",
+        #   GITHUB_REF_NAME="feature/android-v0.3.0-ux-repair", and GITHUB_REF_TYPE="branch".
+        #   For that exact branch only, versionName is 0.3.0 and versionCode is 301.
+        # - Any empty variable, unknown ref prefix, mismatched ref/type, or non-repair branch fails closed.
         run: |
           set -euo pipefail
-          tag="$GITHUB_REF_NAME"
-          if [[ ! "$tag" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
-            printf 'The tag %s is not of the form v<major>.<minor>.<patch>. The version an APK carries comes from the tag, so a tag that cannot be read as one cannot be released.\n' "$tag" >&2
+          ref="${GITHUB_REF:-}"
+          ref_name="${GITHUB_REF_NAME:-}"
+          ref_type="${GITHUB_REF_TYPE:-}"
+
+          # Fail closed if any ref environment variable is empty
+          if [[ -z "$ref" || -z "$ref_name" || -z "$ref_type" ]]; then
+            printf 'Incomplete ref environment: GITHUB_REF="%s", GITHUB_REF_NAME="%s", GITHUB_REF_TYPE="%s". All must be non-empty.\n' "$ref" "$ref_name" "$ref_type" >&2
             exit 1
           fi
-          major="${BASH_REMATCH[1]}"
-          minor="${BASH_REMATCH[2]}"
-          patch="${BASH_REMATCH[3]}"
-          if (( minor > 99 || patch > 99 )); then
-            printf 'The tag %s carries a minor or patch above 99, which the versionCode encoding cannot hold without colliding with the next major version.\n' "$tag" >&2
+
+          if [[ "$ref" == "refs/heads/feature/android-v0.3.0-ux-repair" ]]; then
+            if [[ "$ref_name" != "feature/android-v0.3.0-ux-repair" || "$ref_type" != "branch" ]]; then
+              printf 'Mismatched repair ref agreement: GITHUB_REF="%s", GITHUB_REF_NAME="%s", GITHUB_REF_TYPE="%s" (expected NAME="feature/android-v0.3.0-ux-repair" and TYPE="branch").\n' "$ref" "$ref_name" "$ref_type" >&2
+              exit 1
+            fi
+            version_name="0.3.0"
+            version_code=301
+            printf 'Repair branch %s -> versionName %s, versionCode %s\n' "$ref_name" "$version_name" "$version_code"
+          elif [[ "$ref" =~ ^refs/tags/(.*)$ ]]; then
+            tag_name="${BASH_REMATCH[1]}"
+            if [[ "$ref_type" != "tag" || "$ref_name" != "$tag_name" ]]; then
+              printf 'Mismatched tag ref agreement: GITHUB_REF="%s", GITHUB_REF_NAME="%s", GITHUB_REF_TYPE="%s" (expected NAME="%s" and TYPE="tag").\n' "$ref" "$ref_name" "$ref_type" "$tag_name" >&2
+              exit 1
+            fi
+            if [[ ! "$tag_name" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+              printf 'The tag %s is not of the form v<major>.<minor>.<patch>. The version an APK carries comes from the tag, so a tag that cannot be read as one cannot be released.\n' "$tag_name" >&2
+              exit 1
+            fi
+            major="${BASH_REMATCH[1]}"
+            minor="${BASH_REMATCH[2]}"
+            patch="${BASH_REMATCH[3]}"
+            if (( minor > 99 || patch > 99 )); then
+              printf 'The tag %s carries a minor or patch above 99, which the versionCode encoding cannot hold without colliding with the next major version.\n' "$tag_name" >&2
+              exit 1
+            fi
+            version_name="${major}.${minor}.${patch}"
+            version_code=$(( major * 10000 + minor * 100 + patch ))
+            printf 'Tag %s -> versionName %s, versionCode %s\n' "$tag_name" "$version_name" "$version_code"
+          else
+            printf 'Ref "%s" is neither the allowed repair branch (refs/heads/feature/android-v0.3.0-ux-repair) nor a tag under refs/tags/. The ref fails closed.\n' "$ref" >&2
             exit 1
           fi
-          version_name="${major}.${minor}.${patch}"
-          version_code=$(( major * 10000 + minor * 100 + patch ))
-          printf 'Tag %s -> versionName %s, versionCode %s\n' "$tag" "$version_name" "$version_code"
+
           {
             printf 'VERSION_NAME=%s\n' "$version_name"
             printf 'VERSION_CODE=%s\n' "$version_code"
@@ -243,6 +282,7 @@ jobs:
   # the build container -- would add either a third party to trust or network work for no gain.
   publish:
     needs: build
+    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     permissions:
       contents: write
