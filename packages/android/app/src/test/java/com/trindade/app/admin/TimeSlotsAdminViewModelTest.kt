@@ -34,6 +34,7 @@ import com.trindade.app.contract.models.UpdateProfileRequest
 import com.trindade.app.contract.models.UpdateTimeSlotsRequest
 import com.trindade.app.network.AdminApi
 import com.trindade.app.network.AuthApi
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -41,6 +42,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -52,7 +54,7 @@ import org.junit.Test
 import retrofit2.Response
 
 /**
- * Unit tests for [TimeSlotsAdminViewModel] bounded integration unit 1.
+ * Unit tests for [TimeSlotsAdminViewModel] bounded integration unit 2.
  *
  * Covers:
  * - Intact lazy load test from source git object 3e4bf1a.
@@ -60,20 +62,20 @@ import retrofit2.Response
  * - UiState isAdmin and canRemove boundary logic.
  * - Companion regex boundary validations and normalization.
  * - Default handleBack navigation behavior.
- *
- * 10 original source cases are explicitly deferred to subsequent integration units:
- * - Read (6):
+ * - Six implemented read cases:
  *   1. `loadData refreshes profile and authorizes admin with sorted slots`
  *   2. `loadData fails closed on role revocation when refreshed profile is not admin`
  *   3. `loadData fails closed when profile refresh fails`
  *   4. `loadData cancels overlapping previous load and latest result wins`
  *   5. `failed read clears stale time slots from state`
  *   6. `403 on timeSlots read fails closed and revokes admin state`
+ *
+ * Four remaining mutation cases are deferred to subsequent integration units:
  * - Mutation (4):
  *   1. `addTimeSlot fails closed when backend answers 403`
  *   2. `removeTimeSlot fails closed when backend answers 403`
  *   3. `concurrent delete requests are ignored while delete is in flight`
- *   4. `role revocation clears active form and delete confirmation state` (depends on both)
+ *   4. `role revocation clears active form and delete confirmation state` (depends on openAddForm / requestDelete)
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class TimeSlotsAdminViewModelTest {
@@ -182,6 +184,149 @@ class TimeSlotsAdminViewModelTest {
         TimeSlotsAdminViewModel(repository, authRepo)
 
         assertEquals("Redundant eager load should not happen during init", 0, adminApi.timeSlotsCallCount)
+    }
+
+    @Test
+    fun `loadData refreshes profile and authorizes admin with sorted slots`() {
+        val adminApi = TestAdminApi(slots = listOf("10:00", "08:00", "12:00"))
+        val authRepo = createAuthRepository(role = null, profileResponse = profileSuccess(RolePolicy.ADMIN))
+        val repository = TimeSlotsAdminRepository(adminApi)
+        val viewModel = TimeSlotsAdminViewModel(repository, authRepo)
+
+        viewModel.loadData()
+
+        val state = viewModel.uiState.value
+        assertFalse(state.loading)
+        assertTrue(state.isAdmin)
+        assertEquals(RolePolicy.ADMIN, state.role)
+        assertEquals(listOf("08:00", "10:00", "12:00"), state.timeSlots)
+        assertFalse(state.isError)
+        assertNull(state.message)
+    }
+
+    @Test
+    fun `loadData fails closed on role revocation when refreshed profile is not admin`() {
+        val adminApi = TestAdminApi()
+        // Cached role says ADMIN, but refreshed profile says WORKER (revoked)
+        val authRepo = createAuthRepository(
+            role = RolePolicy.ADMIN,
+            profileResponse = profileSuccess(RolePolicy.WORKER),
+        )
+        val repository = TimeSlotsAdminRepository(adminApi)
+        val viewModel = TimeSlotsAdminViewModel(repository, authRepo)
+
+        viewModel.loadData()
+
+        val state = viewModel.uiState.value
+        assertFalse(state.loading)
+        assertFalse(state.isAdmin)
+        assertEquals(RolePolicy.WORKER, state.role)
+        assertTrue(state.timeSlots.isEmpty())
+        assertTrue(state.isError)
+        assertEquals("Acesso restrito a administradores.", state.message)
+        assertEquals(0, adminApi.timeSlotsCallCount)
+    }
+
+    @Test
+    fun `loadData fails closed when profile refresh fails`() {
+        val adminApi = TestAdminApi()
+        val authRepo = createAuthRepository(
+            role = RolePolicy.ADMIN,
+            profileResponse = Response.error(500, "".toResponseBody("application/json".toMediaType())),
+        )
+        val repository = TimeSlotsAdminRepository(adminApi)
+        val viewModel = TimeSlotsAdminViewModel(repository, authRepo)
+
+        viewModel.loadData()
+
+        val state = viewModel.uiState.value
+        assertFalse(state.loading)
+        assertFalse(state.isAdmin)
+        assertNull(state.role)
+        assertTrue(state.timeSlots.isEmpty())
+        assertTrue(state.isError)
+        assertEquals("Não foi possível carregar os horários. Tente de novo.", state.message)
+        assertEquals(0, adminApi.timeSlotsCallCount)
+    }
+
+    @Test
+    fun `loadData cancels overlapping previous load and latest result wins`() {
+        val adminApi = TestAdminApi()
+        val authRepo = createAuthRepository(role = RolePolicy.ADMIN)
+        val repository = TimeSlotsAdminRepository(adminApi)
+        val viewModel = TimeSlotsAdminViewModel(repository, authRepo)
+
+        val firstDeferred = CompletableDeferred<Response<TimeSlotsResponse>>()
+        var callIndex = 0
+        adminApi.timeSlotsHandler = {
+            callIndex++
+            if (callIndex == 1) {
+                firstDeferred.await()
+            } else {
+                Response.success(TimeSlotsResponse(timeSlots = listOf("08:00", "10:00", "12:00")))
+            }
+        }
+
+        // Call 1 starts and suspends on firstDeferred
+        viewModel.loadData()
+
+        // Call 2 starts and completes immediately with fresh data
+        viewModel.loadData()
+
+        val stateAfterCall2 = viewModel.uiState.value
+        assertEquals(listOf("08:00", "10:00", "12:00"), stateAfterCall2.timeSlots)
+
+        // Call 1 resumes with stale data
+        firstDeferred.complete(Response.success(TimeSlotsResponse(timeSlots = listOf("04:00"))))
+
+        // State must NOT be overwritten by Call 1
+        val finalState = viewModel.uiState.value
+        assertEquals(listOf("08:00", "10:00", "12:00"), finalState.timeSlots)
+    }
+
+    @Test
+    fun `failed read clears stale time slots from state`() {
+        val adminApi = TestAdminApi(slots = listOf("08:00", "10:00"))
+        val authRepo = createAuthRepository(role = RolePolicy.ADMIN)
+        val repository = TimeSlotsAdminRepository(adminApi)
+        val viewModel = TimeSlotsAdminViewModel(repository, authRepo)
+
+        viewModel.loadData()
+        assertEquals(listOf("08:00", "10:00"), viewModel.uiState.value.timeSlots)
+
+        // Second load fails
+        adminApi.slots = null
+        viewModel.loadData()
+
+        val state = viewModel.uiState.value
+        assertFalse(state.loading)
+        assertTrue("Stale time slots must be cleared on failed read", state.timeSlots.isEmpty())
+        assertTrue(state.isError)
+        assertEquals("Não foi possível carregar os horários. Tente de novo.", state.message)
+    }
+
+    @Test
+    fun `403 on timeSlots read fails closed and revokes admin state`() {
+        val adminApi = TestAdminApi(slots = listOf("08:00", "10:00"))
+        val authRepo = createAuthRepository(role = RolePolicy.ADMIN)
+        val repository = TimeSlotsAdminRepository(adminApi)
+        val viewModel = TimeSlotsAdminViewModel(repository, authRepo)
+
+        viewModel.loadData()
+        assertTrue(viewModel.uiState.value.isAdmin)
+
+        adminApi.timeSlotsHandler = {
+            Response.error(403, "".toResponseBody("application/json".toMediaType()))
+        }
+
+        viewModel.loadData()
+
+        val state = viewModel.uiState.value
+        assertFalse(state.isAdmin)
+        assertNull(state.role)
+        assertTrue(state.timeSlots.isEmpty())
+        assertTrue(state.isError)
+        assertEquals("Acesso restrito a administradores.", state.message)
     }
 
     @Test

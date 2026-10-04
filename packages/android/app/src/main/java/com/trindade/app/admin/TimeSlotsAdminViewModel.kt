@@ -1,14 +1,17 @@
 package com.trindade.app.admin
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.trindade.app.auth.AuthRepository
 import com.trindade.app.auth.RolePolicy
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 /**
  * Owns the loading time slot configuration state, inline form editing, and server synchronization.
@@ -50,6 +53,105 @@ class TimeSlotsAdminViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
+
+    private var loadJob: Job? = null
+    private var loadGeneration = 0L
+
+    fun loadData() {
+        loadJob?.cancel()
+        val generation = ++loadGeneration
+        _uiState.update { it.copy(loading = true, message = null) }
+        loadJob = viewModelScope.launch {
+            val profile = authRepository.profile()
+            if (generation != loadGeneration) return@launch
+
+            if (profile == null) {
+                _uiState.update {
+                    it.copy(
+                        loading = false,
+                        role = null,
+                        timeSlots = emptyList(),
+                        form = null,
+                        deleteConfirmSlot = null,
+                        message = "Não foi possível carregar os horários. Tente de novo.",
+                        isError = true,
+                    )
+                }
+                return@launch
+            }
+
+            val role = profile.role
+            if (role != RolePolicy.ADMIN) {
+                _uiState.update {
+                    it.copy(
+                        loading = false,
+                        role = role,
+                        timeSlots = emptyList(),
+                        form = null,
+                        deleteConfirmSlot = null,
+                        message = "Acesso restrito a administradores.",
+                        isError = true,
+                    )
+                }
+                return@launch
+            }
+
+            when (val result = repository.fetchTimeSlots()) {
+                is TimeSlotsReadResult.Success -> {
+                    if (generation != loadGeneration) return@launch
+                    _uiState.update { current ->
+                        current.copy(
+                            loading = false,
+                            role = role,
+                            timeSlots = result.timeSlots.sorted(),
+                            message = null,
+                            isError = false,
+                        )
+                    }
+                }
+                is TimeSlotsReadResult.Refused -> {
+                    if (generation != loadGeneration) return@launch
+                    if (result.statusCode == 403) {
+                        _uiState.update {
+                            it.copy(
+                                loading = false,
+                                role = null,
+                                timeSlots = emptyList(),
+                                form = null,
+                                deleteConfirmSlot = null,
+                                message = "Acesso restrito a administradores.",
+                                isError = true,
+                            )
+                        }
+                    } else {
+                        _uiState.update {
+                            it.copy(
+                                loading = false,
+                                timeSlots = emptyList(),
+                                form = null,
+                                deleteConfirmSlot = null,
+                                message = "Não foi possível carregar os horários. Tente de novo.",
+                                isError = true,
+                            )
+                        }
+                    }
+                }
+                is TimeSlotsReadResult.Unreachable -> {
+                    if (generation != loadGeneration) return@launch
+                    _uiState.update {
+                        it.copy(
+                            loading = false,
+                            timeSlots = emptyList(),
+                            form = null,
+                            deleteConfirmSlot = null,
+                            message = "Não foi possível carregar os horários. Tente de novo.",
+                            isError = true,
+                        )
+                    }
+                }
+            }
+        }
+    }
 
     fun closeForm() {
         if (_uiState.value.form?.saving == true) return
