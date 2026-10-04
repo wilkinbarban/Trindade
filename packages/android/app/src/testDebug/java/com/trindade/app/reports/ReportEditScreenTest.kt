@@ -8,6 +8,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasAnySibling
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isToggleable
@@ -15,6 +16,7 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.trindade.app.R
@@ -24,6 +26,7 @@ import com.trindade.app.contract.models.ReportCategoryTasksInner
 import com.trindade.app.contract.models.ReportResponseReport
 import com.trindade.app.ui.theme.TrindadeTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -314,6 +317,50 @@ class ReportEditScreenTest {
         render(state(message = MESSAGE))
 
         displayed(MESSAGE)
+    }
+
+    @Test
+    fun `navigation back and update action meet 48dp touch targets and invoke callbacks`() {
+        var backed = 0
+        var submitted = 0
+        composeRule.setContent {
+            TrindadeTheme {
+                ReportEditScreen(
+                    state = state(),
+                    onTurnoChange = {},
+                    onNotesChange = {},
+                    onCheckChange = { _, _ -> },
+                    onProductToggle = { _, _, _ -> },
+                    onTemperatureChange = { _, _, _ -> },
+                    onSubmit = { submitted++ },
+                    onBack = { backed++ },
+                )
+            }
+        }
+
+        val backNode = composeRule.onNodeWithText(copy(R.string.report_back))
+        backNode.assertIsDisplayed()
+        val backBounds = backNode.getUnclippedBoundsInRoot()
+        assertTrue(
+            "Back height must be >= 48dp but was ${backBounds.bottom - backBounds.top}",
+            backBounds.bottom - backBounds.top >= 48.dp,
+        )
+        assertTrue(
+            "Back width must be >= 48dp but was ${backBounds.right - backBounds.left}",
+            backBounds.right - backBounds.left >= 48.dp,
+        )
+        backNode.performClick()
+        assertEquals(1, backed)
+
+        val submitNode = composeRule.onNodeWithText(copy(R.string.report_update))
+        submitNode.performScrollTo().assertIsDisplayed()
+        val submitBounds = submitNode.getUnclippedBoundsInRoot()
+        assertTrue(
+            "Submit height must be >= 48dp but was ${submitBounds.bottom - submitBounds.top}",
+            submitBounds.bottom - submitBounds.top >= 48.dp,
+        )
+        submitNode.performClick()
+        assertEquals(1, submitted)
     }
 
     private companion object {

@@ -3,19 +3,17 @@ package com.trindade.app.reports
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -27,6 +25,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.trindade.app.R
 import com.trindade.app.contract.models.UpdateReportRequest
+import com.trindade.app.ui.components.AdminPrimaryButton
+import com.trindade.app.ui.components.NavigationActionButton
 import kotlinx.coroutines.flow.first
 
 /**
@@ -70,8 +70,8 @@ fun ReportEditScreen(
     ) {
         // The same way out the detail draws, with this screen's own title beside it: the two are one
         // row because back belongs to the screen whose heading it sits with.
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = onBack) { Text(stringResource(R.string.report_back)) }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            NavigationActionButton(onClick = onBack, text = stringResource(R.string.report_back))
             Text(text = stringResource(R.string.report_edit), style = MaterialTheme.typography.titleLarge)
         }
 
@@ -87,12 +87,14 @@ fun ReportEditScreen(
                 onClick = { onTurnoChange(UpdateReportRequest.Turno.tarde.value) },
                 label = { Text(stringResource(R.string.history_turno_tarde)) },
                 enabled = !state.readOnly,
+                modifier = Modifier.defaultMinSize(minHeight = 48.dp),
             )
             FilterChip(
                 selected = state.turno == UpdateReportRequest.Turno.noite.value,
                 onClick = { onTurnoChange(UpdateReportRequest.Turno.noite.value) },
                 label = { Text(stringResource(R.string.history_turno_noite)) },
                 enabled = !state.readOnly,
+                modifier = Modifier.defaultMinSize(minHeight = 48.dp),
             )
         }
 
@@ -140,17 +142,13 @@ fun ReportEditScreen(
         // (`readOnly` reaches every input there too): a live field would collect an edit this screen has
         // no action to send.
         if (!state.readOnly) {
-            Button(
+            AdminPrimaryButton(
                 onClick = onSubmit,
+                text = stringResource(R.string.report_update),
                 enabled = state.canSubmit,
+                loading = state.submitting,
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-            ) {
-                if (state.submitting) {
-                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                } else {
-                    Text(stringResource(R.string.report_update))
-                }
-            }
+            )
         }
     }
 }

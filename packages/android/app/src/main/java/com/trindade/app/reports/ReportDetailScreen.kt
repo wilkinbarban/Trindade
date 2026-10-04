@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -33,10 +34,14 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.trindade.app.R
+import com.trindade.app.ui.components.AdminDestructiveButton
+import com.trindade.app.ui.components.AdminPrimaryButton
+import com.trindade.app.ui.components.NavigationActionButton
 import java.io.File
 
 /**
@@ -80,8 +85,14 @@ fun ReportDetailScreen(
         // action sits beside it because the two are the same kind of thing: a way to leave this screen
         // for the one that does something with the report rather than shows it.
         item {
-            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                TextButton(onClick = onBack) { Text(stringResource(R.string.report_back)) }
+            Row(
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                NavigationActionButton(
+                    onClick = onBack,
+                    text = stringResource(R.string.report_back),
+                )
                 // Drawn only when the server says the report may be edited, and the two flags behind
                 // that answer -- `readOnly` and `canEdit` -- are the server's, read rather than
                 // recomputed: which day, which creator and therefore whether an edit would be accepted
@@ -97,7 +108,10 @@ fun ReportDetailScreen(
                 // `canEdit` for the reason the predicate fails closed: a report whose flags never
                 // arrived is not an affirmative answer, and an absent answer must not offer an edit.
                 if (state.report?.isReadOnly() == false) {
-                    TextButton(onClick = onEdit) { Text(stringResource(R.string.report_edit)) }
+                    NavigationActionButton(
+                        onClick = onEdit,
+                        text = stringResource(R.string.report_edit),
+                    )
                 }
             }
         }
@@ -151,11 +165,19 @@ fun ReportDetailScreen(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
             ) {
-                Text(text = photo.filePath.substringAfterLast('/'), style = MaterialTheme.typography.bodyMedium)
-                TextButton(onClick = { onDeletePhoto(photo.id) }) {
-                    Text(stringResource(R.string.report_photo_remove))
-                }
+                Text(
+                    text = photo.filePath.substringAfterLast('/'),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f).padding(end = 8.dp),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                AdminDestructiveButton(
+                    onClick = { onDeletePhoto(photo.id) },
+                    text = stringResource(R.string.report_photo_remove),
+                )
             }
         }
 
@@ -167,41 +189,42 @@ fun ReportDetailScreen(
                     capture.launch(FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file))
                 },
                 enabled = state.canAddPhoto,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp),
             ) {
                 if (state.uploadingPhoto) {
-                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    Row(
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        Text(stringResource(R.string.report_photo_add), style = MaterialTheme.typography.labelLarge)
+                    }
                 } else {
-                    Text(stringResource(R.string.report_photo_add))
+                    Text(stringResource(R.string.report_photo_add), style = MaterialTheme.typography.labelLarge)
                 }
             }
         }
 
         item {
             HorizontalDivider()
-            Button(
+            AdminPrimaryButton(
                 onClick = onLoadExport,
+                text = stringResource(R.string.export_load),
                 enabled = !state.loadingExport,
+                loading = state.loadingExport,
                 modifier = Modifier.fillMaxWidth(),
-            ) {
-                if (state.loadingExport) {
-                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                } else {
-                    Text(stringResource(R.string.export_load))
-                }
-            }
+            )
         }
 
         state.exportText?.let { text ->
             item {
                 Text(text = text, style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(8.dp))
-                Button(
+                AdminPrimaryButton(
                     onClick = { clipboard.setText(AnnotatedString(text)) },
+                    text = stringResource(R.string.export_copy),
                     modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(stringResource(R.string.export_copy))
-                }
+                )
             }
         }
     }

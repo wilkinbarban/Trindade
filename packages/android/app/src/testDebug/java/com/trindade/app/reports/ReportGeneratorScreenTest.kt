@@ -1,16 +1,23 @@
 package com.trindade.app.reports
 
+import android.content.Context
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getBoundsInRoot
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.trindade.app.R
 import com.trindade.app.contract.models.CategoriesResponseCategoriesInner
 import com.trindade.app.contract.models.ProductsResponse
 import com.trindade.app.contract.models.ReportCategoryTasksInner
 import com.trindade.app.ui.theme.TrindadeTheme
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -57,6 +64,11 @@ class ReportGeneratorScreenTest {
 
     @get:Rule
     val composeRule = createComposeRule()
+
+    private val context: Context
+        get() = ApplicationProvider.getApplicationContext()
+
+    private fun copy(id: Int, vararg args: Any): String = context.getString(id, *args)
 
     // ---- The data the screen is handed, built from the generated contract types ----
 
@@ -247,5 +259,47 @@ class ReportGeneratorScreenTest {
                 "${firstRootTaskTop.value}dp), so it is drawn between the two rows instead of under them",
             childTaskTop > firstRootTaskTop,
         )
+    }
+
+    @Test
+    fun `history action and submit button meet 48dp touch targets and invoke callbacks`() {
+        var openedHistory = 0
+        var submitted = 0
+        composeRule.setContent {
+            TrindadeTheme {
+                ReportGeneratorScreen(
+                    state = state(listOf(category(id = 8, namePt = "Higiene"))),
+                    onCheckChange = { _, _ -> },
+                    onProductToggle = { _, _, _ -> },
+                    onTemperatureChange = { _, _, _ -> },
+                    onSubmit = { submitted++ },
+                    onOpenHistory = { openedHistory++ },
+                )
+            }
+        }
+
+        val historyNode = composeRule.onNodeWithText(copy(R.string.report_history))
+        historyNode.assertIsDisplayed()
+        val historyBounds = historyNode.getUnclippedBoundsInRoot()
+        assertTrue(
+            "History height must be >= 48dp but was ${historyBounds.bottom - historyBounds.top}",
+            historyBounds.bottom - historyBounds.top >= 48.dp,
+        )
+        assertTrue(
+            "History width must be >= 48dp but was ${historyBounds.right - historyBounds.left}",
+            historyBounds.right - historyBounds.left >= 48.dp,
+        )
+        historyNode.performClick()
+        assertEquals(1, openedHistory)
+
+        val submitNode = composeRule.onNodeWithText(copy(R.string.report_submit))
+        submitNode.performScrollTo().assertIsDisplayed()
+        val submitBounds = submitNode.getUnclippedBoundsInRoot()
+        assertTrue(
+            "Submit height must be >= 48dp but was ${submitBounds.bottom - submitBounds.top}",
+            submitBounds.bottom - submitBounds.top >= 48.dp,
+        )
+        submitNode.performClick()
+        assertEquals(1, submitted)
     }
 }

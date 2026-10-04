@@ -8,11 +8,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -21,6 +18,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.trindade.app.R
+import com.trindade.app.ui.components.AdminPrimaryButton
+import com.trindade.app.ui.components.NavigationActionButton
 
 /**
  * The report generator, stateless.
@@ -59,7 +58,10 @@ fun ReportGeneratorScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End,
             ) {
-                TextButton(onClick = onOpenHistory) { Text(stringResource(R.string.report_history)) }
+                NavigationActionButton(
+                    onClick = onOpenHistory,
+                    text = stringResource(R.string.report_history),
+                )
             }
         }
 
@@ -102,17 +104,13 @@ fun ReportGeneratorScreen(
         }
 
         item {
-            Button(
+            AdminPrimaryButton(
                 onClick = onSubmit,
+                text = stringResource(R.string.report_submit),
                 enabled = state.canSubmit,
+                loading = state.submitting,
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-            ) {
-                if (state.submitting) {
-                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                } else {
-                    Text(stringResource(R.string.report_submit))
-                }
-            }
+            )
         }
     }
 }

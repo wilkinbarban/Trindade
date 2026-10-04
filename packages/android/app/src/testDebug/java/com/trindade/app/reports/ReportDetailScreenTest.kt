@@ -2,13 +2,18 @@ package com.trindade.app.reports
 
 import android.content.Context
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.trindade.app.R
 import com.trindade.app.contract.models.ReportResponseReport
 import com.trindade.app.ui.theme.TrindadeTheme
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -175,5 +180,51 @@ class ReportDetailScreenTest {
 
         composeRule.onNodeWithText(copy(R.string.report_back)).assertIsDisplayed()
         composeRule.onNodeWithText(copy(R.string.report_edit)).assertIsDisplayed()
+    }
+
+    @Test
+    fun `navigation back and edit actions meet 48dp touch target bounds and invoke callbacks`() {
+        var backed = 0
+        var edited = 0
+        composeRule.setContent {
+            TrindadeTheme {
+                ReportDetailScreen(
+                    state = state(report(canEdit = true, readOnly = false)),
+                    onAddPhoto = {},
+                    onDeletePhoto = {},
+                    onLoadExport = {},
+                    onEdit = { edited++ },
+                    onBack = { backed++ },
+                )
+            }
+        }
+
+        val backNode = composeRule.onNodeWithText(copy(R.string.report_back))
+        backNode.assertIsDisplayed()
+        val backBounds = backNode.getUnclippedBoundsInRoot()
+        assertTrue(
+            "Back height must be >= 48dp but was ${backBounds.bottom - backBounds.top}",
+            backBounds.bottom - backBounds.top >= 48.dp,
+        )
+        assertTrue(
+            "Back width must be >= 48dp but was ${backBounds.right - backBounds.left}",
+            backBounds.right - backBounds.left >= 48.dp,
+        )
+        backNode.performClick()
+        assertEquals(1, backed)
+
+        val editNode = composeRule.onNodeWithText(copy(R.string.report_edit))
+        editNode.assertIsDisplayed()
+        val editBounds = editNode.getUnclippedBoundsInRoot()
+        assertTrue(
+            "Edit height must be >= 48dp but was ${editBounds.bottom - editBounds.top}",
+            editBounds.bottom - editBounds.top >= 48.dp,
+        )
+        assertTrue(
+            "Edit width must be >= 48dp but was ${editBounds.right - editBounds.left}",
+            editBounds.right - editBounds.left >= 48.dp,
+        )
+        editNode.performClick()
+        assertEquals(1, edited)
     }
 }
