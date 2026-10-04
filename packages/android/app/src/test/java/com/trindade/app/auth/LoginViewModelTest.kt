@@ -13,6 +13,8 @@ import com.trindade.app.contract.models.RefreshRequest
 import com.trindade.app.contract.models.RefreshResponse
 import com.trindade.app.contract.models.RegisterRequest
 import com.trindade.app.contract.models.RegisterResponse
+import com.trindade.app.contract.models.SetupRequest
+import com.trindade.app.contract.models.SetupResponse
 import com.trindade.app.contract.models.SetupStatusResponse
 import com.trindade.app.contract.models.SuccessResponse
 import com.trindade.app.contract.models.UpdateProfileRequest
@@ -455,6 +457,7 @@ private class FakeAuthApi(
     override suspend fun profile(): Response<ProfileResponse> = error(NOT_USED)
     override suspend fun updateProfile(body: UpdateProfileRequest): Response<ProfileResponse> = error(NOT_USED)
     override suspend fun changePassword(body: ChangePasswordRequest): Response<SuccessResponse> = error(NOT_USED)
+    override suspend fun setup(body: SetupRequest): Response<SetupResponse> = error(NOT_USED)
     override suspend fun setupStatus(): Response<SetupStatusResponse> = error(NOT_USED)
     override suspend fun register(body: RegisterRequest): Response<RegisterResponse> = error(NOT_USED)
 

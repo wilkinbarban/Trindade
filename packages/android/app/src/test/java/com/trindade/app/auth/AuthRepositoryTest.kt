@@ -10,6 +10,8 @@ import com.trindade.app.contract.models.RefreshRequest
 import com.trindade.app.contract.models.RefreshResponse
 import com.trindade.app.contract.models.RegisterRequest
 import com.trindade.app.contract.models.RegisterResponse
+import com.trindade.app.contract.models.SetupRequest
+import com.trindade.app.contract.models.SetupResponse
 import com.trindade.app.contract.models.SetupStatusResponse
 import com.trindade.app.contract.models.SuccessResponse
 import com.trindade.app.contract.models.UpdateProfileRequest
@@ -275,6 +277,7 @@ class AuthRepositoryTest {
         override suspend fun profile(): Response<ProfileResponse> = error("unused")
         override suspend fun updateProfile(body: UpdateProfileRequest): Response<ProfileResponse> = error("unused")
         override suspend fun changePassword(body: ChangePasswordRequest): Response<SuccessResponse> = error("unused")
+        override suspend fun setup(body: SetupRequest): Response<SetupResponse> = error("unused")
         override suspend fun setupStatus(): Response<SetupStatusResponse> = error("unused")
     }
 

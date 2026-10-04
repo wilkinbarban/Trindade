@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
@@ -15,6 +16,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.trindade.app.contract.models.CategoriesResponseCategoriesInner
 import com.trindade.app.contract.models.ProductsResponse
@@ -454,5 +456,112 @@ class ReportFormTest {
         // The chip starts unselected, so the toggle it reports is the selection being made, and the task
         // id is the one the chip belongs to rather than whichever one was drawn.
         assertEquals(listOf(Triple(assaiTask.id, product, true)), reported)
+    }
+
+    /**
+     * Cold-storage temperature entry requires decimal keyboard semantics and an accessible minus toggle
+     * action so operators on devices whose decimal keypad omits the minus key can enter negative readings.
+     *
+     * Verifies that:
+     * 1. The temperature text field carries decimal keyboard semantics ([KeyboardType.Decimal]).
+     * 2. The minus toggle action is displayed and accessible beside each reading field.
+     * 3. Tapping the minus toggle on a positive reading (e.g. "18.5") reports the negative reading ("-18.5").
+     * 4. Tapping the minus toggle on an empty reading reports the in-progress lone minus ("-").
+     * 5. Tapping the minus toggle on an existing negative reading removes the minus sign (e.g. "-4,5" -> "4,5"),
+     *    preserving comma decimals.
+     * 6. In read-only mode, the minus toggle is disabled and a tap reports nothing.
+     */
+    @Test
+    fun `temperature field provides decimal keyboard semantics and minus toggle produces negative reading`() {
+        val temperatureTask = task(
+            id = 61,
+            categoryId = 6,
+            namePt = "Câmara fria",
+            taskType = ReportCategoryTasksInner.TaskType.temperature,
+            temperatureReadings = 3,
+        )
+        val reported = mutableListOf<Triple<Int, Int, String>>()
+
+        render(
+            category = category(
+                id = 6,
+                namePt = "Temperaturas",
+                categoryType = CategoriesResponseCategoriesInner.CategoryType.temperature,
+                tasks = listOf(temperatureTask),
+            ),
+            form = ReportFormState(
+                temperatures = mapOf(temperatureTask.id to listOf("18.5", "", "-4,5")),
+            ),
+            readOnly = false,
+            onTemperatureChange = { taskId, index, value -> reported += Triple(taskId, index, value) },
+        )
+
+        // 1. Proving decimal keyboard semantics on the temperature fields
+        composeRule.onAllNodes(SemanticsMatcher.expectValue(KeyboardTypeProperty, KeyboardType.Decimal))
+            .assertCountEquals(3)
+
+        displayed("Leitura 1")
+        displayed("Leitura 2")
+        displayed("Leitura 3")
+
+        // 2. The minus toggle action is displayed beside each reading
+        val minusButtons = composeRule.onAllNodesWithText("−")
+        minusButtons.assertCountEquals(3)
+
+        // 3. Tapping the minus toggle on reading 1 ("18.5") produces negative reading ("-18.5")
+        minusButtons[0].performScrollTo().assertIsEnabled().performClick()
+        composeRule.waitForIdle()
+
+        // 4. Tapping the minus toggle on reading 2 ("") produces in-progress lone minus ("-")
+        minusButtons[1].performScrollTo().assertIsEnabled().performClick()
+        composeRule.waitForIdle()
+
+        // 5. Tapping the minus toggle on reading 3 ("-4,5") removes minus sign, preserving Portuguese comma ("4,5")
+        minusButtons[2].performScrollTo().assertIsEnabled().performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(
+            listOf(
+                Triple(temperatureTask.id, 0, "-18.5"),
+                Triple(temperatureTask.id, 1, "-"),
+                Triple(temperatureTask.id, 2, "4,5"),
+            ),
+            reported,
+        )
+    }
+
+    @Test
+    fun `read-only disables temperature minus toggle and a tap reports nothing`() {
+        val temperatureTask = task(
+            id = 71,
+            categoryId = 7,
+            namePt = "Congelador",
+            taskType = ReportCategoryTasksInner.TaskType.temperature,
+            temperatureReadings = 1,
+        )
+        val reported = mutableListOf<Triple<Int, Int, String>>()
+
+        render(
+            category = category(
+                id = 7,
+                namePt = "Temperaturas",
+                categoryType = CategoriesResponseCategoriesInner.CategoryType.temperature,
+                tasks = listOf(temperatureTask),
+            ),
+            form = ReportFormState(
+                temperatures = mapOf(temperatureTask.id to listOf("-18.5")),
+            ),
+            readOnly = true,
+            onTemperatureChange = { taskId, index, value -> reported += Triple(taskId, index, value) },
+        )
+
+        val minusButton = composeRule.onNodeWithText("−").performScrollTo()
+        minusButton.assertIsDisplayed()
+        minusButton.assertIsNotEnabled()
+
+        minusButton.performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(emptyList<Triple<Int, Int, String>>(), reported)
     }
 }
