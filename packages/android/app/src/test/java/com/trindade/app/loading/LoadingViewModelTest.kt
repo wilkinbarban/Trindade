@@ -2,7 +2,10 @@ package com.trindade.app.loading
 
 import com.trindade.app.contract.models.SchedulesResponse
 import com.trindade.app.contract.models.SchedulesResponseSchedulesInner
+import com.trindade.app.export.PdfGenerator
+import com.trindade.app.export.ShareManager
 import com.trindade.app.network.LoadingApi
+import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -12,6 +15,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -54,7 +58,11 @@ class LoadingViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun viewModel(api: FakeLoadingApi) = LoadingViewModel(LoadingRepository(api))
+    private fun viewModel(
+        api: FakeLoadingApi,
+        pdfGenerator: PdfGenerator = RecordingPdfGenerator(),
+        shareManager: ShareManager = RecordingShareManager(),
+    ) = LoadingViewModel(LoadingRepository(api), pdfGenerator, shareManager)
 
     @Test
     fun `loads the day's entries and the configured slots`() {
@@ -373,5 +381,125 @@ class LoadingViewModelTest {
         // exists -- and the failure mode of leaving it on screen is a WhatsApp message sent with a
         // driver that was just removed. It is one tap away, and the tap is the point.
         assertEquals(null, model.state.value.exportText)
+    }
+
+    @Test
+    fun `shareText delegates export text to share manager`() {
+        val shareManager = RecordingShareManager()
+        val model = viewModel(api = FakeLoadingApi(), shareManager = shareManager)
+
+        model.loadExport()
+        model.shareText()
+
+        assertEquals(FakeLoadingApi.EXPORT_TEXT, shareManager.lastSharedText)
+    }
+
+    @Test
+    fun `shareText does nothing when exportText is null`() {
+        val shareManager = RecordingShareManager()
+        val model = viewModel(api = FakeLoadingApi(), shareManager = shareManager)
+
+        model.shareText()
+
+        assertNull(shareManager.lastSharedText)
+    }
+
+    @Test
+    fun `sharePdf generates native PDF named cronograma-date and shares it via share manager`() {
+        val pdfGenerator = RecordingPdfGenerator()
+        val shareManager = RecordingShareManager()
+        val model = viewModel(
+            api = FakeLoadingApi(),
+            pdfGenerator = pdfGenerator,
+            shareManager = shareManager,
+        )
+
+        model.loadExport()
+        model.sharePdf()
+
+        assertEquals("cronograma-${model.state.value.date}.pdf", pdfGenerator.lastFileName)
+        assertEquals(FakeLoadingApi.EXPORT_TEXT, pdfGenerator.lastText)
+        assertEquals(pdfGenerator.fileToReturn, shareManager.lastSharedPdf)
+        assertFalse(model.state.value.exportingPdf)
+    }
+
+    @Test
+    fun `sharePdf sets error message when PDF generation fails`() {
+        val pdfGenerator = RecordingPdfGenerator(shouldThrow = true)
+        val shareManager = RecordingShareManager()
+        val model = viewModel(
+            api = FakeLoadingApi(),
+            pdfGenerator = pdfGenerator,
+            shareManager = shareManager,
+        )
+
+        model.loadExport()
+        model.sharePdf()
+
+        assertEquals(LoadingViewModel.PDF_FAILED, model.state.value.message)
+        assertFalse(model.state.value.exportingPdf)
+        assertNull(shareManager.lastSharedPdf)
+    }
+
+    @Test
+    fun `sharePdf sets error message when shareManager returns false`() {
+        val pdfGenerator = RecordingPdfGenerator()
+        val shareManager = RecordingShareManager(returns = false)
+        val model = viewModel(
+            api = FakeLoadingApi(),
+            pdfGenerator = pdfGenerator,
+            shareManager = shareManager,
+        )
+
+        model.loadExport()
+        model.sharePdf()
+
+        assertEquals(LoadingViewModel.SHARE_FAILED, model.state.value.message)
+        assertFalse(model.state.value.exportingPdf)
+    }
+
+    @Test
+    fun `sharePdf does nothing when exportText is null`() {
+        val pdfGenerator = RecordingPdfGenerator()
+        val model = viewModel(api = FakeLoadingApi(), pdfGenerator = pdfGenerator)
+
+        model.sharePdf()
+
+        assertNull(pdfGenerator.lastFileName)
+    }
+}
+
+private class RecordingShareManager(
+    var returns: Boolean = true,
+) : ShareManager {
+    var lastSharedText: String? = null
+    var lastSharedTitle: String? = null
+    var lastSharedPdf: File? = null
+
+    override fun shareText(text: String, title: String?): Boolean {
+        lastSharedText = text
+        lastSharedTitle = title
+        return returns
+    }
+
+    override fun sharePdf(file: File, title: String?): Boolean {
+        lastSharedPdf = file
+        lastSharedTitle = title
+        return returns
+    }
+}
+
+private class RecordingPdfGenerator(
+    var fileToReturn: File = File("/cache/exports/cronograma-2025-01-15.pdf"),
+    var shouldThrow: Boolean = false,
+) : PdfGenerator {
+    var lastText: String? = null
+    var lastFileName: String? = null
+
+    override suspend fun generate(text: String, fileName: String): File {
+        if (shouldThrow) throw RuntimeException("PDF generation failed")
+        lastText = text
+        lastFileName = fileName
+        return fileToReturn
     }
 }
