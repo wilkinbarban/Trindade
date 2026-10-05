@@ -5,6 +5,7 @@ import com.trindade.app.auth.AuthInterceptor
 import com.trindade.app.network.AdminApi
 import com.trindade.app.network.AuditApi
 import com.trindade.app.network.AuthApi
+import com.trindade.app.network.BigDecimalSerializer
 import com.trindade.app.network.LoadingApi
 import com.trindade.app.network.ReportsApi
 import com.trindade.app.network.SystemApi
@@ -13,10 +14,13 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import java.math.BigDecimal
 import java.util.concurrent.TimeUnit
 import javax.inject.Qualifier
 import javax.inject.Singleton
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.modules.contextual
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
@@ -158,6 +162,12 @@ object NetworkModule {
     fun provideJson(): Json = Json {
         // Backends evolve; never fail the whole payload on an unknown key.
         ignoreUnknownKeys = true
+        // The contract carries decimal money and temperature values as JSON numbers, and BigDecimal is
+        // not one of the primitive types kotlinx.serialization handles on its own: without this mapping
+        // the whole payload fails to decode instead of the one field.
+        serializersModule = SerializersModule {
+            contextual(BigDecimal::class, BigDecimalSerializer)
+        }
     }
 
     @Provides
