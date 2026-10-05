@@ -1,9 +1,12 @@
 package com.trindade.app.export
 
 import android.content.Context
+import android.graphics.Canvas
+import android.graphics.pdf.PdfDocument
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import java.io.File
+import java.io.OutputStream
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -14,6 +17,9 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
+import org.robolectric.annotation.Config
+import org.robolectric.annotation.Implementation
+import org.robolectric.annotation.Implements
 
 /**
  * Tests for [AndroidPdfGenerator] and [PdfGenerator.LayoutPolicy].
@@ -23,6 +29,7 @@ import org.junit.runner.RunWith
  * generation behavior or transparent reporting of JVM/Robolectric native limitations.
  */
 @RunWith(AndroidJUnit4::class)
+@Config(shadows = [ShadowPdfDocument::class])
 class AndroidPdfGeneratorTest {
 
     @get:Rule
@@ -34,13 +41,14 @@ class AndroidPdfGeneratorTest {
 
     @Before
     fun setUp() {
+        ShadowPdfDocument.reset()
         context = ApplicationProvider.getApplicationContext()
         exportsDir = tempFolder.newFolder("exports")
         generator = AndroidPdfGenerator(context, exportsDir)
     }
 
     @Test
-    fun `generates single- and multi-page PDFs to cache target or reports exact platform limitation`() = runTest {
+    fun `generates files via JVM test double exercising document lifecycle and stream writing`() = runTest {
         val singlePageText = """
             RELATÓRIO DE CARGA - TRINDADE
             Data: 2025-01-15
@@ -54,42 +62,34 @@ class AndroidPdfGeneratorTest {
             "Linha $index: Verificação de temperatura e integridade da carga realizada com sucesso."
         }
 
+        val expectedSinglePages = PdfGenerator.LayoutPolicy.paginate(singlePageText).size
+        val expectedMultiPages = PdfGenerator.LayoutPolicy.paginate(multiPageText).size
+
+        val singlePageFile = generator.generate(singlePageText, "single_page.pdf")
+        assertTrue("Single-page file must exist in cache exports", singlePageFile.exists())
+        assertEquals(ShadowPdfDocument.DOUBLE_PAYLOAD, singlePageFile.readText())
+
+        val multiPageFile = generator.generate(multiPageText, "multi_page.pdf")
+        assertTrue("Multi-page file must exist in cache exports", multiPageFile.exists())
+        assertEquals(ShadowPdfDocument.DOUBLE_PAYLOAD, multiPageFile.readText())
+
+        assertEquals(expectedSinglePages + expectedMultiPages, ShadowPdfDocument.startPageCount)
+        assertEquals(expectedSinglePages + expectedMultiPages, ShadowPdfDocument.finishPageCount)
+        assertEquals(2, ShadowPdfDocument.writeCalls)
+        assertEquals(2, ShadowPdfDocument.closeCalls)
+    }
+
+    @Test
+    fun `generator propagates exceptions from document double without catching or silencing errors`() = runTest {
+        ShadowPdfDocument.simulateFailure = RuntimeException("simulated business error")
         try {
-            val singlePageFile = generator.generate(singlePageText, "single_page.pdf")
-            val multiPageFile = generator.generate(multiPageText, "multi_page.pdf")
-
-            // If the platform/Robolectric lane provides native PdfDocument runtime support:
-            assertTrue("Single-page PDF file must exist in cache exports", singlePageFile.exists())
-            assertTrue("Single-page PDF must have non-zero byte size", singlePageFile.length() > 0)
-
-            val header = singlePageFile.inputStream().use { stream ->
-                val buffer = ByteArray(5)
-                val read = stream.read(buffer)
-                assertEquals(5, read)
-                String(buffer, Charsets.US_ASCII)
-            }
-            assertEquals("PDF file must start with valid magic bytes '%PDF-'", "%PDF-", header)
-
-            assertTrue("Multi-page PDF file must exist in cache exports", multiPageFile.exists())
-            assertTrue("Multi-page PDF must have non-zero byte size", multiPageFile.length() > 0)
-            assertTrue(
-                "Multi-page PDF file size (${multiPageFile.length()} bytes) must be larger than single-page (${singlePageFile.length()} bytes)",
-                multiPageFile.length() > singlePageFile.length(),
-            )
-        } catch (t: Throwable) {
-            // If direct platform PdfDocument does not run in this JVM/Robolectric lane because
-            // native Android libraries (libpdfium / nativeCreateDocument) are not linked on host JVM,
-            // capture and assert the exact platform limitation rather than faking success.
-            val isKnownPlatformLimitation = t is UnsatisfiedLinkError ||
-                t is RuntimeException ||
-                t.cause is UnsatisfiedLinkError ||
-                t.cause is RuntimeException
-
-            assertTrue(
-                "Observed platform limitation when executing native PdfDocument on host JVM: ${t::class.qualifiedName}: ${t.message}",
-                isKnownPlatformLimitation,
-            )
+            generator.generate("test text", "error.pdf")
+            org.junit.Assert.fail("Expected RuntimeException was not thrown")
+        } catch (e: RuntimeException) {
+            assertEquals("simulated business error", e.message)
         }
+        assertFalse("Incomplete target file must be cleaned up on error", File(exportsDir, "error.pdf").exists())
+        assertEquals("close must be called in finally block on error", 1, ShadowPdfDocument.closeCalls)
     }
 
     @Test
@@ -218,5 +218,51 @@ class AndroidPdfGeneratorTest {
         // Verify exportsDir can be created
         subDir.mkdirs()
         assertTrue(subDir.exists())
+    }
+}
+
+@Implements(PdfDocument::class)
+class ShadowPdfDocument {
+    @Implementation
+    fun __constructor__() {}
+
+    @Implementation
+    fun startPage(pageInfo: PdfDocument.PageInfo): PdfDocument.Page {
+        startPageCount++
+        val ctor = PdfDocument.Page::class.java.getDeclaredConstructor(
+            Canvas::class.java,
+            PdfDocument.PageInfo::class.java,
+        ).apply { isAccessible = true }
+        return ctor.newInstance(Canvas(), pageInfo)
+    }
+
+    @Implementation
+    fun finishPage(page: PdfDocument.Page) { finishPageCount++ }
+
+    @Implementation
+    fun writeTo(out: OutputStream) {
+        simulateFailure?.let { throw it }
+        writeCalls++
+        out.write(DOUBLE_PAYLOAD.toByteArray(Charsets.UTF_8))
+    }
+
+    @Implementation
+    fun close() { closeCalls++ }
+
+    companion object {
+        const val DOUBLE_PAYLOAD = "JVM_TEST_DOUBLE_NON_PDF_PAYLOAD\n"
+        var startPageCount = 0
+        var finishPageCount = 0
+        var writeCalls = 0
+        var closeCalls = 0
+        var simulateFailure: Throwable? = null
+
+        fun reset() {
+            startPageCount = 0
+            finishPageCount = 0
+            writeCalls = 0
+            closeCalls = 0
+            simulateFailure = null
+        }
     }
 }
