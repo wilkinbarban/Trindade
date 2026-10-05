@@ -90,19 +90,20 @@ describe('Admin Routes', () => {
     assert.strictEqual(vehPost.statusCode, 401);
     assert.strictEqual(db.prepare("SELECT id FROM vehicles WHERE license_plate = 'UNA-0001'").get(), undefined);
 
+    const targetVehicleId = (db.prepare("SELECT id FROM vehicles WHERE license_plate = 'BDG'").get() as { id: number }).id;
     const vehPatch = await app.inject({
       method: 'PATCH',
-      url: `/api/admin/vehicles/${vehicleId}`,
+      url: `/api/admin/vehicles/${targetVehicleId}`,
       payload: { description: 'Unauth Edit' },
     });
     assert.strictEqual(vehPatch.statusCode, 401);
 
     const vehDelete = await app.inject({
       method: 'DELETE',
-      url: `/api/admin/vehicles/${vehicleId}`,
+      url: `/api/admin/vehicles/${targetVehicleId}`,
     });
     assert.strictEqual(vehDelete.statusCode, 401);
-    assert.ok(db.prepare('SELECT id FROM vehicles WHERE id = ?').get(vehicleId));
+    assert.ok(db.prepare('SELECT id FROM vehicles WHERE id = ?').get(targetVehicleId));
 
     // Representative admin writes: time-slots PUT
     const beforeSlotsSetting = db.prepare("SELECT value FROM settings WHERE key = 'loading_time_slots'").get();
