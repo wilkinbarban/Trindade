@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  The one directory the camera app is allowed to write into on this app's behalf.
+  The directories external apps are allowed to access on this app's behalf via FileProvider.
 
-  Scoped to the cache rather than the whole app: a capture is a temporary file whose only purpose is
-  to be compressed and uploaded, and granting the camera access to anything else would be handing it
-  the token store's neighbourhood for no reason.
+  Scoped to the cache rather than the whole app: temporary captures and exports live here,
+  and granting access to anything else would be handing external apps the token store's
+  neighbourhood for no reason.
 -->
 <paths>
     <cache-path name="captures" path="captures/" />
+    <cache-path name="exports" path="exports/" />
 </paths>
