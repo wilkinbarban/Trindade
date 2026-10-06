@@ -64,6 +64,9 @@ fun LoadingScreen(
     onEditEntry: (Int, String) -> Unit,
     onLoadExport: () -> Unit,
     modifier: Modifier = Modifier,
+    onShareText: () -> Unit = {},
+    onSharePdf: () -> Unit = {},
+    onCopyExport: (String) -> Unit = {},
 ) {
     val clipboard = LocalClipboardManager.current
 
@@ -126,11 +129,43 @@ fun LoadingScreen(
         state.exportText?.let { text ->
             item {
                 Text(text = text, style = MaterialTheme.typography.bodyMedium)
-                AdminPrimaryButton(
-                    onClick = { clipboard.setText(AnnotatedString(text)) },
-                    text = stringResource(R.string.export_copy),
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    AdminPrimaryButton(
+                        onClick = {
+                            clipboard.setText(AnnotatedString(text))
+                            onCopyExport(text)
+                        },
+                        text = stringResource(R.string.export_copy),
+                    )
+                    AdminPrimaryButton(
+                        onClick = onShareText,
+                        text = stringResource(R.string.export_share_text),
+                    )
+                }
+                OutlinedButton(
+                    onClick = onSharePdf,
+                    enabled = !state.exportingPdf,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp)
+                        .defaultMinSize(minHeight = 48.dp),
+                ) {
+                    if (state.exportingPdf) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                            Text(stringResource(R.string.export_share_pdf), style = MaterialTheme.typography.labelLarge)
+                        }
+                    } else {
+                        Text(stringResource(R.string.export_share_pdf), style = MaterialTheme.typography.labelLarge)
+                    }
+                }
             }
         }
 
@@ -379,5 +414,7 @@ fun LoadingRoute(
         onDelete = viewModel::deleteEntry,
         onEditEntry = onEditEntry,
         onLoadExport = viewModel::loadExport,
+        onShareText = viewModel::shareText,
+        onSharePdf = viewModel::sharePdf,
     )
 }

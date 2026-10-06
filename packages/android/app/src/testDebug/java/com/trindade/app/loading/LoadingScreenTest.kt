@@ -4,17 +4,23 @@ import android.content.Context
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.platform.ClipboardManager
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.hasProgressBarRangeInfo
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpRect
@@ -639,6 +645,177 @@ class LoadingScreenTest {
         return MOVED_SLOTS.last { slot ->
             composeRule.onNodeWithText(slot).getUnclippedBoundsInRoot().top <= identity.top
         }
+    }
+
+    // ---- Export actions ----
+
+    private class TestClipboardManager : ClipboardManager {
+        private var clip: AnnotatedString? = null
+        override fun getText(): AnnotatedString? = clip
+        override fun setText(annotatedString: AnnotatedString) {
+            clip = annotatedString
+        }
+        override fun hasText(): Boolean = clip != null
+    }
+
+    @Test
+    fun `does not offer export actions until export text is available`() {
+        render()
+
+        composeRule.onNodeWithText(copy(R.string.export_load)).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText(copy(R.string.export_copy)).assertDoesNotExist()
+        composeRule.onNodeWithText(copy(R.string.export_share_text)).assertDoesNotExist()
+        composeRule.onNodeWithText(copy(R.string.export_share_pdf)).assertDoesNotExist()
+    }
+
+    @Test
+    fun `offers export actions when export text is available`() {
+        val sampleText = "CRONOGRAMA DE CARREGAMENTO - 15/01/2025"
+        var shareTextCalls = 0
+        var sharePdfCalls = 0
+
+        composeRule.setContent {
+            TrindadeTheme {
+                LoadingScreen(
+                    state = state().copy(exportText = sampleText),
+                    onBack = {},
+                    onOpenHistory = {},
+                    onStartAdding = {},
+                    onCancelAdding = {},
+                    onDriverSelected = {},
+                    onVehicleSelected = {},
+                    onConfirmAdd = {},
+                    onDelete = {},
+                    onEditEntry = { _, _ -> },
+                    onLoadExport = {},
+                    onShareText = { shareTextCalls++ },
+                    onSharePdf = { sharePdfCalls++ },
+                )
+            }
+        }
+
+        composeRule.onNodeWithText(copy(R.string.export_copy)).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText(copy(R.string.export_share_text)).performScrollTo().assertIsDisplayed().performClick()
+        composeRule.waitForIdle()
+        assertEquals(1, shareTextCalls)
+        assertEquals(0, sharePdfCalls)
+
+        composeRule.onNodeWithText(copy(R.string.export_share_pdf)).performScrollTo().assertIsDisplayed().performClick()
+        composeRule.waitForIdle()
+        assertEquals(1, shareTextCalls)
+        assertEquals(1, sharePdfCalls)
+    }
+
+    @Test
+    fun `export copy action writes exact text to clipboard`() {
+        val sampleText = "CRONOGRAMA DE CARREGAMENTO - 15/01/2025"
+        val testClipboard = TestClipboardManager()
+
+        composeRule.setContent {
+            CompositionLocalProvider(
+                LocalClipboardManager provides testClipboard,
+            ) {
+                TrindadeTheme {
+                    LoadingScreen(
+                        state = state().copy(exportText = sampleText),
+                        onBack = {},
+                        onOpenHistory = {},
+                        onStartAdding = {},
+                        onCancelAdding = {},
+                        onDriverSelected = {},
+                        onVehicleSelected = {},
+                        onConfirmAdd = {},
+                        onDelete = {},
+                        onEditEntry = { _, _ -> },
+                        onLoadExport = {},
+                    )
+                }
+            }
+        }
+
+        composeRule.onNodeWithText(copy(R.string.export_copy)).performScrollTo().assertIsDisplayed().performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(sampleText, testClipboard.getText()?.text)
+    }
+
+    @Test
+    fun `exporting pdf displays progress indicator and disables pdf action`() {
+        val sampleText = "CRONOGRAMA DE CARREGAMENTO - 15/01/2025"
+        var sharePdfCalls = 0
+
+        composeRule.setContent {
+            TrindadeTheme {
+                LoadingScreen(
+                    state = state().copy(exportText = sampleText, exportingPdf = true),
+                    onBack = {},
+                    onOpenHistory = {},
+                    onStartAdding = {},
+                    onCancelAdding = {},
+                    onDriverSelected = {},
+                    onVehicleSelected = {},
+                    onConfirmAdd = {},
+                    onDelete = {},
+                    onEditEntry = { _, _ -> },
+                    onLoadExport = {},
+                    onSharePdf = { sharePdfCalls++ },
+                )
+            }
+        }
+
+        composeRule.onNode(hasProgressBarRangeInfo(ProgressBarRangeInfo.Indeterminate))
+            .performScrollTo()
+            .assertIsDisplayed()
+        val pdfButton = composeRule.onNodeWithText(copy(R.string.export_share_pdf))
+        pdfButton.assertIsNotEnabled().performClick()
+        composeRule.waitForIdle()
+        assertEquals(0, sharePdfCalls)
+    }
+
+    @Test
+    @Config(qualifiers = "w320dp-h1000dp")
+    fun `export actions at 320dp with 2x font wrap and stay within bounds`() {
+        val sampleText = "CRONOGRAMA DE CARREGAMENTO - 15/01/2025"
+
+        composeRule.setContent {
+            CompositionLocalProvider(
+                LocalDensity provides Density(
+                    density = LocalDensity.current.density,
+                    fontScale = 2.0f,
+                ),
+            ) {
+                TrindadeTheme {
+                    LoadingScreen(
+                        state = responsiveState().copy(exportText = sampleText),
+                        onBack = {},
+                        onOpenHistory = {},
+                        onStartAdding = {},
+                        onCancelAdding = {},
+                        onDriverSelected = {},
+                        onVehicleSelected = {},
+                        onConfirmAdd = {},
+                        onDelete = {},
+                        onEditEntry = { _, _ -> },
+                        onLoadExport = {},
+                    )
+                }
+            }
+        }
+
+        val copyNode = composeRule.onNodeWithText(copy(R.string.export_copy)).performScrollTo()
+        assertWithinViewport(copyNode)
+        val copyBounds = copyNode.getUnclippedBoundsInRoot()
+        assertTrue("Copy button height >= 48dp at 2x", copyBounds.bottom - copyBounds.top >= 48.dp)
+
+        val shareTextNode = composeRule.onNodeWithText(copy(R.string.export_share_text)).performScrollTo()
+        assertWithinViewport(shareTextNode)
+        val shareTextBounds = shareTextNode.getUnclippedBoundsInRoot()
+        assertTrue("Share text button height >= 48dp at 2x", shareTextBounds.bottom - shareTextBounds.top >= 48.dp)
+
+        val sharePdfNode = composeRule.onNodeWithText(copy(R.string.export_share_pdf)).performScrollTo()
+        assertWithinViewport(sharePdfNode)
+        val sharePdfBounds = sharePdfNode.getUnclippedBoundsInRoot()
+        assertTrue("Share PDF button height >= 48dp at 2x", sharePdfBounds.bottom - sharePdfBounds.top >= 48.dp)
     }
 
     private companion object {
