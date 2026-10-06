@@ -5,12 +5,16 @@ import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasProgressBarRangeInfo
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -142,6 +146,9 @@ class TimeSlotsAdminScreenTest {
         composeRule.onNodeWithText(copy(R.string.time_slots_new_slot)).assertIsDisplayed()
         composeRule.onNodeWithText("09:30").assertIsDisplayed()
 
+        composeRule.onNodeWithText("09:30").performTextReplacement("11:00")
+        assertEquals("11:00", inputCaptured)
+
         composeRule.onNodeWithText(copy(R.string.time_slots_add)).performClick()
         assertEquals(true, saveClicked)
     }
@@ -185,7 +192,7 @@ class TimeSlotsAdminScreenTest {
     }
 
     @Test
-    fun `confirmation dialog renders and triggers confirm or cancel`() {
+    fun `confirmation dialog triggers onCancelDelete and not onConfirmDelete when cancel is clicked`() {
         var confirmClicked = false
         var cancelClicked = false
 
@@ -201,8 +208,37 @@ class TimeSlotsAdminScreenTest {
         composeRule.onNodeWithText(copy(R.string.time_slots_delete_confirm_title)).assertIsDisplayed()
         composeRule.onNodeWithText(copy(R.string.time_slots_delete_confirm_body, "06:00")).assertIsDisplayed()
 
-        composeRule.onNodeWithText(copy(R.string.time_slots_cancel)).performClick()
+        val dialogCancelNode = composeRule.onNode(
+            hasAnyAncestor(isDialog()) and hasText(copy(R.string.time_slots_cancel)),
+        )
+        dialogCancelNode.assertIsDisplayed().performClick()
         assertEquals(true, cancelClicked)
+        assertEquals(false, confirmClicked)
+    }
+
+    @Test
+    fun `confirmation dialog triggers onConfirmDelete and not onCancelDelete when confirm is clicked`() {
+        var confirmClicked = false
+        var cancelClicked = false
+
+        render(
+            state(
+                timeSlots = listOf("06:00", "08:00"),
+                deleteConfirmSlot = "06:00",
+            ),
+            onConfirmDelete = { confirmClicked = true },
+            onCancelDelete = { cancelClicked = true },
+        )
+
+        composeRule.onNodeWithText(copy(R.string.time_slots_delete_confirm_title)).assertIsDisplayed()
+        composeRule.onNodeWithText(copy(R.string.time_slots_delete_confirm_body, "06:00")).assertIsDisplayed()
+
+        val dialogConfirmNode = composeRule.onNode(
+            hasAnyAncestor(isDialog()) and hasText(copy(R.string.time_slots_remove)),
+        )
+        dialogConfirmNode.assertIsDisplayed().performClick()
+        assertEquals(true, confirmClicked)
+        assertEquals(false, cancelClicked)
     }
 
     @Test
