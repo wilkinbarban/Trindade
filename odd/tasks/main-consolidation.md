@@ -6,23 +6,38 @@
 - No arranque de emulador, despliegue, publicación de credenciales o claves. Confirmaciones destructivas y consentimientos nativos siguen separados.
 - Ramas/worktrees temporales son aislamiento de ejecución; destino final main. Limpieza sólo después de comprobar conservación e integración.
 
-## Evidencia inicial
+## Evidencia inicial (estados históricos anotados)
 - Auditoría readonly mus9s0q3-2o-xh12; sus estimaciones de líneas y cobertura histórica no prueban integración actual.
-- main local/origin almacenado: b8508398a1b590616985b191b2ccef0dbc8eb0c2; estado remoto vivo pendiente.
+- main local/origin almacenado: b8508398a1b590616985b191b2ccef0dbc8eb0c2 [SUPERADO: main histórica publicada en 7efd465; feature local en 0cbe765, sin push adicional].
 - Principal admission-policy cb9f7d0: ~45 cambios tracked y numerosos untracked; conservar también nuevos módulos, ledgers y artefactos fuera de Git.
 - UX 6c572df, seguridad/enrollment ec7bfda, QA 3e0a9ec: reconciliar DAG real y contenidos antes de integrar; no cherry-picks duplicados.
-- Memoria 4528d620d37208fca8d3797d2adda6388c065376 publicada, 340 líneas, 16 tests y 480 comparaciones; revisión review-66c52b08e6eb61c2 aprobada/ACK consumido.
-- Guardia monolítica 9341 líneas y scripts QA ~5220: sin excepción masiva autorizada. Resolver partición o conservación externa antes de publicación.
+- Memoria 4528d620d37208fca8d3797d2adda6388c065376 publicada, 340 líneas (114 módulo + 226 tests integrados), 16 tests y 480 comparaciones; revisión review-66c52b08e6eb61c2 aprobada/ACK consumido.
+- Scripts QA ~5220 ya integrados históricamente (sin reclamo de nueva importación ni aprobación retroactiva); excepción/partición aplica únicamente a la guardia restante de 9341 líneas (2436 código + 6905 tests untracked en parent preservadas; no un único archivo ni 9001 restantes). Resolver partición o conservación externa antes de publicación.
+
+## Checkpoint de estado actual verificado
+- **Puntas de rama**: main publicada histórica en `7efd465c7ab696ffb598e20fe6cc0311e37ae44a`; feature en `0cbe765c9278ecc280fda1d46d97949eaa304ddb` (rama limpia antes de esta edición documental; actualmente sólo este ledger modificado), sin push adicional.
+- **Diferencias de checkout y ramas**: divergencias entre ramas y checkouts representan trabajo en etapas preservado, no pérdida de datos.
+- **Seguridad y contratos**: backend 51 tests PASS, artefacto OpenAPI 0 diff, cliente 53 tests PASS sobre base previa de 749.
+- **QA y memoria**: scripts QA (2775 + 2445 = 5220 líneas) ya trackeados e integrados históricamente; módulo de memoria (`memory.py` 114 + `test_memory.py` 226 = 340 líneas) completamente integrado.
+- **Guardia de emulador**: scripts originales untracked en checkout principal preservados (`f3_emulator_guard.py` 2436 líneas + `test_f3_emulator_guard.py` 6905 líneas = 9341 líneas totales; no es un único archivo ni se sostiene afirmación de 9001 restantes). Guardia monolítica NO marcada como resuelta.
+- **TimeSlots y UI**: 17 tests frescos PASS en `TimeSlotsAdminScreenTest.kt`; linaje completo `review-6a7d96044905b9cf` aprobado con ACK consumido/quemado antes del commit local `0cbe765` sobre árbol candidato coincidente (no revisión de toda la rama de commits).
+- **Pendientes de dispositivo**: restauración integral de formulario/diálogo/VM/Hilt no acreditada; IME, insets y gestos reales pendientes de dispositivo; export/PDF/share/TalkBack pausados.
 
 ## Tareas
-1. [ ] Conservar cambios y referencias mediante snapshot privado verificable; producir manifiesto y cotejar estado estable. Worker musa37ix-2p-4fke reporta snapshot `.git/consolidation-recovery/main-consolidation-20261003T110416Z`: tar 51660800 bytes / 5179 entradas cotejadas; bundle 2311085 bytes / 40 refs verificado; 8 worktrees estables. Independiente musadsx7-2q-e2ux PASS: permisos 0700/0600, bundle 40 refs, 5179/5179 entradas y 8 índices exactos; 8/8 HEAD/índices/status actuales coinciden. Una deriva de contenido sin ausencias, identificar antes de reconciliar; snapshot original válido. Cierre documental con commit pendiente. No garantía de secretos por sólo screening de nombres; ignored excluidos.
-2. [ ] Reconciliar DAG, estado remoto y política de main; medir unidades reales y elegir ruta de integración sin duplicación. Scout readonly musae8p5-2r-xuv7 en curso, sin fetch/mutaciones; consulta remota sólo lectura autorizada al origin configurado.
-3. [ ] Integrar y verificar unidades de seguridad, contratos y enrollment con commits/revisión acotados.
-4. [ ] Integrar y verificar UX Android, QA y memoria conservando cambios locales no representados por ramas.
-5. [ ] Resolver guardia/QA oversized y ledgers pendientes sin fingir historial ni aprobar excepciones implícitas.
-6. [ ] Verificar conjunto integrado y publicar main respetando política remota.
-7. [ ] Reconciliar checkout principal y retirar sólo ramas/worktrees ya preservados e integrados con autorizaciones aplicables; verificar árbol limpio.
+1. [x] Conservar cambios y referencias mediante snapshot privado verificable; producir manifiesto y cotejar estado estable. Snapshot `.git/consolidation-recovery/main-consolidation-20261003T110416Z` (tar 51660800 bytes / bundle 2311085 bytes / 40 refs) verificado y preservado.
+2. [x] Reconciliar DAG, estado remoto y política de main; medir unidades reales y elegir ruta de integración sin duplicación. main publicada histórica en 7efd465; feature en 0cbe765 sin push adicional.
+3. [x] Integrar y verificar unidades de seguridad, contratos y enrollment con commits/revisión acotados (backend 51 PASS, OpenAPI 0 diff, cliente 53 PASS).
+4. [ ] Integrar y verificar UX Android, QA y memoria: scopes verificadas (memoria 114+226 integrada, QA 5220 trackeado históricamente, TimeSlots 17 PASS con linaje review-6a7d96044905b9cf previo a commit 0cbe765 cerrado sobre árbol candidato, export foundation integrada); pendientes: restauración integral de formulario/diálogo/VM/Hilt no acreditada; IME, insets y gestos reales pendientes de dispositivo; export/PDF/share/TalkBack pausados.
+5. [ ] Resolver guardia/QA oversized y ledgers pendientes: QA 5220 ya integrado históricamente (sin nueva importación ni aprobación retroactiva); memoria integrada; excepción y partición aplican únicamente a la guardia original restante (2436 + 6905 = 9341 untracked en parent) preservada pero pendiente de extracción modular (no marcar resuelta la guardia completa).
+6. [ ] Verificar conjunto integrado y publicar main respetando política remota: main histórica publicada en 7efd465; feature en 0cbe765 sin push adicional hasta consolidar.
+7. [ ] Reconciliar checkout principal y retirar sólo ramas/worktrees ya preservados e integrados: diferencias de ramas/checkout preservadas (no pérdida de datos).
+
+## Plan por etapas
+| Etapa | Alcance | Estado | Límites y dependencias |
+|---|---|---|---|
+| 1. Reconciliación del ledger | Actualización documental de `odd/tasks/main-consolidation.md` | En curso (esta unidad) | Solo doc (<=200 diff lines), sin código ni comandos destructivos. |
+| 2. Extracción modular clock/TTL | Módulo puro y tests unitarios herméticos de reloj y TTL (~175 líneas estimadas) | Planificada (sin implementación aún) | Lógica pura; sin ADB, señales de proceso, CLI, red ni dependencias de dispositivo/emulador. |
 
 ## Checks y cierre
-Pendientes: snapshot, pruebas integradas, revisión de cada candidato nuevo, comprobación de secretos, estado remoto, merge y limpieza. Ningún merge a main efectuado.
-Cada unidad registrará commit, diff total, checks observados y rollback. TDD no genera RED artificial para integrar código existente; comportamiento nuevo exige checks aplicables test-first.
+Pendientes: extracción modular de componentes de guardia, validación en dispositivo (IME/insets/gestos/restauración y reanudación de export/share/TalkBack), verificación global final y reconciliación de checkout principal.
+Cada unidad mantendrá commits acotados, diff medido, checks observables y preservación estricta de trabajo existente.
