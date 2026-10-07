@@ -41,8 +41,10 @@ class TestProbeLifecycle(unittest.TestCase):
         class DummyAdapter:
             def __init__(self):
                 self.started = False
+                self.cancelled = False
             def start_probe(self): self.started = True
             def poll_probe(self): return True, (0, "ACTIVITY MANAGER RUNNING PROCESSES", "", False)
+            def cancel(self): self.cancelled = True; return True
 
         ad = DummyAdapter()
         lc = ProbeLifecycle(clock=self.clock, adapter=ad)
@@ -50,11 +52,14 @@ class TestProbeLifecycle(unittest.TestCase):
         self.assertTrue(ad.started)
         res = lc.poll_cycle()
         self.assertIsNotNone(res)
+        lc.cleanup_teardown()
+        self.assertTrue(ad.cancelled)
 
     def test_explicit_callables_override_adapter(self) -> None:
         class DummyAdapter:
             def start_probe(self): pass
             def poll_probe(self): return True, None
+            def cancel(self): return True
 
         ad = DummyAdapter()
         custom_called = []
@@ -63,9 +68,12 @@ class TestProbeLifecycle(unittest.TestCase):
             adapter=ad,
             start_probe=lambda: custom_called.append("start"),
             poll_probe=lambda: (True, (0, "out", "", False)),
+            cleanup_probe=lambda: custom_called.append("clean"),
         )
         lc.start_cycle()
         self.assertIn("start", custom_called)
+        lc.cleanup_teardown()
+        self.assertIn("clean", custom_called)
 
     def test_nonblocking_start_and_poll_cycle(self) -> None:
         started = []
@@ -208,3 +216,121 @@ class TestProbeLifecycle(unittest.TestCase):
             mock_eval.assert_called_once()
             _, kwargs = mock_eval.call_args
             self.assertEqual(kwargs["baseline_events"], {ANREvent(package="com.example")})
+
+    def test_check_health_matrix(self) -> None:
+        lc = ProbeLifecycle(clock=self.clock, stale_probe_sec=15.0)
+
+        # UNKNOWN initially and IDLE -> fails
+        halted, reason = lc.check_health()
+        self.assertTrue(halted)
+        self.assertEqual(reason, "Health probe failure: unknown")
+
+        # UNKNOWN while RUNNING (non-blocking) -> allowed (freshness pending)
+        lc_running = ProbeLifecycle(clock=self.clock, start_probe=lambda: None, poll_probe=lambda: (False, None), stale_probe_sec=15.0)
+        lc_running.start_cycle()
+        halted, reason = lc_running.check_health()
+        self.assertFalse(halted)
+
+        # Stale precedence before ANR / error
+        lc.record_probe_result(ProbeStatus.CLEAR, self.clock.monotonic())
+        self.clock.advance_monotonic(15.0)
+        halted, reason = lc.check_health()
+        self.assertFalse(halted)  # exact boundary <= 15.0 not stale
+        self.clock.advance_monotonic(0.001)
+        halted, reason = lc.check_health()
+        self.assertTrue(halted)
+        self.assertIn("Health probe stale (>15.0s without fresh update)", reason)
+
+        # Stale precedes error if timestamp is stale
+        lc.record_probe_result(ProbeStatus.ANR_DETECTED, 100.0)
+        halted, reason = lc.check_health()
+        self.assertTrue(halted)
+        self.assertIn("Health probe stale", reason)
+
+        # Fresh ANR and PROBE_ERROR
+        lc.record_probe_result(ProbeStatus.ANR_DETECTED, self.clock.monotonic())
+        halted, reason = lc.check_health()
+        self.assertTrue(halted)
+        self.assertEqual(reason, "Health probe failure: anr_detected")
+
+        lc.record_probe_result(ProbeStatus.PROBE_ERROR, self.clock.monotonic())
+        halted, reason = lc.check_health()
+        self.assertTrue(halted)
+        self.assertEqual(reason, "Health probe failure: probe_error")
+
+        # Fresh CLEAR
+        lc.record_probe_result(ProbeStatus.CLEAR, self.clock.monotonic())
+        halted, reason = lc.check_health()
+        self.assertFalse(halted)
+        self.assertIsNone(reason)
+
+    def test_cleanup_teardown_return_false_and_exceptions(self) -> None:
+        lc = ProbeLifecycle(cleanup_probe=lambda: False)
+        lc.cleanup_teardown()
+        self.assertTrue(lc.has_probe_cleanup_failure)
+        self.assertEqual(lc.probe_cleanup_error, "cleanup_probe returned False (cleanup pending or failed)")
+
+        lc_err = ProbeLifecycle(cleanup_probe=lambda: (_ for _ in ()).throw(RuntimeError("disk err")))
+        lc_err.cleanup_teardown()
+        self.assertTrue(lc_err.has_probe_cleanup_failure)
+        self.assertEqual(lc_err.probe_cleanup_error, "probe_cleanup exception: RuntimeError: disk err")
+
+        lc_sys = ProbeLifecycle(cleanup_probe=lambda: (_ for _ in ()).throw(SystemExit(1)))
+        with self.assertRaises(SystemExit):
+            lc_sys.cleanup_teardown()
+        self.assertTrue(lc_sys.has_probe_cleanup_failure)
+        self.assertEqual(lc_sys.probe_cleanup_error, "probe_cleanup exception: SystemExit: 1")
+
+        lc_ki = ProbeLifecycle(cleanup_probe=lambda: (_ for _ in ()).throw(KeyboardInterrupt()))
+        with self.assertRaises(KeyboardInterrupt):
+            lc_ki.cleanup_teardown()
+        self.assertTrue(lc_ki.has_probe_cleanup_failure)
+        self.assertEqual(lc_ki.probe_cleanup_error, "probe_cleanup exception: KeyboardInterrupt")
+
+    def test_cleanup_teardown_adapter_diagnostics(self) -> None:
+        class FakeAdapter1:
+            has_pending_cleanup = True
+            cleanup_error = "custom error text"
+        lc1 = ProbeLifecycle(adapter=FakeAdapter1())
+        lc1.cleanup_teardown()
+        self.assertTrue(lc1.has_probe_cleanup_failure)
+        self.assertEqual(lc1.probe_cleanup_error, "custom error text")
+
+        class FakeAdapter2:
+            has_pending_cleanup = True
+            cleanup_error = None
+            _pending_reap = [1, 2]
+        lc2 = ProbeLifecycle(adapter=FakeAdapter2())
+        lc2.cleanup_teardown()
+        self.assertTrue(lc2.has_probe_cleanup_failure)
+        self.assertEqual(lc2.probe_cleanup_error, "Pending un-reaped probe handles (2)")
+
+    def test_check_health_stale_while_probe_running_unknown(self) -> None:
+        lc = ProbeLifecycle(
+            clock=self.clock,
+            start_probe=lambda: None,
+            poll_probe=lambda: (False, None),
+            stale_probe_sec=10.0,
+            probe_deadline_sec=20.0,
+        )
+        lc.start_cycle()
+        self.assertEqual(lc.probe_state, _ProbeState.RUNNING)
+        self.assertEqual(lc.last_probe_status, ProbeStatus.UNKNOWN)
+        self.assertEqual(lc.last_probe_mono, 100.0)
+
+        halted, reason = lc.check_health()
+        self.assertFalse(halted)
+        self.assertIsNone(reason)
+
+        self.clock.advance_monotonic(10.0)
+        halted, reason = lc.check_health()
+        self.assertFalse(halted)
+        self.assertIsNone(reason)
+
+        self.clock.advance_monotonic(0.001)
+        halted, reason = lc.check_health()
+        self.assertTrue(halted)
+        self.assertEqual(reason, "Health probe stale (>10.0s without fresh update)")
+        self.assertEqual(lc.last_probe_mono, 100.0)
+        self.assertEqual(lc.last_probe_status, ProbeStatus.UNKNOWN)
+

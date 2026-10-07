@@ -78,6 +78,32 @@ class ProbeLifecycle:
         self.last_probe_status = status
         self.last_probe_mono = monotonic_timestamp
 
+    def cleanup_teardown(self) -> None:
+        """Central teardown for active/pending probes across all halt paths."""
+        if self._cleanup_probe is not None:
+            try:
+                res = self._cleanup_probe()
+                if res is False:
+                    self.has_probe_cleanup_failure = True
+                    if self.probe_cleanup_error is None:
+                        self.probe_cleanup_error = "cleanup_probe returned False (cleanup pending or failed)"
+            except BaseException as e:
+                self.probe_cleanup_error = (
+                    f"probe_cleanup exception: {type(e).__name__}{': ' + str(e) if str(e) else ''}"
+                )
+                self.has_probe_cleanup_failure = True
+                if isinstance(e, (KeyboardInterrupt, SystemExit)):
+                    raise
+        if self._adapter is not None:
+            if getattr(self._adapter, "has_pending_cleanup", False):
+                self.has_probe_cleanup_failure = True
+                if getattr(self._adapter, "cleanup_error", None):
+                    self.probe_cleanup_error = self._adapter.cleanup_error
+                elif self.probe_cleanup_error is None:
+                    self.probe_cleanup_error = (
+                        f"Pending un-reaped probe handles ({len(getattr(self._adapter, '_pending_reap', []))})"
+                    )
+
     def start_cycle(self) -> None:
         """Begin a new (non-blocking) probe cycle."""
         now = self._clock.monotonic()
@@ -136,4 +162,20 @@ class ProbeLifecycle:
                         self.record_probe_result(status, now_probe)
             except Exception as e:
                 return True, f"Health probe execution failure: {e}"
+        return False, None
+
+    def check_health(self) -> Tuple[bool, Optional[str]]:
+        """Verify whether supervisor must stop due to stale probes or errors.
+
+        Returns (halted, reason).
+        """
+        now_after = self._clock.monotonic()
+        if (now_after - self.last_probe_mono) > self._stale_probe_sec:
+            return True, f"Health probe stale (>{self._stale_probe_sec}s without fresh update)"
+
+        if self.last_probe_status in (ProbeStatus.ANR_DETECTED, ProbeStatus.PROBE_ERROR):
+            return True, f"Health probe failure: {self.last_probe_status.value}"
+        if self.last_probe_status == ProbeStatus.UNKNOWN and self._probe_state != _ProbeState.RUNNING:
+            return True, f"Health probe failure: {self.last_probe_status.value}"
+
         return False, None
