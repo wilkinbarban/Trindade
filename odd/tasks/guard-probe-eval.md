@@ -19,7 +19,7 @@ User authorizes lossless integration of approved commit 5a69a927c4335441939ebd76
 
 5. [ ] In progress: adapter safety precursor and complete coordinator, each <=400 gross changed lines including tests and ledger:
    - 5a. [x] Closed in 59ad40732f9e99c3aa00b44b82a8c338e24c1541:  extract pure section validation and aggregate UTF-8 byte quota checks into probe_format.py; preserve quota-before-validation ordering, >= boundary, and original diagnostic strings. Hermetic tests first; independent verification and native approval/ACK before local commit.
-   - 5b. [ ] In progress: 5b.1a closed in b204ed3; 5b.1b closed in 4677228; 5b.2 closed in 67323b3; 5b.3 pending; adb backup 1c8a8d9f.
+   - 5b. [ ] In progress: 5b.1a closed in b204ed3; 5b.1b closed in 4677228; 5b.2 closed in 67323b3; 5b.3a in progress (5 tests active; 7 deferred in backup 08de4c62); 5b.3b pending; adb backup 1c8a8d9f.
 6. [ ] Pending: verify real runtime caller/entry requirements before wiring lifecycle, adapter and handle. No synthetic re-exports, daemon implementation assumptions, original monolith changes, or runtime integration claims from extraction alone.
 
 ## Evidence
@@ -140,4 +140,13 @@ Probe sequence processor slice 5b.2 (closed in 67323b34532775afa3a95bdb128c75d61
 - Deferred: all 11 full-adapter test cases remain deferred to 5b.3 in adb-adapter-oversized-20261007T124250Z; no partial adapter API published; native review gate pending.
 - Independent verification (async verifier, reported BLOCK only on a parent-supplied wrong HEAD SHA; all substantive checks green): 9 focused / 170 regression PASS, hashes and line counts exact, gross 334 (<=400), hermetic tests, monolith parity confirmed at verified anchors 1486/1489/1497/1508/1512/1517/1529-1531. Ledger line citation corrected accordingly and 5b.3 carry-overs recorded (sticky cleanup params, transport-start diagnostic, out-of-range current_command).
 - Native gate closed: review-09222b6d271e9adb (medium, reliability) approved with no findings; exact ACK burned before commit 67323b34532775afa3a95bdb128c75d61f04fb88. Staged tree matched approved 6bdcf952bd732feba8979e94b11941e7a9884fd6; 335 gross lines (<=400). No push; runtime wiring remains pending.
-Probe adapter composition slice 5b.3 (in progress): compose AdbProbeAdapter from ProbeReapCoordinator, ProbeSequenceProcessor, SubprocessProbeHandle and the clock, restoring the 11 deferred adapter integration cases from the private oversized backup without weakening assertions.
+Probe adapter composition slice 5b.3a (in progress; native gate pending):
+- RED: ModuleNotFoundError: No module named 'scripts.f3_guard.adb_adapter' observed running PYTHONDONTWRITEBYTECODE=1 python3 -B -m unittest scripts.f3_guard.tests.test_adb_adapter before production creation.
+- GREEN: 5 focused tests PASS (scripts.f3_guard.tests.test_adb_adapter) in 0.003s.
+- Regression: 175 modular tests PASS (discover -s scripts/f3_guard/tests -p 'test_*.py') in 0.090s (baseline 170 + 5 new).
+- Source budget: 198 lines adb_adapter.py + 187 lines test_adb_adapter.py = 385 source lines (budget <=400 gross changed lines vs HEAD 9b1e45c).
+- File hashes:
+  - 90963651faf0fb2b780a4cce3c9b14f0a1f2a25dbbd3e3ba689ce670890e2bd3 scripts/f3_guard/adb_adapter.py
+  - 09f770e4e6c079a98c91789862bdcd6aa2bac095d26bfd2a02850a8fa3b28c8b scripts/f3_guard/tests/test_adb_adapter.py
+- Composition parity: AdbProbeAdapter composed from ProbeReapCoordinator, ProbeSequenceProcessor, SubprocessProbeHandle and clock, matching monolith scripts/f3_emulator_guard.py lines 1279-1533; transient 11-test run is writer-only unverified.
+- Partitioning: complete 11-test suite exceeds 400 gross lines; split into 5b.3a (production + fixture + 5 lifecycle tests) and 5b.3b (7 deferred tests). Remaining 7 tests preserved verbatim in exclusive backup `/home/wilkin/proyectos/Trindade/.git/consolidation-recovery/adb-adapter-tests-20261007T150006Z` (dir 0700, files 0600, MANIFEST SHA-256 08de4c62939fa36bf89f1dc2edb73fc7cb274a4f8d656e33857f3fb378ca2814).
