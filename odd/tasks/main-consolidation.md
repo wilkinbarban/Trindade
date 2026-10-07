@@ -41,3 +41,29 @@
 ## Checks y cierre
 Pendientes: extracción modular de componentes de guardia, validación en dispositivo (IME/insets/gestos/restauración y reanudación de export/share/TalkBack), verificación global final y reconciliación de checkout principal.
 Cada unidad mantendrá commits acotados, diff medido, checks observables y preservación estricta de trabajo existente.
+
+## Reanudación autorizada: todos los pendientes (2026-10-06)
+Límite vigente: sin push, merge ni eliminación de ramas/worktrees; preservar datos y monolitos. HEAD observado por explorador: cbfe881. Los 750 PASS son JVM/Robolectric, no validación nativa.
+- [ ] Guardia: health_parse (tests primero, RED independiente, producción fiel, GREEN/regresiones, RDD y aprobación de commit); luego probe_eval; controlador de procesos/pidfd, ADB, supervisor/scheduler y verificaciones kernel/zombies.
+- [ ] QA y ledgers: reconciliar cobertura y evidencia histórica sin nueva importación implícita.
+- [ ] Export/PDF/share: reconciliar divergencias ReportDetail/Loading y requerimientos existentes antes de ampliar wiring.
+- [ ] Nativo: PDF, FileProvider/share, TalkBack, Keystore/TLS, notificaciones, IME/insets/gestos y restauración TimeSlots/ReportForm; sin borrar datos ni mutar producción.
+- [ ] Verificación integrada fresca de backend/OpenAPI/cliente y Android sobre candidato exacto; 51/53/0diff previos son históricos.
+- [ ] Checkout/residuos/worktrees/ramas: inventario y conservación; eliminación fuera de autorización.
+- [ ] Autoridad/tooling: inspeccionar lock de mantenimiento y residuos por protocolo, sin borrado ni kills ciegos.
+Primera unidad en curso: health_parse, fuente original 375–513 (139 líneas), imports ~12 y tests estimados 190–210; medir diff real <=400. Probe_eval 514–544 separado. No reducir cobertura por ahorro cosmético.
+
+### Incidente previo a producción health_parse
+Writer muxfc9rx-4q-6adj falló por cleanup no confirmado (1000ms), capacidad en cuarentena. Respuesta retenida reporta tests199líneas/14métodos y RED importerror; todavía no evidencia independiente ni confirmación de salida. Producción pausada. Verificador muxfhze2-4r-0851 diagnostica solo lectura, estado de archivos y RED independiente; sin señales, eliminación de locks ni liberar cuarentena manualmente.
+
+### Integración health_parse cerrada (2026-10-07)
+- **Estado de health_parse**: SUPERADO / CERRADO. El incidente previo y estado pendiente quedan superados de forma factual por la integración del commit aprobado.
+- **Commit integrado**: `5a69a927c4335441939ebd76dc10bf6b200a8d1b` (`fix(guard): extract health parser with bounded semantic corrections`).
+- **Árbol / Tree SHA**: `f793ceaf7df30daf529963d901c0850e0266daa4`.
+- **Revisión / Aprobación / ACK**: Revisión `review-f16d0c2a57c361ae` aprobada y token ACK consumido/quemado antes del commit.
+- **Líneas y presupuesto**: 381 líneas añadidas (162 en `scripts/f3_guard/health_parse.py` + 219 en `scripts/f3_guard/tests/test_health_parse.py`), dentro del presupuesto estricto de <=400 líneas. Corrección semántica acotada: 26 <= 39 líneas de corrección frente a la base del monolito original.
+- **Verificación fresca observada**:
+  - `PYTHONDONTWRITEBYTECODE=1 python3 -B -m unittest scripts.f3_guard.tests.test_health_parse`: 17 tests PASS en 0.003s.
+  - `PYTHONDONTWRITEBYTECODE=1 python3 -B -m unittest discover -s scripts/f3_guard/tests -p 'test_*.py'`: 83 tests PASS en 0.028s (suite modular completa sin regresiones, sin ADB ni emulador).
+- **Integridad y autorización**: Integración ejecutada mediante fast-forward autorizado (`git merge --ff-only 5a69a92`), excepción autorizada explícitamente por el usuario para la rama de feature `feature/principal-review-chain` (manteniendo la prohibición general de merges no autorizados en main). Los archivos de staging/worktree previos fueron respaldados de forma privada aditiva en `.git/consolidation-recovery/health-integration-20261007T034938Z` (permisos 0700 dir, 0600 archivos) con manifiesto verificado de hashes antes de la sincronización. La guardia monolítica en su conjunto continúa incompleta; el siguiente paso modular es `probe_eval`.
+
