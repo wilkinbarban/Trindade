@@ -167,6 +167,55 @@ class TestProbeReapCoordinator(unittest.TestCase):
         self.assertIn("reap failed", str(coord.cleanup_error))
         self.assertIn(h, coord.pending_reap)
 
+    def test_reap_pending_discovers_close_error_and_retains_poison(self) -> None:
+        coord = ProbeReapCoordinator()
+        h = FakeProbeHandle(exit_code=None, reapable=False)
+        coord.cancel_handle(h)
+        self.assertIsNone(coord.cleanup_error)
+
+        # Handle becomes reapable but reports _close_error during reap
+        h._reapable = True
+        h._close_error = "close failed on fd 10: EBADF"
+        remaining = coord.reap_pending()
+        self.assertEqual(remaining, 0)
+        self.assertEqual(coord.cleanup_error, "close failed on fd 10: EBADF")
+        self.assertTrue(coord.cleanup_failed)
+        self.assertTrue(coord.has_pending_cleanup())
+
+    def test_poison_persists_after_exception_recovery(self) -> None:
+        coord = ProbeReapCoordinator()
+        h = FakeProbeHandle(exit_code=None, reapable=False)
+        coord.cancel_handle(h)
+        # Handle is reapable before the induced reap failure; the exception is the only failure cause.
+        h._reapable = True
+        h._raise_on_cleanup = OSError("temporary reap failure")
+        coord.reap_pending()
+        self.assertTrue(str(coord.cleanup_error).startswith("Pending reap exception:"))
+        self.assertTrue(coord.cleanup_failed)
+
+        # Handle recovers from exception and reaps cleanly
+        h._raise_on_cleanup = None
+        remaining = coord.reap_pending()
+        self.assertEqual(remaining, 0)
+        # Poison persists because cleanup_error is not cleared
+        self.assertTrue(coord.cleanup_failed)
+        self.assertTrue(coord.has_pending_cleanup())
+
+    def test_multiple_pending_handles_isolation(self) -> None:
+        coord = ProbeReapCoordinator()
+        h1 = FakeProbeHandle(exit_code=None, reapable=False)
+        h2 = FakeProbeHandle(exit_code=None, reapable=False)
+        coord.cancel_handle(h1)
+        coord.cancel_handle(h2)
+        self.assertEqual(len(coord.pending_reap), 2)
+
+        # Only h2 becomes reapable; h1 remains stuck
+        h2._reapable = True
+        remaining = coord.reap_pending()
+        self.assertEqual(remaining, 1)
+        self.assertIn(h1, coord.pending_reap)
+        self.assertNotIn(h2, coord.pending_reap)
+
     def test_cancel_convenience_method(self) -> None:
         coord = ProbeReapCoordinator()
         h = FakeProbeHandle(exit_code=None, reapable=True)

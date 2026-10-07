@@ -19,7 +19,7 @@ User authorizes lossless integration of approved commit 5a69a927c4335441939ebd76
 
 5. [ ] In progress: adapter safety precursor and complete coordinator, each <=400 gross changed lines including tests and ledger:
    - 5a. [x] Closed in 59ad40732f9e99c3aa00b44b82a8c338e24c1541:  extract pure section validation and aggregate UTF-8 byte quota checks into probe_format.py; preserve quota-before-validation ordering, >= boundary, and original diagnostic strings. Hermetic tests first; independent verification and native approval/ACK before local commit.
-   - 5b. [ ] In progress: 5b.1a closed in b204ed3 (11 tests+start_error, R3-001 corrected); 5b.1b pending deferred 3 adversarial tests; 5b.2/5b.3 pending; adb backup 1c8a8d9f.
+   - 5b. [ ] In progress: 5b.1a closed in b204ed3 (11 tests+start_error, R3-001 corrected); 5b.1b in progress (3 deferred adversarial tests restored, all 3 active, 14 focused / 161 regression PASS, production unchanged); 5b.2/5b.3 pending; adb backup 1c8a8d9f.
 6. [ ] Pending: verify real runtime caller/entry requirements before wiring lifecycle, adapter and handle. No synthetic re-exports, daemon implementation assumptions, original monolith changes, or runtime integration claims from extraction alone.
 
 ## Evidence
@@ -116,3 +116,13 @@ Probe reap coordinator slice 5b.1a (closed in b204ed3094583920b7a760a4be2b45d366
 - Hashes: c9c6024a0ff35d6852c90616206e807a48f51eebf7973a461e64fbeb8480b50f (prod), 246405d54d26fe4df2be50dd95a83f7caf5ffe42ade6b60ef11393820dc6d340 (test).
 - Backups: 5b.1b 3 deferred tests in reap-adversarial-coverage-20261007T131413Z (d2865d72...); 11 full adapter cases in adb-adapter-oversized-20261007T124250Z.
 - Native gate closed: review-5692ae9a36dbe0bc (medium, reliability) required correction R3-001 (cancel dropped current_handle and could report clean after a handle construction failure). Bounded correction 5 diff lines with observed RED then GREEN; targeted validator approved corrected candidate cc380f4c; exact ACK burned before commit b204ed3094583920b7a760a4be2b45d3665456e1. Staged tree matched approved dce48b0384b30640249bd7cf37fc5ac5eb037cd0; 397 gross lines (<=400). Deferred 3 adversarial tests remain in private backup for 5b.1b; runtime wiring not claimed; no push.
+Probe reap coordinator slice 5b.1b coverage restoration (in progress):
+- Restoration: verbatim restoration of 3 deferred adversarial tests (test_reap_pending_discovers_close_error_and_retains_poison, test_poison_persists_after_exception_recovery, test_multiple_pending_handles_isolation) from private backup `/home/wilkin/proyectos/Trindade/.git/consolidation-recovery/reap-adversarial-coverage-20261007T131413Z` (dir 0700, files 0600, MANIFEST SHA-256 d2865d726a4b60b524fd9fc18ffb97e64a0efd5bab763a307d0f2aa2a3fccc4b). All three adversarial cases now active.
+- TDD lifecycle: coverage restoration against unchanged production; no artificial RED; observed honest GREEN.
+- GREEN: 14 focused tests PASS (scripts.f3_guard.tests.test_reap_coordinator) in 0.001s.
+- Regression: 161 modular tests PASS (discover -s scripts/f3_guard/tests -p 'test_*.py') in 0.033s (baseline 158 + 3 restored).
+- Hashes:
+  - Production (unchanged): c9c6024a0ff35d6852c90616206e807a48f51eebf7973a461e64fbeb8480b50f scripts/f3_guard/reap_coordinator.py
+  - Test (restored): 97df71567ca1ae16aec2a66c1cae0398896d029c6871b4c90349191a001b4647 scripts/f3_guard/tests/test_reap_coordinator.py
+- Source budget: 48 additions / 0 deletions in test_reap_coordinator.py; gross add+del well under <=400 limit vs HEAD 333d040. Existing 11 methods and assertions unaltered; production reap_coordinator.py untouched.
+- Native gate: review-21008ec5bcb1fee5 (medium, reliability) reported R3-001 BLOCKER claiming test_poison_persists_after_exception_recovery deterministically fails. Direct observation contradicted the claim: the restored test passed alone and in suite. The bounded correction nonetheless followed the finding's stated requirement: the handle is now made reapable before the induced reap failure, so the exception is the only failure cause. All assertions preserved, no production change; observed RED only in a discarded intermediate attempt, final state GREEN 14/161. Test hash d12c831226f702173439312b7199b4c2aa5723070eb720377de4a97d0168a639; gross vs 333d040 = 60 lines.
