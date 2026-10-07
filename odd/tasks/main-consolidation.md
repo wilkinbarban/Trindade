@@ -44,7 +44,7 @@ Cada unidad mantendrá commits acotados, diff medido, checks observables y prese
 
 ## Reanudación autorizada: todos los pendientes (2026-10-06)
 Límite vigente: sin push, merge ni eliminación de ramas/worktrees; preservar datos y monolitos. HEAD observado por explorador: cbfe881. Los 750 PASS son JVM/Robolectric, no validación nativa.
-- [ ] Guardia: health_parse (cerrado); probe_eval (cerrado); partición controlador de procesos: 7a inspección proc (cerrado), 7b.1 binding lifecycle (cerrado en aeb821c), 7b.2 ops/reap (cerrado en b36c281), 7c controlador completo (en curso; candidato hermético verificado, <=400 líneas brutas por unidad); ADB, supervisor/scheduler y verificaciones kernel/zombies.
+- [ ] Guardia: health_parse (cerrado); probe_eval (cerrado); partición controlador de procesos 7a/7b.1/7b.2/7c (cerrado en 2cb8788); SupervisorScheduler rediseño 8a.1 en curso (12 tests PASS, 236 regresión, FakeEngine duck-typed, <=420 líneas brutas excepción autorizada, 419 actual vs HEAD); 8b/8c integración supervisor engine y kernel pendientes.
 - [ ] QA y ledgers: reconciliar cobertura y evidencia histórica sin nueva importación implícita.
 - [ ] Export/PDF/share: reconciliar divergencias ReportDetail/Loading y requerimientos existentes antes de ampliar wiring.
 - [ ] Nativo: PDF, FileProvider/share, TalkBack, Keystore/TLS, notificaciones, IME/insets/gestos y restauración TimeSlots/ReportForm; sin borrar datos ni mutar producción.

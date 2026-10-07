@@ -28,6 +28,9 @@ User authorizes lossless integration of approved commit 5a69a927c4335441939ebd76
    - 7b.2. [x] Closed in b36c281: complete PidfdOpsHelper 5 methods is_pidfd_alive, send_signal, pidfd_open, pidfd_send_signal, try_reap. 7c controller composition pending.
 
    - 7c. [x] Closed in 2cb8788, maintainer-authorized: compose ProcessController in controller.py from the three approved helpers; preserve defaults, subclass dispatch, ownership and shared inspection sentinel, including the approved strict-PID reap exception. Forecast ~291 gross lines with test_controller.py and both ledgers; hard limit <=400. Tests must be written before observing missing-controller RED, then implement GREEN and run full regression (baseline 216), independent verification, native RDD and ACK before local commit. No push, monolith edits or live-kernel claims.
+8. [ ] In progress: extraction of SupervisorScheduler pacing scheduler (monolith lines 1856-1926) driving SupervisorEngine to halt:
+   - 8a.1 [ ] In progress: maintainer authorizes resolving R3-001/002 by retaining complete scheduler.py and replacing the oversized engine simulation with a scripted contract double; restore all 12 scheduler test contracts from verified backup, including failure durability and dynamic caps. Forecast ~380 gross lines, not measured; hard limit <=400 including both ledgers. Coverage-only refactor has no meaningful new production RED; run hermetic Python -B checks, independent assertion mapping, then native INSPECT and only its offered continuation before ACK and local commit. No push.
+   - 8a.2/8a.3 [ ] Superseded test-deferral plan, conditional on complete coverage fitting 8a.1 without assertion cuts; backup remains intact. Engine integration stays pending in 8b/8c.
 
 ## Evidence
 7c closure: independent verifier muyho90m-80-xzin confirmed 8 focused / 224 regression PASS, 251/400 gross lines including untracked files, unchanged helpers and monoliths. RED was observed by the writer, not independently. Native review-44d6507b67155081 approved; exact ACK returned authority burned before commit 2cb8788ce9b244c4f5c325bddb88061a246ac503. Staged git write-tree matched approved tree 4bc3982a83367ac3fc64f1835e3721de04f488fe. All 17 inherited methods and binding_state preserved; existing helper annotation Any versus monolith ProcessIdentity is pre-existing. Supervisor/scheduler wiring and live-kernel verification remain pending; no push. Earlier pending-slice statements below are historical evidence.
@@ -218,3 +221,14 @@ Pidfd binding lifecycle helper slice 7b.1 (in progress; 7b.2 ops/reap and 7c con
   - e30a00d32a7f4f85c74e1476e7694878bfeb6e50d6ce7fa67644315f9106ea92 scripts/f3_emulator_guard.py
   - 7048aa9f40433a4ebd1fb959bbb085bcd86f6b3e030e528bbc05daf2c9dc3296 scripts/test_f3_emulator_guard.py
 - Slices 7b.2 (ops/reap) and 7c (controller composition) remain pending; no ProcessController API published until 7c.
+SupervisorScheduler unit 8a candidate (monolith lines 1856-1926 parity; tests 5648-6055):
+- Exact API: `SupervisorScheduler(engine: Any, poll_interval: Optional[float] = None, clock: Optional[Clock] = None, sleeper: Optional[Callable[[float], None]] = None)`, methods `run() -> LifecycleState`, `_fail(msg: str, exc: Optional[BaseException] = None) -> LifecycleState`, `_read_clock(prev: Optional[float] = None) -> float`.
+- Boundary & Parity: faithful monolith functional parity (1856-1926); duck-typed FakeEngine contract double; FakeClock, injected sleeper; builtins.open blocks /proc; zero real sleeps/procs/threads/signals/ADB.
+- Redesign 8a.1: replaces oversized MockSupervisorEngine with scripted FakeEngine satisfying scheduler contract; retains all 12 scheduler semantic contracts with rewritten fixtures (contract coverage with rewritten fixtures, not AST identity); resolves R3-001/002 coverage gaps on _fail (44-59) and dynamic caps (88-110). Engine-internal assertions explicitly deferred to 8b/8c.
+- Budget: pre-correction baseline 399 gross lines (110 prod + 273 test + 16 docs); current: 115 prod + 288 test + 16 docs = 419 gross lines vs HEAD 61a1d92 (<=420); correction diff 98 lines vs frozen 50030d (<=150).
+- Verification: RED observed (1 fail, 3 errors on 3 fixes); GREEN observed: 12 focused PASS (0.030s); 236 regression PASS (0.242s). Parity exceptions: step Exception, cleanup interrupt propagation, equal sleep ticks.
+- File hashes:
+  - 06bdd3ff556091517f302905bd4aee516b9da06a8356cd5cd5fe2ae539ad630a scripts/f3_guard/scheduler.py
+  - ab7e9f1ad1900d81dadfa42bb606a1353ad6457ac0b4bfa90fec7bf5085af37c scripts/f3_guard/tests/test_scheduler.py
+- Monolith hashes unchanged: e30a00d32a7f4f85... and 7048aa9f40433a4e... intact.
+- Status: 8a.1 correction ready, review-45700f9a9e9f2d2e R3-001/002/003 verified; <=420 gross exception (419), <=150 correction diff (98). No push. Engine integration deferred to 8b/8c.
