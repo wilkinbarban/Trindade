@@ -60,6 +60,10 @@ class AdbProbeAdapter:
         )
 
     @property
+    def pending_reap_count(self) -> int:
+        return len(self._coordinator.pending_reap)
+
+    @property
     def cleanup_error(self) -> Optional[str]:
         return self._coordinator.cleanup_error
 

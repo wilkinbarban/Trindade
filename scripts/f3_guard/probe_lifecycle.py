@@ -97,12 +97,19 @@ class ProbeLifecycle:
         if self._adapter is not None:
             if getattr(self._adapter, "has_pending_cleanup", False):
                 self.has_probe_cleanup_failure = True
-                if getattr(self._adapter, "cleanup_error", None):
-                    self.probe_cleanup_error = self._adapter.cleanup_error
-                elif self.probe_cleanup_error is None:
-                    self.probe_cleanup_error = (
-                        f"Pending un-reaped probe handles ({len(getattr(self._adapter, '_pending_reap', []))})"
-                    )
+                if self.probe_cleanup_error in (None, "cleanup_probe returned False (cleanup pending or failed)"):
+                    if getattr(self._adapter, "cleanup_error", None):
+                        self.probe_cleanup_error = self._adapter.cleanup_error
+                    else:
+                        count = None
+                        if hasattr(self._adapter, "pending_reap_count"):
+                            val = getattr(self._adapter, "pending_reap_count")
+                            count = val() if callable(val) else val
+
+                        if count is not None:
+                            self.probe_cleanup_error = f"Pending un-reaped probe handles ({count})"
+                        else:
+                            self.probe_cleanup_error = "Pending un-reaped probe handles"
 
     def start_cycle(self) -> None:
         """Begin a new (non-blocking) probe cycle."""

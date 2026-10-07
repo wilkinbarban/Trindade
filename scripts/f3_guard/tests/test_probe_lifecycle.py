@@ -299,7 +299,7 @@ class TestProbeLifecycle(unittest.TestCase):
         class FakeAdapter2:
             has_pending_cleanup = True
             cleanup_error = None
-            _pending_reap = [1, 2]
+            pending_reap_count = 2
         lc2 = ProbeLifecycle(adapter=FakeAdapter2())
         lc2.cleanup_teardown()
         self.assertTrue(lc2.has_probe_cleanup_failure)

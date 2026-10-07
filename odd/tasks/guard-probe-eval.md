@@ -20,7 +20,7 @@ User authorizes lossless integration of approved commit 5a69a927c4335441939ebd76
 5. [ ] In progress: adapter safety precursor and complete coordinator, each <=400 gross changed lines including tests and ledger:
    - 5a. [x] Closed in 59ad40732f9e99c3aa00b44b82a8c338e24c1541:  extract pure section validation and aggregate UTF-8 byte quota checks into probe_format.py; preserve quota-before-validation ordering, >= boundary, and original diagnostic strings. Hermetic tests first; independent verification and native approval/ACK before local commit.
    - 5b. [ ] In progress: 5b.1a closed in b204ed3; 5b.1b closed in 4677228; 5b.2 closed in 67323b3; 5b.3a closed in f00760e; 5b.3b in progress (restoring 7 deferred tests from backup 08de4c62); adb backup 1c8a8d9f.
-6. [ ] Pending: verify real runtime caller/entry requirements before wiring lifecycle, adapter and handle. No synthetic re-exports, daemon implementation assumptions, original monolith changes, or runtime integration claims from extraction alone.
+6. [ ] In progress: scout found no production caller in the repository; supervisor/PID dependencies remain pending. Authorized 6a: hermetic ProbeLifecycle + AdbProbeAdapter integration with fake transport; public cleanup diagnostic contract, no private attribute access. Test-first RED/GREEN, independent verification, native RDD/ACK before local commit; <=400 gross lines including tests and ledger. No synthetic re-exports, daemon implementation, original monolith changes, runtime deployment claims, or push.
 
 ## Evidence
 5a closure: independent muy2qph1 confirmed 33/147 PASS and all 16 base test methods AST-identical (17 added, none lost). Native review-686a5e2f60f940bb approved; exact ACK burned before commit 59ad40732f9e99c3aa00b44b82a8c338e24c1541. Staged tree matched approved 383966155a884e6b1b6c15a226936ae9e8f427c4; 258 gross changed lines. Runtime wiring remains pending; no push.
@@ -164,3 +164,13 @@ Probe adapter tests slice 5b.3b (closed in f205a44f341ed905c8d62cf0b03e8a797fc66
 - AST verification: all 5 existing methods AST/byte-identical to prior HEAD; all 7 restored methods match backup with sole documented adaptation.
 - Independent verification: 12 focused / 182 regression PASS; 200 gross lines; fixtures and assertions preserved; backups and production intact.
 - Native gate: review-22307d566d5c7491 approved; exact ACK burned before commit f205a44f341ed905c8d62cf0b03e8a797fc66b1b; staged tree matched approved 8bf9de66aaffb4abb6569253c1db419a118b1670. No push. Runtime integration remains pending.
+Hermetic ProbeLifecycle + AdbProbeAdapter wiring (slice 6a):
+- RED: AssertionError: 'Pending un-reaped probe handles (0)' != 'Pending un-reaped probe handles (1)' and 'cleanup_probe returned False (cleanup pending or failed)' != 'Pending un-reaped probe handles (1)' observed before production changes; adversarial trap observed AssertionError: Private adapter lookup forbidden: _pending_reap before private fallback removal; test_probe_lifecycle observed AssertionError: 'Pending un-reaped probe handles' != 'Pending un-reaped probe handles (2)' prior to fixture migration.
+- GREEN: 10 focused tests PASS (scripts.f3_guard.tests.test_probe_lifecycle_wiring) in 0.003s; 192 modular regression PASS (discover -s scripts/f3_guard/tests -p 'test_*.py') in 0.045s (baseline 182 + 10 new).
+- Source budget: 4 additions adb_adapter.py + 13 additions / 6 deletions probe_lifecycle.py (19 gross; previously 17 gross / 13add 4del) + 213 lines test_probe_lifecycle_wiring.py + 1 addition / 1 deletion test_probe_lifecycle.py + 12 ledger lines = 250 gross changed lines vs HEAD 07a8ccd (budget <=400 gross lines).
+- File hashes:
+  - 28ca5f83becb965ec8d786405c01c2c66ada84f4464b2d8230e0e6d1350ce9b4 scripts/f3_guard/adb_adapter.py
+  - a3497431007d633d7f917223efd3ec6f484f6aae1cb43d6482cdcb758b7e65e2 scripts/f3_guard/probe_lifecycle.py
+  - 977c61457e4c03ab27e8231398c61141d0ce50a9ecc4868717879635d37351e4 scripts/f3_guard/tests/test_probe_lifecycle.py
+  - 9bcd57e60b1bc290c9b27bd2b978d6ca6d91b156c6787c55135b08cd621d9198 scripts/f3_guard/tests/test_probe_lifecycle_wiring.py
+- Diagnostic contract: narrow public read-only pending_reap_count on AdbProbeAdapter backed by coordinator public pending_reap; lifecycle consumes public contract strictly with honest fallback for duck-typed adapters and zero private adapter lookups; prior fixture migrated to public pending_reap_count contract preserving all existing test assertions; meaningful callback exceptions and error precedence preserved; no runtime integration claimed.
