@@ -152,7 +152,7 @@ Probe adapter composition slice 5b.3a (closed in f00760ea66d6a373268f3d254b8ac66
 - Partitioning: complete 11-test suite exceeds 400 gross lines; split into 5b.3a (production + fixture + 5 lifecycle tests) and 5b.3b (7 deferred tests). Remaining 7 tests preserved verbatim in exclusive backup `/home/wilkin/proyectos/Trindade/.git/consolidation-recovery/adb-adapter-tests-20261007T150006Z` (dir 0700, files 0600, MANIFEST SHA-256 08de4c62939fa36bf89f1dc2edb73fc7cb274a4f8d656e33857f3fb378ca2814).
 - Independent verification: 5 focused / 175 modular regression PASS; 398 gross changed lines (budget <=400 gross).
 - Gate closed: native review-64e62c1039f205f5 approved; exact ACK burned prior to commit f00760ea66d6a373268f3d254b8ac663c938579c, commit tree fb4240ec546a2d3d7838482fd90985e966aeaccc. R3-001 WARNING informational finding at adb_adapter.py:129-173 acknowledged as advisory separate follow-up (no reopening, detail not yet retrieved, not invented).
-Probe adapter tests slice 5b.3b (in progress):
+Probe adapter tests slice 5b.3b (closed in f205a44f341ed905c8d62cf0b03e8a797fc66b1b):
 - Scope: restore 7 deferred tests from private backup `/home/wilkin/proyectos/Trindade/.git/consolidation-recovery/adb-adapter-tests-20261007T150006Z` (MANIFEST SHA-256 08de4c62939fa36bf89f1dc2edb73fc7cb274a4f8d656e33857f3fb378ca2814) into scripts/f3_guard/tests/test_adb_adapter.py.
 - Test discipline: test-only restoration; no meaningful production RED as production implementation was already committed in 5b.3a. Hermetic functional checks verify restored suite.
 - Parity & adaptation: all 5 existing tests, fixtures, and assertions preserved; sole internal path adaptation is `adapter._pending_reap` -> `adapter._coordinator.pending_reap` in test_cancel_and_reap_pending_idempotence to match extracted coordinator structure.
@@ -162,3 +162,5 @@ Probe adapter tests slice 5b.3b (in progress):
   - 90963651faf0fb2b780a4cce3c9b14f0a1f2a25dbbd3e3ba689ce670890e2bd3 scripts/f3_guard/adb_adapter.py (unchanged)
   - d01c08adeafda405b0b5b48e8abd74abc99e6d4a9792cb79117038479f6dbf7b scripts/f3_guard/tests/test_adb_adapter.py
 - AST verification: all 5 existing methods AST/byte-identical to prior HEAD; all 7 restored methods match backup with sole documented adaptation.
+- Independent verification: 12 focused / 182 regression PASS; 200 gross lines; fixtures and assertions preserved; backups and production intact.
+- Native gate: review-22307d566d5c7491 approved; exact ACK burned before commit f205a44f341ed905c8d62cf0b03e8a797fc66b1b; staged tree matched approved 8bf9de66aaffb4abb6569253c1db419a118b1670. No push. Runtime integration remains pending.
