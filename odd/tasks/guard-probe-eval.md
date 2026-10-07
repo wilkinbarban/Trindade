@@ -22,6 +22,9 @@ User authorizes lossless integration of approved commit 5a69a927c4335441939ebd76
    - 5b. [ ] In progress: 5b.1a closed in b204ed3; 5b.1b closed in 4677228; 5b.2 closed in 67323b3; 5b.3a closed in f00760e; 5b.3b in progress (restoring 7 deferred tests from backup 08de4c62); adb backup 1c8a8d9f.
 6. [ ] In progress: scout found no production caller in the repository; supervisor/PID dependencies remain pending. Authorized 6a: hermetic ProbeLifecycle + AdbProbeAdapter integration with fake transport; public cleanup diagnostic contract, no private attribute access. Test-first RED/GREEN, independent verification, native RDD/ACK before local commit; <=400 gross lines including tests and ledger. No synthetic re-exports, daemon implementation, original monolith changes, runtime deployment claims, or push.
 
+7. [ ] In progress: unified ProcessController projection 560-615 gross lines exceeds 400; no source written. Partition into complete helpers: 7a proc inspection (in progress), 7b pidfd binding/operations/reap (pending), 7c complete controller composition (pending). Each unit requires hermetic test-first checks, independent verification and native RDD/ACK before local commit; <=400 gross lines including tests and ledgers. No coverage cuts, partial controller API, original monolith changes, runtime claims, or push.
+   - 7a. [ ] Complete ProcInspectionHelper (7 methods: get_exe_path, get_ppid, get_start_ticks, get_uid, get_cmdline, get_fdinfo_pid, get_process_state; shared sentinel INSPECTION_ERROR / _INSPECTION_ERROR) extracted with hermetic tests. 7b pidfd binding/ops/reap and 7c controller composition pending.
+
 ## Evidence
 5a closure: independent muy2qph1 confirmed 33/147 PASS and all 16 base test methods AST-identical (17 added, none lost). Native review-686a5e2f60f940bb approved; exact ACK burned before commit 59ad40732f9e99c3aa00b44b82a8c338e24c1541. Staged tree matched approved 383966155a884e6b1b6c15a226936ae9e8f427c4; 258 gross changed lines. Runtime wiring remains pending; no push.
 Health parser: 17 focused / 83 regression PASS previously observed; review-f16d0c2a57c361ae approved and ACK burned; commit tree f793ceaf7df30daf529963d901c0850e0266daa4.
@@ -176,3 +179,16 @@ Hermetic ProbeLifecycle + AdbProbeAdapter wiring (slice 6a, closed in 14abb3cf08
 - Diagnostic contract: narrow public read-only pending_reap_count on AdbProbeAdapter backed by coordinator public pending_reap; lifecycle consumes public contract strictly with honest fallback for duck-typed adapters and zero private adapter lookups; prior fixture migrated to public pending_reap_count contract preserving all existing test assertions; meaningful callback exceptions and error precedence preserved; no runtime integration claimed.
 - Independent verification: 25 focused / 192 regression PASS; 250 gross lines; all previous assertions preserved. Initial private-fallback BLOCK resolved before native START.
 - Native gate: review-80437d5dfc553849 approved; exact ACK burned before commit 14abb3cf086735d18bab0285741d555ca3ef095c; staged tree matched approved 402268ebafc0f1d8da0374f5e94d22f48bf723b2. Originals intact; no push. Runtime caller/supervisor remains pending.
+Proc inspection helper slice 7a (in progress; 7b binding/ops/reap and 7c controller composition pending):
+- RED: ModuleNotFoundError: No module named 'scripts.f3_guard.proc_inspection' (1 error) observed running PYTHONDONTWRITEBYTECODE=1 python3 -B -m unittest scripts.f3_guard.tests.test_proc_inspection before production creation.
+- GREEN: 11 focused tests PASS (scripts.f3_guard.tests.test_proc_inspection) in 0.096s (bounded followup added exact 8192-char valid fdinfo, read(8193) assertion, mid-stream read/iteration OSErrors, and malformed State handling).
+- Regression: 203 modular tests PASS (discover -s scripts/f3_guard/tests -p 'test_*.py') in 0.130s (baseline 192 + 11 new).
+- Source budget: 118 lines proc_inspection.py + 233 lines test_proc_inspection.py = 351 source lines (candidate gross <=400 vs HEAD 0c5389e).
+- File hashes:
+  - 7f4543780ff98c324893331b509c6b8cf231e1e00d7c40eac0b2ae57e67a75ca scripts/f3_guard/proc_inspection.py
+  - afd8dcaa08ae30f895e68d348f2edcfb0d0c3999f9a3b7c2a4ff7239002bcc53 scripts/f3_guard/tests/test_proc_inspection.py
+- AST / logic parity: executable bodies AST parity across all 7 methods (get_exe_path, get_ppid, get_start_ticks, get_uid, get_cmdline, get_fdinfo_pid, get_process_state) excluding 5 new helper docstrings vs monolith scripts/f3_emulator_guard.py lines 566-676. Shared sentinel INSPECTION_ERROR is _INSPECTION_ERROR; distinct string "INSPECTION_ERROR" preserved for process state vs object sentinel for start_ticks; no total coverage claimed.
+- Unchanged originals:
+  - e30a00d32a7f4f85c74e1476e7694878bfeb6e50d6ce7fa67644315f9106ea92 scripts/f3_emulator_guard.py
+  - 7048aa9f40433a4ebd1fb959bbb085bcd86f6b3e030e528bbc05daf2c9dc3296 scripts/test_f3_emulator_guard.py
+- Slices 7b (pidfd binding/ops/reap) and 7c (controller composition) remain pending; no ProcessController API published until 7c.
