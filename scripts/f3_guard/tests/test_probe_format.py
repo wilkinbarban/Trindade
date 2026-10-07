@@ -25,6 +25,8 @@ from scripts.f3_guard.probe_format import (
     _is_recognized_dumpsys_structure,
     _parse_health_bool,
     _validate_last_anr_content,
+    check_aggregate_probe_quota,
+    validate_dumpsys_section,
 )
 
 
@@ -173,3 +175,170 @@ class TestParseHealthBool(unittest.TestCase):
         for body, name in cases:
             with self.subTest(name=name):
                 self.assertIsNone(_parse_health_bool(body, "anr"))
+
+
+class TestValidateDumpsysSection(unittest.TestCase):
+    """Test validate_dumpsys_section for processes and last-anr commands."""
+
+    def test_processes_valid_header(self) -> None:
+        stdout = "ACTIVITY MANAGER RUNNING PROCESSES (dumpsys activity processes)\nProcessRecord{...}"
+        ok, err = validate_dumpsys_section(["dumpsys", "activity", "processes"], stdout)
+        self.assertTrue(ok)
+        self.assertEqual(err, "")
+
+    def test_processes_case_insensitive_header(self) -> None:
+        stdout = "prefix activity manager running processes suffix"
+        ok, err = validate_dumpsys_section(["adb", "shell", "dumpsys activity processes"], stdout)
+        self.assertTrue(ok)
+        self.assertEqual(err, "")
+
+    def test_processes_missing_header_fails(self) -> None:
+        stdout = "ProcessRecord{abc1 1234:com.trindade.app/u0a1}\nnotResponding=false\n"
+        ok, err = validate_dumpsys_section(["dumpsys", "activity", "processes"], stdout)
+        self.assertFalse(ok)
+        self.assertEqual(err, "processes dump missing required section header")
+
+    def test_processes_command_match_is_case_sensitive(self) -> None:
+        # Command match checks "processes" in joined argv (case-sensitive)
+        stdout = "random stdout"
+        ok, err = validate_dumpsys_section(["dumpsys", "PROCESSES"], stdout)
+        self.assertTrue(ok)
+        self.assertEqual(err, "")
+
+    def test_unknown_command_passes_validation(self) -> None:
+        stdout = "anything at all"
+        ok, err = validate_dumpsys_section(["dumpsys", "window", "windows"], stdout)
+        self.assertTrue(ok)
+        self.assertEqual(err, "")
+        ok_empty, err_empty = validate_dumpsys_section([], stdout)
+        self.assertTrue(ok_empty)
+        self.assertEqual(err_empty, "")
+
+    def test_both_keywords_checks_processes_then_last_anr_when_processes_fails(self) -> None:
+        # If command has both "processes" and "last-anr", processes check fails first if header missing
+        cmd = ["dumpsys", "processes", "last-anr"]
+        stdout = "ACTIVITY MANAGER LAST ANR\nNo ANRs recorded.\n"
+        ok, err = validate_dumpsys_section(cmd, stdout)
+        self.assertFalse(ok)
+        self.assertEqual(err, "processes dump missing required section header")
+
+    def test_both_keywords_checks_last_anr_if_processes_passes(self) -> None:
+        cmd = ["dumpsys", "processes", "last-anr"]
+        # Passes processes header (found anywhere in stdout), but fails last-anr body validation
+        stdout = "ACTIVITY MANAGER LAST ANR\ngarbage\nACTIVITY MANAGER RUNNING PROCESSES\n"
+        ok, err = validate_dumpsys_section(cmd, stdout)
+        self.assertFalse(ok)
+        self.assertEqual(err, "last-anr dump validation failed: Unrecognized or malformed last-anr body")
+
+    def test_both_keywords_passes_when_both_valid(self) -> None:
+        cmd = ["dumpsys", "processes", "last-anr"]
+        # Passes processes header (found anywhere) and valid last-anr ANR event
+        stdout = (
+            "ACTIVITY MANAGER LAST ANR (dumpsys activity last-anr)\n"
+            "ANR in com.trindade.app\n"
+            "PID: 1234\n"
+            "ACTIVITY MANAGER RUNNING PROCESSES\n"
+        )
+        ok, err = validate_dumpsys_section(cmd, stdout)
+        self.assertTrue(ok)
+        self.assertEqual(err, "")
+
+    def test_last_anr_matrix_10_cases(self) -> None:
+        valid_no_anr = (
+            "ACTIVITY MANAGER LAST ANR (dumpsys activity last-anr)\n"
+            "No ANRs recorded.\n"
+        )
+        anr_dump = (
+            "ACTIVITY MANAGER LAST ANR (dumpsys activity last-anr)\n"
+            "ANR in com.trindade.app\n"
+            "PID: 1234\n"
+            "Reason: input timeout\n"
+        )
+        matrix = [
+            ("validheadergarbage", "ACTIVITY MANAGER LAST ANR (dumpsys activity last-anr)\ngarbage\n", False, "last-anr dump validation failed: Unrecognized or malformed last-anr body"),
+            ("truncatedANR", "ACTIVITY MANAGER LAST ANR (dumpsys activity last-anr)\nANR in\n", False, "last-anr dump validation failed: Malformed or truncated ANR in header without valid package"),
+            ("unknownbody", "ACTIVITY MANAGER LAST ANR (dumpsys activity last-anr)\nsome unknown body\n", False, "last-anr dump validation failed: Unrecognized or malformed last-anr body"),
+            ("blank", "", False, "last-anr dump validation failed: Empty last-anr dump"),
+            ("wrongheader", "WINDOW MANAGER WINDOWS\nWindow #1\n", False, "last-anr dump validation failed: Missing or invalid ACTIVITY MANAGER LAST ANR header"),
+            ("headeronly", "ACTIVITY MANAGER LAST ANR (dumpsys activity last-anr)\n", False, "last-anr dump validation failed: last-anr header-only with no body"),
+            ("explicitnoANRexact", valid_no_anr, True, ""),
+            ("completeANR", anr_dump, True, ""),
+            ("mixednoANR_junk", "ACTIVITY MANAGER LAST ANR (dumpsys activity last-anr)\nNo ANRs recorded.\ngarbage\n", False, "last-anr dump validation failed: Unrecognized or malformed last-anr body"),
+            ("mixednoANR_ANR", "ACTIVITY MANAGER LAST ANR (dumpsys activity last-anr)\nNo ANRs recorded.\nANR in com.trindade.app\nPID: 1234\nReason: timeout\n", True, ""),
+        ]
+        cmd = ["dumpsys", "activity", "last-anr"]
+        for label, stdout, expected_ok, expected_err in matrix:
+            with self.subTest(label=label):
+                ok, err = validate_dumpsys_section(cmd, stdout)
+                self.assertEqual(ok, expected_ok)
+                self.assertEqual(err, expected_err)
+
+
+class TestCheckAggregateProbeQuota(unittest.TestCase):
+    """Test check_aggregate_probe_quota UTF-8 byte accounting and threshold boundaries."""
+
+    def test_under_quota_passes(self) -> None:
+        ok, err = check_aggregate_probe_quota(
+            collected_stdout=["abc"], stdout="def",
+            collected_stderr=["g"], stderr="h",
+            max_output_bytes=10
+        )
+        self.assertTrue(ok)
+        self.assertEqual(err, "")
+
+    def test_exact_quota_rejects(self) -> None:
+        # 3 + 3 + 1 + 1 = 8 bytes; max_output_bytes=8 is rejected (>= boundary)
+        ok, err = check_aggregate_probe_quota(
+            collected_stdout=["abc"], stdout="def",
+            collected_stderr=["g"], stderr="h",
+            max_output_bytes=8
+        )
+        self.assertFalse(ok)
+        self.assertEqual(err, "Probe output truncated exceeding maximum bounds")
+
+    def test_over_quota_rejects(self) -> None:
+        ok, err = check_aggregate_probe_quota(
+            collected_stdout=["abc"], stdout="def",
+            collected_stderr=["g"], stderr="h",
+            max_output_bytes=7
+        )
+        self.assertFalse(ok)
+        self.assertEqual(err, "Probe output truncated exceeding maximum bounds")
+
+    def test_empty_inputs_with_positive_quota_passes(self) -> None:
+        ok, err = check_aggregate_probe_quota([], "", [], "", max_output_bytes=1)
+        self.assertTrue(ok)
+        self.assertEqual(err, "")
+
+    def test_empty_inputs_with_zero_quota_rejects(self) -> None:
+        # 0 >= 0 is rejected
+        ok, err = check_aggregate_probe_quota([], "", [], "", max_output_bytes=0)
+        self.assertFalse(ok)
+        self.assertEqual(err, "Probe output truncated exceeding maximum bounds")
+
+    def test_multibyte_utf8_counted_correctly(self) -> None:
+        # "ñ" is 2 bytes in UTF-8, "🎉" is 4 bytes
+        # stdout = "ñ" (2 bytes), stderr = "🎉" (4 bytes) => total 6 bytes
+        ok, err = check_aggregate_probe_quota([], "ñ", [], "🎉", max_output_bytes=6)
+        self.assertFalse(ok)
+        self.assertEqual(err, "Probe output truncated exceeding maximum bounds")
+
+        ok2, err2 = check_aggregate_probe_quota([], "ñ", [], "🎉", max_output_bytes=7)
+        self.assertTrue(ok2)
+        self.assertEqual(err2, "")
+
+    def test_utf8_replacement_encoding_semantics(self) -> None:
+        # surrogate characters like '\ud800' cannot be encoded in UTF-8 without replace
+        # encode('utf-8', errors='replace') turns \ud800 into '?' (1 byte, b'\x3f')
+        surrogate_str = "\ud800"
+        ok, err = check_aggregate_probe_quota([surrogate_str], "", [], "", max_output_bytes=1)
+        self.assertFalse(ok)
+        self.assertEqual(err, "Probe output truncated exceeding maximum bounds")
+
+    def test_separator_is_not_counted_in_quota(self) -> None:
+        # In original code, tot_bytes is sum(len(s.encode(...))) for components.
+        # It does NOT count newline separators that would join them later.
+        # collected_stdout=["a", "b"], stdout="c" -> 1 + 1 + 1 = 3 bytes (not 5 with "\n")
+        ok, err = check_aggregate_probe_quota(["a", "b"], "c", [], "", max_output_bytes=4)
+        self.assertTrue(ok)
+        self.assertEqual(err, "")

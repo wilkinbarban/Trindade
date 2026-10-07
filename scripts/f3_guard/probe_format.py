@@ -7,7 +7,7 @@ extracted from the F3 emulator guard architecture.
 from __future__ import annotations
 
 import re
-from typing import Optional, Tuple
+from typing import Optional, Sequence, Tuple
 
 __all__ = [
     "APP_PACKAGE",
@@ -19,6 +19,8 @@ __all__ = [
     "_is_recognized_dumpsys_structure",
     "_parse_health_bool",
     "_validate_last_anr_content",
+    "check_aggregate_probe_quota",
+    "validate_dumpsys_section",
 ]
 
 # --- ANR and Health Probe Parsing ---
@@ -101,3 +103,74 @@ def _parse_health_bool(body: str, field_name: str) -> Optional[bool]:
     if val == "false":
         return False
     return None
+
+
+def check_aggregate_probe_quota(
+    collected_stdout: Sequence[str],
+    stdout: str,
+    collected_stderr: Sequence[str],
+    stderr: str,
+    max_output_bytes: int,
+) -> Tuple[bool, str]:
+    """Check whether aggregate probe output exceeds the maximum byte limit.
+
+    Computes total UTF-8 bytes (using errors="replace") across previously collected
+    and current stdout and stderr streams without counting joining separators.
+    Rejects when total bytes >= max_output_bytes.
+
+    Caller responsibility / ordering note:
+        Future probe adapters (e.g., AdbProbeAdapter) must invoke quota checks before
+        evaluating command-specific section formatting. This helper only evaluates
+        the aggregate byte quota contract; it does not enforce caller execution
+        sequence or claim runtime adapter status.
+
+    Returns:
+        (True, "") if under quota.
+        (False, "Probe output truncated exceeding maximum bounds") if >= max_output_bytes.
+    """
+    tot_bytes = (
+        sum(len(s.encode("utf-8", errors="replace")) for s in collected_stdout)
+        + len(stdout.encode("utf-8", errors="replace"))
+        + sum(len(s.encode("utf-8", errors="replace")) for s in collected_stderr)
+        + len(stderr.encode("utf-8", errors="replace"))
+    )
+    if tot_bytes >= max_output_bytes:
+        return False, "Probe output truncated exceeding maximum bounds"
+    return True, ""
+
+
+def validate_dumpsys_section(
+    command_args: Sequence[str],
+    stdout: str,
+) -> Tuple[bool, str]:
+    """Validate stdout structure for dumpsys commands.
+
+    Inspects joined command arguments for targeted diagnostic subcommands:
+    - If "processes" in joined command_args (case-sensitive):
+        requires "ACTIVITY MANAGER RUNNING PROCESSES" (case-insensitive) anywhere in stdout.
+    - If "last-anr" in joined command_args (case-sensitive):
+        validates stdout via `_validate_last_anr_content(stdout)`.
+
+    Both checks execute sequentially (processes check first, then last-anr check;
+    not elif). Unknown commands pass validation without inspection.
+
+    Caller responsibility / ordering note:
+        Future adapters must run quota checks prior to section validation.
+        This helper provides pure in-memory validation of command output
+        and makes no runtime integration or adapter claims.
+
+    Returns:
+        (True, "") if validation passes or no checks apply.
+        (False, error_message) on failure with exact diagnostic string:
+            - "processes dump missing required section header"
+            - "last-anr dump validation failed: <kind_or_err>"
+    """
+    cmd_str = " ".join(command_args)
+    if "processes" in cmd_str:
+        if not re.search(r"ACTIVITY MANAGER RUNNING PROCESSES", stdout, re.IGNORECASE):
+            return False, "processes dump missing required section header"
+    if "last-anr" in cmd_str:
+        is_valid, kind_or_err = _validate_last_anr_content(stdout)
+        if not is_valid:
+            return False, f"last-anr dump validation failed: {kind_or_err}"
+    return True, ""
