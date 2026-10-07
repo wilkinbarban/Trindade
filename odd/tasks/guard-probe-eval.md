@@ -19,7 +19,7 @@ User authorizes lossless integration of approved commit 5a69a927c4335441939ebd76
 
 5. [ ] In progress: adapter safety precursor and complete coordinator, each <=400 gross changed lines including tests and ledger:
    - 5a. [x] Closed in 59ad40732f9e99c3aa00b44b82a8c338e24c1541:  extract pure section validation and aggregate UTF-8 byte quota checks into probe_format.py; preserve quota-before-validation ordering, >= boundary, and original diagnostic strings. Hermetic tests first; independent verification and native approval/ACK before local commit.
-   - 5b. [ ] In progress: 5b.1a ProbeReapCoordinator (11 tests+start_error, R3-001 fixed); 5b.1b deferred 3 tests; 5b.2/3 pending; adb backup 1c8a8d9f.
+   - 5b. [ ] In progress: 5b.1a closed in b204ed3 (11 tests+start_error, R3-001 corrected); 5b.1b pending deferred 3 adversarial tests; 5b.2/5b.3 pending; adb backup 1c8a8d9f.
 6. [ ] Pending: verify real runtime caller/entry requirements before wiring lifecycle, adapter and handle. No synthetic re-exports, daemon implementation assumptions, original monolith changes, or runtime integration claims from extraction alone.
 
 ## Evidence
@@ -110,8 +110,9 @@ Section validation and quota precursor (task 5a in progress; runtime wiring and 
   - c9f97e67230ea77b81f9087cbcca796bebf3f88241f8a79e13046b2c77e6a07f scripts/f3_guard/probe_format.py
   - 39b24a899dbf4b9b9d7147f1618d6380bb17d8ebc98780f9c2b77a1d16d23298 scripts/f3_guard/tests/test_probe_format.py
 - API semantics: pure validate_dumpsys_section(command_args, stdout) and check_aggregate_probe_quota(collected_stdout, stdout, collected_stderr, stderr, max_output_bytes) extracted; adapter caller responsibility for quota-before-validation sequencing documented; no runtime adapter claims. Task not closed pending independent RDD review, native ACK, and commit.
-Probe reap coordinator slice 5b.1a (revision 0db73788... / plan 756a0242...; R3-001 fixed):
+Probe reap coordinator slice 5b.1a (closed in b204ed3094583920b7a760a4be2b45d3665456e1):
 - RED: (1) ModuleNotFoundError; (2) cancel() unexpected start_error; (3) cancel(h_constr) True is not false (R3-001).
 - GREEN: 11 focused PASS in 0.003s; 158 regression PASS in 0.035s (147 baseline + 11 new); cancel propagates current_handle.
 - Hashes: c9c6024a0ff35d6852c90616206e807a48f51eebf7973a461e64fbeb8480b50f (prod), 246405d54d26fe4df2be50dd95a83f7caf5ffe42ade6b60ef11393820dc6d340 (test).
-- Backups: 5b.1b 3 deferred tests in reap-adversarial-coverage-20261007T131413Z (d2865d72...); 11 full adapter cases in adb-adapter-oversized-20261007T124250Z; native gate pending, unclosed.
+- Backups: 5b.1b 3 deferred tests in reap-adversarial-coverage-20261007T131413Z (d2865d72...); 11 full adapter cases in adb-adapter-oversized-20261007T124250Z.
+- Native gate closed: review-5692ae9a36dbe0bc (medium, reliability) required correction R3-001 (cancel dropped current_handle and could report clean after a handle construction failure). Bounded correction 5 diff lines with observed RED then GREEN; targeted validator approved corrected candidate cc380f4c; exact ACK burned before commit b204ed3094583920b7a760a4be2b45d3665456e1. Staged tree matched approved dce48b0384b30640249bd7cf37fc5ac5eb037cd0; 397 gross lines (<=400). Deferred 3 adversarial tests remain in private backup for 5b.1b; runtime wiring not claimed; no push.
