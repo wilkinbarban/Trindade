@@ -18,11 +18,12 @@ User authorizes lossless integration of approved commit 5a69a927c4335441939ebd76
      - 4b.2 [x] Closed in 27a944d9df282f1483479d58387c33e7a02c3596: extract SubprocessProbeHandle transport into scripts/f3_guard/probe_handle.py composing StreamDrainBuffer with process lifecycle, pidfd signaling, and cleanup, restoring 11 deferred tests. Forecast ~376 changed lines (ESTIMATE, not verified). Full candidate preserved in private backup `probe-handle-composed-20261007T112942Z`. Native RDD approval/ACK required before local commit; no push/main changes or real subprocess tests. Adapter validation/coordinator and runtime wiring remain separate.
 
 5. [ ] In progress: adapter safety precursor and complete coordinator, each <=400 gross changed lines including tests and ledger:
-   - 5a. [ ] In progress: extract pure section validation and aggregate UTF-8 byte quota checks into probe_format.py; preserve quota-before-validation ordering, >= boundary, and original diagnostic strings. Hermetic tests first; independent verification and native approval/ACK before local commit.
-   - 5b. [ ] Pending: complete AdbProbeAdapter using the tested helpers and SubprocessProbeHandle; retain deadline, reap, cleanup poisoning, construction/I/O/overflow/descendant errors and multi-command semantics. Budget estimates require measurement; never omit assertions to fit.
+   - 5a. [x] Closed in 59ad40732f9e99c3aa00b44b82a8c338e24c1541:  extract pure section validation and aggregate UTF-8 byte quota checks into probe_format.py; preserve quota-before-validation ordering, >= boundary, and original diagnostic strings. Hermetic tests first; independent verification and native approval/ACK before local commit.
+   - 5b. [ ] In progress: 5b.1a ProbeReapCoordinator (11 tests+start_error, R3-001 fixed); 5b.1b deferred 3 tests; 5b.2/3 pending; adb backup 1c8a8d9f.
 6. [ ] Pending: verify real runtime caller/entry requirements before wiring lifecycle, adapter and handle. No synthetic re-exports, daemon implementation assumptions, original monolith changes, or runtime integration claims from extraction alone.
 
 ## Evidence
+5a closure: independent muy2qph1 confirmed 33/147 PASS and all 16 base test methods AST-identical (17 added, none lost). Native review-686a5e2f60f940bb approved; exact ACK burned before commit 59ad40732f9e99c3aa00b44b82a8c338e24c1541. Staged tree matched approved 383966155a884e6b1b6c15a226936ae9e8f427c4; 258 gross changed lines. Runtime wiring remains pending; no push.
 Health parser: 17 focused / 83 regression PASS previously observed; review-f16d0c2a57c361ae approved and ACK burned; commit tree f793ceaf7df30daf529963d901c0850e0266daa4.
 Health integration and probe evaluation are verified and committed. The separate runtime wiring unit remains pending. The guard as a whole remains incomplete. Documentation has no meaningful RED; verify structurally and retain historical content.
 Probe evaluation (task 2 closed; runtime wiring not included):
@@ -109,3 +110,8 @@ Section validation and quota precursor (task 5a in progress; runtime wiring and 
   - c9f97e67230ea77b81f9087cbcca796bebf3f88241f8a79e13046b2c77e6a07f scripts/f3_guard/probe_format.py
   - 39b24a899dbf4b9b9d7147f1618d6380bb17d8ebc98780f9c2b77a1d16d23298 scripts/f3_guard/tests/test_probe_format.py
 - API semantics: pure validate_dumpsys_section(command_args, stdout) and check_aggregate_probe_quota(collected_stdout, stdout, collected_stderr, stderr, max_output_bytes) extracted; adapter caller responsibility for quota-before-validation sequencing documented; no runtime adapter claims. Task not closed pending independent RDD review, native ACK, and commit.
+Probe reap coordinator slice 5b.1a (revision 0db73788... / plan 756a0242...; R3-001 fixed):
+- RED: (1) ModuleNotFoundError; (2) cancel() unexpected start_error; (3) cancel(h_constr) True is not false (R3-001).
+- GREEN: 11 focused PASS in 0.003s; 158 regression PASS in 0.035s (147 baseline + 11 new); cancel propagates current_handle.
+- Hashes: c9c6024a0ff35d6852c90616206e807a48f51eebf7973a461e64fbeb8480b50f (prod), 246405d54d26fe4df2be50dd95a83f7caf5ffe42ade6b60ef11393820dc6d340 (test).
+- Backups: 5b.1b 3 deferred tests in reap-adversarial-coverage-20261007T131413Z (d2865d72...); 11 full adapter cases in adb-adapter-oversized-20261007T124250Z; native gate pending, unclosed.
