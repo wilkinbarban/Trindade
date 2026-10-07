@@ -44,7 +44,7 @@ Cada unidad mantendrá commits acotados, diff medido, checks observables y prese
 
 ## Reanudación autorizada: todos los pendientes (2026-10-06)
 Límite vigente: sin push, merge ni eliminación de ramas/worktrees; preservar datos y monolitos. HEAD observado por explorador: cbfe881. Los 750 PASS son JVM/Robolectric, no validación nativa.
-- [ ] Guardia: health_parse (cerrado); probe_eval (cerrado); partición controlador de procesos 7a/7b.1/7b.2/7c (cerrado en 2cb8788); SupervisorScheduler 8a.1 (cerrado en c9bbec6); proc_identity 8b.1 cerrado en af388f06ef7e514adae89be6102300dfb0021d3f (árbol 4583f7a9a306bbc0d4970748d91dc27311d77abd, review-ea3700347126e6a7, ACK quemado rev 4c00cf5079eb954ade4845c9c6b214f422d12e2f1e72df8a7347ff602e7dd42a, 375/400 líneas candidatas); 8b.2 safe_sigterm y 8c integración supervisor engine pendientes.
+- [ ] Guardia: health_parse (cerrado); probe_eval (cerrado); partición controlador de procesos 7a/7b.1/7b.2/7c (cerrado en 2cb8788); SupervisorScheduler 8a.1 (cerrado en c9bbec6); proc_identity 8b.1 cerrado en af388f0; 8b.2a poll_process_termination candidato completo; 8b.2b safe_sigterm y 8c integración supervisor engine pendientes.
 - [ ] QA y ledgers: reconciliar cobertura y evidencia histórica sin nueva importación implícita.
 - [ ] Export/PDF/share: reconciliar divergencias ReportDetail/Loading y requerimientos existentes antes de ampliar wiring.
 - [ ] Nativo: PDF, FileProvider/share, TalkBack, Keystore/TLS, notificaciones, IME/insets/gestos y restauración TimeSlots/ReportForm; sin borrar datos ni mutar producción.
