@@ -182,6 +182,190 @@ class TestAdbProbeAdapter(unittest.TestCase):
         self.assertEqual(adapter.cleanup_error, "pipe close error")
         self.assertTrue(adapter.has_pending_cleanup)
 
+    def test_dumpsys_validation_failures(self) -> None:
+        h_bad_proc = FakeProbeHandle(exit_code=0, stdout="Some random process output\n")
+        adapter0 = AdbProbeAdapter(transport=lambda cmd: h_bad_proc)
+        adapter0.start_probe()
+        done, res = adapter0.poll_probe()
+        self.assertTrue(done)
+        retcode, stdout, stderr, is_timeout = res
+        self.assertEqual(retcode, 1)
+        self.assertIn("processes dump missing required section header", stderr)
+        self.assertFalse(is_timeout)
+
+        spawn_idx = 0
+
+        def fake_transport(cmd: list[str]) -> FakeProbeHandle:
+            nonlocal spawn_idx
+            spawn_idx += 1
+            if spawn_idx == 1:
+                return FakeProbeHandle(
+                    exit_code=0,
+                    stdout="ACTIVITY MANAGER RUNNING PROCESSES\n",
+                )
+            return FakeProbeHandle(
+                exit_code=0,
+                stdout="ACTIVITY MANAGER LAST ANR\ngarbage\n",
+            )
+
+        adapter1 = AdbProbeAdapter(transport=fake_transport)
+        adapter1.start_probe()
+        adapter1.poll_probe()
+        done, res = adapter1.poll_probe()
+        self.assertTrue(done)
+        retcode, stdout, stderr, is_timeout = res
+        self.assertEqual(retcode, 1)
+        self.assertIn("last-anr dump validation failed:", stderr)
+        self.assertFalse(is_timeout)
+
+    def test_aggregate_quota_before_validation(self) -> None:
+        spawn_idx = 0
+
+        def fake_transport(cmd: list[str]) -> FakeProbeHandle:
+            nonlocal spawn_idx
+            spawn_idx += 1
+            if spawn_idx == 1:
+                return FakeProbeHandle(
+                    exit_code=0,
+                    stdout="ACTIVITY MANAGER RUNNING PROCESSES " + ("X" * 25),
+                )
+            return FakeProbeHandle(exit_code=0, stdout="A" * 50)
+
+        adapter = AdbProbeAdapter(transport=fake_transport, max_output_bytes=100)
+        adapter.start_probe()
+        adapter.poll_probe()
+        done, res = adapter.poll_probe()
+        self.assertTrue(done)
+        retcode, stdout, stderr, is_timeout = res
+        self.assertEqual(retcode, 1)
+        self.assertEqual(stderr, "Probe output truncated exceeding maximum bounds")
+        self.assertFalse(is_timeout)
+
+    def test_deadline_boundary_and_cancellation(self) -> None:
+        clock = FakeClock(monotonic_start=100.0)
+        handle = FakeProbeHandle(exit_code=None)
+        adapter = AdbProbeAdapter(
+            transport=lambda cmd: handle,
+            clock=clock,
+            timeout_sec=10.0,
+        )
+        adapter.start_probe()
+        clock.advance_monotonic(10.0)
+        done, res = adapter.poll_probe()
+        self.assertFalse(done)
+        self.assertIsNone(res)
+        self.assertFalse(handle.terminated)
+
+        clock.advance_monotonic(0.1)
+        done, res = adapter.poll_probe()
+        self.assertTrue(done)
+        retcode, stdout, stderr, is_timeout = res
+        self.assertEqual(retcode, 1)
+        self.assertTrue(is_timeout)
+        self.assertIn("deadline exceeded", stderr)
+        self.assertTrue(handle.terminated)
+        self.assertEqual(handle.signal_received, signal.SIGTERM)
+
+    def test_cancel_and_reap_pending_idempotence(self) -> None:
+        handle = FakeProbeHandle(exit_code=None, reapable=False)
+        adapter = AdbProbeAdapter(transport=lambda cmd: handle)
+        adapter.start_probe()
+        clean = adapter.cancel()
+        self.assertFalse(clean)
+        self.assertTrue(handle.terminated)
+        self.assertTrue(adapter.has_pending_cleanup)
+        self.assertEqual(len(adapter._coordinator.pending_reap), 1)
+
+        remaining = adapter.reap_pending()
+        self.assertEqual(remaining, 1)
+        self.assertTrue(adapter.has_pending_cleanup)
+
+        handle._reapable = True
+        remaining = adapter.reap_pending()
+        self.assertEqual(remaining, 0)
+        self.assertFalse(adapter.has_pending_cleanup)
+
+        self.assertTrue(adapter.cancel())
+
+    def test_cleanup_failure_and_poisoning(self) -> None:
+        class FailingCleanupHandle(FakeProbeHandle):
+            def cleanup(self) -> bool:
+                raise OSError("FD close error")
+
+        handle = FailingCleanupHandle(
+            exit_code=0,
+            stdout="ACTIVITY MANAGER RUNNING PROCESSES\n",
+        )
+        adapter = AdbProbeAdapter(
+            command=["adb", "shell", "dumpsys", "processes"],
+            transport=lambda cmd: handle,
+        )
+        adapter.start_probe()
+        done, res = adapter.poll_probe()
+        self.assertTrue(done)
+        retcode, stdout, stderr, is_timeout = res
+        self.assertEqual(retcode, 1)
+        self.assertIn("Probe cleanup error", stderr)
+        self.assertIn("FD close error", stderr)
+        self.assertTrue(adapter.has_pending_cleanup)
+
+    def test_spawn_failures_and_concurrency_prevention(self) -> None:
+        def failing_transport(cmd: list[str]) -> FakeProbeHandle:
+            raise RuntimeError("exec failed")
+
+        adapter = AdbProbeAdapter(transport=failing_transport)
+        adapter.start_probe()
+        self.assertTrue(adapter.has_pending_cleanup)
+        done, res = adapter.poll_probe()
+        self.assertTrue(done)
+        self.assertEqual(res, (1, "", "Probe transport start failed: exec failed", False))
+
+        running_handle = FakeProbeHandle(exit_code=None)
+        adapter2 = AdbProbeAdapter(transport=lambda cmd: running_handle)
+        adapter2.start_probe()
+        adapter2.start_probe()
+        self.assertTrue(adapter2.has_pending_cleanup)
+        done2, res2 = adapter2.poll_probe()
+        self.assertTrue(done2)
+        self.assertEqual(res2, (1, "", "Previous child process still pending exit/reap", False))
+
+    def test_immediate_handle_error_states(self) -> None:
+        h_constr = FakeProbeHandle(exit_code=None)
+        h_constr._construction_error = "pidfd open failed"
+        ad_c = AdbProbeAdapter(transport=lambda cmd: h_constr)
+        ad_c.start_probe()
+        done, res = ad_c.poll_probe()
+        self.assertTrue(done)
+        self.assertEqual(res, (1, "", "Probe construction failure: pidfd open failed", False))
+        self.assertTrue(h_constr.terminated)
+
+        h_over = FakeProbeHandle(exit_code=None)
+        h_over._overflow = True
+        ad_o = AdbProbeAdapter(transport=lambda cmd: h_over)
+        ad_o.start_probe()
+        done, res = ad_o.poll_probe()
+        self.assertTrue(done)
+        self.assertEqual(res, (1, "", "Probe output truncated exceeding maximum bounds", False))
+        self.assertTrue(h_over.terminated)
+
+        h_io = FakeProbeHandle(exit_code=None)
+        h_io._io_error = "pipe read error"
+        ad_io = AdbProbeAdapter(transport=lambda cmd: h_io)
+        ad_io.start_probe()
+        done, res = ad_io.poll_probe()
+        self.assertTrue(done)
+        self.assertEqual(res, (1, "", "Probe I/O error: pipe read error", False))
+        self.assertTrue(h_io.terminated)
+
+        h_desc = FakeProbeHandle(exit_code=0)
+        h_desc.descendant_pipe_open = True
+        ad_d = AdbProbeAdapter(transport=lambda cmd: h_desc)
+        ad_d.start_probe()
+        done, res = ad_d.poll_probe()
+        self.assertTrue(done)
+        self.assertEqual(res, (1, "", "Probe descendant pipe held open without EOF", False))
+        self.assertTrue(h_desc.terminated)
+
 
 if __name__ == "__main__":
     unittest.main()
