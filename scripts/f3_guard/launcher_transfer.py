@@ -44,6 +44,11 @@ class LauncherTransferHelper:
     @property
     def last_result(self) -> Optional[LaunchResult]: return self._last_result
 
+    def prime(self, child: Any, pidfd: Optional[int] = None) -> None:
+        """Pre-execution seed pending resources for custody tracking prior to stage execution."""
+        self._pending_child = child
+        self._pending_pidfd = pidfd
+
     def get_frozen_argv(self) -> List[str]:
         return LauncherPreflightHelper(
             avd_name=self._avd_name, port=self._port, emulator_binary=self._binary

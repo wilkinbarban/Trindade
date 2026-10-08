@@ -50,6 +50,11 @@ class LauncherPidfdHelper:
     @property
     def last_result(self) -> Optional[LaunchResult]: return self._last_result
 
+    def prime(self, child: Any, pidfd: Optional[int] = None) -> None:
+        """Pre-execution seed pending resources for custody tracking prior to stage execution."""
+        self._pending_child = child
+        self._pending_pidfd = pidfd
+
     def acquire_and_verify(
         self, context: SpawnedChildContext
     ) -> Tuple[Optional[VerifiedPidfdContext], Optional[LaunchResult]]:
