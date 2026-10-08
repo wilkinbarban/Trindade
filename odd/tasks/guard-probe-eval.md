@@ -347,18 +347,16 @@ Engine readiness helper (task 8c3 candidate; runtime wiring not included):
 
 8c3 closure: independent verification 13 focused / 323 modular regression PASS. Commit e55e27fa105804d33361f67b59e393ab042f8a9c matched approved review-fa334dc3c93ef6bb, exact tree d44ec3b1d55f327cf9996bb893292792ec100903, ACK burned (consumed revision 9f5852ab9eae5365bb04e58da1592bd4f20c2eb0418466acd55f49754617f0cc), exact staged approved tree 354 gross lines (351+/3- across 4 paths). Evidence: state-preserving memory cache, boot callable/value, mem_reader ordinary Exception vs KI/SE contract, live probe.UNKNOWN stale policy unchanged. Explicit limits: no identity exception / evaluator failure / kwargs / falsy reader previous state UNKNOWN stale combo explicit test matrix (inspection only), universal hermetism not claimed, runtime 8c4a/b pending. RED writer-reported missing module historical. Monolith hashes intact; no push. This closure is passive documentation outside the approved source candidate.
 
-Launcher preflight extraction (task 9a in progress):
-- Authorized surfaces: launcher_preflight.py, tests/test_launcher_preflight.py and both ODD ledgers; <=400 gross ALL vs bb04c7703233aff0f02bfe6d3f6ab3939622d62b.
-- Pre-prod measure: 245 test + 14 tracked ledger + 126 prod = 385 <= 400 gross budget vs bb04c77 (15 lines margin).
-- Hermetism & RED: ExitStack controlled realpath/isfile/access (defaults identity/True/True), /proc and OS/subprocess/clocks denied; regression RED observed on unmocked host filesystem leak, distinguished from historical writer report 12/382 ind (baseline 370 ModuleNotFoundError); production unchanged/correct.
-- GREEN: 13 focused PASS in 0.055s; 383 modular regression PASS in 0.697s (370 baseline + 13 new); table coverage (isfile/access/validator matrix, access exception rejection, strict use_pidfd truthy, memory bool/float both fields, KI/SE for all 3 callbacks, downstream call prevention via tracked Mock outside validate replacing absorbed AssertionError).
-- Parity & contract: LaunchResult frozen dataclass, 13-token argv fresh list, preflight validation returning None on accepted preflight; binary_validator fallback preserved; KI/SE propagate.
-- Hashes:
+Launcher preflight extraction (task 9a closed in 7cf26207769f91708ac6729284b5f2f64326e177):
+- Closure & gate: commit 7cf26207769f91708ac6729284b5f2f64326e177, tree a125f6d0b97fece23b1f8b8d56c415a7af6f68aa; exact RDD candidate 385 insertions across 4 files (126 prod, 245 test, 14 docs); parent exact write-tree validated before functional commit; native review-82807baa56db106a approved revision 222d5e02316921ef2155b2b98d9cbd38dd98cf0d6771dad37ae80478a83c8f6b; ACK response authority burned target 7b0b4865a74d33deb095fd175065053c0816bdc38554448b5464d46f0c38e22f; commit checkout clean, no push.
+- Parity & contract: LaunchResult frozen dataclass, 13-token argv fresh list, preflight validation returning None on accepted preflight; binary_validator fallback preserved; KI/SE propagate across all 3 callbacks.
+- Tests & verification: fresh ind 13/383 PASS (baseline 370 + 13 new); historical baseline 370 RED ModuleNotFoundError pre-prod and fixture leak RED writer report separate from fresh ind; last mock strengthening GREEN against correct production without fake RED; bounded downstream callback no-call and guard assertions exercise 2 observed cases only, not universal coverage.
+- File hashes:
   - 40760b523844e8db3ca6f43ba9a6d7397d0dfc4185471f3b6c8bae62047ee110 scripts/f3_guard/launcher_preflight.py
   - 484e749279c845f9bf0b792dd6f363d5d8e5ceef1c569b0e0e5298ca7e35b98e scripts/f3_guard/tests/test_launcher_preflight.py
   - e30a00d32a7f4f85c74e1476e7694878bfeb6e50d6ce7fa67644315f9106ea92 /home/wilkin/proyectos/Trindade/scripts/f3_emulator_guard.py
   - 7048aa9f40433a4ebd1fb959bbb085bcd86f6b3e030e528bbc05daf2c9dc3296 /home/wilkin/proyectos/Trindade/scripts/test_f3_emulator_guard.py
-- Limits: spawn/pidfd transfer/runtime wiring excluded; preflight accept != launch; ind RDD approval/ACK pending; no push. Monoliths intact.
+- Budget & limits: candidate 126 prod + 245 test + 14 docs = 385 insertions across 4 files (well within <=400 gross budget vs bb04c7703233aff0f02bfe6d3f6ab3939622d62b); spawn/pidfd transfer/runtime wiring excluded; preflight accept != launch; monoliths intact.
 
 Offline CLI extraction (task 8f closed in e496f1d1f88ababb7e190fa5961a9a84f8f6b3ee):
 - Closure & gate: commit e496f1d1f88ababb7e190fa5961a9a84f8f6b3ee, tree d80e8c48065152bc86c0747f803423d7352e5319; exact RDD candidate 277 insertions across 4 files; native review-2bc4cb44c4a34162 approved revision sha256:d8c67e992fa05cd9fd62fc88603602ff713d98e3c1888135b4218241d4a4af75; ACK response authority burned target sha256:3aedb1ee573baf13305035244e973f27a7286f70483dfed30c233244d2e1a9a3; commit checkout clean, no push.
