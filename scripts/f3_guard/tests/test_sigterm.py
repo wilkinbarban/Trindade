@@ -10,8 +10,14 @@ from typing import List, Optional
 from unittest.mock import MagicMock, patch
 
 from scripts.f3_guard.controller import ProcessController
+from scripts.f3_guard.pidfd_binding import BindingState, PidfdBinding
 from scripts.f3_guard.proc_inspection import INSPECTION_ERROR, _INSPECTION_ERROR
-from scripts.f3_guard.sigterm import DEFAULT_GRACE_SEC, poll_process_termination
+from scripts.f3_guard.sigterm import (
+    DEFAULT_GRACE_SEC,
+    _acquire_target_pidfd,
+    _close_pidfd,
+    poll_process_termination,
+)
 from scripts.f3_guard.types import LifecycleState, ProcessIdentity
 
 
@@ -343,6 +349,274 @@ class TestPollProcessTermination(unittest.TestCase):
             )
 
         self.assertEqual(sleep_intervals, [0.125])
+
+
+class TestClosePidfdHelper(unittest.TestCase):
+    """Hermetic unit tests for private _close_pidfd helper contracts."""
+
+    def setUp(self) -> None:
+        self.patcher_close = patch("os.close", side_effect=AssertionError("Direct os.close forbidden"))
+        self.patcher_close.start()
+        self.addCleanup(self.patcher_close.stop)
+        self.controller = ProcessController()
+
+    def test_close_valid_descriptors(self) -> None:
+        for fd in (77, 0):
+            with self.subTest(fd=fd):
+                mock_close = MagicMock()
+                self.controller.close_fd = mock_close
+                err = _close_pidfd(fd, self.controller)
+                self.assertIsNone(err)
+                mock_close.assert_called_once_with(fd)
+
+    def test_close_invalid_descriptors_ignored(self) -> None:
+        mock_close = MagicMock()
+        self.controller.close_fd = mock_close
+        for invalid_fd in (None, True, False, -1, -99, 3.14, "77", [77]):
+            with self.subTest(invalid_fd=invalid_fd):
+                mock_close.reset_mock()
+                err = _close_pidfd(invalid_fd, self.controller)
+                self.assertIsNone(err)
+                mock_close.assert_not_called()
+
+    def test_close_missing_close_method_ignored(self) -> None:
+        class NoCloseController:
+            pass
+
+        err = _close_pidfd(77, NoCloseController())
+        self.assertIsNone(err)
+
+    def test_close_returns_exact_exception(self) -> None:
+        exc = OSError("EBADF")
+        self.controller.close_fd = MagicMock(side_effect=exc)
+        res = _close_pidfd(77, self.controller)
+        self.assertIs(res, exc)
+
+    def test_close_does_not_catch_interrupts(self) -> None:
+        for exc_cls in (KeyboardInterrupt, SystemExit):
+            with self.subTest(exc=exc_cls):
+                self.controller.close_fd = MagicMock(side_effect=exc_cls())
+                with self.assertRaises(exc_cls):
+                    _close_pidfd(77, self.controller)
+
+
+class TestAcquireTargetPidfdHelper(unittest.TestCase):
+    """Hermetic unit tests for private _acquire_target_pidfd helper contracts."""
+
+    def setUp(self) -> None:
+        self.target = ProcessIdentity(
+            pid=12345,
+            start_ticks=987654,
+            uid=1000,
+            avd="Trindade_UX_v030",
+            port=5556,
+            binary_name="emulator",
+            is_direct_child=True,
+        )
+        self.controller = ProcessController()
+        self.controller.use_pidfd = True
+
+        p_close = patch("os.close", side_effect=AssertionError("os.close forbidden"))
+        p_kill = patch("os.kill", side_effect=AssertionError("os.kill forbidden"))
+        p_open = patch("os.pidfd_open", side_effect=AssertionError("os.pidfd_open forbidden"))
+        p_send = patch("signal.pidfd_send_signal", side_effect=AssertionError("signal forbidden"))
+        for p in (p_close, p_kill, p_open, p_send):
+            p.start()
+            self.addCleanup(p.stop)
+
+    def test_disabled_pidfd_mode_fails_closed(self) -> None:
+        for val in (False, None, 0, "true"):
+            with self.subTest(use_pidfd=val):
+                ctrl = ProcessController()
+                ctrl.use_pidfd = val  # type: ignore[assignment]
+                ctrl.pidfd_open = MagicMock()
+                ctrl.consume_bound_pidfd = MagicMock()
+
+                fd, err = _acquire_target_pidfd(self.target, ctrl)
+                self.assertIsNone(fd)
+                self.assertEqual(
+                    err,
+                    (LifecycleState.ERROR, "pidfd mode required; refusing PID-based signal to prevent race"),
+                )
+                ctrl.pidfd_open.assert_not_called()
+                ctrl.consume_bound_pidfd.assert_not_called()
+
+    def test_binding_state_resolution_variants(self) -> None:
+        self.controller.bind_anchored_pidfd(12345, 987654, 77)
+        self.assertEqual(self.controller.binding_state, BindingState.BOUND)
+        fd, err = _acquire_target_pidfd(self.target, self.controller)
+        self.assertEqual(fd, 77)
+        self.assertIsNone(err)
+
+        ctrl2 = ProcessController()
+        ctrl2.use_pidfd = True
+        ctrl2._bound_pidfd = PidfdBinding(12345, 987654, 88)
+        ctrl2._binding_state = None  # type: ignore[assignment]
+        ctrl2.consume_bound_pidfd = MagicMock(return_value=88)
+        fd2, err2 = _acquire_target_pidfd(self.target, ctrl2)
+        self.assertEqual(fd2, 88)
+        self.assertIsNone(err2)
+        ctrl2.consume_bound_pidfd.assert_called_once_with(self.target)
+
+        class DuckController:
+            use_pidfd = True
+
+            def pidfd_open(self, pid: int) -> int:
+                return 99
+
+        duck = DuckController()
+        fd3, err3 = _acquire_target_pidfd(self.target, duck)  # type: ignore[arg-type]
+        self.assertEqual(fd3, 99)
+        self.assertIsNone(err3)
+
+        ctrl4 = ProcessController()
+        ctrl4.use_pidfd = True
+        ctrl4._binding_state = "UNKNOWN_STATE"  # type: ignore[assignment]
+        fd4, err4 = _acquire_target_pidfd(self.target, ctrl4)
+        self.assertIsNone(fd4)
+        self.assertEqual(
+            err4,
+            (LifecycleState.ERROR, "Bound pidfd transfer failed or invalid (UNKNOWN_STATE); refusing reopen"),
+        )
+
+        # 5. BOUND state but missing consume_bound_pidfd method
+        class NoConsumeBoundCtrl:
+            use_pidfd = True
+            binding_state = BindingState.BOUND
+
+        fd5, err5 = _acquire_target_pidfd(self.target, NoConsumeBoundCtrl())  # type: ignore[arg-type]
+        self.assertIsNone(fd5)
+        self.assertEqual(
+            err5,
+            (LifecycleState.ERROR, "Bound pidfd transfer failed or invalid (BOUND); refusing reopen"),
+        )
+
+    def test_bound_successful_transfer_no_reopen(self) -> None:
+        self.controller.bind_anchored_pidfd(12345, 987654, 77)
+        self.controller.pidfd_open = MagicMock()
+        fd, err = _acquire_target_pidfd(self.target, self.controller)
+        self.assertEqual(fd, 77)
+        self.assertIsNone(err)
+        self.controller.pidfd_open.assert_not_called()
+
+    def test_bound_invalid_transfer_refuses_reopen(self) -> None:
+        for invalid_val in (None, True, False, -1, "invalid", 3.14):
+            with self.subTest(val=invalid_val):
+                ctrl = ProcessController()
+                ctrl.use_pidfd = True
+                ctrl.bind_anchored_pidfd(12345, 987654, 77)
+                ctrl.consume_bound_pidfd = MagicMock(return_value=invalid_val)
+                ctrl.pidfd_open = MagicMock()
+
+                fd, err = _acquire_target_pidfd(self.target, ctrl)
+                self.assertIsNone(fd)
+                self.assertIsNotNone(err)
+                state, msg = err  # type: ignore[misc]
+                self.assertEqual(state, LifecycleState.ERROR)
+                self.assertIn("Bound pidfd transfer failed or invalid", msg)
+                self.assertIn("refusing reopen", msg)
+                ctrl.pidfd_open.assert_not_called()
+
+    def test_consume_keyboard_interrupt_tags_error_and_reraises(self) -> None:
+        self.controller.bind_anchored_pidfd(12345, 987654, 77)
+        self.controller.consume_bound_pidfd = MagicMock(side_effect=KeyboardInterrupt("Ctrl-C"))
+        with self.assertRaises(KeyboardInterrupt):
+            _acquire_target_pidfd(self.target, self.controller)
+        self.assertEqual(self.controller.binding_state, BindingState.ERROR)
+
+    def test_consume_system_exit_tags_error_and_reraises(self) -> None:
+        self.controller.bind_anchored_pidfd(12345, 987654, 77)
+        self.controller.consume_bound_pidfd = MagicMock(side_effect=SystemExit(2))
+        with self.assertRaises(SystemExit):
+            _acquire_target_pidfd(self.target, self.controller)
+        self.assertEqual(self.controller.binding_state, BindingState.ERROR)
+
+    def test_consume_ordinary_exception_tags_error_and_returns_error(self) -> None:
+        self.controller.bind_anchored_pidfd(12345, 987654, 77)
+        self.controller.consume_bound_pidfd = MagicMock(side_effect=OSError("Consume I/O failure"))
+        self.controller.pidfd_open = MagicMock()
+
+        fd, err = _acquire_target_pidfd(self.target, self.controller)
+        self.assertIsNone(fd)
+        self.assertEqual(
+            err,
+            (LifecycleState.ERROR, "consume_bound_pidfd failed: Consume I/O failure"),
+        )
+        self.assertEqual(self.controller.binding_state, BindingState.ERROR)
+        self.controller.pidfd_open.assert_not_called()
+
+        # Duck-typed controller without _binding_state attribute
+        class DuckNoBindingAttr:
+            use_pidfd = True
+            binding_state = BindingState.BOUND
+
+            def consume_bound_pidfd(self, target: Any) -> Any:
+                raise OSError("error without _binding_state")
+
+        duck = DuckNoBindingAttr()
+        fd2, err2 = _acquire_target_pidfd(self.target, duck)  # type: ignore[arg-type]
+        self.assertIsNone(fd2)
+        self.assertEqual(
+            err2,
+            (LifecycleState.ERROR, "consume_bound_pidfd failed: error without _binding_state"),
+        )
+
+    def test_closed_and_error_states_refuse_reopen(self) -> None:
+        for state in (BindingState.CLOSED, BindingState.ERROR):
+            with self.subTest(state=state):
+                ctrl = ProcessController()
+                ctrl.use_pidfd = True
+                ctrl._binding_state = state
+                ctrl.pidfd_open = MagicMock()
+                ctrl.consume_bound_pidfd = MagicMock()
+
+                fd, err = _acquire_target_pidfd(self.target, ctrl)
+                self.assertIsNone(fd)
+                self.assertEqual(
+                    err,
+                    (LifecycleState.ERROR, f"Bound pidfd transfer failed or invalid ({state.value}); refusing reopen"),
+                )
+                ctrl.pidfd_open.assert_not_called()
+                ctrl.consume_bound_pidfd.assert_not_called()
+
+    def test_never_bound_legacy_open_success(self) -> None:
+        self.controller.pidfd_open = MagicMock(return_value=88)
+        fd, err = _acquire_target_pidfd(self.target, self.controller)
+        self.assertEqual(fd, 88)
+        self.assertIsNone(err)
+        self.controller.pidfd_open.assert_called_once_with(self.target.pid)
+
+    def test_never_bound_legacy_open_invalid_descriptor(self) -> None:
+        for invalid_fd in (None, True, False, -1, -5, "88", 3.14):
+            with self.subTest(invalid_fd=invalid_fd):
+                ctrl = ProcessController()
+                ctrl.use_pidfd = True
+                ctrl.pidfd_open = MagicMock(return_value=invalid_fd)
+
+                fd, err = _acquire_target_pidfd(self.target, ctrl)
+                self.assertIsNone(fd)
+                self.assertEqual(
+                    err,
+                    (LifecycleState.ERROR, "pidfd_open failed; refusing PID-based fallback to prevent signal race"),
+                )
+
+    def test_never_bound_missing_open_method(self) -> None:
+        class NoOpenNeverBound:
+            use_pidfd = True
+            binding_state = BindingState.NEVER_BOUND
+
+        fd, err = _acquire_target_pidfd(self.target, NoOpenNeverBound())  # type: ignore[arg-type]
+        self.assertIsNone(fd)
+        self.assertEqual(
+            err,
+            (LifecycleState.ERROR, "pidfd unavailable and legacy open not permitted for state (NEVER_BOUND)"),
+        )
+
+    def test_never_bound_open_raised_exception_propagates(self) -> None:
+        self.controller.pidfd_open = MagicMock(side_effect=OSError("EPERM pidfd_open not supported"))
+        with self.assertRaises(OSError) as ctx:
+            _acquire_target_pidfd(self.target, self.controller)
+        self.assertIn("EPERM", str(ctx.exception))
 
 
 if __name__ == "__main__":

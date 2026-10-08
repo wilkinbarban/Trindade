@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import time
-from typing import Tuple
+from typing import Optional, Tuple
 
 from scripts.f3_guard.controller import ProcessController
+from scripts.f3_guard.pidfd_binding import BindingState, PidfdBinding
 from scripts.f3_guard.proc_inspection import _INSPECTION_ERROR
 from scripts.f3_guard.types import LifecycleState, ProcessIdentity
 
@@ -86,3 +87,66 @@ def poll_process_termination(
         LifecycleState.TERMINATION_FAILED,
         f"Process still alive after {grace_seconds}s grace period. SIGKILL prohibited by policy."
     )
+
+
+def _close_pidfd(pidfd: Optional[int], controller: ProcessController) -> Optional[Exception]:
+    """Close a pidfd via the controller if it's a valid integer fd, returning any close error."""
+    if isinstance(pidfd, int) and type(pidfd) is not bool and pidfd >= 0 and hasattr(controller, "close_fd"):
+        try:
+            controller.close_fd(pidfd)
+        except Exception as e:
+            return e
+    return None
+
+
+def _acquire_target_pidfd(
+    target: ProcessIdentity,
+    controller: ProcessController,
+) -> Tuple[Optional[int], Optional[Tuple[LifecycleState, str]]]:
+    """Acquire or transfer target pidfd via controller binding or legacy open.
+
+    Return (pidfd, None) on success, or (None, (LifecycleState, reason)) on failure.
+    """
+    pidfd = None
+    pidfd_mode = getattr(controller, "use_pidfd", False) is True
+    if not pidfd_mode:
+        return None, (LifecycleState.ERROR, "pidfd mode required; refusing PID-based signal to prevent race")
+
+    raw_bstate = getattr(controller, "binding_state", None)
+    if isinstance(raw_bstate, BindingState):
+        bstate = raw_bstate
+    elif isinstance(getattr(controller, "_bound_pidfd", None), PidfdBinding):
+        bstate = BindingState.BOUND
+    elif type(controller) is not ProcessController and not isinstance(controller, ProcessController):
+        bstate = BindingState.NEVER_BOUND
+    else:
+        bstate = raw_bstate
+
+    if hasattr(controller, "consume_bound_pidfd") and bstate == BindingState.BOUND:
+        try:
+            val = controller.consume_bound_pidfd(target)
+            if isinstance(val, int) and type(val) is not bool and val >= 0:
+                pidfd = val
+        except (KeyboardInterrupt, SystemExit):
+            if hasattr(controller, "_binding_state"):
+                controller._binding_state = BindingState.ERROR
+            raise
+        except Exception as e:
+            if hasattr(controller, "_binding_state"):
+                controller._binding_state = BindingState.ERROR
+            return None, (LifecycleState.ERROR, f"consume_bound_pidfd failed: {e}")
+        bstate = getattr(controller, "binding_state", None)
+
+    if bstate != BindingState.NEVER_BOUND and pidfd is None:
+        return None, (LifecycleState.ERROR, f"Bound pidfd transfer failed or invalid ({getattr(bstate, 'value', bstate)}); refusing reopen")
+
+    if pidfd is None:
+        if bstate is BindingState.NEVER_BOUND and hasattr(controller, "pidfd_open"):
+            pidfd = controller.pidfd_open(target.pid)
+        else:
+            return None, (LifecycleState.ERROR, f"pidfd unavailable and legacy open not permitted for state ({getattr(bstate, 'value', bstate)})")
+
+    if not isinstance(pidfd, int) or type(pidfd) is bool or pidfd < 0:
+        return None, (LifecycleState.ERROR, "pidfd_open failed; refusing PID-based fallback to prevent signal race")
+
+    return pidfd, None

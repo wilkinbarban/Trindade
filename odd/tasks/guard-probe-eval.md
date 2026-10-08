@@ -33,7 +33,9 @@ User authorizes lossless integration of approved commit 5a69a927c4335441939ebd76
    - 8a.2/8a.3 Superseded: all scheduler coverage included in 8a.1; immutable backup preserved. Engine integration remains pending.
    - 8b.1 [x] Closed in af388f06ef7e514adae89be6102300dfb0021d3f: extract complete verify_process_identity and _find_exact_argv into proc_identity.py with hermetic test_proc_identity.py; 15/251 PASS, literal AST parity, commit tree 4583f7a9a306bbc0d4970748d91dc27311d77abd matches approved review-ea3700347126e6a7, ACK burned (consumed revision 4c00cf5079eb954ade4845c9c6b214f422d12e2f1e72df8a7347ff602e7dd42a), candidate 375/400 changed lines. Safe_sigterm (8b.2) and engine integration (8c) remain pending; no runtime claims or push.
    - 8b.2a [x] Closed in bef7d7d1bfb2fc880d73a3093d3a79d2c2bbc60b: extract complete post-signal poll_process_termination into sigterm.py with hermetic test_sigterm.py; 11/262 PASS (23 subtests), commit tree 65dff7663249cd7ba237e95693a9f2a11f880203 matches approved review-126904374fb7ef5f, ACK burned (consumed revision ebe0e2aaa1b12f5c8c20e53e715ed22d1f254348a869052910620237b90a73a2), original candidate 454/460 lines. Safe_sigterm (8b.2b) and engine integration (8c) remain pending; no runtime claims or push.
-   - 8b.2b [ ] Pending: acquire/bind pidfd, signal and close exactly once via safe_sigterm/_close_pidfd, delegating to approved complete poll helper. Scout projects ~383 gross, to remeasure before implementation; no runtime engine integration yet.
+   - 8b.2b [ ] Partitioned safe_sigterm acquisition, signalling, and cleanup (budget limit <=400 changed lines per unit):
+     - 8b.2b1 [ ] In progress: complete private _close_pidfd and _acquire_target_pidfd helpers in sigterm.py with hermetic unit tests in test_sigterm.py. Forecast ~320-350 gross changed lines across all files (budget <=400).
+     - 8b.2b2 [ ] Pending: compose complete safe_sigterm helper in sigterm.py delegating to _acquire_target_pidfd, _close_pidfd, and poll_process_termination.
    - 8c [ ] Pending: compose SupervisorEngine only after identity and safe termination prerequisites; measured engine span 324 lines excludes tests, so require coherent tested units rather than oversized or untested integration.
 
 ## Evidence
@@ -266,3 +268,15 @@ Process termination polling helper 8b.2a candidate (monolith lines 967-1033 pari
 - Status: 8b.2a coverage gap closure complete; 11 focused / 23 subtests / 262 regression PASS; actual gross lines 454 bounded within authorized <=460 cap (remaining units retain <=400). Safe_sigterm (8b.2b) and engine integration (8c) remain pending. No push.
 
 8b.2a closure: independent verification 11 focused / 262 regression PASS (23 subtests), 3-statement body AST parity against monolith lines 967-1033 (distinct API helper, not monolith API). Commit bef7d7d1bfb2fc880d73a3093d3a79d2c2bbc60b matched approved review-126904374fb7ef5f, exact tree 65dff7663249cd7ba237e95693a9f2a11f880203, ACK burned (consumed revision ebe0e2aaa1b12f5c8c20e53e715ed22d1f254348a869052910620237b90a73a2), candidate 454/460 authorized exception lines; next units return to <=400 budget. Production unchanged (hash c3367cdc1a5de4adb2982003501fd6e15b1ba0f2827ac90c9048597e1d4f1ff9), test hash fc43bdf59c3eac948954392ebd836844b7cab23a803ac9e3638656cd046d7ece; five boundary gaps confirmed (exact .01 clamp, adjacent float nextafter, equal deadline, persistent sentinel timeout, PID reuse precedence). RED is writer historical, not independently confirmed in chronological sequence; meaningful RED not applicable for coverage-only test additions. Historical 49b9edec/be250 assertion byte comparison unavailable; no claim all assertions preserved byte-for-byte. Old writer cleanup unconfirmed. Safe_sigterm (8b.2b) and engine integration (8c) remain pending; no runtime claims or push. This closure is passive documentation outside the approved source candidate.
+
+Process termination helpers slice 8b.2b1 candidate (monolith lines 849-856, 880-928 parity):
+- RED: ImportError: cannot import name '_acquire_target_pidfd' from 'scripts.f3_guard.sigterm' (1 error) observed before production implementation.
+- GREEN: 28 focused tests PASS (scripts.f3_guard.tests.test_sigterm) in 0.058s (11 polling + 5 close + 12 acquire).
+- Regression: 279 modular tests PASS (discover -s scripts/f3_guard/tests -p 'test_*.py') in 0.394s (baseline 262 + 17 new).
+- Source budget: 65 add / 1 del in sigterm.py + 275 add / 1 del in test_sigterm.py + ledgers = ~360 gross changed lines vs HEAD 724f47ca (<=400 hard budget).
+- File hashes:
+  - b5236ee73b0811c5c52981001ee64f125f0a2c8048574f2e8089e0941049015e scripts/f3_guard/sigterm.py
+  - ad66f8da9f27fffd3075263b29eeefc1e83671d7651fd386bb25a6ff12c4d570 scripts/f3_guard/tests/test_sigterm.py
+- AST / logic parity: exact parity for _close_pidfd (monolith lines 849-856) and _acquire_target_pidfd (monolith lines 880-928); poll_process_termination body and TestPollProcessTermination class ASTs preserved identically.
+- Unchanged originals: e30a00d32a7f4f85... and 7048aa9f40433a4e... intact.
+- Status: 8b.2b1 complete pending independent verification/review/ACK/commit. Safe_sigterm composition (8b.2b2) and engine integration (8c) remain pending. No push.
