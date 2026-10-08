@@ -24,6 +24,35 @@ from scripts.f3_guard.launcher_transfer import LauncherTransferHelper
 from scripts.f3_guard.types import ProcessIdentity
 
 
+class _StrTrapException(Exception):
+    def __str__(self) -> str: raise AssertionError("str called")
+    def __repr__(self) -> str: raise AssertionError("repr called")
+
+
+class _StrTrapBaseException(BaseException):
+    def __str__(self) -> str: raise AssertionError("str called")
+    def __repr__(self) -> str: raise AssertionError("repr called")
+
+
+class _ToggleHelper:
+    def __init__(self, c: object = None, p: object = None, r: object = None) -> None:
+        self.child, self.fd, self.res = c, p, r
+        self.fault_c = self.fault_res = False
+
+    @property
+    def pending_child(self) -> object:
+        if self.fault_c: raise RuntimeError("fault A")
+        return self.child
+
+    @property
+    def pending_pidfd(self) -> object: return self.fd
+
+    @property
+    def last_result(self) -> object:
+        if self.fault_res: raise RuntimeError("fault res")
+        return self.res
+
+
 class _DummyChild:
     def __init__(self, pid: int = 12345) -> None: self.pid = pid
     def poll(self) -> None: return None
@@ -114,13 +143,14 @@ class TestLauncherCustodyTracker(unittest.TestCase):
             pidfd=pidfd,
         )
 
-    def test_forbidden_recovery_api_absent(self) -> None:
+    def test_recovery_api_contracts(self) -> None:
         tracker = LauncherCustodyTracker()
         self.assertIs(CustodySnapshot, LauncherCustodySnapshot)
         self.assertIs(LauncherCustodyTracker.take_snapshot, LauncherCustodyTracker.snapshot)
-        for forbidden in ("record_exception", "catch_and_record", "last_exception"):
-            self.assertFalse(hasattr(LauncherCustodyTracker, forbidden), f"{forbidden} on class")
-            self.assertFalse(hasattr(tracker, forbidden), f"{forbidden} on instance")
+        for meth in ("record_exception", "catch_and_record", "last_exception"):
+            self.assertTrue(hasattr(LauncherCustodyTracker, meth), f"{meth} on class")
+            self.assertTrue(hasattr(tracker, meth), f"{meth} on instance")
+        self.assertIsNone(tracker.last_exception)
 
     def test_active_stage_selection_and_no_fallback(self) -> None:
         child = _DummyChild()
@@ -282,3 +312,230 @@ class TestLauncherCustodyTracker(unittest.TestCase):
                     self.assertIs(cm.exception, exc)
                     self.assertIs(tracker.last_snapshot, prior_snap)
                     self.assertIs(tracker.active_helper, good_h)
+
+    def test_primary_getter_secondary_matrix_and_assert_is(self) -> None:
+        child = _DummyChild(999)
+        primaries = (RuntimeError("p_run"), KeyboardInterrupt("p_ki"), SystemExit(3))
+        props = ("pending_child", "pending_pidfd", "last_result")
+        secondaries = (RuntimeError("s_run"), KeyboardInterrupt("s_ki"), SystemExit(4))
+
+        for prim in primaries:
+            for prop in props:
+                for sec in secondaries:
+                    with self.subTest(p=type(prim).__name__, prop=prop, s=type(sec).__name__):
+                        class _MatrixHelper:
+                            def __init__(self, p: str, s: BaseException) -> None:
+                                self._p, self._s = p, s
+                            @property
+                            def pending_child(self) -> object:
+                                if self._p == "pending_child": raise self._s
+                                return child
+                            @property
+                            def pending_pidfd(self) -> object:
+                                if self._p == "pending_pidfd": raise self._s
+                                return 7
+                            @property
+                            def last_result(self) -> object:
+                                if self._p == "last_result": raise self._s
+                                return None
+
+                        h = _MatrixHelper(prop, sec)
+                        tr = LauncherCustodyTracker(h)
+                        with self.assertRaises(type(prim)) as cm:
+                            with tr.catch_and_record():
+                                raise prim
+                        self.assertIs(cm.exception, prim)
+                        self.assertIs(tr.last_exception, prim)
+                        self.assertFalse(tr.last_result.success)
+                        self.assertIn(f"primary: {type(prim).__name__}", tr.last_result.error)
+                        self.assertIn(f"secondary: {prop}: {type(sec).__name__}", tr.last_result.error)
+                        if prop == "pending_child":
+                            self.assertEqual(tr.pending_pidfd, 7)
+                        elif prop == "pending_pidfd":
+                            self.assertIs(tr.pending_child, child)
+                        elif prop == "last_result":
+                            self.assertIs(tr.pending_child, child)
+                            self.assertEqual(tr.pending_pidfd, 7)
+
+    def test_partial_fields_retained_on_later_getter_fault(self) -> None:
+        child = _DummyChild()
+        class _PartialHelper:
+            @property
+            def pending_child(self) -> object: return child
+            @property
+            def pending_pidfd(self) -> object: return 12
+            @property
+            def last_result(self) -> object: raise RuntimeError("last_result failed")
+
+        tr = LauncherCustodyTracker()
+        exc = ValueError("step fault")
+        snap = tr.record_exception(exc, _PartialHelper())
+        self.assertIs(snap.pending_child, child)
+        self.assertEqual(snap.pending_pidfd, 12)
+        self.assertFalse(snap.last_result.success)
+        self.assertTrue(snap.last_result.pending_cleanup)
+
+    def test_same_helper_prior_vs_none_authoritative_and_cross_helper(self) -> None:
+        child = _DummyChild()
+        h_a = _ToggleHelper(child, 6)
+        tr = LauncherCustodyTracker(h_a)
+        s_norm = tr.snapshot()
+        self.assertIs(s_norm.pending_child, child)
+
+        h_a.fault_c = True
+        s_same = tr.record_exception(ValueError("v"), h_a)
+        self.assertIs(s_same.pending_child, child)
+
+        h_none = _TrapHelper(child=None, pidfd=None)
+        s_none = tr.record_exception(ValueError("v2"), h_none)
+        self.assertIsNone(s_none.pending_child)
+        self.assertIsNone(s_none.pending_pidfd)
+
+        h_a.fault_c = False
+        s_fresh_a = tr.snapshot(h_a)
+        self.assertIs(s_fresh_a.pending_child, child)
+        self.assertEqual(s_fresh_a.pending_pidfd, 6)
+
+        class _FaultHelperB:
+            @property
+            def pending_child(self) -> object: raise RuntimeError("fault B")
+            @property
+            def pending_pidfd(self) -> object: raise RuntimeError("fault B fd")
+            @property
+            def last_result(self) -> object: return None
+
+        h_b = _FaultHelperB()
+        tr.set_active_helper(h_b)
+        s_b = tr.record_exception(ValueError("v3"), h_b)
+        self.assertIsNone(s_b.pending_child)
+        self.assertIsNone(s_b.pending_pidfd)
+
+        s_no_h = tr.record_exception(ValueError("v4"), None)
+        self.assertIsNone(s_no_h.pending_child)
+        self.assertIsNone(s_no_h.pending_pidfd)
+
+    def test_none_getter_authoritative_no_backfill_and_fault_fallback(self) -> None:
+        old_child = _DummyChild(111)
+        old_res = LaunchResult(success=False, child_handle=old_child, pidfd=99, error="old")
+        h = _TrapHelper(child=None, pidfd=None, res=old_res)
+        tr = LauncherCustodyTracker()
+        snap = tr.record_exception(ValueError("err"), h)
+        self.assertIsNone(snap.pending_child)
+        self.assertIsNone(snap.pending_pidfd)
+        self.assertIsNone(snap.last_result.child_handle)
+        self.assertIsNone(snap.last_result.pidfd)
+        self.assertFalse(snap.last_result.pending_cleanup)
+
+        h_same = _ToggleHelper(None, None, old_res)
+        tr2 = LauncherCustodyTracker(h_same)
+        s_prev = tr2.snapshot()
+        self.assertIs(s_prev.last_result, old_res)
+
+        h_same.fault_res = True
+        snap2 = tr2.record_exception(ValueError("err2"), h_same)
+        self.assertIsNone(snap2.pending_child)
+        self.assertIsNone(snap2.pending_pidfd)
+        self.assertIsNone(snap2.last_result.child_handle)
+        self.assertIsNone(snap2.last_result.pidfd)
+        self.assertFalse(snap2.last_result.pending_cleanup)
+
+    def test_mismatched_result_metadata_not_assigned_to_different_resources(self) -> None:
+        ident_a = ProcessIdentity(12345, 200, TARGET_UID, TARGET_AVD, TARGET_PORT, "emulator", True)
+        child_a = _DummyChild(12345)
+        old_res_a = LaunchResult(
+            success=False, identity=ident_a, child_handle=child_a, pidfd=55,
+            is_direct_child=True, transferred=True,
+        )
+        child_b = _DummyChild(67890)
+        h = _TrapHelper(child=child_b, pidfd=66, res=old_res_a)
+        tr = LauncherCustodyTracker()
+        snap = tr.record_exception(ValueError("err"), h)
+        self.assertIs(snap.pending_child, child_b)
+        self.assertEqual(snap.pending_pidfd, 66)
+        self.assertIsNone(snap.last_result.identity)
+        self.assertFalse(snap.last_result.is_direct_child)
+        self.assertFalse(snap.last_result.transferred)
+
+    def test_opaque_child_bool_trap_and_fd_zero(self) -> None:
+        child = _BoolRaisesChild()
+        h = _TrapHelper(child=child, pidfd=0)
+        tr = LauncherCustodyTracker()
+        snap = tr.record_exception(ValueError("trap"), h)
+        self.assertIs(snap.pending_child, child)
+        self.assertEqual(snap.pending_pidfd, 0)
+        self.assertTrue(snap.last_result.pending_cleanup)
+
+    def test_diagnostics_str_trap_not_called(self) -> None:
+        prim = _StrTrapBaseException()
+        sec = _StrTrapException()
+        class _TrapPropHelper:
+            @property
+            def pending_child(self) -> object: raise sec
+            @property
+            def pending_pidfd(self) -> object: return None
+            @property
+            def last_result(self) -> object: return None
+
+        tr = LauncherCustodyTracker()
+        snap = tr.record_exception(prim, _TrapPropHelper())
+        self.assertIn("primary: _StrTrapBaseException", snap.last_result.error)
+        self.assertIn("secondary: pending_child: _StrTrapException", snap.last_result.error)
+
+    def test_legit_failed_and_success_anomaly_identity(self) -> None:
+        ident = ProcessIdentity(12345, 200, TARGET_UID, TARGET_AVD, TARGET_PORT, "emulator", True)
+        child = _DummyChild()
+        fail_res = LaunchResult(
+            success=False, identity=ident, pidfd=4, child_handle=child,
+            error="pre-existing fail; primary: ValueError", is_direct_child=True, pending_cleanup=True, transferred=True,
+        )
+        h_fail = _TrapHelper(child=child, pidfd=4, res=fail_res)
+        tr = LauncherCustodyTracker()
+        s_fail = tr.record_exception(ValueError("step err"), h_fail)
+        self.assertFalse(s_fail.last_result.success)
+        self.assertIs(s_fail.last_result, fail_res)
+        self.assertIs(s_fail.last_result.identity, ident)
+
+        fail_synth = LaunchResult(
+            success=False, identity=ident, pidfd=4, child_handle=child,
+            error="pre-existing fail", is_direct_child=True, pending_cleanup=True, transferred=True,
+        )
+        s_synth = tr.record_exception(ValueError("step err"), _TrapHelper(child=child, pidfd=4, res=fail_synth))
+        self.assertIsNot(s_synth.last_result, fail_synth)
+        self.assertIn("pre-existing fail; primary: ValueError", s_synth.last_result.error)
+
+        succ_res = LaunchResult(
+            success=True, identity=ident, pidfd=4, child_handle=child,
+            is_direct_child=True, pending_cleanup=False, transferred=True,
+        )
+        h_succ = _TrapHelper(child=child, pidfd=4, res=succ_res)
+        s_succ = tr.record_exception(ValueError("anomaly err"), h_succ)
+        self.assertFalse(s_succ.last_result.success)
+        self.assertIs(s_succ.last_result.identity, ident)
+        self.assertTrue(s_succ.last_result.pending_cleanup)
+
+        for res_obj in (s_fail.last_result, s_succ.last_result):
+            self.assertEqual(res_obj.identity.pid, 12345)
+            self.assertEqual(res_obj.identity.start_ticks, 200)
+            self.assertEqual(res_obj.identity.uid, TARGET_UID)
+            self.assertEqual(res_obj.identity.avd, TARGET_AVD)
+            self.assertEqual(res_obj.identity.port, TARGET_PORT)
+            self.assertEqual(res_obj.identity.binary_name, "emulator")
+            self.assertTrue(res_obj.identity.is_direct_child)
+
+        for c, f, expect_clean in ((child, None, True), (None, 4, True), (None, None, False)):
+            with self.subTest(c=c is not None, f=f is not None):
+                s_part = tr.record_exception(ValueError("p"), _TrapHelper(child=c, pidfd=f))
+                self.assertEqual(s_part.last_result.pending_cleanup, expect_clean)
+
+    def test_context_manager_normal_and_unexpected_internal_fault(self) -> None:
+        tr = LauncherCustodyTracker()
+        with tr.catch_and_record():
+            pass
+        self.assertIsNone(tr.last_exception)
+
+        prim = RuntimeError("orig")
+        tr.record_exception = Mock(side_effect=BaseException("catastrophic record failure"))
+        with self.assertRaises(RuntimeError) as cm:
+            with tr.catch_and_record():
+                raise prim
+        self.assertIs(cm.exception, prim)
