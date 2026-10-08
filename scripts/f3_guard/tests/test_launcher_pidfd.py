@@ -18,6 +18,22 @@ class _SubInt(int):
     pass
 
 
+class _StrTrapException(Exception):
+    def __str__(self) -> str:
+        raise AssertionError("str called on _StrTrapException")
+
+    def __repr__(self) -> str:
+        raise AssertionError("repr called on _StrTrapException")
+
+
+class _StrTrapBaseException(BaseException):
+    def __str__(self) -> str:
+        raise AssertionError("str called on _StrTrapBaseException")
+
+    def __repr__(self) -> str:
+        raise AssertionError("repr called on _StrTrapBaseException")
+
+
 class _DummyChild:
     def __init__(self, pid: object = 12345, has_poll: bool = True, poll_val: object = None) -> None:
         self.pid = pid
@@ -110,7 +126,7 @@ class TestLauncherPidfd(unittest.TestCase):
         ctrl_exc.pidfd_open = Mock(side_effect=OSError("open failed"))
         vctx, res = LauncherPidfdHelper(controller=ctrl_exc).acquire_and_verify(spawn_ctx)
         self.assertIsNone(vctx)
-        self.assertIn("Post-spawn exception: open failed", res.error)
+        self.assertIn("Post-spawn exception: OSError", res.error)
         self.assertEqual((res.pidfd, res.child_handle, res.pending_cleanup), (None, spawn_ctx.child_handle, True))
 
     def test_fdinfo_validation_table(self) -> None:
@@ -119,7 +135,7 @@ class TestLauncherPidfd(unittest.TestCase):
 
         ctrl_err = _DummyController()
         ctrl_err.get_fdinfo_pid = Mock(side_effect=RuntimeError("fdinfo crash"))
-        self.assertIn("fdinfo check error: fdinfo crash", LauncherPidfdHelper(controller=ctrl_err).acquire_and_verify(spawn_ctx)[1].error)
+        self.assertIn("fdinfo check error: RuntimeError", LauncherPidfdHelper(controller=ctrl_err).acquire_and_verify(spawn_ctx)[1].error)
 
         for bad_pid in (None, False, True, 99999, "12345"):
             with self.subTest(bad_pid=bad_pid):
@@ -141,7 +157,7 @@ class TestLauncherPidfd(unittest.TestCase):
 
         ctrl_err = _DummyController()
         ctrl_err.is_pidfd_alive = Mock(side_effect=RuntimeError("alive crash"))
-        self.assertIn("pidfd liveness check error: alive crash", LauncherPidfdHelper(controller=ctrl_err).acquire_and_verify(spawn_ctx)[1].error)
+        self.assertIn("pidfd liveness check error: RuntimeError", LauncherPidfdHelper(controller=ctrl_err).acquire_and_verify(spawn_ctx)[1].error)
 
         for bad_alive in (False, None, 1, 0, "True"):
             with self.subTest(bad_alive=bad_alive):
@@ -196,7 +212,7 @@ class TestLauncherPidfd(unittest.TestCase):
 
         child_err = _DummyChild()
         child_err.poll = Mock(side_effect=RuntimeError("poll fail"))
-        self.assertIn("Child poll error on recheck: poll fail", LauncherPidfdHelper(controller=_DummyController()).acquire_and_verify(self._ctx(child_err))[1].error)
+        self.assertIn("Child poll error on recheck: RuntimeError", LauncherPidfdHelper(controller=_DummyController()).acquire_and_verify(self._ctx(child_err))[1].error)
 
     def test_callback_order_and_early_no_call_assertions_outside(self) -> None:
         spawn_ctx = self._ctx()
@@ -239,7 +255,60 @@ class TestLauncherPidfd(unittest.TestCase):
         h_custom = LauncherPidfdHelper(controller=ctrl_custom)
         vctx, res = h_custom.acquire_and_verify(self._ctx())
         self.assertEqual((vctx, h_custom.last_result), (None, res))
-        self.assertIn("Post-spawn exception: custom error", res.error)
+        self.assertIn("Post-spawn exception: _CustomBase", res.error)
+
+    def test_str_trap_regression_pidfd_open_and_secondary_callbacks(self) -> None:
+        spawn_ctx = self._ctx()
+
+        ctrl_exc = _DummyController()
+        ctrl_exc.pidfd_open = Mock(side_effect=_StrTrapException())
+        h_open = LauncherPidfdHelper(controller=ctrl_exc)
+        vctx, res = h_open.acquire_and_verify(spawn_ctx)
+        self.assertIsNone(vctx)
+        self.assertEqual(res.error, "Post-spawn exception: _StrTrapException")
+        self.assertIsNone(h_open.pending_pidfd)
+        self.assertIs(h_open.pending_child, spawn_ctx.child_handle)
+        self.assertTrue(res.pending_cleanup)
+
+        ctrl_base = _DummyController()
+        ctrl_base.pidfd_open = Mock(side_effect=_StrTrapBaseException())
+        h_base = LauncherPidfdHelper(controller=ctrl_base)
+        vctx, res = h_base.acquire_and_verify(spawn_ctx)
+        self.assertIsNone(vctx)
+        self.assertEqual(res.error, "Post-spawn exception: _StrTrapBaseException")
+        self.assertIsNone(h_base.pending_pidfd)
+        self.assertIs(h_base.pending_child, spawn_ctx.child_handle)
+        self.assertTrue(res.pending_cleanup)
+
+        stages = (
+            ("get_fdinfo_pid", "fdinfo check error: _StrTrapException", lambda c: setattr(c, "get_fdinfo_pid", Mock(side_effect=_StrTrapException()))),
+            ("is_pidfd_alive", "pidfd liveness check error: _StrTrapException", lambda c: setattr(c, "is_pidfd_alive", Mock(side_effect=_StrTrapException()))),
+            ("child_ticks", "Child start_ticks recheck error: _StrTrapException", lambda c: setattr(c, "get_start_ticks", lambda p: (_ for _ in ()).throw(_StrTrapException()) if p == 12345 else 100)),
+            ("uid", "Child UID recheck error: _StrTrapException", lambda c: setattr(c, "get_uid", Mock(side_effect=_StrTrapException()))),
+            ("ppid", "PPID recheck error: _StrTrapException", lambda c: setattr(c, "get_ppid", Mock(side_effect=_StrTrapException()))),
+            ("parent_ticks", "Parent start_ticks recheck error: _StrTrapException", lambda c: setattr(c, "get_start_ticks", lambda p: (_ for _ in ()).throw(_StrTrapException()) if p == 10000 else 200)),
+        )
+        for name, expected_err, setup_fn in stages:
+            with self.subTest(stage=name):
+                ctrl = _DummyController()
+                setup_fn(ctrl)
+                h = LauncherPidfdHelper(controller=ctrl)
+                vctx, res = h.acquire_and_verify(spawn_ctx)
+                self.assertIsNone(vctx)
+                self.assertEqual(res.error, expected_err)
+                self.assertEqual(h.pending_pidfd, 5)
+                self.assertIs(h.pending_child, spawn_ctx.child_handle)
+                self.assertTrue(res.pending_cleanup)
+
+        child_poll = _DummyChild()
+        child_poll.poll = Mock(side_effect=_StrTrapException())
+        h_poll = LauncherPidfdHelper(controller=_DummyController())
+        vctx, res = h_poll.acquire_and_verify(self._ctx(child_poll))
+        self.assertIsNone(vctx)
+        self.assertEqual(res.error, "Child poll error on recheck: _StrTrapException")
+        self.assertEqual(h_poll.pending_pidfd, 5)
+        self.assertIs(h_poll.pending_child, child_poll)
+        self.assertTrue(res.pending_cleanup)
 
 
 if __name__ == "__main__":

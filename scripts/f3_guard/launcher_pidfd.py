@@ -78,40 +78,40 @@ class LauncherPidfdHelper:
             if not hasattr(self._controller, "get_fdinfo_pid"):
                 return _fail("Controller missing get_fdinfo_pid reader", pidfd)
             try: fdinfo_pid = self._controller.get_fdinfo_pid(pidfd)
-            except Exception as e: return _fail(f"fdinfo check error: {e}", pidfd)
+            except Exception as e: return _fail(f"fdinfo check error: {type(e).__name__}", pidfd)
             if not (isinstance(fdinfo_pid, int) and type(fdinfo_pid) is not bool and fdinfo_pid == child_pid):
                 return _fail(f"pidfd fdinfo target PID mismatch or invalid ({fdinfo_pid} != {child_pid})", pidfd)
 
             if not (hasattr(self._controller, "is_pidfd_alive") and callable(self._controller.is_pidfd_alive)):
                 return _fail("Controller missing mandatory is_pidfd_alive callable", pidfd)
             try: alive = self._controller.is_pidfd_alive(pidfd)
-            except Exception as e: return _fail(f"pidfd liveness check error: {e}", pidfd)
+            except Exception as e: return _fail(f"pidfd liveness check error: {type(e).__name__}", pidfd)
             if alive is not True:
                 return _fail(f"pidfd liveness verification failed (alive={alive!r})", pidfd)
 
             try: recheck_child_ticks = self._controller.get_start_ticks(child_pid)
-            except Exception as e: return _fail(f"Child start_ticks recheck error: {e}", pidfd)
+            except Exception as e: return _fail(f"Child start_ticks recheck error: {type(e).__name__}", pidfd)
             if type(recheck_child_ticks) is not int or recheck_child_ticks <= 0 or recheck_child_ticks != start_ticks:
                 return _fail("Child start_ticks shifted or invalid on recheck", pidfd)
 
             try: recheck_uid = self._controller.get_uid(child_pid) if hasattr(self._controller, "get_uid") else None
-            except Exception as e: return _fail(f"Child UID recheck error: {e}", pidfd)
+            except Exception as e: return _fail(f"Child UID recheck error: {type(e).__name__}", pidfd)
             if type(recheck_uid) is not int or recheck_uid != self._target_uid:
                 return _fail("Child UID mismatch or invalid on recheck", pidfd)
 
             try: recheck_ppid = self._controller.get_ppid(child_pid) if hasattr(self._controller, "get_ppid") else None
-            except Exception as e: return _fail(f"PPID recheck error: {e}", pidfd)
+            except Exception as e: return _fail(f"PPID recheck error: {type(e).__name__}", pidfd)
             if type(recheck_ppid) is not int or recheck_ppid <= 0 or recheck_ppid != owner_pid:
                 return _fail("Child parent PID mismatch or invalid on recheck", pidfd)
 
             try: recheck_parent_ticks = self._controller.get_start_ticks(owner_pid)
-            except Exception as e: return _fail(f"Parent start_ticks recheck error: {e}", pidfd)
+            except Exception as e: return _fail(f"Parent start_ticks recheck error: {type(e).__name__}", pidfd)
             if type(recheck_parent_ticks) is not int or recheck_parent_ticks <= 0 or recheck_parent_ticks != parent_ticks:
                 return _fail("Parent start_ticks shifted or invalid on recheck", pidfd)
 
             if hasattr(child, "poll"):
                 try: poll_val = child.poll()
-                except Exception as e: return _fail(f"Child poll error on recheck: {e}", pidfd)
+                except Exception as e: return _fail(f"Child poll error on recheck: {type(e).__name__}", pidfd)
                 if poll_val is not None:
                     return _fail(f"Child exited during launch verification: {poll_val}", pidfd)
 
@@ -119,7 +119,7 @@ class LauncherPidfdHelper:
         except BaseException as ex:
             res = LaunchResult(
                 success=False, pidfd=self._pending_pidfd, child_handle=self._pending_child,
-                pending_cleanup=True, error=f"Post-spawn exception: {ex}"
+                pending_cleanup=True, error=f"Post-spawn exception: {type(ex).__name__}"
             )
             self._last_result = res
             if isinstance(ex, (KeyboardInterrupt, SystemExit)):

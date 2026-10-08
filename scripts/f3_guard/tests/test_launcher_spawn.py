@@ -17,6 +17,14 @@ class _SubInt(int):
     pass
 
 
+class _StrTrapException(Exception):
+    def __str__(self) -> str:
+        raise AssertionError("str called on _StrTrapException")
+
+    def __repr__(self) -> str:
+        raise AssertionError("repr called on _StrTrapException")
+
+
 class _DummyChild:
     def __init__(self, pid: object = 12345, has_poll: bool = True, poll_val: object = None) -> None:
         self.pid = pid
@@ -83,7 +91,7 @@ class TestLauncherSpawn(unittest.TestCase):
         h_err = LauncherSpawnHelper(spawner=Mock(side_effect=RuntimeError("spawner crash")), controller=_DummyController())
         ctx, res = h_err.spawn_and_verify(["test"])
         self.assertEqual((ctx, h_err.pending_child), (None, None))
-        self.assertIn("Spawner execution failed: spawner crash", res.error)
+        self.assertIn("Spawner execution failed: RuntimeError", res.error)
 
         for exc in (KeyboardInterrupt, SystemExit):
             h_ki = LauncherSpawnHelper(spawner=Mock(side_effect=exc), controller=_DummyController())
@@ -124,7 +132,7 @@ class TestLauncherSpawn(unittest.TestCase):
 
         child_err = _DummyChild()
         child_err.poll = Mock(side_effect=RuntimeError("poll failed"))
-        self.assertIn("Child poll error: poll failed", LauncherSpawnHelper(spawner=lambda a: child_err, controller=_DummyController()).spawn_and_verify(["t"])[1].error)
+        self.assertIn("Child poll error: RuntimeError", LauncherSpawnHelper(spawner=lambda a: child_err, controller=_DummyController()).spawn_and_verify(["t"])[1].error)
 
     def test_owner_pid_validation(self) -> None:
         child = _DummyChild()
@@ -170,7 +178,7 @@ class TestLauncherSpawn(unittest.TestCase):
 
         ctrl_err = _DummyController()
         ctrl_err.get_ppid = Mock(side_effect=RuntimeError("ppid error"))
-        self.assertIn("PPID check error: ppid error", LauncherSpawnHelper(spawner=lambda a: child, controller=ctrl_err).spawn_and_verify(["t"])[1].error)
+        self.assertIn("PPID check error: RuntimeError", LauncherSpawnHelper(spawner=lambda a: child, controller=ctrl_err).spawn_and_verify(["t"])[1].error)
 
         for bad_ppid in (True, False, 9999):
             with self.subTest(bad_ppid=bad_ppid):
@@ -184,7 +192,7 @@ class TestLauncherSpawn(unittest.TestCase):
 
         ctrl_err = _DummyController()
         ctrl_err.get_uid = Mock(side_effect=RuntimeError("uid error"))
-        self.assertIn("Child UID read error: uid error", LauncherSpawnHelper(spawner=lambda a: child, controller=ctrl_err).spawn_and_verify(["t"])[1].error)
+        self.assertIn("Child UID read error: RuntimeError", LauncherSpawnHelper(spawner=lambda a: child, controller=ctrl_err).spawn_and_verify(["t"])[1].error)
 
         for bad_uid in (_SubInt(TARGET_UID), True, False, 1001, "1000"):
             with self.subTest(bad_uid=bad_uid):
@@ -231,6 +239,43 @@ class TestLauncherSpawn(unittest.TestCase):
         spy_ticks.assert_not_called()
         spy_ppid.assert_not_called()
         spy_uid.assert_not_called()
+
+    def test_str_trap_regression_spawner_and_secondary_callbacks(self) -> None:
+        h_spawn = LauncherSpawnHelper(spawner=Mock(side_effect=_StrTrapException()), controller=_DummyController())
+        ctx, res = h_spawn.spawn_and_verify(["test"])
+        self.assertIsNone(ctx)
+        self.assertIsNotNone(res)
+        self.assertEqual(res.error, "Spawner execution failed: _StrTrapException")
+        self.assertIsNone(h_spawn.pending_child)
+        self.assertIs(h_spawn.last_result, res)
+
+        child = _DummyChild()
+        child_poll = _DummyChild()
+        child_poll.poll = Mock(side_effect=_StrTrapException())
+        h_poll = LauncherSpawnHelper(spawner=lambda a: child_poll, controller=_DummyController())
+        ctx, res = h_poll.spawn_and_verify(["t"])
+        self.assertIsNone(ctx)
+        self.assertEqual(res.error, "Child poll error: _StrTrapException")
+        self.assertIs(h_poll.pending_child, child_poll)
+        self.assertTrue(res.pending_cleanup)
+
+        ctrl_ppid = _DummyController()
+        ctrl_ppid.get_ppid = Mock(side_effect=_StrTrapException())
+        h_ppid = LauncherSpawnHelper(spawner=lambda a: child, controller=ctrl_ppid)
+        ctx, res = h_ppid.spawn_and_verify(["t"])
+        self.assertIsNone(ctx)
+        self.assertEqual(res.error, "PPID check error: _StrTrapException")
+        self.assertIs(h_ppid.pending_child, child)
+        self.assertTrue(res.pending_cleanup)
+
+        ctrl_uid = _DummyController()
+        ctrl_uid.get_uid = Mock(side_effect=_StrTrapException())
+        h_uid = LauncherSpawnHelper(spawner=lambda a: child, controller=ctrl_uid)
+        ctx, res = h_uid.spawn_and_verify(["t"])
+        self.assertIsNone(ctx)
+        self.assertEqual(res.error, "Child UID read error: _StrTrapException")
+        self.assertIs(h_uid.pending_child, child)
+        self.assertTrue(res.pending_cleanup)
 
 
 if __name__ == "__main__":

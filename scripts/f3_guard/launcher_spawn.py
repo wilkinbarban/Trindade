@@ -55,7 +55,7 @@ class LauncherSpawnHelper:
         except (KeyboardInterrupt, SystemExit):
             raise
         except Exception as e:
-            res = LaunchResult(success=False, error=f"Spawner execution failed: {e}")
+            res = LaunchResult(success=False, error=f"Spawner execution failed: {type(e).__name__}")
             self._last_result = res
             return None, res
 
@@ -79,7 +79,7 @@ class LauncherSpawnHelper:
             except (KeyboardInterrupt, SystemExit):
                 raise
             except Exception as e:
-                return None, _fail(f"Child poll error: {e}")
+                return None, _fail(f"Child poll error: {type(e).__name__}")
 
         owner_pid = os.getpid()
         if not (isinstance(owner_pid, int) and type(owner_pid) is not bool and owner_pid > 0):
@@ -107,7 +107,7 @@ class LauncherSpawnHelper:
         except (KeyboardInterrupt, SystemExit):
             raise
         except Exception as e:
-            return None, _fail(f"PPID check error: {e}")
+            return None, _fail(f"PPID check error: {type(e).__name__}")
         if not (isinstance(ppid, int) and type(ppid) is not bool and ppid == owner_pid):
             return None, _fail("Child parent PID mismatch or unknown")
 
@@ -122,7 +122,7 @@ class LauncherSpawnHelper:
         except (KeyboardInterrupt, SystemExit):
             raise
         except Exception as e:
-            return None, _fail(f"Child UID read error: {e}")
+            return None, _fail(f"Child UID read error: {type(e).__name__}")
         if type(uid) is not int or uid != self._target_uid:
             return None, _fail(f"Child UID {uid!r} != required {self._target_uid}")
 
