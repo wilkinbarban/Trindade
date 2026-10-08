@@ -13,6 +13,8 @@ from scripts.f3_guard.launcher_preflight import (
 from scripts.f3_guard.proc_identity import verify_process_identity
 from scripts.f3_guard.types import ProcessIdentity
 
+_CANONICAL_LAUNCH_RESULT = LaunchResult
+
 
 class LauncherTransferHelper:
     """Fail-closed emulator process transfer and post-spawn identity verification.
@@ -61,6 +63,8 @@ class LauncherTransferHelper:
         pidfd = context.pidfd
         self._pending_child = child
         self._pending_pidfd = pidfd
+        candidate_identity: Optional[ProcessIdentity] = None
+        bound_accepted = False
 
         def _fail(err: str, fd: Optional[int] = None) -> LaunchResult:
             self._last_result = LaunchResult(
@@ -79,7 +83,7 @@ class LauncherTransferHelper:
             try:
                 exe_path = self._controller.get_exe_path(child_pid)
             except Exception as e:
-                return _fail(f"Post-spawn exe inspection failed: {e}", pidfd)
+                return _fail(f"Post-spawn exe inspection failed: {type(e).__name__}", pidfd)
             if not isinstance(exe_path, str) or not exe_path or exe_path != self._binary:
                 return _fail(f"Post-spawn identity failure: Child actual exe '{exe_path}' mismatch", pidfd)
 
@@ -106,6 +110,7 @@ class LauncherTransferHelper:
                 bound_ok = self._controller.bind_anchored_pidfd(child_pid, start_ticks, pidfd)
                 if not bound_ok:
                     return _fail("Controller bind_anchored_pidfd rejected duplicate/conflict", pidfd)
+                bound_accepted = True
                 self._pending_pidfd = None
 
             res = LaunchResult(
@@ -116,11 +121,38 @@ class LauncherTransferHelper:
             self._last_result = res
             return res
         except BaseException as ex:
-            res = LaunchResult(
-                success=False, pidfd=self._pending_pidfd, child_handle=self._pending_child,
-                pending_cleanup=True, error=f"Post-spawn exception: {ex}"
-            )
-            self._last_result = res
+            if bound_accepted:
+                try:
+                    self._pending_pidfd = None
+                except BaseException:
+                    object.__setattr__(self, "_pending_pidfd", None)
+            res = None
+            try:
+                err_msg = f"Post-spawn exception: {type(ex).__name__}"
+                if bound_accepted:
+                    res_kwargs = dict(
+                        success=False, identity=candidate_identity, pidfd=None,
+                        child_handle=self._pending_child, pending_cleanup=True,
+                        transferred=True, error=err_msg
+                    )
+                else:
+                    res_kwargs = dict(
+                        success=False, pidfd=self._pending_pidfd,
+                        child_handle=self._pending_child, pending_cleanup=True,
+                        error=err_msg
+                    )
+                try:
+                    res = LaunchResult(**res_kwargs)
+                except BaseException:
+                    res = _CANONICAL_LAUNCH_RESULT(**res_kwargs)
+                try:
+                    self._last_result = res
+                except BaseException:
+                    object.__setattr__(self, "_last_result", res)
+            except BaseException:
+                pass
+            if res is None:
+                raise
             if isinstance(ex, (KeyboardInterrupt, SystemExit)):
                 raise
             return res
