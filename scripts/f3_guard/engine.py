@@ -10,7 +10,9 @@ from scripts.f3_guard.controller import ProcessController
 from scripts.f3_guard.engine_claim import TerminationClaimTracker
 from scripts.f3_guard.engine_readiness import EngineReadinessHelper
 from scripts.f3_guard.engine_termination import EngineTerminationHelper
+from scripts.f3_guard.memory import validate_memory_limits
 from scripts.f3_guard.probe_lifecycle import ProbeLifecycle
+from scripts.f3_guard.proc_identity import verify_process_identity
 from scripts.f3_guard.readiness import DEFAULT_MAX_STALE_PROBE_SEC, _ProbeState
 from scripts.f3_guard.sigterm import DEFAULT_GRACE_SEC
 from scripts.f3_guard.types import (
@@ -140,3 +142,61 @@ class SupervisorEngine:
 
     def export_claim_snapshot(self) -> Optional[TerminationAttemptRecord]:
         return self._claim_tracker.export_claim_snapshot()
+
+    def step_probe(self) -> Tuple[bool, Optional[str]]:
+        return self._probe_lifecycle.step_probe()
+
+    def check_health(self) -> Tuple[bool, Optional[str]]:
+        return self._probe_lifecycle.check_health()
+
+    def step(self) -> Tuple[bool, LifecycleState]:
+        """Perform one discrete supervisor step.
+
+        Returns (halted: bool, state: LifecycleState).
+        """
+        now = self._clock.monotonic()
+
+        # 1. TTL check (monotonic) — always first
+        if self.ttl_tracker.is_expired():
+            return self._terminate(f"Supervision TTL expired ({self._ttl_sec}s monotonic)")
+
+        # 2. Target identity check
+        id_ok, id_msg = verify_process_identity(self._target, self._controller)
+        if not id_ok:
+            return self._terminate(f"Target identity failure: {id_msg}")
+
+        # 3. Memory sampling on cadence (independent of probe state)
+        if self._mem_reader:
+            mem_due = (now - self._last_mem_sample_mono) >= self._cadence_sec
+            if mem_due or self._first_step:
+                try:
+                    mem_avail, swap_free = self._mem_reader()
+                    self._last_mem_sample = (mem_avail, swap_free)
+                except Exception as e:
+                    return self._terminate(f"Memory read/parse failure: {e}")
+                self._last_mem_sample_mono = now
+
+                mem_ok, mem_msg = validate_memory_limits(mem_avail, swap_free)
+                if not mem_ok:
+                    return self._terminate(f"Memory threshold violation: {mem_msg}")
+
+        # 4. Probe lifecycle: start if idle, poll if running, check deadline
+        halted, reason = self._probe_lifecycle.step_probe()
+        if halted:
+            return self._terminate(reason or "Health probe failure")
+
+        # 4b. Recheck TTL after probe operations (probe may have consumed time)
+        if self.ttl_tracker.is_expired():
+            return self._terminate(f"Supervision TTL expired after probe ({self._ttl_sec}s monotonic)")
+
+        # 5. Stale probe / probe health check
+        halted, reason = self._probe_lifecycle.check_health()
+        if halted:
+            return self._terminate(reason or "Health probe failure")
+
+        # 6. Readiness check
+        if not self.is_ready:
+            self.check_readiness()
+
+        self._first_step = False
+        return False, self.state
