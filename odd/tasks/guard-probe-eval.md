@@ -347,14 +347,14 @@ Engine readiness helper (task 8c3 candidate; runtime wiring not included):
 
 8c3 closure: independent verification 13 focused / 323 modular regression PASS. Commit e55e27fa105804d33361f67b59e393ab042f8a9c matched approved review-fa334dc3c93ef6bb, exact tree d44ec3b1d55f327cf9996bb893292792ec100903, ACK burned (consumed revision 9f5852ab9eae5365bb04e58da1592bd4f20c2eb0418466acd55f49754617f0cc), exact staged approved tree 354 gross lines (351+/3- across 4 paths). Evidence: state-preserving memory cache, boot callable/value, mem_reader ordinary Exception vs KI/SE contract, live probe.UNKNOWN stale policy unchanged. Explicit limits: no identity exception / evaluator failure / kwargs / falsy reader previous state UNKNOWN stale combo explicit test matrix (inspection only), universal hermetism not claimed, runtime 8c4a/b pending. RED writer-reported missing module historical. Monolith hashes intact; no push. This closure is passive documentation outside the approved source candidate.
 
-Runner extraction tracking (task 8d in progress):
+Runner extraction tracking (task 8d closed in 046eb2f0c8f5486eae037631a1ced73c90633d10):
 - Authorized: `scripts/f3_guard/runner.py`, `tests/test_runner.py`, and two ODD ledgers; preserve monoliths and exclude runtime wiring.
-- Source of truth: complete `run_guarded_supervisor` at monolith 2289–2402 (independent AST/signature/return parity PASS); `run_supervisor` aliases the same function.
-- Budget: <=400 gross ALL vs 5be5a596604a3e4d75d6c861006ae04fa1cc3afc; projected 124 production + 235 tests + 26 ledgers = 385, not measured candidate proof. Measure actual tests plus prospective production before production write; stop on excess without dropping critical coverage.
-- Checks: writer baseline 339 PASS and missing-module RED historical; fresh independent 8/347 PASS, diff check clean. Native RDD approval/ACK and exact-tree local commit pending; no push.
-- Writer verification: 339 fresh baseline PASS; authentic RED ModuleNotFoundError observed before runner.py; 8 focused / 347 modular PASS in 0.720s.
-- Source budget: 131 lines `runner.py` + 241 lines `test_runner.py` + ledgers <= 400 hard budget vs 5be5a59.
-- Coverage PARTIAL: fail-closed finally, exception precedence, cleanup errors, duck rejection, real claim/fallback verified; isolated SE cleanup, returned interrupts, malformed outcomes, exact sigterm arguments and all state-key combinations not exhaustive. Bounded ExitStack guards; runtime/RDD pending; monoliths intact.
+- Source of truth: monolith 2289–2402 (`run_supervisor` alias); pre-correction AST match distinguished from authorized 2-line exception (cleanup KI/SE beats ordinary body, preceding body KI/SE priority intact).
+- Budget: <=400 gross ALL vs 5be5a596604a3e4d75d6c861006ae04fa1cc3afc; pre-production 386 planned arithmetic (125 estimated prod + 235 actual tests + 26 reserved ledgers, historical writer); candidate 380 gross.
+- 8d closure: 8/347 fresh ind PASS, commit 046eb2f0c8f5486eae037631a1ced73c90633d10 tree 69ad2f44ebe037101b24e3ad762491b69aa40438 (380 gross); review-fb069ec90c00a8b3 targeted validation (first attempt invalid_request nonconsumed) retry approved rev 82e101082fa02ee4491392af55f70d4d08044bd61249889b7bee6c47fce465f7, exact ACK burned 8da7 target.
+- Writer verification: 339 baseline PASS, initial RED ModuleNotFoundError before runner.py; correction RED ValueError expected KI then GREEN; 8/347 modular PASS.
+- Source budget: 129 lines `runner.py` + 241 lines `test_runner.py` + 10 ledger lines = 380 gross lines (<=400 hard budget vs 5be5a59).
+- Coverage PARTIAL: fail-closed finally, exception precedence, cleanup errors, duck rejection, real claim/fallback verified; isolated SE cleanup, returned interrupts, malformed outcomes, exact sigterm arguments and all state-key combinations not exhaustive; runtime wiring not done; monoliths intact.
 
 SupervisorEngine step tracking (task 8c4b closed in 0545c71bb63e89c8d6adc924d1daf4ee33c2e8f8):
 - Authorized scope: `engine.py::step()` and `tests/test_engine_step.py`; reuse live helpers, preserve monoliths; runner extraction excluded.
