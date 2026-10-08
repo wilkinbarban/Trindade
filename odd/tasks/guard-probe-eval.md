@@ -347,13 +347,12 @@ Engine readiness helper (task 8c3 candidate; runtime wiring not included):
 
 8c3 closure: independent verification 13 focused / 323 modular regression PASS. Commit e55e27fa105804d33361f67b59e393ab042f8a9c matched approved review-fa334dc3c93ef6bb, exact tree d44ec3b1d55f327cf9996bb893292792ec100903, ACK burned (consumed revision 9f5852ab9eae5365bb04e58da1592bd4f20c2eb0418466acd55f49754617f0cc), exact staged approved tree 354 gross lines (351+/3- across 4 paths). Evidence: state-preserving memory cache, boot callable/value, mem_reader ordinary Exception vs KI/SE contract, live probe.UNKNOWN stale policy unchanged. Explicit limits: no identity exception / evaluator failure / kwargs / falsy reader previous state UNKNOWN stale combo explicit test matrix (inspection only), universal hermetism not claimed, runtime 8c4a/b pending. RED writer-reported missing module historical. Monolith hashes intact; no push. This closure is passive documentation outside the approved source candidate.
 
-Decoupled loop extraction (task 8e in progress):
-- Authorized: `scripts/f3_guard/decoupled_loop.py`, `scripts/f3_guard/tests/test_decoupled_loop.py` and both ODD ledgers; preserve monoliths/backups; launcher, CLI and runtime wiring excluded.
-- Source of truth & parity: monolith lines 1927–1971 (`scripts/f3_emulator_guard.py` actual class 1927–1971; 1927–1976 includes separator); exact AST parity verified; literal original class AST/API annotation preserved by omitting added `__init__ -> None`.
-- Contract & truthiness: preserve deprecated compatibility wrapper, initial UNKNOWN, strict stale > boundary and stale-before-status ordering; production truthiness `if self._mem_reader:` preserved; no admission/runtime guarantee.
-- Tests & verification: fresh 347 baseline with authentic historical RED ModuleNotFoundError; 12 focused / 359 modular regression PASS; strengthened exact tuple object identity (`assertIs`), callable deliberately falsy `__bool__` mock reader fallback to `(0, 0)` verified not called; scoped ExitStack isolation intact.
-- Budget: candidate 65 lines `decoupled_loop.py` + 184 lines `test_decoupled_loop.py` + 9 ledger lines = 258 gross ALL diff vs 3bcc7619ca766028da5592ec02af12845e745a1f (<=400 hard budget).
-- Limits: coverage partial to backward-compatibility surface; pending independent verification and native RDD ACK; monoliths and backups intact; no push.
+Decoupled loop extraction (task 8e closed in b1e8e7493903d03c9ee8486205898371604e34dd):
+- Closure & gate: tree 23c25b1f6588f720097306965dca4311b7a4eb01 matches review-b1e2c8f220325e64 approved rev 33032a1738797d28c4c40686a60616ccf38f00b9828b97787a6f0f9cc36c2f33; ACK burned target c006d6ce43ec9b8a2e347d96ea09828cfe7816fac7250c980e7e514fa97ad112.
+- Parity & AST: exact class monolith lines 1927–1971; omitted added __init__ -> None annotation for AST parity; monoliths intact.
+- Tests & verification: fresh ind 12/359 PASS; writer baseline 347 historical RED ModuleNotFoundError pre-prod; assertIs tuple and falsy test normalization GREEN 12/359 without invented RED; scoped ExitStack restore structural, not universal hermetism.
+- Budget: initial measurement pre-prod 269 (174 test, 65 prod, 30 reserve) vs final 258 gross diff (65 prod + 184 test + 9 docs).
+- Limits: deprecated compatibility wrapper; NO admission/runtime guarantee; launcher and CLI wiring excluded, still pending; no push.
 
 Runner extraction tracking (task 8d closed in 046eb2f0c8f5486eae037631a1ced73c90633d10):
 - Authorized: `scripts/f3_guard/runner.py`, `tests/test_runner.py`, and two ODD ledgers; preserve monoliths and exclude runtime wiring.
