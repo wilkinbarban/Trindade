@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import signal
 import time
 from typing import Optional, Tuple
 
 from scripts.f3_guard.controller import ProcessController
 from scripts.f3_guard.pidfd_binding import BindingState, PidfdBinding
+from scripts.f3_guard.proc_identity import verify_process_identity
 from scripts.f3_guard.proc_inspection import _INSPECTION_ERROR
 from scripts.f3_guard.types import LifecycleState, ProcessIdentity
 
@@ -15,6 +17,7 @@ DEFAULT_GRACE_SEC: float = 20.0
 __all__ = [
     "DEFAULT_GRACE_SEC",
     "poll_process_termination",
+    "safe_sigterm",
 ]
 
 
@@ -150,3 +153,88 @@ def _acquire_target_pidfd(
         return None, (LifecycleState.ERROR, "pidfd_open failed; refusing PID-based fallback to prevent signal race")
 
     return pidfd, None
+
+
+def safe_sigterm(
+    target: ProcessIdentity,
+    controller: ProcessController,
+    reason: str = "",
+    grace_seconds: float = DEFAULT_GRACE_SEC,
+    poll_interval: float = 0.5,
+) -> Tuple[LifecycleState, str]:
+    """Gracefully terminate verified target with SIGTERM.
+
+    Invariants:
+    - Verifies exact PID, start_ticks, UID, and cmdline before signaling.
+    - Safety against TOCTOU via pidfd where available, with tick anchors.
+    - pidfd is opened BEFORE identity revalidation and signals ONLY the
+      verified pidfd; if pidfd_open or pidfd_send_signal fails, returns
+      honest failure — NEVER falls back to os.kill (PID-based race).
+    - NEVER sends SIGKILL (forbidden by contract).
+    - Accurately checks zombie state and honors waitpid reap result.
+    - Distinguishes inspection errors from actual process exit.
+    - All pidfd closes go through controller.close_fd, never raw os.close.
+    """
+    identity_ok, identity_msg = verify_process_identity(target, controller)
+    if not identity_ok:
+        return LifecycleState.PID_MISMATCH, f"Identity verification failed: {identity_msg}"
+
+    pidfd, acq_err = _acquire_target_pidfd(target, controller)
+    if acq_err is not None:
+        return acq_err
+
+    # Re-verify start ticks immediately prior to delivering signal
+    exc_raised = False
+    try:
+        ticks_before_signal = controller.get_start_ticks(target.pid)
+    except BaseException:
+        exc_raised = True
+        raise
+    finally:
+        if exc_raised:
+            try:
+                _close_pidfd(pidfd, controller)
+            except BaseException:
+                pass
+
+    # Accept only exact integer match; _INSPECTION_ERROR or None both abort
+    if not isinstance(ticks_before_signal, int) or ticks_before_signal != target.start_ticks:
+        close_err = _close_pidfd(pidfd, controller)
+        if close_err is not None:
+            return LifecycleState.ERROR, f"Process startTicks shifted and pidfd close failed: {close_err}"
+        return LifecycleState.PID_MISMATCH, "Process startTicks shifted prior to signal delivery (PID reused)"
+
+    # Deliver SIGTERM only — pidfd is closed exclusively in the
+    # outer finally block to prevent double-close.
+    signal_result: Optional[Tuple[LifecycleState, str]] = None
+    close_err: Optional[Exception] = None
+    try:
+        signaled = False
+        if isinstance(pidfd, int) and hasattr(controller, "pidfd_send_signal"):
+            signaled = controller.pidfd_send_signal(pidfd, signal.SIGTERM)
+        if not signaled:
+            signal_result = (LifecycleState.ERROR, "pidfd_send_signal failed; refusing PID-based fallback")
+    except ProcessLookupError:
+        signal_result = (LifecycleState.STOPPED, "Process already vanished prior to signal delivery")
+    except Exception as e:
+        signal_result = (LifecycleState.ERROR, f"Failed to send SIGTERM: {e}")
+    finally:
+        close_err = _close_pidfd(pidfd, controller)
+
+    if signal_result is not None:
+        if signal_result[0] != LifecycleState.STOPPED:
+            return signal_result
+        if close_err is not None:
+            return LifecycleState.ERROR, f"Process vanished but pidfd close failed: {close_err}"
+        return signal_result
+
+    if close_err is not None:
+        return LifecycleState.ERROR, f"SIGTERM delivered but pidfd close failed: {close_err}"
+
+    return poll_process_termination(
+        target,
+        controller,
+        reason=reason,
+        grace_seconds=grace_seconds,
+        poll_interval=poll_interval,
+    )

@@ -35,7 +35,7 @@ User authorizes lossless integration of approved commit 5a69a927c4335441939ebd76
    - 8b.2a [x] Closed in bef7d7d1bfb2fc880d73a3093d3a79d2c2bbc60b: extract complete post-signal poll_process_termination into sigterm.py with hermetic test_sigterm.py; 11/262 PASS (23 subtests), commit tree 65dff7663249cd7ba237e95693a9f2a11f880203 matches approved review-126904374fb7ef5f, ACK burned (consumed revision ebe0e2aaa1b12f5c8c20e53e715ed22d1f254348a869052910620237b90a73a2), original candidate 454/460 lines. Safe_sigterm (8b.2b) and engine integration (8c) remain pending; no runtime claims or push.
    - 8b.2b [ ] Partitioned safe_sigterm acquisition, signalling, and cleanup (budget limit <=400 changed lines per unit):
      - 8b.2b1 [x] Closed in 5b4244aa3b2ccd9f667fc782b4e9973c2cef724b: complete private _close_pidfd and _acquire_target_pidfd helpers in sigterm.py with hermetic test_sigterm.py; 28/279 PASS, commit tree 96b956175ae1ac1ce18ae14165254b1ccdf50dc2 matches approved review-cc06e0942ab46af8, ACK burned (consumed revision 9a06fba7caf1aca550b4d2177e8832f3d1206d3f666ce21bb63df45171c299c9), 360 gross lines (356+4). Safe_sigterm composition (8b.2b2 <=400) and engine integration (8c) remain pending; no runtime claims or push.
-     - 8b.2b2 [ ] Pending: compose complete safe_sigterm helper in sigterm.py delegating to _acquire_target_pidfd, _close_pidfd, and poll_process_termination.
+     - 8b.2b2 [ ] In progress: compose complete safe_sigterm in sigterm.py delegating to verify_process_identity, _acquire_target_pidfd, _close_pidfd, and poll_process_termination; candidate ready (38/289 PASS, budget <=400 gross).
    - 8c [ ] Pending: compose SupervisorEngine only after identity and safe termination prerequisites; measured engine span 324 lines excludes tests, so require coherent tested units rather than oversized or untested integration.
 
 ## Evidence
@@ -282,3 +282,18 @@ Process termination helpers slice 8b.2b1 candidate (monolith lines 849-856, 880-
 - Status: 8b.2b1 complete pending independent verification/review/ACK/commit. Safe_sigterm composition (8b.2b2) and engine integration (8c) remain pending. No push.
 
 8b.2b1 closure: independent muysnc26 observed 28 focused / 279 regression PASS, 360 gross lines (356+4). Commit 5b4244aa3b2ccd9f667fc782b4e9973c2cef724b matched approved review-cc06e0942ab46af8, exact tree 96b956175ae1ac1ce18ae14165254b1ccdf50dc2, ACK burned (consumed revision 9a06fba7caf1aca550b4d2177e8832f3d1206d3f666ce21bb63df45171c299c9). RED is writer historical reported vs independently observed GREEN. Safe_sigterm composition (8b.2b2 <=400) and engine integration (8c) remain pending; no runtime claims or push. This closure is passive documentation outside the approved source candidate.
+
+Process termination safe_sigterm slice 8b.2b2 candidate (monolith lines 858-1033 parity):
+- RED: ImportError: cannot import name 'safe_sigterm' from 'scripts.f3_guard.sigterm' (1 error) observed before production implementation.
+- GREEN: 38 focused tests PASS (scripts.f3_guard.tests.test_sigterm) in 0.112s (11 polling + 5 close + 12 acquire + 10 composition).
+- Regression: 289 modular tests PASS (discover -s scripts/f3_guard/tests -p 'test_*.py') in 0.450s (baseline 279 + 10 new).
+- Source budget: 76 add / 0 del in sigterm.py + 269 add / 0 del in test_sigterm.py + ledgers = ~366 gross changed lines vs HEAD 55b9ff1 (<=400 hard budget).
+- File hashes:
+  - a2ad5f91a78d76887f788a378211dcd3097150753aa9be567c7fc342beea539d scripts/f3_guard/sigterm.py
+  - 97ca9115e20b9decfb20485b17880005db975d40dccaef4f390ae8fb77d01266 scripts/f3_guard/tests/test_sigterm.py
+- AST / logic parity: exact functional parity for safe_sigterm composing verify_process_identity, _acquire_target_pidfd, _close_pidfd, and poll_process_termination; previous helper ASTs (poll_process_termination, _close_pidfd, _acquire_target_pidfd) and existing test classes (TestPollProcessTermination, TestClosePidfdHelper, TestAcquireTargetPidfdHelper) match HEAD identically; dead PID-based fallback branch eliminated as use_pidfd is strictly required by _acquire_target_pidfd.
+- Unchanged originals: e30a00d32a7f4f85... and 7048aa9f40433a4e... intact.
+- Status: 8b.2b2 complete pending independent verification/review/ACK/commit. Supervisor engine integration (8c) remains pending. No push.
+- R3-001 correction authorized: prior parity/forecast historical superseded by authorized R3 robustness; try/finally guarantees pidfd closed once on pre-signal ticks raise; secondary close exception suppressed only while primary propagates.
+- TDD RED: writer-reported KeyboardInterrupt close masked primary RuntimeError; GREEN: 38 focused / 289 regression PASS (actual try/finally primary preserved 12 matrix).
+- Measured candidate: 384 gross vs HEAD (<=400), 33 gross vs 1f2db41c (<=39); native validation ACK/commit pending.

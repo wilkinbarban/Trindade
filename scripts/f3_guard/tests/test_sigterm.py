@@ -17,6 +17,7 @@ from scripts.f3_guard.sigterm import (
     _acquire_target_pidfd,
     _close_pidfd,
     poll_process_termination,
+    safe_sigterm,
 )
 from scripts.f3_guard.types import LifecycleState, ProcessIdentity
 
@@ -617,6 +618,282 @@ class TestAcquireTargetPidfdHelper(unittest.TestCase):
         with self.assertRaises(OSError) as ctx:
             _acquire_target_pidfd(self.target, self.controller)
         self.assertIn("EPERM", str(ctx.exception))
+
+
+class TestSafeSigterm(unittest.TestCase):
+    """Hermetic unit tests for safe_sigterm composition."""
+
+    def setUp(self) -> None:
+        self.fake_time = [1000.0]
+        sp = patch.object(
+            time,
+            "sleep",
+            side_effect=lambda s: self.fake_time.__setitem__(0, self.fake_time[0] + max(0.001, float(s))),
+        )
+        mp = patch.object(time, "monotonic", side_effect=lambda: self.fake_time[0])
+        sp.start()
+        mp.start()
+        self.addCleanup(sp.stop)
+        self.addCleanup(mp.stop)
+
+        kp = patch("os.kill", side_effect=AssertionError("Unexpected real os.kill call"))
+        kp.start()
+        self.addCleanup(kp.stop)
+
+        orig_open = open
+
+        def _guarded_open(file, *args, **kwargs):
+            try:
+                path = os.fspath(file)
+                if isinstance(path, str) and path.startswith("/proc"):
+                    raise AssertionError(f"Unexpected real /proc open: {file}")
+            except TypeError:
+                pass
+            return orig_open(file, *args, **kwargs)
+
+        op = patch("builtins.open", side_effect=_guarded_open)
+        op.start()
+        self.addCleanup(op.stop)
+
+        self.target = ProcessIdentity(
+            pid=12345,
+            start_ticks=987654,
+            uid=1000,
+            avd="Trindade_UX_v030",
+            port=5556,
+            binary_name="qemu-system-x86_64",
+            is_direct_child=False,
+        )
+        self.controller = MagicMock(spec=ProcessController)
+        self.controller.use_pidfd = True
+        self.controller.binding_state = BindingState.NEVER_BOUND
+        self.controller.get_start_ticks.return_value = 987654
+        self.controller.get_uid.return_value = 1000
+        self.controller.get_cmdline.return_value = [
+            "/path/qemu-system-x86_64", "-avd", "Trindade_UX_v030", "-port", "5556"
+        ]
+        self.controller.pidfd_open.return_value = 77
+        self.controller.pidfd_send_signal.return_value = True
+        self.controller.close_fd.return_value = None
+
+    def test_identity_fails_zero_acquire_or_signal(self) -> None:
+        self.controller.get_uid.return_value = 0
+        state, msg = safe_sigterm(self.target, self.controller)
+        self.assertEqual(state, LifecycleState.PID_MISMATCH)
+        self.assertIn("Identity verification failed:", msg)
+        self.controller.pidfd_open.assert_not_called()
+        self.controller.pidfd_send_signal.assert_not_called()
+        self.controller.close_fd.assert_not_called()
+
+    def test_acquisition_error_forwarded_directly(self) -> None:
+        self.controller.use_pidfd = False
+        state, msg = safe_sigterm(self.target, self.controller)
+        self.assertEqual(state, LifecycleState.ERROR)
+        self.assertEqual(msg, "pidfd mode required; refusing PID-based signal to prevent race")
+        self.controller.pidfd_send_signal.assert_not_called()
+        self.controller.close_fd.assert_not_called()
+
+    def test_ticks_recheck_mismatch_closes_once_and_error_precedence(self) -> None:
+        # None ticks -> PID_MISMATCH, close called once
+        self.controller.get_start_ticks.side_effect = [987654, None]
+        state, msg = safe_sigterm(self.target, self.controller)
+        self.assertEqual(state, LifecycleState.PID_MISMATCH)
+        self.assertIn("Process startTicks shifted prior to signal delivery (PID reused)", msg)
+        self.controller.close_fd.assert_called_once_with(77)
+        self.controller.pidfd_send_signal.assert_not_called()
+
+        # _INSPECTION_ERROR ticks -> PID_MISMATCH, close called once
+        self.controller.close_fd.reset_mock()
+        self.controller.get_start_ticks.side_effect = [987654, _INSPECTION_ERROR]
+        state, msg = safe_sigterm(self.target, self.controller)
+        self.assertEqual(state, LifecycleState.PID_MISMATCH)
+        self.controller.close_fd.assert_called_once_with(77)
+
+        # Mismatch with close error -> ERROR dominates
+        self.controller.close_fd.reset_mock()
+        self.controller.close_fd.side_effect = OSError("close fail")
+        self.controller.get_start_ticks.side_effect = [987654, 987655]
+        state, msg = safe_sigterm(self.target, self.controller)
+        self.assertEqual(state, LifecycleState.ERROR)
+        self.assertIn("Process startTicks shifted and pidfd close failed: close fail", msg)
+        self.controller.close_fd.assert_called_once_with(77)
+
+        # pre-signal ticks raise guarantees pidfd close once and propagates exact object
+        for prim in (RuntimeError("proc read failure"), KeyboardInterrupt("sig-abort"), SystemExit(2)):
+            for close_eff in (None, OSError("close fail"), KeyboardInterrupt("close abort"), SystemExit(3)):
+                with self.subTest(prim=prim, close_eff=close_eff):
+                    self.controller.close_fd.reset_mock()
+                    self.controller.close_fd.side_effect = close_eff
+                    self.controller.get_start_ticks.side_effect = [987654, prim]
+                    with self.assertRaises(type(prim)) as ctx:
+                        safe_sigterm(self.target, self.controller)
+                    self.assertIs(ctx.exception, prim)
+                    self.controller.close_fd.assert_called_once_with(77)
+                    self.controller.pidfd_send_signal.assert_not_called()
+
+    def test_signal_false_or_missing_fails_closed_and_dominates_close_error(self) -> None:
+        # pidfd_send_signal returns False
+        self.controller.pidfd_send_signal.return_value = False
+        state, msg = safe_sigterm(self.target, self.controller)
+        self.assertEqual(state, LifecycleState.ERROR)
+        self.assertIn("pidfd_send_signal failed; refusing PID-based fallback", msg)
+        self.controller.close_fd.assert_called_once_with(77)
+
+        # missing pidfd_send_signal method
+        del self.controller.pidfd_send_signal
+        self.controller.close_fd.reset_mock()
+        state, msg = safe_sigterm(self.target, self.controller)
+        self.assertEqual(state, LifecycleState.ERROR)
+        self.assertIn("pidfd_send_signal failed; refusing PID-based fallback", msg)
+        self.controller.close_fd.assert_called_once_with(77)
+
+        # pidfd_send_signal returns False AND close fails -> signal error dominates
+        self.controller.pidfd_send_signal = MagicMock(return_value=False)
+        self.controller.close_fd.reset_mock()
+        self.controller.close_fd.side_effect = OSError("close fail")
+        state, msg = safe_sigterm(self.target, self.controller)
+        self.assertEqual(state, LifecycleState.ERROR)
+        self.assertEqual(msg, "pidfd_send_signal failed; refusing PID-based fallback")
+        self.controller.close_fd.assert_called_once_with(77)
+
+    def test_process_lookup_error_stopped_unless_close_error(self) -> None:
+        # close ok -> STOPPED
+        self.controller.pidfd_send_signal.side_effect = ProcessLookupError("No such process")
+        state, msg = safe_sigterm(self.target, self.controller)
+        self.assertEqual(state, LifecycleState.STOPPED)
+        self.assertIn("Process already vanished prior to signal delivery", msg)
+        self.controller.close_fd.assert_called_once_with(77)
+
+        # close error -> ERROR dominates STOPPED
+        self.controller.close_fd.reset_mock()
+        self.controller.close_fd.side_effect = OSError("close fail")
+        state, msg = safe_sigterm(self.target, self.controller)
+        self.assertEqual(state, LifecycleState.ERROR)
+        self.assertIn("Process vanished but pidfd close failed: close fail", msg)
+        self.controller.close_fd.assert_called_once_with(77)
+
+    def test_signal_ordinary_exception_dominates_close_error(self) -> None:
+        # signal raises exception, close ok
+        self.controller.pidfd_send_signal.side_effect = RuntimeError("signal crash")
+        state, msg = safe_sigterm(self.target, self.controller)
+        self.assertEqual(state, LifecycleState.ERROR)
+        self.assertEqual(msg, "Failed to send SIGTERM: signal crash")
+        self.controller.close_fd.assert_called_once_with(77)
+
+        # signal raises exception, close fails -> signal error dominates
+        self.controller.close_fd.reset_mock()
+        self.controller.close_fd.side_effect = OSError("close fail")
+        state, msg = safe_sigterm(self.target, self.controller)
+        self.assertEqual(state, LifecycleState.ERROR)
+        self.assertEqual(msg, "Failed to send SIGTERM: signal crash")
+        self.controller.close_fd.assert_called_once_with(77)
+
+    def test_successful_signal_close_error_returns_error(self) -> None:
+        self.controller.close_fd.side_effect = OSError("close fail")
+        with patch("scripts.f3_guard.sigterm.poll_process_termination") as mock_poll:
+            state, msg = safe_sigterm(self.target, self.controller)
+            self.assertEqual(state, LifecycleState.ERROR)
+            self.assertIn("SIGTERM delivered but pidfd close failed: close fail", msg)
+            mock_poll.assert_not_called()
+
+    def test_keyboard_interrupt_and_system_exit_reraised_closing_once(self) -> None:
+        self.controller.pidfd_send_signal.side_effect = KeyboardInterrupt("Ctrl-C")
+        with self.assertRaises(KeyboardInterrupt):
+            safe_sigterm(self.target, self.controller)
+        self.controller.close_fd.assert_called_once_with(77)
+
+        self.controller.close_fd.reset_mock()
+        self.controller.pidfd_send_signal.side_effect = SystemExit(1)
+        with self.assertRaises(SystemExit):
+            safe_sigterm(self.target, self.controller)
+        self.controller.close_fd.assert_called_once_with(77)
+
+    def test_success_poll_forwarding_args_and_defaults(self) -> None:
+        with patch("scripts.f3_guard.sigterm.poll_process_termination") as mock_poll:
+            mock_poll.return_value = (LifecycleState.STOPPED, "Process gracefully exited (reboot)")
+            res = safe_sigterm(
+                self.target,
+                self.controller,
+                reason="reboot",
+                grace_seconds=15.0,
+                poll_interval=0.25,
+            )
+            self.assertEqual(res, (LifecycleState.STOPPED, "Process gracefully exited (reboot)"))
+            mock_poll.assert_called_once_with(
+                self.target,
+                self.controller,
+                reason="reboot",
+                grace_seconds=15.0,
+                poll_interval=0.25,
+            )
+
+            mock_poll.reset_mock()
+            safe_sigterm(self.target, self.controller)
+            mock_poll.assert_called_once_with(
+                self.target,
+                self.controller,
+                reason="",
+                grace_seconds=20.0,
+                poll_interval=0.5,
+            )
+
+    def test_hermetic_full_composition_with_real_helpers(self) -> None:
+        """Hermetic composition test using REAL modular identity, acquire, close, and poll helpers."""
+        events: List[str] = []
+
+        class FakeProcessController:
+            use_pidfd = True
+            binding_state = BindingState.NEVER_BOUND
+            is_direct_child = True
+
+            def get_start_ticks(self, pid: int) -> Optional[int]:
+                events.append(f"get_start_ticks:{pid}")
+                call_count = sum(1 for e in events if e.startswith("get_start_ticks"))
+                return 987654 if call_count <= 2 else None
+
+            def get_uid(self, pid: int) -> int:
+                events.append(f"get_uid:{pid}")
+                return 1000
+
+            def get_cmdline(self, pid: int) -> List[str]:
+                events.append(f"get_cmdline:{pid}")
+                return ["/path/qemu-system-x86_64", "-avd", "Trindade_UX_v030", "-port", "5556"]
+
+            def pidfd_open(self, pid: int) -> int:
+                events.append(f"pidfd_open:{pid}")
+                return 99
+
+            def pidfd_send_signal(self, pidfd: int, sig: int) -> bool:
+                events.append(f"pidfd_send_signal:{pidfd}:{sig}")
+                return True
+
+            def close_fd(self, fd: int) -> None:
+                events.append(f"close_fd:{fd}")
+
+            def get_process_state(self, pid: int) -> str:
+                events.append(f"get_process_state:{pid}")
+                return "S"
+
+            def try_reap(self, pid: int) -> bool:
+                events.append(f"try_reap:{pid}")
+                return True
+
+        fake_ctrl = FakeProcessController()
+        state, msg = safe_sigterm(
+            self.target,
+            fake_ctrl,  # type: ignore[arg-type]
+            reason="hermetic-test",
+            grace_seconds=5.0,
+            poll_interval=0.1,
+        )
+
+        self.assertEqual(state, LifecycleState.STOPPED)
+        self.assertEqual(msg, "Process exited and reaped (hermetic-test)")
+        self.assertIn("get_uid:12345", events)
+        self.assertIn("pidfd_open:12345", events)
+        self.assertTrue(any(e.startswith("pidfd_send_signal:99:") for e in events))
+        self.assertIn("close_fd:99", events)
+        self.assertIn("try_reap:12345", events)
 
 
 if __name__ == "__main__":
