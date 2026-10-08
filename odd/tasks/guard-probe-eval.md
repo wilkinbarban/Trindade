@@ -347,6 +347,18 @@ Engine readiness helper (task 8c3 candidate; runtime wiring not included):
 
 8c3 closure: independent verification 13 focused / 323 modular regression PASS. Commit e55e27fa105804d33361f67b59e393ab042f8a9c matched approved review-fa334dc3c93ef6bb, exact tree d44ec3b1d55f327cf9996bb893292792ec100903, ACK burned (consumed revision 9f5852ab9eae5365bb04e58da1592bd4f20c2eb0418466acd55f49754617f0cc), exact staged approved tree 354 gross lines (351+/3- across 4 paths). Evidence: state-preserving memory cache, boot callable/value, mem_reader ordinary Exception vs KI/SE contract, live probe.UNKNOWN stale policy unchanged. Explicit limits: no identity exception / evaluator failure / kwargs / falsy reader previous state UNKNOWN stale combo explicit test matrix (inspection only), universal hermetism not claimed, runtime 8c4a/b pending. RED writer-reported missing module historical. Monolith hashes intact; no push. This closure is passive documentation outside the approved source candidate.
 
+Offline CLI extraction (task 8f candidate ready):
+- Authorized: `scripts/f3_guard/cli.py`, `scripts/f3_guard/tests/test_cli.py`, both ODD ledgers; preserve monoliths; launcher and runtime excluded.
+- Budget: <=400 gross ALL vs 743a2be6163aafd843a1be163faabb7ee86c4709; pre-production measured 176 test lines + 39 prospective prod lines + 21 ledger reserved = 236 lines; pre-fix observed 42 prod + 176 test + 7 ledger lines = 225 lines ALL vs HEAD. Post-fixture-fix candidate observed 42 prod + 222 test + ledger updates <=400 gross lines.
+- Contract: preserve `main() -> int`, flags `--check-offline` and `--version`, messages, and exit codes from monolith 2407–2436; offline output states constants, not actual emulator health.
+- Verification & TDD: fresh baseline 359 PASS; authentic RED ModuleNotFoundError before production write; initial candidate 9 focused PASS (0.069s) / 368 full suite PASS. Pre-freeze audit identified reimport package attribute leak (`scripts.f3_guard.cli` alias desync / absent attribute retained after reimport/runpy). TDD regression added before fixture fix: authentic RED observed (absent leak `AssertionError: True is not false` and identity desync `AssertionError: ... is not ...`). Fixture fix implemented: `_reimport_cli_context` restores saved `scripts.f3_guard.cli` attribute identity and clears leaked presence in `finally:` alongside `sys.modules` cache without deleting legitimate initial import. GREEN: 11 focused PASS / 370 modular regression PASS in `python3 -B` (hermetic, no real child/proc/signals/clocks). Monolith AST exact match.
+- File hashes:
+  - 2bacb1b6298d4fe94c4e616866b33fd5746ae83845d8b3f2073396d0949b30e1 scripts/f3_guard/cli.py
+  - f9ae25df3120afe913a912307ec4c9c9306b68bd863986a53501d540715d9dae scripts/f3_guard/tests/test_cli.py
+  - e30a00d32a7f4f85c74e1476e7694878bfeb6e50d6ce7fa67644315f9106ea92 /home/wilkin/proyectos/Trindade/scripts/f3_emulator_guard.py
+  - 7048aa9f40433a4ebd1fb959bbb085bcd86f6b3e030e528bbc05daf2c9dc3296 /home/wilkin/proyectos/Trindade/scripts/test_f3_emulator_guard.py
+- Status: candidate uncommitted, no RDD ACK claimed (RDD ACK still pending).
+
 Decoupled loop extraction (task 8e closed in b1e8e7493903d03c9ee8486205898371604e34dd):
 - Closure & gate: tree 23c25b1f6588f720097306965dca4311b7a4eb01 matches review-b1e2c8f220325e64 approved rev 33032a1738797d28c4c40686a60616ccf38f00b9828b97787a6f0f9cc36c2f33; ACK burned target c006d6ce43ec9b8a2e347d96ea09828cfe7816fac7250c980e7e514fa97ad112.
 - Parity & AST: exact class monolith lines 1927–1971; omitted added __init__ -> None annotation for AST parity; monoliths intact.
