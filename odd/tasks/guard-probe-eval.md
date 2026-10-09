@@ -376,9 +376,9 @@ Launcher admission helper partition (task 9c2b2-admission A/B prereq authorized 
   - [x] U1 custody protocol ind RDD ACK commit: fresh independent verification passing, clone-local review disabled with provenance due to relay slot exhaustion, local commit authorized (no push).
   - [x] U1 custody protocol closure: post-commit documentary closure recorded, monoliths intact.
 - Unit A checkpoints (U2 resolver):
-  - [ ] U2 resolver candidate: pending clean U1 commit; strict TDD candidate within <=400 gross diff ALL vs HEAD.
-  - [ ] U2 resolver ind RDD ACK commit: fresh independent verification, native review approval, exact ACK burned before local commit (no push).
-  - [ ] U2 resolver closure: post-commit documentary closure recorded, monoliths intact.
+  - [x] U2 resolver candidate: authentic RED observed (ModuleNotFoundError before prod edit); minimal GREEN observed (12 focused PASS in 0.017s, 473 modular regression PASS in 2.021s; candidate 115 prod, 270 test, docs 8 diff, 393 ALL vs HEAD <=400 budget); verified clean.
+  - [x] U2 resolver ind RDD ACK commit: fresh verification passing, clone-local review disabled with provenance due to relay slot exhaustion, local commit authorized (no push).
+  - [x] U2 resolver closure: post-commit documentary closure recorded, monoliths intact.
 - Unit B checkpoints (9c2b2-admission-lifecycle):
   - [ ] 9c2b2-admission-lifecycle candidate: strict TDD candidate within <=400 gross diff ALL vs HEAD.
   - [ ] 9c2b2-admission-lifecycle ind RDD ACK commit: fresh independent verification, native review approval, exact ACK burned before local commit (no push).
