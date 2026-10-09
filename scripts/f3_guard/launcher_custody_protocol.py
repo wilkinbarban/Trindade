@@ -119,3 +119,43 @@ class AdmissionCustodyProtocol:
     @property
     def last_result(self) -> Optional[LaunchResult]:
         return self.snapshot().last_result
+
+    @staticmethod
+    def _safe_pidfd(val: Any) -> Optional[int]:
+        if isinstance(val, int) and type(val) is not bool:
+            return val
+        return None
+
+    @property
+    def known_child(self) -> Optional[Any]:
+        """Known child handle reading retained state without source polling; stale until snapshot."""
+        if self.custody_source is None:
+            fb = self.fallback_result
+            return getattr(fb, "child_handle", None) if fb is not None else None
+        return self._known.get("pending_child")
+
+    @property
+    def known_pidfd(self) -> Optional[int]:
+        """Known pidfd reading retained state without source polling; stale until snapshot."""
+        if self.custody_source is None:
+            fb = self.fallback_result
+            raw = getattr(fb, "pidfd", None) if fb is not None else None
+        else:
+            raw = self._known.get("pending_pidfd")
+        return self._safe_pidfd(raw)
+
+    @property
+    def known_last_result(self) -> Optional[LaunchResult]:
+        """Known launch result reading retained state without source polling; stale until snapshot."""
+        if self.custody_source is None:
+            return self.fallback_result
+        return self._known.get("last_result")
+
+    @property
+    def known_snapshot(self) -> LauncherCustodySnapshot:
+        """Fresh frozen snapshot reading retained state without source polling; stale until snapshot."""
+        return LauncherCustodySnapshot(
+            self.known_child,
+            self.known_pidfd,
+            self.known_last_result,
+        )
