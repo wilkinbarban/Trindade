@@ -20,3 +20,9 @@
    - **Límite de Diff**: Máximo $\le 400$ líneas brutas ALL por unidad/corte.
    - **Sin Atribución AI ni Push**: Commits estrictamente locales; sin `Co-Authored-By` ni trailers de IA.
    - **Higiene de Disco**: Limpieza segura de artefactos temporales al cerrar el ciclo.
+
+## Evidencias Verificadas en Vivo (`emulator-5554`)
+- **TalkBack Slice PASS**: harness ejecutado (`restoration_verified: true`, `status: "ok"`, restauración garantizada de `accessibility_enabled: 0`).
+- **Escala de Fuentes (1.0 vs 1.3)**: capturas generadas (`login-font-1.0.png` 277 KB, `login-font-1.3.png` 284 KB).
+- **IME / Insets de Teclado**: capturas generadas con teclado abierto/cerrado (`login-ime-open.png` 346 KB, `login-ime-closed.png` 276 KB).
+- **Semántica UI**: campos `Usuário` y `Senha` vacíos, botón `Entrar` bloqueado (`enabled="false"`), botón `Mostrar` verificado.
