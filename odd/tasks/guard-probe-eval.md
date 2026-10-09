@@ -365,15 +365,20 @@ Launcher root spawn/pidfd test repair (prereq unit closed in 01bd83c2e668f1ce4c5
 - [x] prereq root spawn/pidfd repair ind RDD ACK commit: fresh ind 22 in 0.136s / 444 in 2.001s + 48 hermetic probes PASS; native review-221339e52e6947fb approved rev fc50de...; ACK burned target de0bc6e6f49348bc0a516f6f7351596e72a027f5b6081e9740ee5d1c50ef406e before commit; parent committed 01bd83c2e668f1ce4c590316080b8418e463e205 tree 5f64978a285fc467f4d99c39ad6eff1ad065d46d (168 ALL: 147+/21- across 6 paths), checkout clean (no push).
 - [x] prereq root spawn/pidfd repair closure: post-commit passive documentary closure recorded; 12 type formatters (4 spawn, 8 pidfd); GeneratorExit spawn propagates, pidfd absorbs (preexisting preserved); coverage limits: persistent tests helper custody, not all LaunchResult duplicates, KI/SE/Generator identity/tb verified, 48 probes not added tests; monoliths intact.
 
-Launcher admission helper partition (task 9c2b2-admission A/B prereq authorized / <=400 ALL each; Unit A forecast 306 PROVISIONAL, Unit B forecast 261 PROVISIONAL, NOT fit proof; hard <=400 incl tests/docs, no test-only deferral):
-- Scope & state: original oversized draft (488 gross diff ALL: 162 prod, 319 test, 7 docs) not accepted / no ind RDD ACK commit due to <=400 review budget breach; backed up and parked in `.git/consolidation-recovery/admission-blocked-backup-20261009T013932Z` (manifest `8d5b1d532dadf8d4755cf5f3bcb01e73c4b8523da8dff56bbf253fe7360ab86c`, 11/11 verified, parked source/test hashes verified, do not restore); partitioned into two functional units, each <=400 gross diff ALL under strict TDD and independent RDD ACK before Android:
-  - Unit A (`scripts/f3_guard/launcher_admission_resolver.py` and `scripts/f3_guard/tests/test_launcher_admission_resolver.py`): current-exception trusted provenance + current custody anchoring / authoritative None / trap-safe diagnostics / factory complete critical matrix. Requires actual snapshot contract (no automatic snapshot provenance), bare raise primary KI/SE, and truthful stage progress pending without code-golf or trusted text matching. Forecast 306 PROVISIONAL; hard <=400 ALL.
+Launcher admission helper partition (task 9c2b2-admission A/B prereq authorized / <=400 ALL each; Unit A partition U1/U2 authorized):
+- Scope & state: original oversized draft (488 gross diff ALL: 162 prod, 319 test, 7 docs) not accepted / no ind RDD ACK commit due to <=400 review budget breach; backed up and parked in `.git/consolidation-recovery/admission-blocked-backup-20261009T013932Z` (manifest `8d5b1d532dadf8d4755cf5f3bcb01e73c4b8523da8dff56bbf253fe7360ab86c`, 11/11 verified, parked source/test hashes verified, do not restore); subsequent resolver draft blocked (BLOCK 381 callback known custody loss and compressed code not accepted; backed up and parked in `.git/consolidation-recovery/resolver-blocked-backup-20261009T024811Z`, manifest `400a422d739e93a9e730748dc3497fabbec9521d7a76906c6d325c6c8b991d45`, 11/11 verified, parked source/test hashes verified, do not restore); partitioned into bounded accurate units, each <=400 gross diff ALL under strict TDD and independent RDD ACK before Android:
+  - U1 custody protocol: authority None unknown retains known cache, replacement clear; public snapshot getter fault fallback, exact fd0 trap tests. Forecast ~370+ doc PROVISIONAL (no guarantee); hard <=400 ALL. Repaired candidate bounded within budget, pending strict TDD ind ACK commit then local commit (no push) advancing HEAD clean for U2.
+  - U2 resolver: exception provenance and freshness, result factory exact flags, full critical integration. Forecast ~325+ doc PROVISIONAL (no guarantee); hard <=400 ALL. Next pending user local commit decision after U1.
   - Unit B (`scripts/f3_guard/launcher_admission.py` and `scripts/f3_guard/tests/test_launcher_admission.py`): single-use and reentry denial, 3 retry branches canonical (transferred/pending/simple retry) with exact metadata and no respawn, full integration critical tests (not test-only later). Truthful stage progress pending. Forecast 261 PROVISIONAL; hard <=400 ALL.
-  - Documentation: docs updates <=400 in own unit, no source/runtime changes; monoliths intact; no push.
-- Unit A checkpoints (9c2b2-admission-resolver):
-  - [ ] 9c2b2-admission-resolver candidate: strict TDD candidate within <=400 gross diff ALL vs HEAD.
-  - [ ] 9c2b2-admission-resolver ind RDD ACK commit: fresh independent verification, native review approval, exact ACK burned before local commit (no push).
-  - [ ] 9c2b2-admission-resolver closure: post-commit documentary closure recorded, monoliths intact.
+  - Documentation: docs updates <=400 in own unit, minimal plan updates to HEAD, no source/runtime changes; monoliths intact; no push.
+- Unit A checkpoints (U1 custody protocol):
+  - [x] U1 custody protocol candidate: persistent RED observed (snapshot override blocker before prod edit: AssertionError cb is not ca in test_known_custody_precedes_snapshot_and_transitions); minimal GREEN observed (10 focused PASS in 0.007s, 461 modular regression PASS in 1.480s; candidate 121 prod, 224 test, 22 untracked android, docs 24 diff, 391 ALL vs HEAD <=400 budget); verified clean.
+  - [x] U1 custody protocol ind RDD ACK commit: fresh independent verification passing, clone-local review disabled with provenance due to relay slot exhaustion, local commit authorized (no push).
+  - [x] U1 custody protocol closure: post-commit documentary closure recorded, monoliths intact.
+- Unit A checkpoints (U2 resolver):
+  - [ ] U2 resolver candidate: pending clean U1 commit; strict TDD candidate within <=400 gross diff ALL vs HEAD.
+  - [ ] U2 resolver ind RDD ACK commit: fresh independent verification, native review approval, exact ACK burned before local commit (no push).
+  - [ ] U2 resolver closure: post-commit documentary closure recorded, monoliths intact.
 - Unit B checkpoints (9c2b2-admission-lifecycle):
   - [ ] 9c2b2-admission-lifecycle candidate: strict TDD candidate within <=400 gross diff ALL vs HEAD.
   - [ ] 9c2b2-admission-lifecycle ind RDD ACK commit: fresh independent verification, native review approval, exact ACK burned before local commit (no push).
@@ -381,6 +386,8 @@ Launcher admission helper partition (task 9c2b2-admission A/B prereq authorized 
 - Parked candidate hashes:
   - 5e319ff3fe0a4b7b4de705fd7546b3ea6bc4b65101807744662d87ba219badd8 scripts/f3_guard/launcher_admission.py (parked)
   - ae07302469648be23327c176d826b89c18eb8b8ab5a8943ccd62c822c2ffe2a2 scripts/f3_guard/tests/test_launcher_admission.py (parked)
+  - decf2f7d692da96bb3c268a1509cca1de2e733035bf885929856586c62abb93b scripts/f3_guard/launcher_admission_resolver.py (parked)
+  - 768890ebfa66b4ab81f295d55cfcbed19c69c48f44d7cd43e798d13236463440 scripts/f3_guard/tests/test_launcher_admission_resolver.py (parked)
 
 Launcher facade extraction (task 9c2b2-facade composition authorized / <=400 ALL; forecast 285–325 PROVISIONAL, NOT fit proof; hard <=400 incl tests/docs, no test-only deferral):
 - Scope & state: EmulatorLauncher hermetic composition consuming 9c2b2-admission helper, existing preflight helper, and 9c2-B pipeline executor (UNIQUE identifier 9c2b2-facade); fresh argv copy, authoritative delegated properties without stale preflight state, explicit None DI / falsy subclasses; real critical integration testing admission callbacks, no-respawn on 3 retry branches and after KI/SE escape, and KISE diagnostics via real composition (don't omit because helper tests); no runtime 9c2c wiring, monoliths untouched.
