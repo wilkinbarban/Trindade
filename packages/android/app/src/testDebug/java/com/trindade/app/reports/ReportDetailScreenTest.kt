@@ -1,6 +1,13 @@
 package com.trindade.app.reports
 
 import android.content.Context
+import androidx.compose.ui.platform.ClipboardManager
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -108,15 +115,18 @@ class ReportDetailScreenTest {
         message = null,
     )
 
-    /** The screen as the route draws it, with every callback a no-op. */
-    private fun render(state: ReportDetailViewModel.UiState) {
+    private lateinit var clipboard: ClipboardManager
+
+    /** The screen as the route draws it, with no-op callbacks unless the test observes export. */
+    private fun render(state: ReportDetailViewModel.UiState, onLoadExport: () -> Unit = {}) {
         composeRule.setContent {
+            clipboard = LocalClipboardManager.current
             TrindadeTheme {
                 ReportDetailScreen(
                     state = state,
                     onAddPhoto = {},
                     onDeletePhoto = {},
-                    onLoadExport = {},
+                    onLoadExport = onLoadExport,
                     onEdit = {},
                     onBack = {},
                 )
@@ -180,6 +190,77 @@ class ReportDetailScreenTest {
 
         composeRule.onNodeWithText(copy(R.string.report_back)).assertIsDisplayed()
         composeRule.onNodeWithText(copy(R.string.report_edit)).assertIsDisplayed()
+    }
+
+    @Test
+    fun `general loading leaves export loading enabled and invokes its callback once`() {
+        var loads = 0
+        render(state(report(canEdit = true, readOnly = false)).copy(loading = true)) { loads++ }
+
+        composeRule.onNodeWithText(copy(R.string.export_load))
+            .performScrollTo().assertIsDisplayed().assertIsEnabled().performClick()
+        composeRule.onNodeWithText(copy(R.string.export_copy)).assertDoesNotExist()
+        composeRule.runOnIdle { assertEquals(1, loads) }
+    }
+
+    @Test
+    fun `pending export without a payload disables loading and offers no copy`() {
+        var loads = 0
+        render(state(report(canEdit = true, readOnly = false)).copy(loadingExport = true)) { loads++ }
+
+        composeRule.onNodeWithText(copy(R.string.export_load))
+            .performScrollTo().assertIsDisplayed().assertIsNotEnabled().performClick()
+        composeRule.onNodeWithText(copy(R.string.export_copy)).assertDoesNotExist()
+        composeRule.runOnIdle { assertEquals(0, loads) }
+    }
+
+    @Test
+    fun `export payload displays whitespace unicode and newlines verbatim with copy enabled`() {
+        val payload = "  Relatório — café 漢字\n\tsegunda linha  \n"
+        render(state(report(canEdit = true, readOnly = false)).copy(exportText = payload))
+
+        composeRule.onNodeWithText(payload, substring = false)
+            .performScrollTo().assertIsDisplayed().assertTextEquals(payload)
+        composeRule.onNodeWithText(copy(R.string.export_copy))
+            .performScrollTo().assertIsDisplayed().assertIsEnabled()
+    }
+
+    @Test
+    fun `copy replaces existing clipboard content with the exact export payload`() {
+        val payload = "  Relatório — café 漢字\n\tsegunda linha  \n"
+        render(state(report(canEdit = true, readOnly = false)).copy(exportText = payload))
+        composeRule.runOnIdle {
+            clipboard.setText(AnnotatedString("existing clipboard sentinel"))
+            assertEquals("existing clipboard sentinel", clipboard.getText()?.text)
+        }
+
+        composeRule.onNodeWithText(copy(R.string.export_copy))
+            .performScrollTo().assertIsDisplayed().assertIsEnabled().performClick()
+        composeRule.runOnIdle { assertEquals(AnnotatedString(payload), clipboard.getText()) }
+    }
+
+    @Test
+    fun `prior export remains visible and copiable while a new export is pending`() {
+        val payload = "  Export anterior — café\nsegunda linha  \n"
+        var loads = 0
+        render(
+            state(report(canEdit = true, readOnly = false)).copy(
+                exportText = payload,
+                loadingExport = true,
+            ),
+        ) { loads++ }
+        composeRule.runOnIdle { clipboard.setText(AnnotatedString("prior export sentinel")) }
+
+        composeRule.onNodeWithText(copy(R.string.export_load))
+            .performScrollTo().assertIsDisplayed().assertIsNotEnabled().performClick()
+        composeRule.onNodeWithText(payload, substring = false)
+            .performScrollTo().assertIsDisplayed().assertTextEquals(payload)
+        composeRule.onNodeWithText(copy(R.string.export_copy))
+            .performScrollTo().assertIsDisplayed().assertIsEnabled().performClick()
+        composeRule.runOnIdle {
+            assertEquals(0, loads)
+            assertEquals(AnnotatedString(payload), clipboard.getText())
+        }
     }
 
     @Test
