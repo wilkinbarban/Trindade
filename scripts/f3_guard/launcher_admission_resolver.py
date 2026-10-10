@@ -142,13 +142,15 @@ class AdmissionCustodyResolver(AdmissionCustodyProtocol):
                     child=child,
                     pidfd=pidfd,
                 )
-            except (KeyboardInterrupt, SystemExit):
-                raise
             except BaseException:
                 resolved = None
 
         if resolved is not None:
-            self.set_fallback_result(resolved)
+            try:
+                self.set_fallback_result(resolved)
+            except BaseException:
+                # Keep the valid failure; publication may be incomplete.
+                pass
         else:
             raise exc
 

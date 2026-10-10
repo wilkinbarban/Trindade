@@ -69,6 +69,244 @@ class TestAdmissionCustodyResolver(unittest.TestCase):
         tracker.snapshot()
         return active_h, tracker, AdmissionCustodyResolver(custody_source=tracker)
 
+    def _resolve_b2c(self, resolver, primary, rethrow, escapes):
+        def original_raise():
+            raise primary
+
+        def resolve():
+            try:
+                original_raise()
+            except BaseException as exc:
+                return resolver.resolve_exception_result(
+                    exc, rethrow_interrupt=rethrow,
+                )
+
+        if escapes:
+            self._assert_escapes_with_frame(
+                resolve, primary, "original_raise",
+            )
+            return None
+        try:
+            return resolve()
+        except BaseException as escaped:
+            self.assertIs(escaped, primary)
+            self.fail("Valid failure must remain returnable")
+
+    def _assert_b2c_failure(self, result, child, fd, diagnostic):
+        self.assertIs(type(result), LaunchResult)
+        self.assertIs(result.success, False)
+        self.assertIs(result.transferred, False)
+        self.assertIs(result.child_handle, child)
+        self.assertIs(type(result.pidfd), type(fd))
+        self.assertEqual(result.pidfd, fd)
+        self.assertIs(
+            result.pending_cleanup, child is not None or fd is not None,
+        )
+        self.assertEqual(result.error, diagnostic)
+
+    def test_canonical_publication_faults_without_primary_formatting(
+        self,
+    ) -> None:
+        secondary_types = (
+            RuntimeError, KeyboardInterrupt, SystemExit, BaseException,
+        )
+        for first_type in secondary_types:
+            for publication_type in secondary_types:
+                for rethrow in (False, True):
+                    with self.subTest(
+                        first=first_type.__name__,
+                        publication=publication_type.__name__,
+                        rethrow=rethrow,
+                    ):
+                        primary = _StrReprTrap()
+                        source = _FaultySource(child=self.child, pidfd=0)
+                        resolver = AdmissionCustodyResolver(source)
+                        with patch.object(
+                            lar_mod, "LaunchResult",
+                            side_effect=first_type("first"),
+                        ) as first, patch.object(
+                            lar_mod, "_CANONICAL_LAUNCH_RESULT",
+                            wraps=LaunchResult,
+                        ) as canonical, patch.object(
+                            resolver, "set_fallback_result",
+                            side_effect=publication_type("publication"),
+                        ) as publication:
+                            result = self._resolve_b2c(
+                                resolver, primary, rethrow, False,
+                            )
+                            first.assert_called_once()
+                            canonical.assert_called_once()
+                            publication.assert_called_once_with(result)
+                            self._assert_b2c_failure(
+                                result, self.child, 0,
+                                "Post-spawn exception: _StrReprTrap",
+                            )
+                            self.assertIsNone(resolver.fallback_result)
+
+    def test_real_factory_secondary_matrix(self) -> None:
+        secondary_types = (
+            RuntimeError, KeyboardInterrupt, SystemExit, BaseException,
+        )
+        for child, fd in ((self.child, 0), (None, 0), (None, None)):
+            for primary_type in (ValueError,) + secondary_types:
+                for first_type in secondary_types:
+                    for canonical_type in (None,) + secondary_types:
+                        for rethrow in (False, True):
+                            with self.subTest(
+                                child=child is not None, fd=fd,
+                                primary=primary_type.__name__,
+                                first=first_type.__name__,
+                                canonical=canonical_type,
+                                rethrow=rethrow,
+                            ):
+                                primary = primary_type("primary")
+                                source = _FaultySource(child=child, pidfd=fd)
+                                resolver = AdmissionCustodyResolver(source)
+                                history = LaunchResult(
+                                    False, child_handle=_BoolTrapChild(),
+                                    pidfd=99, pending_cleanup=True,
+                                    error="obsolete",
+                                )
+                                resolver.set_fallback_result(history)
+                                canonical_error = (
+                                    canonical_type("canonical")
+                                    if canonical_type is not None else None
+                                )
+                                with patch.object(
+                                    lar_mod, "LaunchResult",
+                                    side_effect=first_type("first"),
+                                ) as first, patch.object(
+                                    lar_mod, "_CANONICAL_LAUNCH_RESULT",
+                                    side_effect=canonical_error,
+                                    wraps=LaunchResult,
+                                ) as canonical, patch.object(
+                                    resolver, "set_fallback_result",
+                                    wraps=resolver.set_fallback_result,
+                                ) as publish:
+                                    unavailable = canonical_type is not None
+                                    interrupt = isinstance(
+                                        primary,
+                                        (KeyboardInterrupt, SystemExit),
+                                    )
+                                    escapes = unavailable or (
+                                        rethrow and interrupt
+                                    )
+                                    result = self._resolve_b2c(
+                                        resolver, primary, rethrow, escapes,
+                                    )
+                                    first.assert_called_once()
+                                    canonical.assert_called_once()
+                                    self.assertEqual(
+                                        first.call_args, canonical.call_args,
+                                    )
+                                    self.assertIs(
+                                        resolver.custody_source, source,
+                                    )
+                                    if unavailable:
+                                        publish.assert_not_called()
+                                        self.assertIs(
+                                            resolver.fallback_result, history,
+                                        )
+                                        continue
+                                    publish.assert_called_once()
+                                    published = publish.call_args.args[0]
+                                    if not escapes:
+                                        self.assertIs(result, published)
+                                    self.assertIsNot(published, history)
+                                    self.assertIs(
+                                        resolver.fallback_result, published,
+                                    )
+                                    self._assert_b2c_failure(
+                                        published, child, fd,
+                                        "Post-spawn exception: "
+                                        f"{primary_type.__name__}",
+                                    )
+
+    def test_publication_secondary_matrix(self) -> None:
+        secondary_types = (
+            RuntimeError, KeyboardInterrupt, SystemExit, BaseException,
+        )
+        for recorded in (False, True):
+            for mutate in (False, True):
+                for primary_type in (ValueError,) + secondary_types:
+                    for secondary_type in secondary_types:
+                        for rethrow in (False, True):
+                            with self.subTest(
+                                recorded=recorded, mutate=mutate,
+                                primary=primary_type.__name__,
+                                secondary=secondary_type.__name__,
+                                rethrow=rethrow,
+                            ):
+                                primary = primary_type("primary")
+                                candidate = LaunchResult(
+                                    False, child_handle=self.child, pidfd=0,
+                                    pending_cleanup=True, error="fresh",
+                                )
+                                source = _FaultySource(
+                                    child=self.child, pidfd=0,
+                                    custom_snap=CustodySnapshot(
+                                        last_result=candidate,
+                                    ) if recorded else None,
+                                    set_last_exc=recorded,
+                                )
+                                resolver = AdmissionCustodyResolver(source)
+                                history = LaunchResult(False, error="old")
+                                resolver.set_fallback_result(history)
+                                setter = resolver.set_fallback_result
+                                attempts = []
+                                records = []
+                                recorder = source.record_exception
+
+                                def record(exc):
+                                    records.append(exc)
+                                    return recorder(exc)
+
+                                def publish(result):
+                                    attempts.append(result)
+                                    if mutate:
+                                        setter(result)
+                                    raise secondary_type("publication")
+
+                                with patch.object(
+                                    resolver, "set_fallback_result",
+                                    side_effect=publish,
+                                ) as publication, patch.object(
+                                    _FaultySource, "record_exception",
+                                    property(lambda source: record),
+                                ):
+                                    escapes = rethrow and isinstance(
+                                        primary,
+                                        (KeyboardInterrupt, SystemExit),
+                                    )
+                                    result = self._resolve_b2c(
+                                        resolver, primary, rethrow, escapes,
+                                    )
+                                    publication.assert_called_once()
+                                    self.assertEqual(len(attempts), 1)
+                                    self.assertEqual(len(records), 1)
+                                    self.assertIs(records[0], primary)
+                                    attempted = attempts[0]
+                                    if not escapes:
+                                        self.assertIs(result, attempted)
+                                    if recorded:
+                                        self.assertIs(attempted, candidate)
+                                    else:
+                                        self.assertIsNot(attempted, candidate)
+                                    self._assert_b2c_failure(
+                                        attempted, self.child, 0,
+                                        "fresh" if recorded else
+                                        "Post-spawn exception: "
+                                        f"{primary_type.__name__}",
+                                    )
+                                    self.assertIsNot(attempted, history)
+                                    self.assertIs(
+                                        resolver.fallback_result,
+                                        attempted if mutate else history,
+                                    )
+                                    self.assertIs(
+                                        resolver.custody_source, source,
+                                    )
+
     def test_recorder_interrupt_does_not_replace_ordinary_primary(
         self,
     ) -> None:
