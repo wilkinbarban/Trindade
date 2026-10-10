@@ -2,15 +2,18 @@
 
 from __future__ import annotations
 
+from contextlib import nullcontext
 import traceback
 from typing import Any, Callable, Optional
 import unittest
 from unittest.mock import patch
 
+from scripts.f3_guard.launcher_admission import LauncherAdmissionHelper
 from scripts.f3_guard.launcher_admission_resolver import AdmissionCustodyResolver
 import scripts.f3_guard.launcher_admission_resolver as lar_mod
 from scripts.f3_guard.launcher_custody import CustodySnapshot, LauncherCustodyTracker
 from scripts.f3_guard.launcher_preflight import LaunchResult
+from scripts.f3_guard.launcher_custody_protocol import UNKNOWN
 
 
 class _StrReprTrap(Exception):
@@ -63,6 +66,257 @@ class TestAdmissionCustodyResolver(unittest.TestCase):
         tracker = cls(active_helper=active_h)
         tracker.snapshot()
         return active_h, tracker, AdmissionCustodyResolver(custody_source=tracker)
+
+    def test_resolution_captures_one_rotating_source(self) -> None:
+        children = [self.child, _BoolTrapChild(), _BoolTrapChild()]
+        sources = [
+            _FaultySource(child=child, pidfd=fd)
+            for child, fd in zip(children, (0, 11, 22))
+        ]
+        polls = []
+        records = []
+        candidates = []
+        primary = ValueError("rotating")
+        for source in sources:
+            candidate = LaunchResult(
+                False, child_handle=source.pending_child,
+                pidfd=source.pending_pidfd, pending_cleanup=True,
+                error="fresh diagnostic",
+            )
+            candidates.append(candidate)
+
+            def record(exc, source=source, candidate=candidate):
+                records.append((source, exc))
+                source.last_exception = exc
+                return CustodySnapshot(last_result=candidate)
+
+            source.record = record
+
+        class RecordingSource:
+            def __init__(self, source):
+                self.source = source
+
+            def __getattr__(self, name):
+                if name == "record_exception":
+                    return self.source.record
+                return getattr(self.source, name)
+
+        wrappers = [RecordingSource(source) for source in sources]
+
+        def rotate():
+            source = wrappers[len(polls) % len(wrappers)]
+            polls.append(source)
+            return source
+
+        resolver = AdmissionCustodyResolver(custody_source=rotate)
+        for index in range(3):
+            result = resolver.resolve_exception_result(primary)
+            self.assertIs(result, candidates[index])
+            self.assertIs(result.child_handle, children[index])
+            self.assertEqual(result.pidfd, (0, 11, 22)[index])
+            self.assertIs(resolver.custody_source, rotate)
+            self.assertEqual(len(polls), index + 1)
+            self.assertEqual(records[-1], (sources[index], primary))
+        self.assertEqual(len(records), 3)
+
+    def test_acquisition_secondary_matrix_preserves_primary(self) -> None:
+        stages = (
+            "source", "last_snapshot", "pending_child", "pending_pidfd",
+            "last_result", "snapshot",
+        )
+        secondary_types = (
+            RuntimeError, KeyboardInterrupt, SystemExit, BaseException,
+        )
+        primary_types = (ValueError,) + secondary_types
+        cases = [(stage, same) for stage in stages for same in (False, True)]
+        for stage, same_helper in cases:
+            for primary_type in primary_types:
+                for secondary_type in secondary_types:
+                    with self.subTest(
+                        stage=stage, same=same_helper,
+                        primary=primary_type.__name__,
+                        secondary=secondary_type.__name__,
+                    ):
+                        source = _FaultySource(child=self.child, pidfd=0)
+                        primary = primary_type("primary")
+                        secondary = secondary_type("secondary")
+                        enabled = False
+                        polls = []
+
+                        class Fault:
+                            def __getattr__(self, name):
+                                if enabled and name == stage:
+                                    raise secondary
+                                return getattr(source, name)
+
+                        faulty = Fault()
+                        initial = faulty if same_helper else source
+                        resolver = AdmissionCustodyResolver(initial)
+                        resolver.snapshot()
+                        enabled = True
+
+                        def acquire():
+                            polls.append(stage)
+                            if stage == "source":
+                                raise secondary
+                            return faulty
+
+                        resolver.custody_source = acquire
+
+                        def original_raise():
+                            raise primary
+
+                        def resolve():
+                            try:
+                                original_raise()
+                            except BaseException as exc:
+                                return resolver.resolve_exception_result(
+                                    exc, rethrow_interrupt=True,
+                                )
+
+                        def check():
+                            if isinstance(
+                                primary, (KeyboardInterrupt, SystemExit)
+                            ):
+                                self._assert_escapes_with_frame(
+                                    resolve, primary, "original_raise",
+                                )
+                                return resolver.fallback_result
+                            try:
+                                return resolve()
+                            except BaseException as escaped:
+                                self.assertIs(escaped, primary)
+                                self.fail(
+                                    "Ordinary primary must return failure",
+                                )
+
+                        snapshot_patch = (
+                            patch.object(
+                                resolver, "snapshot", side_effect=secondary,
+                            ) if stage == "snapshot" else nullcontext()
+                        )
+                        with snapshot_patch as snapshot_mock:
+                            result = check()
+                            self.assertIsNotNone(result)
+                            self.assertIs(result.success, False)
+                            self.assertEqual(
+                                result.error,
+                                "Post-spawn exception: "
+                                f"{primary_type.__name__}",
+                            )
+                            self.assertIs(resolver.custody_source, acquire)
+                            self.assertEqual(
+                                len(polls), 0 if stage == "snapshot" else 1,
+                            )
+                            child, fd = self.child, 0
+                            interrupted = issubclass(
+                                secondary_type,
+                                (KeyboardInterrupt, SystemExit),
+                            )
+                            if not same_helper:
+                                if stage == "pending_child":
+                                    child = None
+                                    if interrupted:
+                                        fd = None
+                                elif stage == "pending_pidfd":
+                                    fd = None
+                                elif stage == "last_snapshot" and interrupted:
+                                    child = fd = None
+                            self.assertIs(result.child_handle, child)
+                            self.assertEqual(result.pidfd, fd)
+                            self.assertIs(
+                                result.pending_cleanup,
+                                child is not None or fd is not None,
+                            )
+                            if stage == "snapshot":
+                                self.assertEqual(snapshot_mock.call_count, 1)
+                            with patch.object(
+                                lar_mod, "LaunchResult",
+                                side_effect=RuntimeError("factory"),
+                            ) as factory, patch.object(
+                                lar_mod, "_CANONICAL_LAUNCH_RESULT",
+                                side_effect=RuntimeError("canonical"),
+                            ) as canonical:
+                                self._assert_escapes_with_frame(
+                                    resolve, primary, "original_raise",
+                                )
+                                factory.assert_called_once()
+                                canonical.assert_called_once()
+                                if stage == "snapshot":
+                                    self.assertEqual(
+                                        snapshot_mock.call_count, 2,
+                                    )
+                                    self.assertIs(
+                                        snapshot_mock.side_effect, secondary,
+                                    )
+
+    def test_resolution_authority_and_same_helper_retention(self) -> None:
+        source = _FaultySource(child=self.child, pidfd=0)
+        selected = source
+        resolver = AdmissionCustodyResolver(lambda: selected)
+        resolver.snapshot()
+        old = LaunchResult(
+            False, child_handle=_BoolTrapChild(), pidfd=99,
+            pending_cleanup=True, error="obsolete",
+        )
+        resolver.set_fallback_result(old)
+        cases = (
+            (source, self.child, 0),
+            (UNKNOWN, self.child, 0),
+            (_FaultySource(child=UNKNOWN, pidfd=UNKNOWN), None, None),
+            (UNKNOWN, None, None),
+            (source, self.child, 0),
+            (None, None, None),
+            (UNKNOWN, None, None),
+        )
+        for selected, child, fd in cases:
+            result = resolver.resolve_exception_result(ValueError("new"))
+            self.assertIs(result.child_handle, child)
+            self.assertEqual(result.pidfd, fd)
+            self.assertIsNot(result, old)
+            self.assertEqual(result.error, "Post-spawn exception: ValueError")
+        selected = source
+        resolver.snapshot()
+        source.pending_child = source.pending_pidfd = UNKNOWN
+        retained = resolver.resolve_exception_result(ValueError("unknown"))
+        self.assertIs(retained.child_handle, self.child)
+        self.assertEqual(retained.pidfd, 0)
+        source.pending_child = source.pending_pidfd = None
+        cleared = resolver.resolve_exception_result(ValueError("clear"))
+        self.assertIsNone(cleared.child_handle)
+        self.assertIsNone(cleared.pidfd)
+        self.assertFalse(cleared.pending_cleanup)
+
+    def test_ordinary_exception_acquires_new_callback_custody(self) -> None:
+        for primary_type in (ValueError, RuntimeError, BaseException):
+            with self.subTest(primary=primary_type.__name__):
+                source = _FaultySource(child=_BoolTrapChild(), pidfd=77)
+                polls = []
+
+                def acquire():
+                    polls.append(source)
+                    return source
+
+                helper = LauncherAdmissionHelper(acquire)
+                helper.snapshot()
+                primary = primary_type("new resources")
+
+                def callback():
+                    source.pending_child = self.child
+                    source.pending_pidfd = 0
+                    raise primary
+
+                result = helper.execute(callback)
+                self.assertIs(result.child_handle, self.child)
+                self.assertEqual(result.pidfd, 0)
+                self.assertIs(result.success, False)
+                self.assertIs(result.pending_cleanup, True)
+                self.assertIs(result.transferred, False)
+                self.assertEqual(
+                    result.error,
+                    f"Post-spawn exception: {primary_type.__name__}",
+                )
+                self.assertEqual(len(polls), 2)
 
     def test_authoritative_properties_and_source_none_vs_absent_vs_none_resources(self) -> None:
         resolver = AdmissionCustodyResolver()

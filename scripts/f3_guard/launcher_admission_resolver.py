@@ -46,10 +46,42 @@ class AdmissionCustodyResolver(AdmissionCustodyProtocol):
         self._known.clear()
         self._cache = None
 
+    def _acquire_exception_custody(self) -> tuple[Any, Any]:
+        """Capture the source selected by one public protocol snapshot.
+
+        Restore configuration without rolling back retained state.
+        Interrupted field reads leave only that helper's known custody.
+        """
+        source = self.custody_source
+        selected = UNKNOWN
+
+        def capture() -> Any:
+            nonlocal selected
+            try:
+                selected = source() if callable(source) else source
+            except BaseException:
+                selected = UNKNOWN
+            return selected
+
+        try:
+            if source is None:
+                selected = None
+            else:
+                self.custody_source = capture
+            try:
+                custody = self.snapshot()
+            except BaseException:
+                custody = self.known_snapshot
+                selected = UNKNOWN
+        finally:
+            self.custody_source = source
+        return selected, custody
+
     def resolve_exception_result(
         self, exc: BaseException, rethrow_interrupt: bool = False
     ) -> LaunchResult:
-        src, child, pidfd = self._resolve_source(), self.pending_child, self.pending_pidfd
+        src, custody = self._acquire_exception_custody()
+        child, pidfd = custody.pending_child, custody.pending_pidfd
         resolved: Optional[LaunchResult] = None
 
         if src is not None and src is not UNKNOWN:

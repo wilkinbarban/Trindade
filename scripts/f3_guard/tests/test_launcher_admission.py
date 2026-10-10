@@ -122,8 +122,10 @@ class TestLauncherAdmissionHelper(unittest.TestCase):
             self.assertIs(h.known_last_result.transferred, True)
         self.assertEqual((h.known_pidfd, h.known_child), (0, c))
         kise = isinstance(p, (KeyboardInterrupt, SystemExit))
-        d_cb, d_p = (0, 0) if kise else (3, 2)
-        self._assert_counters(src, cb + d_cb, c_p + d_p, fd + d_p, l + d_cb)
+        # One coherent snapshot, then the recorder's prior-result lookup.
+        # These counts describe this fixture, not a universal polling quota.
+        d_cb, d_p, d_l = (0, 0, 0) if kise else (1, 1, 2)
+        self._assert_counters(src, cb + d_cb, c_p + d_p, fd + d_p, l + d_l)
 
     def test_flags_callback_execution_and_reentrancy(self) -> None:
         tc = self
@@ -258,7 +260,7 @@ class TestLauncherAdmissionHelper(unittest.TestCase):
                 res = h.execute(cb)
                 self.assertEqual(
                     (src.pidfd_polls, res.success, res.pending_cleanup),
-                    (2, False, True),
+                    (1, False, True),
                 )
                 self.assertEqual(
                     res.error, f"Post-spawn exception: {type(p_exc).__name__}"
