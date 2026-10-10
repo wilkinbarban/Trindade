@@ -140,6 +140,7 @@ Neither unit validates real pidfd/waitpid, ADB, kernel behavior or an emulator.
 local commit `18e572bce0b4abd3d265052b1193b3d06b5e1277` (270 ALL), including
 functional evidence and procedural deviations. Functional passing checks are
 not a global verification PASS; the older quarantine remains unresolved.
-W3 closes documentation only after the parent's local commit. The guard as a
-whole remains incomplete; U (device/UX evidence) and C (consolidation/blockers)
+W3 documentation is recorded in local commit `e5a2346`; this is not a global
+runtime approval. The guard remains incomplete; U (device/UX evidence) and C
+(consolidation/blockers)
 remain pending in [main consolidation](../../odd/tasks/main-consolidation.md).
