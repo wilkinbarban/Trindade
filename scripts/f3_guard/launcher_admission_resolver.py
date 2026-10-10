@@ -87,10 +87,15 @@ class AdmissionCustodyResolver(AdmissionCustodyProtocol):
         if src is not None and src is not UNKNOWN:
             try:
                 prior_snap = getattr(src, "last_snapshot", None)
-                known_prior = {
-                    id(r) for obj in (src, getattr(src, "active_helper", None), prior_snap)
-                    if obj is not None and (r := getattr(obj, "last_result", None)) is not None
-                }
+                # Retain acquisition evidence even if later getters change.
+                # Any incomplete inventory aborts candidate acceptance.
+                known_prior = {id(custody.last_result)}
+                active = getattr(src, "active_helper", None)
+                for obj in (src, active, prior_snap):
+                    if obj is not None:
+                        previous = getattr(obj, "last_result", None)
+                        if previous is not None:
+                            known_prior.add(id(previous))
                 record_fn = getattr(src, "record_exception", None)
                 if callable(record_fn):
                     snap = record_fn(exc)
@@ -100,21 +105,32 @@ class AdmissionCustodyResolver(AdmissionCustodyProtocol):
                     ) and (prior_snap is None or snap is not prior_snap)
                     if has_proof:
                         candidate = getattr(snap, "last_result", None)
-                        if candidate is not None and id(candidate) not in known_prior:
-                            expected_cleanup = bool(child is not None or pidfd is not None)
-                            fd_match = (candidate.pidfd is None and pidfd is None) or (
-                                type(candidate.pidfd) is int and type(pidfd) is int and candidate.pidfd == pidfd
+                        if (
+                            isinstance(candidate, LaunchResult)
+                            and id(candidate) not in known_prior
+                        ):
+                            success = candidate.success
+                            candidate_fd = candidate.pidfd
+                            candidate_child = candidate.child_handle
+                            cleanup = candidate.pending_cleanup
+                            transferred = candidate.transferred
+                            expected_cleanup = (
+                                child is not None or pidfd is not None
+                            )
+                            fd_match = (
+                                candidate_fd is None and pidfd is None
+                            ) or (
+                                type(candidate_fd) is int
+                                and type(pidfd) is int
+                                and candidate_fd == pidfd
                             )
                             if (
-                                isinstance(candidate, LaunchResult)
-                                and type(candidate.success) is bool and candidate.success is False
-                                and candidate.child_handle is child and fd_match
-                                and type(candidate.pending_cleanup) is bool and candidate.pending_cleanup is expected_cleanup
-                                and type(candidate.transferred) is bool and candidate.transferred is False
+                                success is False
+                                and candidate_child is child and fd_match
+                                and cleanup is expected_cleanup
+                                and transferred is False
                             ):
                                 resolved = candidate
-            except (KeyboardInterrupt, SystemExit):
-                raise
             except BaseException:
                 pass
 

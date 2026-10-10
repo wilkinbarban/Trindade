@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from contextlib import nullcontext
+from dataclasses import replace
+from types import SimpleNamespace
 import traceback
 from typing import Any, Callable, Optional
 import unittest
@@ -66,6 +68,273 @@ class TestAdmissionCustodyResolver(unittest.TestCase):
         tracker = cls(active_helper=active_h)
         tracker.snapshot()
         return active_h, tracker, AdmissionCustodyResolver(custody_source=tracker)
+
+    def test_recorder_interrupt_does_not_replace_ordinary_primary(
+        self,
+    ) -> None:
+        source = _FaultySource(child=self.child, pidfd=0)
+        secondary = KeyboardInterrupt("recorder")
+
+        class RecorderTrap:
+            def __getattr__(self, name):
+                if name == "record_exception":
+                    raise secondary
+                return getattr(source, name)
+
+        primary = ValueError("primary")
+        resolver = AdmissionCustodyResolver(RecorderTrap())
+        try:
+            result = resolver.resolve_exception_result(primary)
+        except BaseException as escaped:
+            self.assertIs(escaped, primary)
+            self.fail("Ordinary primary must return failure")
+        self.assertIs(result.success, False)
+        self.assertIs(result.child_handle, self.child)
+        self.assertEqual(result.pidfd, 0)
+        self.assertEqual(result.error, "Post-spawn exception: ValueError")
+
+    def test_acquired_history_survives_changing_inventory(self) -> None:
+        _, tracker, resolver = self._make_tracker_resolver(pidfd=0)
+        primary = ValueError("fresh history")
+        history = resolver.resolve_exception_result(primary)
+        self.assertIs(history, tracker.last_result)
+        source = _FaultySource(
+            child=self.child, pidfd=0, stale_res=history,
+            custom_snap=CustodySnapshot(last_result=history),
+            set_last_exc=True,
+        )
+        reads = []
+
+        class ChangingInventory:
+            def __getattr__(self, name):
+                if name == "last_result":
+                    reads.append(name)
+                    return history if len(reads) == 1 else None
+                return getattr(source, name)
+
+        result = AdmissionCustodyResolver(
+            ChangingInventory(),
+        ).resolve_exception_result(primary)
+        self.assertIsNot(result, history)
+        self.assertIs(result.success, False)
+        self.assertIs(result.child_handle, self.child)
+        self.assertEqual(result.pidfd, 0)
+        self.assertIs(result.pending_cleanup, True)
+        self.assertEqual(result.error, "Post-spawn exception: ValueError")
+        self.assertEqual(len(reads), 2)
+
+    def test_recorder_secondary_matrix_preserves_primary(self) -> None:
+        stages = (
+            "source.last_snapshot", "source.active_helper",
+            "source.last_result", "active.last_result", "prior.last_result",
+            "source.record_exception", "invoke", "source.last_exception",
+            "snapshot.last_exception", "snapshot.last_result",
+            "candidate.success", "candidate.pidfd", "candidate.child_handle",
+            "candidate.pending_cleanup", "candidate.transferred",
+        )
+        secondary_types = (
+            RuntimeError, KeyboardInterrupt, SystemExit, BaseException,
+        )
+        for stage in stages:
+            for primary_type in (ValueError,) + secondary_types:
+                for secondary_type in secondary_types:
+                    for mode in ("return", "interrupt", "unavailable"):
+                        with self.subTest(
+                            stage=stage, primary=primary_type.__name__,
+                            secondary=secondary_type.__name__, mode=mode,
+                        ):
+                            primary = primary_type("primary")
+                            secondary = secondary_type("secondary")
+                            enabled = False
+                            hits = []
+                            records = []
+
+                            def trap(name):
+                                if enabled and name == stage:
+                                    hits.append(name)
+                                    raise secondary
+
+                            class View:
+                                def __init__(self, label, **fields):
+                                    self.label = label
+                                    self.fields = fields
+
+                                def __getattr__(self, name):
+                                    trap(f"{self.label}.{name}")
+                                    return self.fields.get(name)
+
+                            class Candidate(LaunchResult):
+                                def __getattribute__(self, name):
+                                    trap(f"candidate.{name}")
+                                    return super().__getattribute__(name)
+
+                            candidate = Candidate(
+                                False, child_handle=self.child, pidfd=0,
+                                pending_cleanup=True, error="fresh",
+                            )
+                            prior = View("prior", last_result=None)
+                            snap = View(
+                                "snapshot", last_result=candidate,
+                                last_exception=primary,
+                            )
+                            source = View(
+                                "source", pending_child=self.child,
+                                pending_pidfd=0, last_snapshot=prior,
+                                active_helper=View("active"),
+                            )
+
+                            def record(exc):
+                                records.append(exc)
+                                trap("invoke")
+                                source.fields["last_exception"] = (
+                                    None if stage == "snapshot.last_exception"
+                                    else exc
+                                )
+                                return snap
+
+                            source.fields["record_exception"] = record
+                            resolver = AdmissionCustodyResolver(source)
+                            snapshot = resolver.snapshot
+
+                            def acquire():
+                                nonlocal enabled
+                                custody = snapshot()
+                                enabled = True
+                                return custody
+
+                            def original_raise():
+                                raise primary
+
+                            def resolve():
+                                try:
+                                    original_raise()
+                                except BaseException as exc:
+                                    return resolver.resolve_exception_result(
+                                        exc,
+                                        rethrow_interrupt=mode != "return",
+                                    )
+
+                            unavailable = (
+                                patch.object(
+                                    lar_mod, "_safe_result",
+                                    side_effect=RuntimeError("unavailable"),
+                                ) if mode == "unavailable" else nullcontext()
+                            )
+                            with patch.object(
+                                resolver, "snapshot", side_effect=acquire,
+                            ), unavailable:
+                                interrupt = isinstance(
+                                    primary, (KeyboardInterrupt, SystemExit),
+                                )
+                                escapes = mode == "unavailable" or (
+                                    mode == "interrupt" and interrupt
+                                )
+                                if escapes:
+                                    self._assert_escapes_with_frame(
+                                        resolve, primary, "original_raise",
+                                    )
+                                    result = resolver.fallback_result
+                                else:
+                                    try:
+                                        result = resolve()
+                                    except BaseException as escaped:
+                                        self.assertIs(escaped, primary)
+                                        self.fail("Must return failure")
+                            self.assertEqual(hits, [stage])
+                            expected_records = (
+                                [] if stage in stages[:6] else [primary]
+                            )
+                            self.assertEqual(
+                                len(records), len(expected_records),
+                            )
+                            self.assertTrue(all(r is primary for r in records))
+                            self.assertIs(resolver.custody_source, source)
+                            if mode == "unavailable":
+                                self.assertIsNone(result)
+                                continue
+                            self.assertIsNot(result, candidate)
+                            self.assertIs(result.success, False)
+                            self.assertIs(result.transferred, False)
+                            self.assertIs(result.pending_cleanup, True)
+                            self.assertIs(result.child_handle, self.child)
+                            self.assertEqual(result.pidfd, 0)
+                            self.assertEqual(
+                                result.error,
+                                "Post-spawn exception: "
+                                f"{primary_type.__name__}",
+                            )
+
+    def test_fresh_candidate_proof_and_history_alternates(self) -> None:
+        class IntSubclass(int):
+            pass
+
+        primary = ValueError("current")
+        _, tracker, resolver = self._make_tracker_resolver(pidfd=0)
+        history = resolver.resolve_exception_result(primary)
+        self.assertIs(history, tracker.last_result)
+        fresh = replace(history, error="fresh")
+        cases = (
+            ("source proof", fresh, True),
+            ("snapshot proof", fresh, True),
+            ("absent custody", LaunchResult(False, error="fresh"), True),
+            ("source history", history, False),
+            ("active history", history, False),
+            ("prior history", history, False),
+            ("no-op snapshot", fresh, False),
+            ("missing proof", fresh, False),
+            ("wrong proof", fresh, False),
+            ("wrong result", SimpleNamespace(**vars(fresh)), False),
+            ("success", replace(fresh, success=True), False),
+            ("cleanup", replace(fresh, pending_cleanup=False), False),
+            ("transfer", replace(fresh, transferred=True), False),
+            ("bool fd", replace(fresh, pidfd=False), False),
+            ("subclass fd", replace(fresh, pidfd=IntSubclass(0)), False),
+            ("wrong child", replace(fresh, child_handle=object()), False),
+        )
+        for label, candidate, accepted in cases:
+            with self.subTest(case=label):
+                child = None if label == "absent custody" else self.child
+                fd = None if label == "absent custody" else 0
+                snapshot = SimpleNamespace(last_result=candidate)
+                source = SimpleNamespace(
+                    pending_child=child, pending_pidfd=fd,
+                    last_result=None, last_snapshot=None, active_helper=None,
+                )
+                if label == "source history":
+                    source.last_result = history
+                elif label == "active history":
+                    source.active_helper = SimpleNamespace(last_result=history)
+                elif label == "prior history":
+                    source.last_snapshot = CustodySnapshot(last_result=history)
+                elif label == "no-op snapshot":
+                    source.last_snapshot = snapshot
+
+                def record(exc):
+                    if label == "snapshot proof":
+                        snapshot.last_exception = exc
+                    elif label == "wrong proof":
+                        source.last_exception = ValueError("current")
+                    elif label != "missing proof":
+                        source.last_exception = exc
+                    return snapshot
+
+                source.record_exception = record
+                current = AdmissionCustodyResolver(source)
+                result = current.resolve_exception_result(primary)
+                if accepted:
+                    self.assertIs(result, candidate)
+                else:
+                    self.assertIsNot(result, candidate)
+                    self.assertIsNot(result, history)
+                    self.assertEqual(
+                        result.error, "Post-spawn exception: ValueError",
+                    )
+                self.assertIs(result.success, False)
+                self.assertIs(result.transferred, False)
+                self.assertIs(result.child_handle, child)
+                self.assertEqual(result.pidfd, fd)
+                self.assertIs(result.pending_cleanup, child is not None)
+                self.assertIs(current.fallback_result, result)
 
     def test_resolution_captures_one_rotating_source(self) -> None:
         children = [self.child, _BoolTrapChild(), _BoolTrapChild()]
