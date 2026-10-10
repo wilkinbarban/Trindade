@@ -2,7 +2,7 @@
 
 ## Autorización y límites
 - **Vigente**: usuario levanta pausa post-B1c.2b / «no B2» y autoriza continuación continua y acotada de B2 y pendientes documentados; prevalece sobre autorizaciones históricas de destino main/limpieza. Sin push, cambios en main, limpieza destructiva, eliminación de worktrees ni emulador; RDD off clone_local sin cambiar switch ni inventar lifecycle nativo. Parent conserva commits locales y espejos Engram.
-- **TODO vigente único**: [guard-probe-eval.md — Continuación vigente](guard-probe-eval.md#continuación-vigente-todo-único): R1 `08e380e`, B2a `0f77155` (313 ALL), B2b `e6b1783` (333 ALL) y B2c `3efa4413e5fbee09a5a9d3b126c166ac3295593e` (267 ALL) cerrados; B2 completo cerrado hermético. B2c writer 32/526 PASS y spot independiente 32 PASS. F facade cerrado en `715afb9` (400 ALL incl 19 carry, gate independiente `mv296zis-1-12f5` 6/532 PASS) y W1 composición de runtime cerrado en `ceb4626` (378/400 ALL, gate independiente `mv29zibo-4-1yuu` 6/538 PASS); W2 handoff launcher→supervisor y W3 docs, U UX/exportPDF/dispositivo y C consolidación/blockers pendientes. Sin publicación/main/limpieza/emulador.
+- **TODO vigente único**: [guard-probe-eval.md — Continuación vigente](guard-probe-eval.md#continuación-vigente-todo-único): R1 `08e380e`, B2a `0f77155` (313 ALL), B2b `e6b1783` (333 ALL) y B2c `3efa4413e5fbee09a5a9d3b126c166ac3295593e` (267 ALL) cerrados; B2 completo cerrado hermético. B2c writer 32/526 PASS y spot independiente 32 PASS. F facade cerrado en `715afb9` (400 ALL incl 19 carry, gate independiente `mv296zis-1-12f5` 6/532 PASS) y W1 composición de runtime cerrado en `ceb4626` (378/400 ALL, gate independiente `mv29zibo-4-1yuu` 6/538 PASS); W2 handoff launcher→supervisor FUNCTIONALLY VERIFIED / pending parent commit (no cerrado); W3 docs, U UX/exportPDF/dispositivo y C consolidación/blockers pendientes. Sin publicación/main/limpieza/emulador.
 - **B2b candidato histórico**: baseline fresco 25/519; RED focused exit 1 (26/1, 27/2, 28/452 tests/fallos); GREEN 29/523 PASS, matriz directa 900 casos y 16 alternos de frescura/tipos. Fallback no disponible no acredita reparación de factories B2c. Presupuesto ALL, estilo y rollback hermético limitados a cuatro paths según ledger primario; preservar B2a y 9 ALL documentales previos. Estado precommit superado por cierre `e6b1783` y B2 completo hermético cerrado; evidencia de cierre en TODO vigente.
 - **B2c candidato histórico**: baseline fresco 29/523; RED focused exit 1, 31 tests/400 fallos; GREEN 32/526 PASS. Factories reales 600 casos (480 dobles fallos/120 canonical saludables), publicación 160, alternas canonical/publicación con str/repr trap 32; counters e identidad/frame primario acreditados, sin garantía de publicación/caché. Final 267 ALL incl 9 previos; cuatro paths, rollback de hunks B2c solamente, runtime N/A hermético. Cerrado en `3efa441`, spot independiente 32 PASS y writer 526 regresión PASS; B2 completo hermético cerrado; W1 cerrado en `ceb4626` y F en `715afb9`; evidencia/comandos en ledger primario.
 - **Punto de reanudación (leer primero)**: HEAD de este cierre: este mismo commit documental (`docs(guard): leave the resume point and the W2 decision`), parent `89ffa73` en `feature/principal-review-chain` (worktree `/home/wilkin/proyectos/Trindade-worktrees/principal-review-chain`), árbol limpio, sin push y `main` intacta. Cerrado con evidencia: R1 `08e380e`, B2a `0f77155`, B2b `e6b1783`, B2c `3efa441`, F `715afb9`, W1 `ceb4626`; documentales `6221e3e`, `f7b5bc0`, `1b62ecb`, `6552723`, `89ffa73`. Continuación acordada: **W2** como **prueba de integración (opción A) sin abrir el contrato de entrada del CLI** — abrir banderas/argv/env/exit codes (opción B) promete comportamiento de kernel (controller real, ADB, spawn, ANR) que no se puede verificar sin emulador autorizado y que el plan vigente prohíbe («entry contracts, not new CLI promises»); primero el cableado launcher→supervisor en hermético y después se decide (B) con el usuario. Luego W3 docs, U y C. Límites intactos: sin push/main/limpieza/emulador, RDD off, <=400 ALL por unidad, Python `-B`, commit local por unidad y espejos Engram por partes (corte de 50.000 bytes). Baseline de suite tras W1: 538. Detalle completo en el TODO único del ledger primario y en la observación `odd/guard-probe-eval/resume-checkpoint`.
@@ -13,6 +13,44 @@
 - No arranque de emulador, despliegue, publicación de credenciales o claves. Confirmaciones destructivas y consentimientos nativos siguen separados.
 - Ramas/worktrees temporales son aislamiento de ejecución; destino final main. Limpieza sólo después de comprobar conservación e integración.
 
+## W2: FUNCTIONALLY VERIFIED / pending parent commit (no cerrado)
+- Opción A test-only: child preconstruido por fake spawn_helper, no
+  adopción nativa. Producción/CLI intactos; sin kernel/ADB/spawn real.
+- Focused exacto en ledger primario: 7 tests, 1 FAIL; regresión exacta:
+  539 tests, mismo único FAIL. No GREEN ni RED productivo inventados.
+- Contrato cleanup una vez incompatible con composición observada:
+  engine termination y runner finally llaman ambos a cleanup del
+  controller (dos llamadas). Oráculo corregido a lista exacta de dos
+  llamadas sin argumentos; no se elimina ni debilita cleanup.
+- Writer fresco: focused 7 PASS (0.102 s), regresión 539 PASS
+  (2.580 s), ambos exit 0 con comandos exactos del ledger primario.
+  Retry/custodia/pacing/probe-cleanup/trampas finales alcanzados sin
+  otro cambio de setup. Mock prueba invocaciones, no liberación kernel;
+  tests del helper real prueban close mockeado idempotente con fallos.
+- Incidente mv2m527b-4-1vd4 FAILED por cleanup no confirmado conserva
+  cuarentena: respuesta retenida no es gate. Read-only fresco
+  mv2ngbgf-5-qixp terminó normalmente en capacidad separada; no prueba
+  salida del grupo antiguo ni libera cuarentena.
+- W2 funcionalmente verificado, no cerrado: parent acepta checks
+  independientes ejecutados con desviaciones, no global PASS.
+  `mv2nn8yj-7-x6cu7`: 7 PASS 0.252 s / 539 PASS 2.844 s, exit 0,
+  diffcheck 0, 227 ALL/tres paths, 41 productivos iguales a HEAD,
+  hashes/index intactos, semántica/retry/trampas PASS; global BLOCK
+  por log overflow automático `/tmp/pi-bash-72aedec5fe6fbd45.log`, no borrado.
+  `mv2nqlo6-8-ogdv7`: 7/539 exit 0, diffcheck 0, hashes/scope 227 ALL
+  coincidentes, cero artefactos/overflow; global BLOCK sólo spot 38
+  líneas vs cap 20. Hash inicial read-only `guard.py` inexistente exit 1,
+  corregido exit 0 sin mutación. Parent spot focused exacto del ledger
+  primario: 7 PASS 0.218 s. ASSESS medium/small runtime: independiente
+  requerido satisfecho; RDD off/reviewDue false, sin lifecycle/receipt.
+- Commit próximo del parent: `test(guard): verify hermetic launcher supervisor handoff`;
+  SHA a registrar después, no inventado. W3 después de ese commit;
+  U/C pendientes, sin push/main/destructivos ni RED ficticio.
+  Kernel real N/A/prohibido; checks herméticos observados, dos cleanup
+  mock no acreditan liberación real. Rollback sólo adición W2 de
+  `scripts/f3_guard/tests/test_runtime.py` y hunks W2 de ambos ledgers,
+  preservando W1/historia. Test SHA-256 intacto según ledger primario.
+
 ## Evidencia inicial (estados históricos anotados)
 - Auditoría readonly mus9s0q3-2o-xh12; sus estimaciones de líneas y cobertura histórica no prueban integración actual.
 - main local/origin almacenado: b8508398a1b590616985b191b2ccef0dbc8eb0c2 [SUPERADO: main histórica publicada en 7efd465; feature local en 0cbe765, sin push adicional].
@@ -22,6 +60,10 @@
 - Scripts QA ~5220 ya integrados históricamente (sin reclamo de nueva importación ni aprobación retroactiva); excepción/partición aplica únicamente a la guardia restante de 9341 líneas (2436 código + 6905 tests untracked en parent preservadas; no un único archivo ni 9001 restantes). Resolver partición o conservación externa antes de publicación.
 
 ## Checkpoint de estado actual verificado
+- **W2 vigente**: HEAD `f043f639228f2f3b4efddeffef3cab00c7e59d26`,
+  candidato test-only y ambos ledgers modificados; FUNCTIONALLY VERIFIED,
+  commit del parent pendiente, no cerrado; después W3. Puntas/limpieza abajo
+  y el punto documental previo son historia, no estado del candidato.
 - **Puntas de rama**: main publicada histórica en `7efd465c7ab696ffb598e20fe6cc0311e37ae44a`; feature en `0cbe765c9278ecc280fda1d46d97949eaa304ddb` (rama limpia antes de esta edición documental; actualmente sólo este ledger modificado), sin push adicional.
 - **Diferencias de checkout y ramas**: divergencias entre ramas y checkouts representan trabajo en etapas preservado, no pérdida de datos.
 - **Seguridad y contratos**: backend 51 tests PASS, artefacto OpenAPI 0 diff, cliente 53 tests PASS sobre base previa de 749.

@@ -9,13 +9,17 @@ import subprocess
 import unittest
 from contextlib import ExitStack
 from typing import Any, Callable, Dict, List, Optional, Tuple
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import scripts.f3_guard.runtime as runtime
 from scripts.f3_guard.adb_adapter import AdbProbeAdapter
 from scripts.f3_guard.clock import Clock, FakeClock
 from scripts.f3_guard.controller import ProcessController
 from scripts.f3_guard.engine import SupervisorEngine
+from scripts.f3_guard.launcher import EmulatorLauncher
+from scripts.f3_guard.launcher_pipeline import LauncherPipelineExecutor
+from scripts.f3_guard.launcher_preflight import TARGET_AVD, TARGET_PORT
+from scripts.f3_guard.launcher_spawn import SpawnedChildContext
 from scripts.f3_guard.probe_handle import ProbeCommandHandle
 from scripts.f3_guard.types import LifecycleState, ProcessIdentity
 
@@ -202,6 +206,166 @@ class TestRuntimeComposition(unittest.TestCase):
         self.assertGreaterEqual(sleeper.call_count, 1)
         self.assertGreaterEqual(len(handles), 2)
         self.assertTrue(all(h.cleanup.called for h in handles))
+
+    def test_existing_child_launcher_handoff_preserves_custody_without_respawn(
+        self,
+    ) -> None:
+        """Characterize a prebuilt fake child, not native adoption."""
+        clock = FakeClock(monotonic_start=0.0)
+        child = MagicMock()
+        child.pid = 100
+        child.poll.return_value = None
+        context = SpawnedChildContext(child, 100, 500, 400, 90)
+        spawn_helper = MagicMock()
+        spawn_helper.pending_child = child
+        spawn_helper.pending_pidfd = None
+        spawn_helper.last_result = None
+        spawn_helper.spawn_and_verify.return_value = context, None
+        controller = self.controller
+        controller.use_pidfd = True
+        controller.pidfd_open.return_value = 0
+        controller.get_fdinfo_pid.return_value = child.pid
+        controller.is_pidfd_alive.return_value = True
+        controller.get_ppid.return_value = context.owner_pid
+        controller.get_start_ticks.side_effect = (
+            lambda pid: 400 if pid == context.owner_pid else 500)
+        controller.bind_anchored_pidfd.return_value = True
+        binary = "/hermetic/emulator"
+        controller.get_exe_path.return_value = binary
+        pipeline = LauncherPipelineExecutor(
+            controller=controller, avd_name=TARGET_AVD, port=TARGET_PORT,
+            emulator_binary=binary, spawn_helper=spawn_helper)
+        memory = MagicMock(return_value=(8000000, 4000000))
+        availability = MagicMock(return_value=True)
+        validator = MagicMock(return_value=True)
+        launcher = EmulatorLauncher(
+            explicit_opt_in=True, controller=controller, mem_reader=memory,
+            availability_check=availability, binary_validator=validator,
+            emulator_binary=binary, pipeline_executor=pipeline)
+        controller.get_cmdline.return_value = launcher.get_frozen_argv()
+        handles: List[ProbeCommandHandle] = []
+        commands: List[List[str]] = []
+
+        def transport(cmd: List[str]) -> ProbeCommandHandle:
+            commands.append(list(cmd))
+            handle = MagicMock(spec=ProbeCommandHandle)
+            handle.poll.return_value = 0
+            handle.read_available.return_value = HEALTHY_PROBE_OUTPUT, ""
+            handle.cleanup.return_value = True
+            handles.append(handle)
+            return handle
+
+        # Count every forbidden boundary: exceptions can be swallowed.
+        traps: Dict[str, Any] = {}
+        targets = [
+            "time.sleep", "time.monotonic", "time.time", "os.kill",
+            "os.waitpid", "select.poll", "subprocess.Popen",
+            "subprocess.run", "subprocess.call", "subprocess.check_call",
+            "subprocess.check_output", "os.close",
+        ]
+        if hasattr(os, "pidfd_open"):
+            targets.append("os.pidfd_open")
+        if hasattr(signal, "pidfd_send_signal"):
+            targets.append("signal.pidfd_send_signal")
+        proc_reads: List[Any] = []
+        ordinary_open = open
+
+        def guarded_open(file: Any, *args: Any, **kwargs: Any) -> Any:
+            raw = getattr(file, "__fspath__", lambda: file)()
+            text = str(raw)
+            if text.startswith("/proc") or "/proc/" in text:
+                proc_reads.append(file)
+                raise AssertionError("unexpected procfs read")
+            return ordinary_open(file, *args, **kwargs)
+
+        with ExitStack() as sandbox:
+            for target in targets:
+                traps[target] = sandbox.enter_context(patch(
+                    target, side_effect=AssertionError(target)))
+            sandbox.enter_context(patch(
+                "builtins.open", side_effect=guarded_open))
+            sandbox.enter_context(patch(
+                "os.path.realpath", side_effect=lambda path: path))
+            sandbox.enter_context(patch("os.path.isfile", return_value=True))
+            sandbox.enter_context(patch("os.access", return_value=True))
+            fallback = sandbox.enter_context(patch(
+                "scripts.f3_guard.runner.safe_sigterm",
+                side_effect=AssertionError("runner fallback reached")))
+            termination = sandbox.enter_context(patch(
+                "scripts.f3_guard.engine_termination.safe_sigterm",
+                return_value=(LifecycleState.STOPPED, "hermetic stop")))
+            first = launcher.launch()
+            self.assertTrue(first.success, first.error)
+            self.assertTrue(first.transferred)
+            self.assertTrue(first.is_direct_child)
+            self.assertTrue(first.identity.is_direct_child)
+            self.assertFalse(first.pending_cleanup)
+            self.assertIsNone(first.pidfd)
+            self.assertIs(first.child_handle, child)
+            self.assertIs(launcher.pending_child, child)
+            self.assertIsNone(launcher.pending_pidfd)
+            self.assertIs(launcher.last_result, first)
+            controller.pidfd_open.assert_called_once_with(child.pid)
+            controller.bind_anchored_pidfd.assert_called_once_with(
+                child.pid, context.start_ticks, 0)
+            adapter = AdbProbeAdapter(
+                command=["adb", "shell", "dumpsys", "activity", "processes"],
+                transport=transport, clock=clock)
+            engine = SupervisorEngine(
+                first.identity, controller, clock=clock, ttl_sec=1.0,
+                adapter=adapter, mem_reader=memory)
+            self.assertIs(engine.target, first.identity)
+            self.assertIs(engine.controller, controller)
+            self.assertIs(engine.clock, clock)
+            sleeper = MagicMock(side_effect=clock.advance_monotonic)
+            result = runtime.run_guard(
+                engine, first.identity, controller, self.sink,
+                pacing_interval=0.25, sleeper=sleeper)
+            self.assertEqual(result, LifecycleState.STOPPED)
+            for key in ("state", "primary_state", "termination_state"):
+                self.assertEqual(self.sink[key], LifecycleState.STOPPED)
+            self.assertIn("TTL", self.sink["termination_detail"])
+            record = engine.attempt_record
+            self.assertIs(record.target, first.identity)
+            self.assertIs(record.controller, controller)
+            self.assertEqual(record.outcome.state, LifecycleState.STOPPED)
+            self.assertTrue(record.outcome.completed)
+            termination.assert_called_once()
+            self.assertIs(termination.call_args.args[0], first.identity)
+            self.assertIs(termination.call_args.args[1], controller)
+            fallback.assert_not_called()
+            # Engine and runner each invoke cleanup; this mock does not close.
+            self.assertEqual(
+                controller.cleanup_bound_pidfd.call_args_list,
+                [call(), call()])
+            self.assertGreater(clock.monotonic(), 0.0)
+            self.assertGreater(sleeper.call_count, 0)
+            self.assertGreaterEqual(len(commands), 2)
+            self.assertEqual(len(commands), len(handles))
+            for handle in handles:
+                self.assertTrue(handle.cleanup.called)
+            retry = launcher.launch()
+            self.assertFalse(retry.success)
+            self.assertIsNone(retry.identity)
+            self.assertTrue(retry.transferred)
+            self.assertFalse(retry.pending_cleanup)
+            self.assertIs(retry.child_handle, child)
+            self.assertIsNone(retry.pidfd)
+            self.assertIs(launcher.last_result, first)
+            self.assertIs(first.child_handle, child)
+            self.assertIs(engine.target, first.identity)
+            self.assertIs(launcher.pending_child, child)
+            self.assertIsNone(launcher.pending_pidfd)
+            spawn_helper.spawn_and_verify.assert_called_once_with(
+                launcher.get_frozen_argv())
+            controller.bind_anchored_pidfd.assert_called_once_with(
+                child.pid, context.start_ticks, 0)
+            availability.assert_called_once_with(TARGET_AVD, TARGET_PORT)
+            validator.assert_called_once_with(binary)
+            self.assertEqual(proc_reads, [])
+            for target, trap in traps.items():
+                with self.subTest(boundary=target):
+                    trap.assert_not_called()
 
     def test_conflicting_clock_rejected_and_missing_clock_fails_closed(
         self,

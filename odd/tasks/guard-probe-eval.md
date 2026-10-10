@@ -4,6 +4,8 @@
 Autorización vigente: el usuario levanta explícitamente la pausa posterior a B1c.2b y autoriza avanzar B2 y los pendientes documentados de forma continua, por unidades acotadas. La pausa / «no B2» anterior queda SUPERADA, no borrada de la historia. Sin push, cambios en main, limpieza destructiva, eliminación de worktrees, emulador ni cambio del switch RDD; RDD sigue off clone_local, sin inventar lifecycle nativo. El parent conserva commits locales y espejos completos de Engram. La autorización anterior de integración de 5a69a927c4335441939ebd76dc10bf6b200a8d1b y sus gates nativos son historia, no gates vigentes.
 
 ## Continuación vigente (TODO único)
+- **W2 RETOMADO / incidente acotado**: verifier mv2m527b-4-1vd4 FAILED por `process cleanup unconfirmed after 1000ms; capacity quarantined`; respuesta retenida no es gate exitoso. Reportó 7/1 FAIL y 539/1 FAIL; pidfd_binding.py:83–101 y test_pidfd_binding.py:109–153 indican cleanup idempotente: exigir una invocación fue un supuesto incorrecto del test. Prueba fresca read-only mv2ngbgf-5-qixp terminó normalmente con HEAD f043f63 y los tres paths esperados; capacidad disponible confirmada, NO salida del grupo antiguo ni liberación de cuarentena. Se retoma single-writer para corregir sólo el oráculo y obtener gate fresco; retry/trampas ya alcanzados por writer: 7 focused / 539 regresión PASS; evidencia independiente funcional aceptada por parent (desviaciones abajo), sin global PASS. Sin producción/kill/reset/push/main.
+- [ ] **W2 — FUNCTIONALLY VERIFIED / pending parent commit (no cerrado)**: usuario confirma implementación de opción A; child ya preparado suministrado por doble de spawn, no adopción nativa. Sólo test_runtime.py y ambos ledgers, producción/CLI intactos, <=400 ALL frente a f043f63. Baseline fresco independiente 538 PASS (exit 0, 2.875 s), HEAD f043f63 limpio antes/después. Caracterización test-only: GREEN inmediato válido, sin RED ficticio; defecto productivo detiene unidad. Writer focused 7 / regresión 539 PASS; candidato funcionalmente verificado por checks independientes ejecutados; commit del parent pendiente.
 - [x] **R1** — Reconciliación cerrada en `08e380ed5da4e623c56f7daa1fb6bb2533c99910`; gate estructural PASS, 36 ALL, evaluación nativa passive; tests/runtime N/A documental.
 - [x] **B2a** — Cerrado en `0f77155cd09e6f3ecebbb113fe21ec505acfee98`, 313 ALL; writer 25/519 PASS, spot previo 25/519 PASS y spot final de matriz 1 test PASS; adquisición coherente y prioridad primaria acreditadas, runtime N/A hermético.
 - [x] **B2b** — Cerrado en `e6b178318a898b8a9b61fa16c81615ac16731c4a`, 333 ALL; writer e independiente 29/523 PASS; 900 casos directos y 16 alternos, recorder fail-closed y frescura acreditados.
@@ -18,6 +20,13 @@ Autorización vigente: el usuario levanta explícitamente la pausa posterior a B
 - **F cierre**: el ASSESS nativo del candidato devolvió `risk: unassessable` por los dos archivos nuevos sin declaración explícita de untracked, tratado como HIGH con `writerSelfVerification` e `independentVerifier`; el gate independiente read-only `mv296zis-1-12f5` reprodujo 6 focused / 532 regresión con exit 0, `git diff --check` limpio, presupuesto 400/400 ALL, sin acceso a miembros privados de otros módulos (sólo `self._…` propio) y comprobó constructor de diez posicionales con extensiones keyword-only. HEAD `3efa441` y el árbol quedaron byte-idénticos tras la verificación (cuatro SHA iguales antes y después). Commit local del parent `715afb9`, staged `git write-tree` = `0295ad3508473621ade7e9a4a87dd046be4cc8fe`, hash de `launcher.py` `57a29b89ba4e997bb6e8eb37093e6f98f6c8fb3e531275478d5377cdba2c5e74` y de `test_launcher.py` `02c7e7e1ad73f973e47da7a82ac336f7a1a21e6a59e883f8bfc679db5b0e03d3`. Sin push, sin emulador/kernel ni validación de despliegue; espejos Engram del parent guardados en este mismo cierre.
 
 ### Punto de reanudación (leer primero al retomar sesión)
+- Checkpoint vigente W2: HEAD `f043f639228f2f3b4efddeffef3cab00c7e59d26`,
+  tres superficies autorizadas modificadas; writer 7/539 PASS.
+  FUNCTIONALLY VERIFIED / pending parent commit, no cerrado. Próximo W3
+  después del commit del parent; W3/U/C pendientes. Locator próximo:
+  `test(guard): verify hermetic launcher supervisor handoff`; parent registra
+  SHA después del commit, no SHA inventado. Sin push/main/destructivos.
+  El cierre documental debajo es histórico, no estado limpio actual.
 - Estado exacto: rama `feature/principal-review-chain`, worktree `/home/wilkin/proyectos/Trindade-worktrees/principal-review-chain`, HEAD de este cierre: este mismo commit documental (`docs(guard): leave the resume point and the W2 decision`), cuyo parent es `89ffa73`, árbol limpio, sin push y con `main` intacta. Nada de lo cerrado aquí está publicado.
 - Cerrado con evidencia y commiteado localmente: R1 `08e380e`; B2a `0f77155`; B2b `e6b1783`; B2c `3efa441`; F `715afb9` (gate `mv296zis-1-12f5`); W1 `ceb4626` (tree `4309a111`, gate `mv29zibo-4-1yuu`); documentales `6221e3e`, `f7b5bc0`, `1b62ecb` (plan de W), `6552723`, `89ffa73`.
 - Orden de continuación acordado: **W2** (prueba de integración de la unión launcher→supervisor con objetivo ya existente: sin respawn, custodia preservada, **sin cambio de producción**) → **W3** (docs) → **U** (UX/exportPDF/share y evidencia de dispositivo) → **C** (consolidación, evidencia integrada y blockers).
@@ -35,6 +44,57 @@ Autorización vigente: el usuario levanta explícitamente la pausa posterior a B
 - Cobertura de integración hoy: `test_runner.py` compone engine+runner; `test_engine_assembly`/`test_engine_step` cubren engine; `test_scheduler.py` usa un `FakeEngine` duck-typed y **nunca** un `SupervisorEngine` real; nada compone engine+scheduler+runner, ni launcher+supervisor, ni el código de salida final. Eso es exactamente lo que W1 debe acreditar con dobles herméticos y `FakeClock`.
 - Comandos exactos por unidad: `PYTHONDONTWRITEBYTECODE=1 python3 -B -m unittest scripts.f3_guard.tests.test_<unidad>` y `PYTHONDONTWRITEBYTECODE=1 python3 -B -m unittest discover -s scripts/f3_guard/tests -p 'test_*.py'` (baseline observado por el parent tras F: 532); no hay target en `Makefile`.
 - No verificable read-only y por tanto no afirmado: comportamiento real de kernel/emulador (`/proc`, pidfd, `waitpid`, ADB, spawn/ANR), estado Git de este worktree y conteo base ejecutado en esta exploración; las estimaciones de líneas siguen siendo pronóstico, no prueba de ajuste.
+
+### Evidencia W2 (opción A retomada; fallos previos históricos)
+- Test-only en `test_runtime.py`: child preconstruido entregado por
+  `spawn_helper` falso; facade/admisión/pipeline/pidfd/transfer y
+  engine/runtime/scheduler/runner reales. Sin adopción nativa ni
+  kernel/ADB/spawn/emulador real; producción intacta.
+- Focused: `PYTHONDONTWRITEBYTECODE=1 python3 -B -m unittest scripts.f3_guard.tests.test_runtime`
+  ejecutó 7 tests, 1 FAIL: cleanup esperado una vez, observado dos veces.
+- Regresión: `PYTHONDONTWRITEBYTECODE=1 python3 -B -m unittest discover -s scripts/f3_guard/tests -p 'test_*.py'`
+  ejecutó 539 tests, mismo único FAIL; no GREEN ni RED productivo.
+- Discrepancia precisa: `EngineTerminationHelper.terminate` y el
+  finally de `run_guarded_supervisor` llaman ambos a
+  `controller.cleanup_bound_pidfd()`. No se altera producción ni se
+  elimina cleanup: oráculo corregido a exactamente dos llamadas sin
+  argumentos (engine y runner), mediante lista completa de llamadas.
+- Aserciones previas alcanzadas: fd 0 transferido/binding único,
+  identidad compartida, TTL STOPPED, attempt completado y sigterm
+  engine único/fallback cero. Retry y contadores externos finales
+  aún no alcanzados; no se presentan como evidencia aprobada.
+- Resultado fresco del writer: mismos comandos anteriores, focused
+  7 PASS (0.102 s), regresión 539 PASS (2.580 s), ambos exit 0.
+  Retry/custodia/pacing/cleanup de probes y todos los contadores de
+  trampas finales alcanzados sin cambios adicionales de setup.
+- Mock controller acredita invocaciones, no cierre ni liberación de
+  kernel. Tests existentes del helper real (`test_pidfd_binding`,
+  109–153) acreditan dos invocaciones/un close mockeado, también con
+  fallos; el binding se borra antes del close. No defecto productivo.
+- No RED artificial: fallos previos fueron oráculo incorrecto de
+  caracterización. W2 funcionalmente verificado, espera commit del parent;
+  W3/U/C pendientes. Cuarentena previa no declarada liberada.
+- Independiente `mv2nn8yj-7-x6cu7`: 7 PASS (0.252 s), 539 PASS
+  (2.844 s), exit 0; diffcheck 0, 227 ALL en exactamente tres paths,
+  41 archivos productivos iguales a HEAD; hashes/index intactos.
+  Semántica completa/retry/trampas PASS; global BLOCK por overflow del
+  tool: log automático `/tmp/pi-bash-72aedec5fe6fbd45.log`, no borrado.
+- Independiente `mv2nqlo6-8-ogdv7`: 7/539 exit 0, diffcheck 0,
+  hashes coincidentes, scope 227 ALL; cero artefactos/overflow.
+  Global BLOCK sólo por spot de 38 líneas frente al cap de 20.
+  Hash read-only inicial de `guard.py` inexistente exit 1; checks
+  corregidos exit 0, sin mutación. Ningún reporte es global PASS.
+- Parent acepta evidencia técnica funcional con ambas desviaciones
+  explícitas; spot 7 PASS (0.218 s) con focused exacto arriba.
+  ASSESS medium/small runtime: independiente requerido satisfecho por
+  checks ejecutados; RDD off, reviewDue false, sin lifecycle/receipt.
+- Runtime/kernel real N/A y prohibido; focused/regresión herméticos
+  observados. Dos invocaciones cleanup no prueban liberación real.
+  Test SHA-256 `ea83da9b9fe6f3c4757a739f2aae5fad3946cc511e69e58b33d7121905b453a2` intacto.
+- Rollback lógico: sólo adición W2 de `scripts/f3_guard/tests/test_runtime.py`
+  y hunks W2 de ambos ledgers; preservar W1 e historia, sin operación Git.
+  Aprendizaje reutilizable: separar evidencia funcional, cumplimiento
+  procedural e invocaciones mock de liberación efectiva de recursos.
 
 ### Evidencia W1 (composición de runtime, cerrada localmente)
 - Entrega: `scripts/f3_guard/runtime.py` con `run_guard(engine, target, controller, state_sink, *, cleanup_probe=None, grace_seconds=DEFAULT_GRACE_SEC, termination_poll_interval=0.5, pacing_interval=None, sleeper=None)`; pasa `scheduler.run` como `runner` de `run_guarded_supervisor` con `engine=engine` y propaga sink/probe/grace sin cambios. Sin spawner, launcher, argv/env, sink de log ni mapeo de exit code.
