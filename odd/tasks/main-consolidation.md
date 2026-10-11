@@ -167,3 +167,19 @@ Writer muxfc9rx-4q-6adj falló por cleanup no confirmado (1000ms), capacidad en 
   Budget 380/400 (291prior+81test+8docs); version/pathunchanged NOforegroundclaim. Scope PDFparseable+ownURIbytes/preparedintent NOcrossappgrant/receipt/visualfidelity/backendphysicalE2E. helper2/1toolingrecoveredbeforeinstallNOTRED. U global unfinished.
   Evidence via root: results/{compile,apks,jvm,install,native}.json & .log, results/{binary-preflight,strict-cert-recheck,metadata-after,helper-failures}.json, provenance/{candidate,u2-equivalence,final-hashes}.json
 - **U3 — CERRADO LOCALMENTE (QUALIFIED)**: commit c1a7668e0482d05ed53e890563935d550ba980d3 test(android): characterize native PDF sharing contract (3files/89additions); 1native/755JVMPASS, scope bounded, U global pending, no push. Budget 382/400 (380+2 bookkeeping).
+- Seguimiento previo a C1 documental: mapeo de brechas en 3 fases y verificación estructural independiente, sin modificar código fuente ni tests.
+- **C1 Documental — Mapeo de brechas de restauración (Etapa 1: borrador corregido)**
+  Pendiente de validación estructural independiente (etapa 2) y commit local del parent + espejos COMPLETOS (etapa 3). C y U globales ABIERTOS sin nuevo PASS de runtime. Planificado explícitamente <=110 líneas brutas totales incl. bookkeeping; límite estricto <=400 por commit. ASSESS pasivo / RDD off; control estructural mínimo del parent y revisión adicional independiente del plan C1. TDD documental carece de RED significativo.
+- **Evidencia estructural mínima (mv34219i-1i-ba4d bajo HEAD 157546b)**
+  - `MainActivity.kt`: 109–121 navegación con `remember` (no saveable); 172–204 rutas `ReportEdit/DetailRoutes` sin fake public destination seam.
+  - `ReportDetailViewModel.kt`: 27–47 usa `MutableStateFlow` sin `SavedStateHandle`; 65–78 y 133–147 `forceLoad` no reinicializa explícitamente la exportación previa; observación estática, no bug probado.
+  - `ReportDetailScreen.kt` y DI: 70–76 `remember` capturas; 248–270 enlaza `hiltViewModel` y `forceLoad`. `NetworkModule.kt` 109–119 backend auth real. Expansión de DI/config/producción requiere autorización humana acotada fresca, no concedida en C1.
+- **Restricciones de pruebas existentes**:
+  - `VMTest` 116–133 y 157–181 emplean fakes y recarga de exportación.
+  - `testDebugMainActivityNavigationTest` 54–75 prueba shell, no Activity real.
+  - `ReportDetailScreenTest` 63–69 / 128–145 / 205–245 usan Robolectric sintético.
+  - `U2 ReportDetailNativeGate` 38–75 prueba Compose sintético y portapapeles.
+  - `U3 PdfShareNativeGate` 26–78 renderiza y parsea PDF real con paridad de bytes vía `ContentResolver` propio, y prepara el chooser (NO intercepta PDF ni implanta URI vía intent).
+  - `AdminPanelScreenTest` 256–280 usa `StateRestorationTester` simulando un synthetic saved-instance-state, divergente conceptualmente de recomposición, recreación de Activity real y process death.
+- **Aceptación futura de Activity real**: Retener el destino `ReportDetail` tras la recreación (NO requiere nueva entrada), identificando explícitamente el Activity viejo/nuevo, el estado retenido vs. recargado con cero backend real. (TalkBack, gestos IME y recipiente externo de PDF son validaciones SEPARADAS pendientes, NO componentes de U4).
+- **Incidente preservado**: Derrame nuevo causado por truncación a 50KB de `codegraph files`. Metadatos de diagnóstico leídos; log `/tmp/pi-bash-1dc07be63ff4e6c4.log` preservado `unread`, `unstat`, `uncopied` y `unchanged`. Sin reclamo original de exit 0 ni asunción de privacidad o contenidos. Derrame histórico previo también preservado. Sin permiso implícito de claims o pre-filtrados garantizados.
