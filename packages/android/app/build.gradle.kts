@@ -190,6 +190,13 @@ fun requireUsableUrl(
     }
 }
 
+// Test-only opt-in; reject typos rather than silently targeting the installed product.
+val nativeExportGate = when (val value = providers.gradleProperty("nativeExportGate").orNull) {
+    null, "false" -> false
+    "true" -> true
+    else -> error("nativeExportGate must be exactly true or false, but got '$value'.")
+}
+
 android {
     namespace = "com.trindade.app"
     // The pinned androidx/OkHttp versions (Compose 1.12.x, OkHttp 5.5.0) require API 37;
@@ -198,6 +205,10 @@ android {
 
     defaultConfig {
         applicationId = "com.trindade.app"
+        if (nativeExportGate) {
+            testApplicationId = "com.trindade.app.nativegate.test"
+            testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        }
         // Android 8.0 is a deliberate floor: field devices still on Oreo remain common.
         minSdk = 26
         targetSdk = 35
@@ -294,6 +305,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            if (nativeExportGate) applicationIdSuffix = ".nativegate"
+        }
         release {
             if (releaseSigningConfigured) {
                 signingConfig = signingConfigs.getByName("release")
@@ -466,6 +480,14 @@ tasks.matching {
 }
 
 dependencies {
+    if (nativeExportGate) {
+        androidTestImplementation(platform(libs.androidx.compose.bom))
+        androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+        androidTestImplementation(libs.androidx.test.ext.junit)
+        // Cache candidate only: offline resolution/compatibility must pass before installation.
+        androidTestImplementation("androidx.test:runner:1.5.0")
+    }
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.hilt.navigation.compose)
