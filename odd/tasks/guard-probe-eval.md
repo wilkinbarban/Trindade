@@ -709,3 +709,18 @@ SupervisorEngine assembly tracking (task 8c4a closed in 4ef2e5c8b22d253e54476711
 - **Aceptación y pruebas**: `StateRestorationTester` simula synthetic saved-instance-state (distinto de recomposición, Activity real recreate y process death). Validación futura retiene el destino tras recrear (NO requiere nueva entrada), identificando Activity vieja/nueva, retención de estado explícita y cero backend real. U3 parsea PDF real y prepara chooser. TalkBack/gestos/ext. PDF son validaciones SEPARADAS pendientes (NO U4).
 - **Incidente preservado**: Derrame nuevo `/tmp/pi-bash-1dc07be63ff4e6c4.log` (truncación 50KB `codegraph files`). Diagnosis de metadatos solamente; persiste `unread`, `unstat`, `uncopied`, `unchanged`. Sin autoridad de exit 0 original ni asunción de contenidos.
 - **C1 Documental — CERRADO LOCALMENTE (QUALIFIED)**: commit `ee77c13`; verificación estructural independiente 24 líneas brutas (diffcheck 0). Puramente documental sin pruebas de runtime aplicables ni RED significativo, sin acciones sobre código fuente o dispositivo. U y C globales siguen ABIERTOS; incidentes y cuarentenas persisten sin resolución. (Sustituye estados pendientes anteriores).
+- **C2 Documental (Tracking)**: 3 etapas: (1) matriz canónica blockers/acciones/condiciones cierre guard-probe-eval + resumen vinculado main (en progreso); (2) validación estructural independiente pendiente; (3) commit local parent y espejos completos pendientes. U/C y blockers ABIERTOS; ≤110 líneas brutas planificadas incl. bookkeeping, ≤400 por commit. Sin producción ni runtime; documentación sin RED significativo. Baseline HEAD 917bd70 limpio observado antes de estas ediciones.
+
+### C2 blockers
+
+C2 documental (Stage 1 draft prepared) NO resuelve estos bloqueos (U y C globales siguen ABIERTOS). Stage 2 independent structural pending; Stage 3 parent local commit + FULL mirrors pending. Cualquier expansión de DI, producción o CONFIG requiere autorización humana de alcance fresca y tests aplicables (esta matriz no otorga grants/permisos implícitos). Docs sin meaningful RED, functional checks N/A; sin operaciones runtime, read spills, mutaciones, proceso, commands o comprobaciones de red. Git limpio solo afirmable con nuevas revisiones explícitas. (Refs calificadas previas C1/U3: líneas 698-711, main 173-186 y procedural main 53-68/4-6).
+
+| Bloqueo | Estado | Acción futura (no autorizada C2) | Evidencia de cierre |
+|---|---|---|---|
+| `realActivityReportDetailrecreate` | ABIERTO | Future fresh scoped authorization (zero backend). | Retener destino ReportDetail sin nueva entrada; probar identidades OLD/NEW Activity diferenciables; identificar verdaderamente el estado retained vs reloaded; evidenciar observación objetiva de zero backend real. |
+| `processdeath` | ABIERTO | Independent actual death restart. | Demuestra supervivencia a muerte real, not Activity recreate / synthetic SaveableRestore. |
+| `TalkBack` | ABIERTO | Authorized real interaction. | Focus interactivo real, labels, y announcements. |
+| `IME/insets/gestures` | ABIERTO | Separate scenarios. | Real interaction authorized y separada. |
+| `externalPDFrecipient` | ABIERTO | Grant and receipt read external fixture. | Lectura y permisos sobre fixture externo, not own URI / chooser interno. |
+| `procedural2spills` | ABIERTO | Maintain incident; future explicit disposition+evidence. | Existentes `/tmp/pi-bash-92478fc1be7ecb4b.log` y `/tmp/pi-bash-1dc07be63ff4e6c4.log` retenidos con fin explícito. No original exit/privacy claims; NO access logs. |
+| `quarantinemv2m527b-4-1vd4` | ABIERTO | Authorized resolution. | Real cleanup / affected group exit confirmation; capacity available does not close. |
