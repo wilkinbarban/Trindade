@@ -32,7 +32,7 @@ import kotlinx.serialization.Contextual
  * 
  *
  * @param currentPassword 
- * @param newPassword 
+ * @param newPassword At least 15 Unicode graphemes (Intl.Segmenter), at most 72 original UTF-8 bytes; input unchanged.
  */
 @Serializable
 
@@ -41,6 +41,7 @@ data class ChangePasswordRequest (
     @SerialName(value = "currentPassword")
     val currentPassword: kotlin.String,
 
+    /* At least 15 Unicode graphemes (Intl.Segmenter), at most 72 original UTF-8 bytes; input unchanged. */
     @SerialName(value = "newPassword")
     val newPassword: kotlin.String
 

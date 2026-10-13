@@ -32,7 +32,7 @@ import kotlinx.serialization.Contextual
  * 
  *
  * @param username 
- * @param password 
+ * @param password At least 15 Unicode graphemes (Intl.Segmenter), at most 72 original UTF-8 bytes; input unchanged.
  * @param displayName 
  * @param roleId 
  */
@@ -43,6 +43,7 @@ data class CreateAdminUserRequest (
     @SerialName(value = "username")
     val username: kotlin.String,
 
+    /* At least 15 Unicode graphemes (Intl.Segmenter), at most 72 original UTF-8 bytes; input unchanged. */
     @SerialName(value = "password")
     val password: kotlin.String,
 

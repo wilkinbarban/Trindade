@@ -33,7 +33,7 @@ import kotlinx.serialization.Contextual
  *
  * @param username 
  * @param displayName 
- * @param password 
+ * @param password At least 15 Unicode graphemes (Intl.Segmenter), at most 72 original UTF-8 bytes; input unchanged.
  */
 @Serializable
 
@@ -45,6 +45,7 @@ data class RegisterRequest (
     @SerialName(value = "display_name")
     val displayName: kotlin.String,
 
+    /* At least 15 Unicode graphemes (Intl.Segmenter), at most 72 original UTF-8 bytes; input unchanged. */
     @SerialName(value = "password")
     val password: kotlin.String
 
