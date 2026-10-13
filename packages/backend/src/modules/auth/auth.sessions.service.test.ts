@@ -69,6 +69,9 @@ describe('auth session service', () => {
     const result = rotateSession(db, first, 30);
     if (result.outcome !== 'rotated') assert.fail(`expected rotated, got ${result.outcome}`);
     assert.equal(result.userId, adminId);
+    assert.equal(result.securityVersion, 1);
+    assert.equal(result.role, 'Administrador');
+    assert.equal(result.username, 'session-admin');
     assert.notEqual(result.refreshToken, first);
     assert.equal(familyOf(db, result.refreshToken), familyBefore, 'rotation left the family');
 
@@ -77,6 +80,21 @@ describe('auth session service', () => {
       .get(hashRefreshToken(first)) as { revoked_at: string | null; replaced_by: string | null };
     assert.ok(previous.revoked_at, 'the rotated-away token was not revoked');
     assert.equal(previous.replaced_by, hashRefreshToken(result.refreshToken));
+  });
+
+  it('rejects rev2 refresh sessions revoked by the rev3 cutover', () => {
+    const old = issueSession(db, adminId, 30);
+    db.prepare("UPDATE auth_sessions SET revoked_at = datetime('now') WHERE revoked_at IS NULL").run();
+    assert.deepEqual(rotateSession(db, old, 30), { outcome: 'revoked' });
+  });
+
+  it('captures changed role and version during rotation', () => {
+    const old = issueSession(db, adminId, 30);
+    db.prepare('UPDATE users SET role_id = 2, security_version = security_version + 1 WHERE id = ?').run(adminId);
+    const result = rotateSession(db, old, 30);
+    if (result.outcome !== 'rotated') assert.fail(`expected rotated, got ${result.outcome}`);
+    assert.equal(result.role, 'Trabalhador');
+    assert.equal(result.securityVersion, 2);
   });
 
   it('revokes the whole family when a token rotated long ago is presented', () => {
@@ -207,4 +225,27 @@ describe('auth session service', () => {
     const remaining = db.prepare('SELECT token_hash FROM auth_sessions').pluck().all() as string[];
     assert.deepEqual(remaining.sort(), [hashRefreshToken(live), hashRefreshToken(recentDead)].sort());
   });
+  it('ends the successor session when logout presents a token that was already rotated', () => {
+    const stale = issueSession(db, adminId, 30);
+    const rotated = rotateSession(db, stale, 30);
+    if (rotated.outcome !== 'rotated') assert.fail(`expected rotated, got ${rotated.outcome}`);
+    const family = familyOf(db, stale);
+    const liveInFamily = () =>
+      db
+        .prepare('SELECT COUNT(*) FROM auth_sessions WHERE family_id = ? AND revoked_at IS NULL')
+        .pluck()
+        .get(family) as number;
+    assert.equal(liveInFamily(), 1, 'the rotated successor should be the only live token');
+    assert.equal(liveSessionCount(db), 1);
+
+    // The logout path after a 401 refresh: the client retries with the stale token still in the
+    // body while the server already rotated the family and is holding a live successor.
+    const ended = revokeSession(db, stale);
+
+    assert.equal(ended, true, 'logout must report ending a live session instead of a no-op');
+    assert.equal(liveInFamily(), 0, 'the successor must not outlive the logout');
+    assert.equal(liveSessionCount(db), 0);
+    assert.equal(revokeSession(db, rotated.refreshToken), false, 'nothing live remains to end');
+  });
+
 });

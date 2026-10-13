@@ -26,7 +26,7 @@ import type Database from 'better-sqlite3';
 const TOKEN_BYTES = 32;
 
 export type RotateSessionResult =
-  | { outcome: 'rotated'; userId: number; refreshToken: string }
+  | { outcome: 'rotated'; userId: number; username: string; role: string; securityVersion: number; refreshToken: string }
   | { outcome: 'unknown' }
   | { outcome: 'expired' }
   | { outcome: 'reused' }
@@ -168,10 +168,11 @@ export function rotateSession(
       return { outcome: 'expired' };
     }
 
-    const user = db.prepare('SELECT is_active FROM users WHERE id = ?').get(row.user_id) as
-      | { is_active: number }
+    const user = db.prepare(`SELECT u.is_active, u.username, u.security_version, r.name AS role
+      FROM users u JOIN roles r ON r.id = u.role_id WHERE u.id = ?`).get(row.user_id) as
+      | { is_active: number; username: string; security_version: number; role: string }
       | undefined;
-    if (!user || user.is_active !== 1) {
+    if (!user || user.is_active !== 1 || !Number.isSafeInteger(user.security_version) || user.security_version <= 0) {
       revokeFamily(db, row.family_id);
       return { outcome: 'inactive-user' };
     }
@@ -185,21 +186,36 @@ export function rotateSession(
        WHERE id = ?`,
     ).run(nextHash, row.id);
 
-    return { outcome: 'rotated', userId: row.user_id, refreshToken };
+    return { outcome: 'rotated', userId: row.user_id, username: user.username,
+      role: user.role, securityVersion: user.security_version, refreshToken };
   });
 
-  return rotate();
+  return rotate.immediate();
 }
 
 /**
  * End one device's session. Other sessions of the same user stay alive, so logging out on
  * a phone does not log the desktop out. Returns true only when a live session was ended.
+ *
+ * A token that has already been rotated still ends its family. That is not a redundant branch: it
+ * is what a logout looks like when the client's access token had expired, so the interceptor
+ * refreshed once and then retried the original request body, which still carried the stale refresh
+ * token. Revoking only the stale row would change nothing — it was revoked by the rotation — and
+ * would leave the successor alive for its full lifetime behind a sign-out the operator believes
+ * finished. The family is the right scope because rotation keeps the successor in the same family
+ * and other devices live in their own, so this ends exactly the session that asked to end.
  */
 export function revokeSession(db: Database.Database, token: string): boolean {
+  const hash = hashRefreshToken(token);
+  const row = db
+    .prepare('SELECT family_id, revoked_at FROM auth_sessions WHERE token_hash = ?')
+    .get(hash) as { family_id: string; revoked_at: string | null } | undefined;
+  if (!row) return false;
+  if (row.revoked_at !== null) return revokeFamily(db, row.family_id) > 0;
   return (
     db
       .prepare("UPDATE auth_sessions SET revoked_at = datetime('now') WHERE token_hash = ? AND revoked_at IS NULL")
-      .run(hashRefreshToken(token)).changes > 0
+      .run(hash).changes > 0
   );
 }
 
