@@ -2226,7 +2226,9 @@
           },
           "newPassword": {
             "type": "string",
-            "minLength": 8
+            "minLength": 15,
+            "maxLength": 72,
+            "description": "At least 15 Unicode graphemes (Intl.Segmenter), at most 72 original UTF-8 bytes; input unchanged."
           }
         },
         "required": [
@@ -2259,8 +2261,9 @@
           },
           "password": {
             "type": "string",
-            "minLength": 8,
-            "maxLength": 72
+            "minLength": 15,
+            "maxLength": 72,
+            "description": "At least 15 Unicode graphemes (Intl.Segmenter), at most 72 original UTF-8 bytes; input unchanged."
           }
         },
         "required": [
@@ -3515,7 +3518,9 @@
           },
           "password": {
             "type": "string",
-            "minLength": 4
+            "minLength": 15,
+            "maxLength": 72,
+            "description": "At least 15 Unicode graphemes (Intl.Segmenter), at most 72 original UTF-8 bytes; input unchanged."
           },
           "display_name": {
             "type": "string",
@@ -3545,7 +3550,9 @@
           },
           "password": {
             "type": "string",
-            "minLength": 4
+            "minLength": 15,
+            "maxLength": 72,
+            "description": "At least 15 Unicode graphemes (Intl.Segmenter), at most 72 original UTF-8 bytes; input unchanged."
           },
           "display_name": {
             "type": "string",
