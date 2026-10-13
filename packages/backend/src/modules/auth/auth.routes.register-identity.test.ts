@@ -67,7 +67,7 @@ describe('Registration identity resolution (account twins and mixed-case login)'
       const res = await app.inject({
         method: 'POST',
         url: '/api/auth/register',
-        payload: { username: 'admin', display_name: 'Imposter Worker', password: 'password123' },
+        payload: { username: 'admin', display_name: 'Imposter Worker', password: 'password1234567' },
       });
 
       assert.strictEqual(res.statusCode, 200, res.body);
@@ -116,7 +116,7 @@ describe('Registration identity resolution (account twins and mixed-case login)'
       const res = await app.inject({
         method: 'POST',
         url: '/api/auth/register',
-        payload: { username: candidate, display_name: 'Unicode Imposter', password: 'password123' },
+        payload: { username: candidate, display_name: 'Unicode Imposter', password: 'password1234567' },
       });
 
       assert.strictEqual(res.statusCode, 200, res.body);
@@ -132,7 +132,7 @@ describe('Registration identity resolution (account twins and mixed-case login)'
       const res = await app.inject({
         method: 'POST',
         url: '/api/auth/register',
-        payload: { username: fresh, display_name: 'Fresh Worker', password: 'password123' },
+        payload: { username: fresh, display_name: 'Fresh Worker', password: 'password1234567' },
       });
 
       assert.strictEqual(res.statusCode, 200, res.body);

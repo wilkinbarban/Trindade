@@ -57,7 +57,7 @@ describe('POST /api/auth/register bootstrap, storage, and audit guards', () => {
       const registerRes = await bootstrapApp.inject({
         method: 'POST',
         url: '/api/auth/register',
-        payload: { username: 'preempt-worker', display_name: 'Preempt', password: 'password123' },
+        payload: { username: 'preempt-worker', display_name: 'Preempt', password: 'password1234567' },
       });
 
       // Rejected with 409 Conflict
@@ -138,7 +138,7 @@ describe('POST /api/auth/register bootstrap, storage, and audit guards', () => {
         payload: {
           username: 'missing-role-worker',
           display_name: 'Missing Role Worker',
-          password: 'password123',
+          password: 'password1234567',
         },
       });
 
@@ -206,7 +206,7 @@ describe('POST /api/auth/register bootstrap, storage, and audit guards', () => {
         payload: {
           username: 'audit-fail-worker',
           display_name: 'Audit Fail Worker',
-          password: 'password123',
+          password: 'password1234567',
         },
       });
 

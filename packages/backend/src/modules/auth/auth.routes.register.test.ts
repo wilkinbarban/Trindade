@@ -41,7 +41,7 @@ describe('POST /api/auth/register (Public Worker Registration)', () => {
     const payload = {
       username: 'worker-pending',
       display_name: 'Pending Worker',
-      password: 'password123',
+      password: 'password1234567',
     };
 
     const registerRes = await app.inject({
@@ -80,7 +80,7 @@ describe('POST /api/auth/register (Public Worker Registration)', () => {
     const payload = {
       username: 'worker-to-activate',
       display_name: 'Active Worker',
-      password: 'password123',
+      password: 'password1234567',
     };
 
     const registerRes = await app.inject({
@@ -152,7 +152,7 @@ describe('POST /api/auth/register (Public Worker Registration)', () => {
     const res = await app.inject({
       method: 'POST',
       url: '/api/auth/register',
-      payload: { username: 'audit-test-worker', display_name: 'Audit Worker', password: 'password123' },
+      payload: { username: 'audit-test-worker', display_name: 'Audit Worker', password: 'password1234567' },
     });
     assert.strictEqual(res.statusCode, 200);
 
@@ -172,7 +172,7 @@ describe('POST /api/auth/register (Public Worker Registration)', () => {
     await app.inject({
       method: 'POST',
       url: '/api/auth/register',
-      payload: { username: 'audit-test-worker', display_name: 'Audit Worker', password: 'password123' },
+      payload: { username: 'audit-test-worker', display_name: 'Audit Worker', password: 'password1234567' },
     });
     const auditsAfterDuplicate = db.prepare('SELECT COUNT(*) FROM audit_logs WHERE user_id = ? AND action = ?').pluck().get(workerUser.id, 'register') as number;
     assert.strictEqual(auditsAfterDuplicate, 1, 'duplicate registration must not produce additional audit log');

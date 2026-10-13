@@ -146,7 +146,7 @@ describe('registerWorkerUser storage invariants', () => {
 // the admission shape: privilege fields must not survive parsing, and the field bounds are the
 // first line of defence against an oversized or empty payload.
 describe('registerSchema admission invariants', () => {
-  const valid = { username: 'worker-schema', display_name: 'Schema Worker', password: 'password123' };
+  const valid = { username: 'worker-schema', display_name: 'Schema Worker', password: 'password1234567' };
 
   it('accepts the documented body and rejects unknown or privilege-bearing fields', () => {
     assert.equal(registerSchema.safeParse(valid).success, true);

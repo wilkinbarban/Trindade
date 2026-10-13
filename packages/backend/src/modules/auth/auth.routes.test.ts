@@ -295,7 +295,7 @@ describe('Auth Routes', () => {
         method: 'POST',
         url: '/api/auth/change-password',
         headers: { authorization: `Bearer ${token}` },
-        payload: { currentPassword: 'wrongcurrent', newPassword: 'newpassword' },
+        payload: { currentPassword: 'wrongcurrent', newPassword: 'new-password-2026-long' },
       });
       assert.strictEqual(changeRes.statusCode, 400);
       const body = JSON.parse(changeRes.body);
@@ -325,7 +325,7 @@ describe('Auth Routes', () => {
       const changeRes = await app.inject({
         method: 'POST',
         url: '/api/auth/change-password',
-        payload: { currentPassword: fixtures.worker.password, newPassword: 'newpassword' },
+        payload: { currentPassword: fixtures.worker.password, newPassword: 'new-password-2026-long' },
       });
       assert.strictEqual(changeRes.statusCode, 401);
     });

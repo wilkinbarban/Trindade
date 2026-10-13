@@ -135,7 +135,7 @@ describe('API contract', () => {
         payload: {
           username: 'worker_contract_test',
           display_name: 'Worker Contract Test',
-          password: 'password123',
+          password: 'password1234567',
         },
       });
       assert.strictEqual(res.statusCode, 200, res.body);

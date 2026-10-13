@@ -37,7 +37,7 @@ describe('POST /api/auth/register admission and input guards', () => {
     const base = {
       username: 'worker-privilege-attempt',
       display_name: 'Attempted Admin',
-      password: 'password123',
+      password: 'password1234567',
     };
 
     const injectionAttempts = [
@@ -94,7 +94,7 @@ describe('POST /api/auth/register admission and input guards', () => {
         method: 'POST',
         url: '/api/auth/register',
         headers: { 'x-forwarded-for': '192.168.1.1' },
-        payload: { username: 'target-worker', display_name: 'Target', password: 'password123' },
+        payload: { username: 'target-worker', display_name: 'Target', password: 'password1234567' },
       });
       assert.strictEqual(res1.statusCode, 200);
 
@@ -102,7 +102,7 @@ describe('POST /api/auth/register admission and input guards', () => {
         method: 'POST',
         url: '/api/auth/register',
         headers: { 'x-forwarded-for': '192.168.1.2' },
-        payload: { username: 'target-worker', display_name: 'Target', password: 'password123' },
+        payload: { username: 'target-worker', display_name: 'Target', password: 'password1234567' },
       });
       assert.strictEqual(res2.statusCode, 200);
 
@@ -111,7 +111,7 @@ describe('POST /api/auth/register admission and input guards', () => {
         method: 'POST',
         url: '/api/auth/register',
         headers: { 'x-forwarded-for': '192.168.1.3' },
-        payload: { username: 'target-worker', display_name: 'Target', password: 'password123' },
+        payload: { username: 'target-worker', display_name: 'Target', password: 'password1234567' },
       });
       assert.strictEqual(res3.statusCode, 429);
       assert.match(JSON.parse(res3.body).error, /limite/i);
@@ -122,7 +122,7 @@ describe('POST /api/auth/register admission and input guards', () => {
         method: 'POST',
         url: '/api/auth/register',
         headers: { 'x-forwarded-for': '192.168.1.4' },
-        payload: { username: 'other-worker-1', display_name: 'Other', password: 'password123' },
+        payload: { username: 'other-worker-1', display_name: 'Other', password: 'password1234567' },
       });
       assert.strictEqual(res4.statusCode, 200);
 
@@ -131,7 +131,7 @@ describe('POST /api/auth/register admission and input guards', () => {
         method: 'POST',
         url: '/api/auth/register',
         headers: { 'x-forwarded-for': '192.168.1.5' },
-        payload: { username: 'other-worker-2', display_name: 'Other', password: 'password123' },
+        payload: { username: 'other-worker-2', display_name: 'Other', password: 'password1234567' },
       });
       assert.strictEqual(res5.statusCode, 429);
       assert.match(JSON.parse(res5.body).error, /limite/i);
@@ -170,7 +170,7 @@ describe('POST /api/auth/register admission and input guards', () => {
       const res = await isolatedApp.inject({
         method: 'POST',
         url: '/api/auth/register',
-        payload: { username: 'burst-worker', display_name: 'Burst', password: 'password123' },
+        payload: { username: 'burst-worker', display_name: 'Burst', password: 'password1234567' },
       });
 
       assert.strictEqual(res.statusCode, 429);
@@ -189,7 +189,7 @@ describe('POST /api/auth/register admission and input guards', () => {
     const resUserTooLong = await app.inject({
       method: 'POST',
       url: '/api/auth/register',
-      payload: { username: 'a'.repeat(51), display_name: 'Worker', password: 'password123' },
+      payload: { username: 'a'.repeat(51), display_name: 'Worker', password: 'password1234567' },
     });
     assert.strictEqual(resUserTooLong.statusCode, 400);
 
@@ -197,7 +197,7 @@ describe('POST /api/auth/register admission and input guards', () => {
     const resDisplayTooLong = await app.inject({
       method: 'POST',
       url: '/api/auth/register',
-      payload: { username: 'valid-user', display_name: 'a'.repeat(101), password: 'password123' },
+      payload: { username: 'valid-user', display_name: 'a'.repeat(101), password: 'password1234567' },
     });
     assert.strictEqual(resDisplayTooLong.statusCode, 400);
 
@@ -236,7 +236,7 @@ describe('POST /api/auth/register admission and input guards', () => {
     assert.strictEqual(resPass7Body.error, 'Invalid input');
     assert.match(
       resPass7Body.details.fieldErrors.password?.[0] ?? '',
-      /at least 8 characters/i
+      /at least 15 visible graphemes/i
     );
 
     // Boundary: 8 characters is accepted
@@ -251,14 +251,14 @@ describe('POST /api/auth/register admission and input guards', () => {
     const resBlankUsername = await app.inject({
       method: 'POST',
       url: '/api/auth/register',
-      payload: { username: '   ', display_name: 'Worker', password: 'password123' },
+      payload: { username: '   ', display_name: 'Worker', password: 'password1234567' },
     });
     assert.strictEqual(resBlankUsername.statusCode, 400);
 
     const resBlankDisplay = await app.inject({
       method: 'POST',
       url: '/api/auth/register',
-      payload: { username: 'valid-user', display_name: '   ', password: 'password123' },
+      payload: { username: 'valid-user', display_name: '   ', password: 'password1234567' },
     });
     assert.strictEqual(resBlankDisplay.statusCode, 400);
   });
