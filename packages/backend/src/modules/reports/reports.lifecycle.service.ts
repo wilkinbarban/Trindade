@@ -3,7 +3,7 @@ import { existsSync, unlinkSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { join } from 'node:path';
 import type { HistoryQuery, HistoryPagination, ReportListItem, ReportPhoto } from './reports.schema.js';
-import { projectHistoryPermissions, type HistoryActor } from '../history-permissions.js';
+import { projectHistoryPermissions, type HistoryActor, parseSqliteDate } from '../history-permissions.js';
 
 interface ReportRow {
   id: number;
@@ -21,6 +21,21 @@ interface ReportRow {
 export type { ReportPhoto };
 
 export const MAX_REPORT_PHOTOS = 5;
+
+/**
+ * How long a photo link stays valid after the token was issued.
+ *
+ * The token is created with the photo, so "issued" is the upload time. The retention
+ * cleanup deletes the row after 30 days, which is far longer, so this window is what
+ * actually bounds a shared link; the file itself is never kept alive by a link.
+ */
+export const PUBLIC_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+
+/** Whether a token created at `createdAt` is still inside its 24-hour window. */
+export function isPublicTokenLive(createdAt: string, now = Date.now()): boolean {
+  const issued = parseSqliteDate(createdAt).getTime();
+  return Number.isFinite(issued) && now < issued + PUBLIC_TOKEN_TTL_MS;
+}
 
 function photoUrl(photoId: number): string {
   return `/api/reports/photos/${photoId}`;
@@ -62,7 +77,7 @@ export function savePhoto(
       `INSERT INTO report_photos (report_id, file_path, file_size, mime_type, public_token)
        VALUES (?, ?, ?, ?, ?)`
     )
-    .run(reportId, filePath, fileSize, mimeType, randomBytes(6).toString('hex'));
+    .run(reportId, filePath, fileSize, mimeType, randomBytes(16).toString('hex'));
 
   return getPhotoById(db, result.lastInsertRowid as number)!;
 }
@@ -107,7 +122,8 @@ export function getPhotoById(
 
 export function getPhotoByPublicToken(
   db: Database.Database,
-  token: string
+  token: string,
+  now = Date.now()
 ): ReportPhoto | null {
   const row = db
     .prepare(
@@ -117,7 +133,8 @@ export function getPhotoByPublicToken(
     )
     .get(token) as ReportPhoto | undefined;
 
-  return row ? withPhotoUrls(row) : null;
+  if (!row || !isPublicTokenLive(row.created_at, now)) return null;
+  return withPhotoUrls(row);
 }
 
 export function deletePhoto(
