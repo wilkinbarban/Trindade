@@ -2,6 +2,7 @@ import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import { corsPolicy } from './cors-policy.js';
 import multipart from '@fastify/multipart';
 import { loadRuntimeConfig } from './runtime-config.js';
 import { openDatabase } from './db/index.js';
@@ -54,10 +55,8 @@ if (!sessionStoreAvailable) {
   );
 }
 
-// CORS — allow Vite dev server and any origin in development
-await server.register(cors, {
-  origin: true,
-});
+// Browser access is limited to the approved HTTPS origin; native clients still use authentication.
+await server.register(cors, corsPolicy);
 
 // Multipart — 5MB file size limit
 await server.register(multipart, {

@@ -1,4 +1,5 @@
 import { Suspense, lazy, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AppShell } from './components/layout/AppShell';
@@ -67,6 +68,7 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 }
 
 function SetupGate({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation();
   const [required, setRequired] = useState<boolean | null>(null);
   const [error, setError] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -78,8 +80,8 @@ function SetupGate({ children }: { children: React.ReactNode }) {
     return () => { active = false; };
   }, [attempt]);
   if (error) return <main className="min-h-screen flex flex-col items-center justify-center gap-4" role="alert">
-    <p>Não foi possível verificar a configuração inicial.</p>
-    <button type="button" onClick={() => { setError(false); setAttempt(value => value + 1); }} className="underline">Tentar novamente</button>
+    <p>{t('setup.gateError')}</p>
+    <button type="button" onClick={() => { setError(false); setAttempt(value => value + 1); }} className="underline">{t('setup.retry')}</button>
   </main>;
   if (required === null) return <LazyFallback />;
   if (required) return <SetupPage onComplete={() => setRequired(false)} />;

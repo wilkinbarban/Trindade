@@ -308,7 +308,7 @@ describe('admin responses match their declared schemas', () => {
       UserResponseSchema,
       await adminSend('POST', '/api/admin/users', 201, {
         username: 'usuario-de-contrato',
-        password: 'contrato-1234',
+        password: 'contrato-seguro-1234',
         display_name: 'Usuario de contrato',
         role_id: 2,
       }),
@@ -385,7 +385,7 @@ describe('admin responses match their declared schemas', () => {
       UserResponseSchema,
       await adminSend('POST', '/api/admin/users', 201, {
         username: 'usuario-de-contrato-descartavel',
-        password: 'contrato-1234',
+        password: 'contrato-seguro-1234',
         display_name: 'Usuario descartable',
         role_id: 2,
       }),

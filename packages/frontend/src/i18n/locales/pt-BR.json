@@ -5,6 +5,9 @@
     "header": "Operações Trindade"
   },
   "auth": {
+    "passwordTooShort": "Use pelo menos 15 caracteres visíveis: letras, números ou símbolos contam um por um.",
+    "passwordTooLong": "A senha não pode passar de 72 bytes; encurte a frase para não ser cortada.",
+    "passwordTooCommon": "Essa senha é muito comum. Escolha outra frase ou combinação.",
     "username": "Usuário",
     "password": "Senha",
     "signIn": "Entrar",
@@ -13,7 +16,6 @@
     "sessionExpired": "Sua sessão expirou. Entre novamente para continuar.",
     "error": "Erro ao carregar. Tente novamente.",
     "signInDesc": "Faça login para acessar a plataforma",
-    "passwordStrengthWarning": "Recomendamos uma senha de pelo menos 8 caracteres com letras maiúsculas e números",
     "changePassword": "Alterar Senha",
     "currentPassword": "Senha Atual",
     "newPassword": "Nova Senha",
@@ -346,11 +348,38 @@
     }
   },
   "history": {
+    "filterDate": "Data",
+    "filterMonth": "Mês",
+    "filterUser": "Usuário",
+    "viewReport": "Ver relatório de {{date}}",
+    "deactivateReport": "Desativar relatório de {{date}}",
+    "deleteReport": "Excluir relatório de {{date}}",
+    "deactivateLoading": "Desativar carregamento de {{date}}",
+    "deleteLoading": "Excluir carregamento de {{date}}",
+    "actionForbidden": "Você não tem permissão para esta ação.",
+    "actionMissing": "O registro não existe mais.",
+    "actionFailed": "Não foi possível concluir a ação. Tente novamente.",
     "allUsers": "Todos os usuários",
     "inactive": "Inativo",
     "legacy": "Legado sem criador",
     "pagination": "Página {{page}} de {{totalPages}} — {{total}} registros",
     "previousPage": "Anterior",
     "nextPage": "Próxima"
+  },
+  "setup": {
+    "title": "Configuração inicial",
+    "description": "O primeiro administrador deve ser criado pelo operador, fora deste site. Entre em contato com o responsável pela instalação; não informe senhas nesta página.",
+    "stillRequired": "A configuração ainda não foi concluída. Solicite ao operador que crie o administrador.",
+    "verifyFailed": "Não foi possível verificar a configuração. Tente novamente.",
+    "verifying": "Verificando…",
+    "verify": "Verificar configuração",
+    "gateError": "Não foi possível verificar a configuração inicial.",
+    "retry": "Tentar novamente"
+  },
+  "api": {
+    "uploadFailed": "Não foi possível enviar o arquivo. Tente novamente.",
+    "sessionExpired": "Sessão expirada. Entre novamente para continuar.",
+    "unauthorized": "Você precisa entrar para continuar.",
+    "requestFailed": "Não foi possível concluir a solicitação. Tente novamente."
   }
 }

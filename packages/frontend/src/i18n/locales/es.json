@@ -5,6 +5,9 @@
     "header": "Operaciones Trindade"
   },
   "auth": {
+    "passwordTooShort": "Usá al menos 15 caracteres visibles: letras, números o símbolos cuentan uno por uno.",
+    "passwordTooLong": "La contraseña no puede superar los 72 bytes; acortá la frase para que no se corte.",
+    "passwordTooCommon": "Esa contraseña es muy común. Elegí otra frase o combinación.",
     "username": "Usuario",
     "password": "Contraseña",
     "signIn": "Ingresar",
@@ -13,7 +16,6 @@
     "sessionExpired": "Tu sesión expiró. Volvé a entrar para continuar.",
     "error": "Error al cargar. Intente nuevamente.",
     "signInDesc": "Inicie sesión para acceder a la plataforma",
-    "passwordStrengthWarning": "Recomendamos una contraseña de al menos 8 caracteres con mayúsculas y números",
     "changePassword": "Cambiar Contraseña",
     "currentPassword": "Contraseña Actual",
     "newPassword": "Nueva Contraseña",
@@ -346,11 +348,38 @@
     }
   },
   "history": {
+    "filterDate": "Fecha",
+    "filterMonth": "Mes",
+    "filterUser": "Usuario",
+    "viewReport": "Ver reporte del {{date}}",
+    "deactivateReport": "Desactivar reporte del {{date}}",
+    "deleteReport": "Eliminar reporte del {{date}}",
+    "deactivateLoading": "Desactivar cargamento del {{date}}",
+    "deleteLoading": "Eliminar cargamento del {{date}}",
+    "actionForbidden": "No tenés permiso para esta acción.",
+    "actionMissing": "El registro ya no existe.",
+    "actionFailed": "No se pudo completar la acción. Intentá de nuevo.",
     "allUsers": "Todos los usuarios",
     "inactive": "Inactivo",
     "legacy": "Legado sin creador",
     "pagination": "Página {{page}} de {{totalPages}} — {{total}} registros",
     "previousPage": "Anterior",
     "nextPage": "Siguiente"
+  },
+  "setup": {
+    "title": "Configuración inicial",
+    "description": "El primer administrador debe ser creado por el operador, fuera de este sitio. Contactá al responsable de la instalación; no informés contraseñas en esta página.",
+    "stillRequired": "La configuración todavía no está completa. Pedile al operador que cree el administrador.",
+    "verifyFailed": "No se pudo verificar la configuración. Intentá de nuevo.",
+    "verifying": "Verificando…",
+    "verify": "Verificar configuración",
+    "gateError": "No se pudo verificar la configuración inicial.",
+    "retry": "Reintentar"
+  },
+  "api": {
+    "uploadFailed": "No se pudo enviar el archivo. Intentá de nuevo.",
+    "sessionExpired": "La sesión expiró. Volvé a entrar para continuar.",
+    "unauthorized": "Necesitás iniciar sesión para continuar.",
+    "requestFailed": "No se pudo completar la solicitud. Intentá de nuevo."
   }
 }

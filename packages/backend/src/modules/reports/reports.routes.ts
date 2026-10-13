@@ -319,7 +319,7 @@ export async function reportsRoutes(fastify: FastifyInstance, opts: ReportsRoute
         const data = await readFile(filePath);
         return reply
           .header('Content-Type', photo.mime_type)
-          .header('Cache-Control', 'public, max-age=3600')
+          .header('Cache-Control', 'private, no-store')
           .send(data);
       } catch {
         return reply.status(500).send({ error: 'Failed to read photo file' });
@@ -355,7 +355,7 @@ export async function reportsRoutes(fastify: FastifyInstance, opts: ReportsRoute
         const data = await readFile(filePath);
         return reply
           .header('Content-Type', photo.mime_type)
-          .header('Cache-Control', 'public, max-age=3600')
+          .header('Cache-Control', 'private, no-store')
           .send(data);
       } catch {
         return reply.status(500).send({ error: 'Failed to read photo file' });

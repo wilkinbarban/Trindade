@@ -6,6 +6,27 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { LoadingSpinner } from '../../components/ui/loading-spinner';
+import { passwordIssue, passwordIssueKey } from '../../lib/password-policy';
+
+/**
+ * The hint under a new-password field.
+ *
+ * The server enforces 15 visible graphemes, 72 UTF-8 bytes and the curated weak list; the
+ * form used to demand 8 characters with an uppercase letter and a digit, which the server
+ * never required and which said nothing about the byte limit. One component keeps both
+ * password fields on the real rule, and the message names the specific problem.
+ */
+function PasswordHint({ password }: { password: string }) {
+  const { t } = useTranslation();
+  if (!password) return null;
+  const issue = passwordIssue(password);
+  if (!issue) return null;
+  return (
+    <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded p-2 mt-1">
+      ⚠️ {t(passwordIssueKey(issue))}
+    </p>
+  );
+}
 
 // ---- Types ----
 
@@ -914,11 +935,7 @@ export function AdminDashboard() {
               required={!editingId}
               placeholder={editingId ? '••••••••' : ''}
             />
-            {workerPassword && !(workerPassword.length >= 8 && /[A-Z]/.test(workerPassword) && /[0-9]/.test(workerPassword)) && (
-              <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded p-2 mt-1">
-                ⚠️ {t('auth.passwordStrengthWarning')}
-              </p>
-            )}
+            <PasswordHint password={workerPassword} />
           </div>
           {!isEditingOwnUser && (
             <div className="space-y-1">
@@ -977,11 +994,7 @@ export function AdminDashboard() {
           <div className="space-y-1">
             <label className="block text-xs font-medium text-gray-600">{t('auth.newPassword')}</label>
             <Input type="password" value={profileNewPassword} onChange={(e) => setProfileNewPassword(e.target.value)} />
-            {profileNewPassword && !(profileNewPassword.length >= 8 && /[A-Z]/.test(profileNewPassword) && /[0-9]/.test(profileNewPassword)) && (
-              <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded p-2 mt-1">
-                ⚠️ {t('auth.passwordStrengthWarning')}
-              </p>
-            )}
+            <PasswordHint password={profileNewPassword} />
           </div>
           <Button type="submit" size="sm" disabled={formLoading}>{formLoading ? t('admin.saving') : t('ui.save')}</Button>
         </form>

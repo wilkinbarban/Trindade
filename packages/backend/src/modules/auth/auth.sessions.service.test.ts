@@ -240,4 +240,27 @@ describe('auth session service', () => {
     const remaining = db.prepare('SELECT token_hash FROM auth_sessions').pluck().all() as string[];
     assert.deepEqual(remaining.sort(), [hashRefreshToken(live), hashRefreshToken(recentDead)].sort());
   });
+  it('ends the successor session when logout presents a token that was already rotated', () => {
+    const stale = issueSession(db, adminId, 30);
+    const rotated = rotateSession(db, stale, 30);
+    if (rotated.outcome !== 'rotated') assert.fail(`expected rotated, got ${rotated.outcome}`);
+    const family = familyOf(db, stale);
+    const liveInFamily = () =>
+      db
+        .prepare('SELECT COUNT(*) FROM auth_sessions WHERE family_id = ? AND revoked_at IS NULL')
+        .pluck()
+        .get(family) as number;
+    assert.equal(liveInFamily(), 1, 'the rotated successor should be the only live token');
+    assert.equal(liveSessionCount(db), 1);
+
+    // The logout path after a 401 refresh: the client retries with the stale token still in the
+    // body while the server already rotated the family and is holding a live successor.
+    const ended = revokeSession(db, stale);
+
+    assert.equal(ended, true, 'logout must report ending a live session instead of a no-op');
+    assert.equal(liveInFamily(), 0, 'the successor must not outlive the logout');
+    assert.equal(liveSessionCount(db), 0);
+    assert.equal(revokeSession(db, rotated.refreshToken), false, 'nothing live remains to end');
+  });
+
 });

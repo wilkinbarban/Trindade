@@ -4,6 +4,7 @@ import { LucideX, LucideCopy, LucideCheck } from 'lucide-react';
 import { api } from '../../api/client';
 import { Button } from '../ui/button';
 import { LoadingSpinner } from '../ui/loading-spinner';
+import { Dialog } from '../ui/dialog';
 
 export interface ScheduleExportViewProps {
   date: string;
@@ -74,19 +75,10 @@ export function ScheduleExportView({ date, open, onClose }: ScheduleExportViewPr
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/50"
-        onClick={onClose}
-        aria-hidden="true"
-      />
-
-      {/* Modal */}
-      <div className="relative bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[85vh] flex flex-col" data-testid="loading-export-modal">
+    <Dialog open={open} onClose={onClose} labelledBy="loading-export-title" panelTestId="loading-export-modal">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 shrink-0">
-          <h3 className="text-lg font-semibold text-gray-800">
+          <h3 id="loading-export-title" className="text-lg font-semibold text-gray-800">
             {t('loading.exportTitle')}
           </h3>
           <Button
@@ -146,7 +138,6 @@ export function ScheduleExportView({ date, open, onClose }: ScheduleExportViewPr
             </Button>
           </div>
         )}
-      </div>
-    </div>
+    </Dialog>
   );
 }

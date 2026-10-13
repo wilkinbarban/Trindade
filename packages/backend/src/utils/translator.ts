@@ -108,57 +108,6 @@ function wordTranslate(text: string, fromEs: boolean): string {
   }).join('');
 }
 
-const TRANSLATION_TIMEOUT_MS = 2000;
-
-async function fetchWithTimeout(url: string, init?: RequestInit): Promise<Response> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), TRANSLATION_TIMEOUT_MS);
-  try {
-    return await fetch(url, { ...init, signal: controller.signal });
-  } finally {
-    clearTimeout(timeoutId);
-  }
-}
-
-async function translateWithGoogle(cleaned: string, fromLang: 'es' | 'pt'): Promise<string | null> {
-  const apiKey = process.env.GOOGLE_TRANSLATE_API_KEY?.trim();
-  if (!apiKey) return null;
-
-  const targetLang = fromLang === 'es' ? 'pt-BR' : 'es';
-  const sourceLang = fromLang === 'es' ? 'es' : 'pt';
-  const url = `https://translation.googleapis.com/language/translate/v2?key=${encodeURIComponent(apiKey)}`;
-
-  const res = await fetchWithTimeout(url, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      q: cleaned,
-      source: sourceLang,
-      target: targetLang,
-      format: 'text',
-    }),
-  });
-
-  if (!res.ok) return null;
-  const data = await res.json() as any;
-  const translated = data?.data?.translations?.[0]?.translatedText;
-  return typeof translated === 'string' && translated.trim() ? translated.trim() : null;
-}
-
-async function translateWithMyMemory(cleaned: string, fromLang: 'es' | 'pt'): Promise<string | null> {
-  const langpair = fromLang === 'es' ? 'es|pt' : 'pt|es';
-  const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(cleaned)}&langpair=${langpair}`;
-  const res = await fetchWithTimeout(url);
-  if (!res.ok) return null;
-
-  const data = await res.json() as any;
-  const translated = data?.responseData?.translatedText;
-  if (translated && typeof translated === 'string' && !translated.startsWith('MYMEMORY WARNING')) {
-    return translated.trim();
-  }
-  return null;
-}
-
 export async function translateText(text: string, fromLang: 'es' | 'pt'): Promise<string> {
   const cleaned = text.trim();
   if (!cleaned) return '';
@@ -172,20 +121,6 @@ export async function translateText(text: string, fromLang: 'es' | 'pt'): Promis
     if (DICTIONARY_PT_TO_ES[lower]) {
       return DICTIONARY_PT_TO_ES[lower];
     }
-  }
-
-  try {
-    const googleTranslation = await translateWithGoogle(cleaned, fromLang);
-    if (googleTranslation) return googleTranslation;
-  } catch {
-    // Translation must never block admin saves. Continue to the public/local fallbacks.
-  }
-
-  try {
-    const myMemoryTranslation = await translateWithMyMemory(cleaned, fromLang);
-    if (myMemoryTranslation) return myMemoryTranslation;
-  } catch {
-    // Fail silently to local translator.
   }
 
   const localTranslation = wordTranslate(cleaned, fromLang === 'es').trim();

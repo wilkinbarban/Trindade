@@ -1,3 +1,5 @@
+import i18n from '../i18n/config';
+
 const APP_BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 export const API_BASE = `${APP_BASE}/api`;
 
@@ -111,16 +113,16 @@ async function request<T>(
   if (response.status === 401) {
     if (token && !isLoginRequest(path)) {
       handleUnauthorizedRedirect();
-      throw new ApiClientError(401, 'Sessão expirada. Entre novamente para continuar.');
+      throw new ApiClientError(401, i18n.t('api.sessionExpired'));
     }
 
-    throw new ApiClientError(401, (data && data.error) || 'Unauthorized', data && data.details);
+    throw new ApiClientError(401, (data && data.error) || i18n.t('api.unauthorized'), data && data.details);
   }
 
   if (!response.ok) {
     throw new ApiClientError(
       response.status,
-      (data && data.error) || 'Request failed',
+      (data && data.error) || i18n.t('api.requestFailed'),
       data && data.details
     );
   }
@@ -189,16 +191,16 @@ export const api = {
     if (response.status === 401) {
       if (token) {
         handleUnauthorizedRedirect();
-        throw new ApiClientError(401, 'Sessão expirada. Entre novamente para continuar.');
+        throw new ApiClientError(401, i18n.t('api.sessionExpired'));
       }
 
-      throw new ApiClientError(401, (data && data.error) || 'Unauthorized', data && data.details);
+      throw new ApiClientError(401, (data && data.error) || i18n.t('api.unauthorized'), data && data.details);
     }
 
     if (!response.ok) {
       throw new ApiClientError(
         response.status,
-        (data && data.error) || 'Upload failed',
+        (data && data.error) || i18n.t('api.uploadFailed'),
         data && data.details
       );
     }
