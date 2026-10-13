@@ -73,7 +73,7 @@ export async function registerApiRoutes(
     }
 
     reply.header('Content-Type', photo.mime_type || 'image/jpeg');
-    reply.header('Cache-Control', 'public, max-age=31536000, immutable');
+    reply.header('Cache-Control', 'private, no-store');
 
     return reply.send(await readFile(filePath));
   });
