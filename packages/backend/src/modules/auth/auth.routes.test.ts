@@ -567,3 +567,56 @@ describe('Auth Routes', () => {
     });
   });
 });
+
+
+describe('logout ownership', () => {
+  it('refuses to end a session whose refresh token belongs to another account', async () => {
+    const isolated = await buildAuthTestApp();
+    try {
+      const adminLogin = await isolated.app.inject({ method: 'POST', url: '/api/auth/login', payload: isolated.fixtures.admin });
+      const workerLogin = await isolated.app.inject({ method: 'POST', url: '/api/auth/login', payload: isolated.fixtures.worker });
+      const adminRefresh = JSON.parse(adminLogin.body).refreshToken as string;
+      const workerAccess = JSON.parse(workerLogin.body).token as string;
+
+      const response = await isolated.app.inject({
+        method: 'POST',
+        url: '/api/auth/logout',
+        headers: { authorization: `Bearer ${workerAccess}` },
+        payload: { refreshToken: adminRefresh },
+      });
+      assert.strictEqual(response.statusCode, 200);
+
+      // Presenting a token that belongs to somebody else must not sign that account out.
+      const adminStillWorks = await isolated.app.inject({
+        method: 'POST', url: '/api/auth/refresh', payload: { refreshToken: adminRefresh },
+      });
+      assert.strictEqual(adminStillWorks.statusCode, 200, 'another account was signed out by a foreign token');
+    } finally {
+      await isolated.app.close();
+      isolated.db.close();
+    }
+  });
+
+  it('still ends the session whose refresh token the caller owns', async () => {
+    const isolated = await buildAuthTestApp();
+    try {
+      const workerLogin = await isolated.app.inject({ method: 'POST', url: '/api/auth/login', payload: isolated.fixtures.worker });
+      const body = JSON.parse(workerLogin.body);
+      const response = await isolated.app.inject({
+        method: 'POST',
+        url: '/api/auth/logout',
+        headers: { authorization: `Bearer ${body.token}` },
+        payload: { refreshToken: body.refreshToken },
+      });
+      assert.strictEqual(response.statusCode, 200);
+
+      const afterLogout = await isolated.app.inject({
+        method: 'POST', url: '/api/auth/refresh', payload: { refreshToken: body.refreshToken },
+      });
+      assert.strictEqual(afterLogout.statusCode, 401, 'the own session must be ended');
+    } finally {
+      await isolated.app.close();
+      isolated.db.close();
+    }
+  });
+});

@@ -25,6 +25,7 @@ import {
 import {
   issueSession,
   revokeSession,
+  sessionOwnerId,
   revokeUserSessions,
   rotateSession,
 } from './auth.sessions.service.js';
@@ -497,7 +498,14 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRoutesOp
       // this is not `revokeUserSessions`: logging out on a phone must not end the desktop's session.
       if (parse.data.refreshToken) {
         if (sessionStoreAvailable()) {
-          revokeSession(fastify.db, parse.data.refreshToken);
+          // End the session this caller is holding, and no other. A token that belongs to a
+          // different account is refused instead of revoked: otherwise any authenticated caller
+          // could sign somebody else out with a token it happens to possess.
+          if (sessionOwnerId(fastify.db, parse.data.refreshToken) === request.user!.sub) {
+            revokeSession(fastify.db, parse.data.refreshToken);
+          } else {
+            request.log.warn('Logout refused session revocation: the presented token belongs to another account');
+          }
         } else {
           // Nothing to revoke without the table, so the caller still gets a success: the state it
           // wants already holds. The skip is logged rather than silent, because a client that

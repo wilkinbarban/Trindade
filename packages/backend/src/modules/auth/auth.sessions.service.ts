@@ -213,6 +213,19 @@ export function rotateSession(
  * finished. The family is the right scope because rotation keeps the successor in the same family
  * and other devices live in their own, so this ends exactly the session that asked to end.
  */
+/**
+ * The account a refresh token belongs to, or null when no session carries it.
+ *
+ * Logout needs this to end only the session its caller is holding: revoking by token alone would
+ * let any authenticated caller sign a different account out with a token it happens to possess.
+ */
+export function sessionOwnerId(db: Database.Database, token: string): number | null {
+  const row = db
+    .prepare('SELECT user_id FROM auth_sessions WHERE token_hash = ?')
+    .get(hashRefreshToken(token)) as { user_id: number } | undefined;
+  return row?.user_id ?? null;
+}
+
 export function revokeSession(db: Database.Database, token: string): boolean {
   const hash = hashRefreshToken(token);
   const row = db
