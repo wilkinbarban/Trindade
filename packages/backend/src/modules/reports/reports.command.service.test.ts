@@ -7,6 +7,23 @@ import { closeReportDatabases, completeTemperatures, setupReportsDb } from './re
 afterEach(closeReportDatabases);
 
 describe('reports command service characterization', () => {
+  it('persists Spanish notes through local translation without provider requests', async (t) => {
+    let requests = 0;
+    t.mock.method(globalThis, 'fetch', async () => {
+      requests += 1;
+      throw new Error('Network forbidden');
+    });
+    const db = setupReportsDb();
+    const report = await createReport(db, 1, {
+      turno: 'tarde', notes: 'Producto pendiente xyz', items: [],
+      temperatures: completeTemperatures(db),
+    });
+    assert.equal(report.notes, 'Produto pendente xyz');
+    const updated = await updateReport(db, report.id, { notes: 'Todo pendiente abc' }, { sub: 1, role: 'Administrador' });
+    assert.ok(!('error' in updated));
+    if (!('error' in updated)) assert.equal(updated.notes, 'Tudo pendente abc');
+    assert.equal(requests, 0);
+  });
   it('creates selected products with the complete required temperature set and rejects duplicates', async () => {
     const db = setupReportsDb();
     const taskId = (db.prepare("SELECT id FROM report_tasks WHERE category_id = 1 LIMIT 1").get() as { id: number }).id;
