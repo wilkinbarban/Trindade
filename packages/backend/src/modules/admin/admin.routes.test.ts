@@ -90,20 +90,19 @@ describe('Admin Routes', () => {
     assert.strictEqual(vehPost.statusCode, 401);
     assert.strictEqual(db.prepare("SELECT id FROM vehicles WHERE license_plate = 'UNA-0001'").get(), undefined);
 
-    const targetVehicleId = (db.prepare("SELECT id FROM vehicles WHERE license_plate = 'BDG'").get() as { id: number }).id;
     const vehPatch = await app.inject({
       method: 'PATCH',
-      url: `/api/admin/vehicles/${targetVehicleId}`,
+      url: `/api/admin/vehicles/${vehicleId}`,
       payload: { description: 'Unauth Edit' },
     });
     assert.strictEqual(vehPatch.statusCode, 401);
 
     const vehDelete = await app.inject({
       method: 'DELETE',
-      url: `/api/admin/vehicles/${targetVehicleId}`,
+      url: `/api/admin/vehicles/${vehicleId}`,
     });
     assert.strictEqual(vehDelete.statusCode, 401);
-    assert.ok(db.prepare('SELECT id FROM vehicles WHERE id = ?').get(targetVehicleId));
+    assert.ok(db.prepare('SELECT id FROM vehicles WHERE id = ?').get(vehicleId));
 
     // Representative admin writes: time-slots PUT
     const beforeSlotsSetting = db.prepare("SELECT value FROM settings WHERE key = 'loading_time_slots'").get();
@@ -119,7 +118,7 @@ describe('Admin Routes', () => {
     const userPost = await app.inject({
       method: 'POST',
       url: '/api/admin/users',
-      payload: { username: 'unauthuser', password: 'password123', display_name: 'Unauth', role_id: 2 },
+      payload: { username: 'unauthuser', password: 'password1234567', display_name: 'Unauth', role_id: 2 },
     });
     assert.strictEqual(userPost.statusCode, 401);
     assert.strictEqual(db.prepare("SELECT id FROM users WHERE username = 'unauthuser'").get(), undefined);
@@ -938,7 +937,7 @@ describe('Admin Routes', () => {
     it('invalidates both token types on effective security edits, but not display-only edits', async () => {
       const created = await app.inject({ method: 'POST', url: '/api/admin/users',
         headers: { authorization: `Bearer ${adminToken}` },
-        payload: { username: 'security-edit', password: 'password123', display_name: 'Original', role_id: 1 } });
+        payload: { username: 'security-edit', password: 'password1234567', display_name: 'Original', role_id: 1 } });
       assert.strictEqual(created.statusCode, 201);
       const id = JSON.parse(created.body).user.id;
       const patch = (payload: object) => app.inject({ method: 'PATCH', url: `/api/admin/users/${id}`,
@@ -954,22 +953,22 @@ describe('Admin Routes', () => {
         assert.strictEqual((await app.inject({ method: 'POST', url: '/api/auth/refresh',
           payload: { refreshToken: session.refreshToken } })).statusCode, 401);
       };
-      let session = await login('security-edit', 'password123');
+      let session = await login('security-edit', 'password1234567');
       assert.strictEqual((await patch({ display_name: 'Renamed' })).statusCode, 200);
       assert.strictEqual((await app.inject({ method: 'GET', url: '/api/auth/me', headers: { authorization: `Bearer ${session.token}` } })).statusCode, 200);
       assert.strictEqual((await patch({ role_id: 2 })).statusCode, 200);
       await rejected(session);
-      session = await login('security-edit', 'password123');
+      session = await login('security-edit', 'password1234567');
       assert.strictEqual((await patch({ username: 'security-renamed' })).statusCode, 200);
       await rejected(session);
-      session = await login('security-renamed', 'password123');
-      assert.strictEqual((await patch({ password: 'replacement123' })).statusCode, 200);
+      session = await login('security-renamed', 'password1234567');
+      assert.strictEqual((await patch({ password: 'replacement1234567' })).statusCode, 200);
       await rejected(session);
-      session = await login('security-renamed', 'replacement123');
+      session = await login('security-renamed', 'replacement1234567');
       assert.strictEqual((await patch({ is_active: 0 })).statusCode, 200);
       await rejected(session);
       assert.strictEqual((await patch({ is_active: 1 })).statusCode, 200);
-      assert.strictEqual((await app.inject({ method: 'POST', url: '/api/auth/login', payload: { username: 'security-renamed', password: 'replacement123' } })).statusCode, 200);
+      assert.strictEqual((await app.inject({ method: 'POST', url: '/api/auth/login', payload: { username: 'security-renamed', password: 'replacement1234567' } })).statusCode, 200);
       const deleted = await app.inject({ method: 'DELETE', url: `/api/admin/users/${id}`,
         headers: { authorization: `Bearer ${adminToken}` } });
       assert.strictEqual(deleted.statusCode, 200);
@@ -1026,7 +1025,7 @@ describe('Admin Routes', () => {
         headers: { authorization: `Bearer ${adminToken}` },
         payload: {
           username: 'testworker',
-          password: 'password123',
+          password: 'password1234567',
           display_name: 'Test Worker',
           role_id: 2, // Trabalhador
         },
@@ -1091,7 +1090,7 @@ describe('Admin Routes', () => {
         headers: { authorization: `Bearer ${adminToken}` },
         payload: {
           username: 'delete-demo',
-          password: 'password123',
+          password: 'password1234567',
           display_name: 'Delete Demo',
           role_id: 2,
         },
@@ -1185,7 +1184,7 @@ describe('Admin Routes', () => {
         headers: { authorization: `Bearer ${adminToken}` },
         payload: {
           username: fixtures.admin.username,
-          password: 'newpassword',
+          password: 'new-password-2026',
           display_name: 'Wilkin Dup',
           role_id: 1,
         },
@@ -1204,7 +1203,7 @@ describe('Admin Routes', () => {
         headers: { authorization: `Bearer ${workerToken}` },
         payload: {
           username: 'worker-escalation',
-          password: 'password123',
+          password: 'password1234567',
           display_name: 'Escalation Attempt',
           role_id: 1,
         },
