@@ -239,11 +239,11 @@ describe('POST /api/auth/register admission and input guards', () => {
       /at least 15 visible graphemes/i
     );
 
-    // Boundary: 8 characters is accepted
+    // Boundary: 15 visible graphemes is accepted
     const resPass8Chars = await app.inject({
       method: 'POST',
       url: '/api/auth/register',
-      payload: { username: 'valid-user-8char', display_name: 'Worker', password: '12345678' },
+      payload: { username: 'valid-user-15char', display_name: 'Worker', password: 'password1234567' },
     });
     assert.strictEqual(resPass8Chars.statusCode, 200);
 
