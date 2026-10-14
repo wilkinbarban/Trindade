@@ -31,6 +31,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.trindade.app.R
+import com.trindade.app.contract.models.DriversResponseDriversInner
 import com.trindade.app.contract.models.SchedulesResponseSchedulesInner
 import com.trindade.app.ui.components.AdminDestructiveButton
 import com.trindade.app.ui.components.AdminPrimaryButton
@@ -68,6 +69,7 @@ fun LoadingScreen(
     modifier: Modifier = Modifier,
     onShareText: () -> Unit = {},
     onSharePdf: () -> Unit = {},
+    onOpenWhatsApp: (DriversResponseDriversInner) -> Unit = {},
     onCopyExport: (String) -> Unit = {},
 ) {
     val clipboard = LocalClipboardManager.current
@@ -147,6 +149,23 @@ fun LoadingScreen(
                         onClick = onShareText,
                         text = stringResource(R.string.export_share_text),
                     )
+                }
+                // The one-on-one list sits with the day's own text, because what it sends IS that text: the
+                // label names the person rather than the action, since which driver a message reaches is
+                // the choice being made here, and only the drivers a chat can actually open are offered.
+                state.fleterosWithPhone().let { fleteros ->
+                    if (fleteros.isNotEmpty()) {
+                        Text(
+                            text = stringResource(R.string.export_send_to_fletero),
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                        fleteros.forEach { driver ->
+                            NavigationActionButton(
+                                onClick = { onOpenWhatsApp(driver) },
+                                text = driver.name,
+                            )
+                        }
+                    }
                 }
                 OutlinedButton(
                     onClick = onSharePdf,
@@ -447,5 +466,6 @@ fun LoadingRoute(
         onLoadExport = viewModel::loadExport,
         onShareText = viewModel::shareText,
         onSharePdf = viewModel::sharePdf,
+        onOpenWhatsApp = viewModel::openWhatsAppFor,
     )
 }

@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.trindade.app.R
+import com.trindade.app.contract.models.DriversResponseDriversInner
 import com.trindade.app.contract.models.SchedulesResponse
 import com.trindade.app.contract.models.SchedulesResponseSchedulesInner
 import com.trindade.app.network.LoadingApi
@@ -803,6 +804,52 @@ class LoadingScreenTest {
         composeRule.onNodeWithText(copy(R.string.export_copy)).assertDoesNotExist()
         composeRule.onNodeWithText(copy(R.string.export_share_text)).assertDoesNotExist()
         composeRule.onNodeWithText(copy(R.string.export_share_pdf)).assertDoesNotExist()
+    }
+
+    @Test
+    fun `the export dialog offers the one-on-one chat for the day's fleteros that have a number`() {
+        val opened = mutableListOf<Int>()
+        val withNumber = DriversResponseDriversInner(
+            id = 7, name = "Ana", licensePlate = null, phone = "+55 (11) 98888-7777",
+            driverType = DriversResponseDriversInner.DriverType.fletero,
+        )
+        val withoutNumber = DriversResponseDriversInner(
+            id = 8, name = "Beto", licensePlate = null, phone = null,
+            driverType = DriversResponseDriversInner.DriverType.fletero,
+        )
+
+        composeRule.setContent {
+            TrindadeTheme {
+                LoadingScreen(
+                    state = state().copy(
+                        exportText = "CRONOGRAMA DE CARREGAMENTO",
+                        schedules = listOf(FakeLoadingApi.entry(7, "04:00"), FakeLoadingApi.entry(8, "05:00")),
+                        drivers = listOf(withNumber, withoutNumber),
+                    ),
+                    onBack = {},
+                    onOpenHistory = {},
+                    onStartAdding = {},
+                    onCancelAdding = {},
+                    onDriverSelected = {},
+                    onVehicleSelected = {},
+                    onConfirmAdd = {},
+                    onDelete = {},
+                    onEditEntry = { _, _ -> },
+                    onLoadExport = {},
+                    onShareText = {},
+                    onSharePdf = {},
+                    onOpenWhatsApp = { opened += it.id },
+                )
+            }
+        }
+
+        // Offered only for the fletero the chat can actually reach, and the label names the person
+        // rather than the action, because which driver a message goes to is the choice being made here.
+        composeRule.onNodeWithText(copy(R.string.export_send_to_fletero)).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Ana").performScrollTo().assertIsDisplayed().performClick()
+        composeRule.onNodeWithText("Beto").assertDoesNotExist()
+        composeRule.waitForIdle()
+        assertEquals(listOf(7), opened)
     }
 
     @Test

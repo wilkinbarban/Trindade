@@ -92,6 +92,7 @@
     <string name="export_load">Gerar texto do WhatsApp</string>
     <string name="export_copy">Copiar texto</string>
     <string name="export_share_text">Compartilhar texto</string>
+    <string name="export_send_to_fletero">Enviar direto para o fletero</string>
     <string name="export_share_pdf">Exportar PDF</string>
 
     <!-- The history of the reports this surface produces. Its own door is on the generator rather than

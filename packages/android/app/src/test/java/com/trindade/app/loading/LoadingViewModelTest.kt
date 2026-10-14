@@ -1,5 +1,6 @@
 package com.trindade.app.loading
 
+import com.trindade.app.contract.models.DriversResponseDriversInner
 import com.trindade.app.contract.models.SchedulesResponse
 import com.trindade.app.contract.models.SchedulesResponseSchedulesInner
 import com.trindade.app.export.PdfGenerator
@@ -57,6 +58,14 @@ class LoadingViewModelTest {
     fun restoreMainDispatcher() {
         Dispatchers.resetMain()
     }
+
+    private fun driver(id: Int, name: String, phone: String?) = DriversResponseDriversInner(
+        id = id,
+        name = name,
+        licensePlate = null,
+        phone = phone,
+        driverType = DriversResponseDriversInner.DriverType.fletero,
+    )
 
     private fun viewModel(
         api: FakeLoadingApi,
@@ -424,6 +433,65 @@ class LoadingViewModelTest {
     }
 
     @Test
+    fun `the one-on-one list is the day's own fleteros with a number, each one once`() {
+        val api = FakeLoadingApi(
+            schedulesToReturn = listOf(
+                FakeLoadingApi.entry(7, "04:00"),
+                FakeLoadingApi.entry(7, "05:00"),
+                FakeLoadingApi.entry(8, "06:00"),
+                FakeLoadingApi.entry(9, "07:00", type = SchedulesResponseSchedulesInner.DriverType.casa),
+            ),
+            driversToReturn = listOf(
+                driver(7, "Ana", "+55 (11) 98888-7777"),
+                driver(8, "Beto", null),
+                driver(9, "Carlos", "+55 (11) 91111-2222"),
+            ),
+        )
+        val model = viewModel(api)
+        model.load()
+
+        // The day's own fleet rather than the whole one, each driver once however many slots they hold,
+        // and only where a chat can actually be opened: a message about a day is for the people on it.
+        assertEquals(listOf(7), model.state.value.fleterosWithPhone().map { it.id })
+    }
+
+    @Test
+    fun `openWhatsAppFor opens that driver's chat carrying the day's own text`() {
+        val api = FakeLoadingApi(
+            schedulesToReturn = listOf(FakeLoadingApi.entry(7, "04:00")),
+            driversToReturn = listOf(driver(7, "Ana", "+55 (11) 98888-7777")),
+        )
+        val shareManager = RecordingShareManager()
+        val model = viewModel(api, shareManager = shareManager)
+        model.load()
+        model.loadExport()
+
+        model.openWhatsAppFor(model.state.value.fleterosWithPhone().single())
+
+        assertEquals(
+            "https://wa.me/5511988887777?text=" +
+                java.net.URLEncoder.encode(FakeLoadingApi.EXPORT_TEXT, "UTF-8").replace("+", "%20"),
+            shareManager.lastOpenedLink,
+        )
+    }
+
+    @Test
+    fun `a chat the device cannot open says so instead of pretending it went out`() {
+        val api = FakeLoadingApi(
+            schedulesToReturn = listOf(FakeLoadingApi.entry(7, "04:00")),
+            driversToReturn = listOf(driver(7, "Ana", "+55 (11) 98888-7777")),
+        )
+        val shareManager = RecordingShareManager(returns = false)
+        val model = viewModel(api, shareManager = shareManager)
+        model.load()
+        model.loadExport()
+
+        model.openWhatsAppFor(model.state.value.fleterosWithPhone().single())
+
+        assertEquals(LoadingViewModel.SHARE_FAILED, model.state.value.message)
+    }
+
+    @Test
     fun `shareText does nothing when exportText is null`() {
         val shareManager = RecordingShareManager()
         val model = viewModel(api = FakeLoadingApi(), shareManager = shareManager)
@@ -504,6 +572,12 @@ private class RecordingShareManager(
     var lastSharedText: String? = null
     var lastSharedTitle: String? = null
     var lastSharedPdf: File? = null
+    var lastOpenedLink: String? = null
+
+    override fun openLink(url: String): Boolean {
+        lastOpenedLink = url
+        return returns
+    }
 
     override fun shareText(text: String, title: String?): Boolean {
         lastSharedText = text

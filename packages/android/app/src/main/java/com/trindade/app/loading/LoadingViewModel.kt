@@ -10,6 +10,8 @@ import com.trindade.app.export.NoOpPdfGenerator
 import com.trindade.app.export.NoOpShareManager
 import com.trindade.app.export.PdfGenerator
 import com.trindade.app.export.ShareManager
+import com.trindade.app.ui.waMeLink
+import com.trindade.app.ui.waMeNumber
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.LocalDate
 import java.time.ZoneId
@@ -75,6 +77,25 @@ class LoadingViewModel @Inject constructor(
         fun fleteroCountIn(slot: String): Int = FleteroQuota.countInWindow(schedules, slot)
 
         fun isExceeded(slot: String): Boolean = FleteroQuota.isExceeded(schedules, slot)
+
+        /**
+         * The day's own fleteros whose number is known, each one once, in the order the day draws them.
+         *
+         * Built from this day rather than from the fleet: a schedule sent to a driver who is not on it is
+         * a message about a day that does not concern them. Which driver is a fletero on a given day is
+         * the day's own row that says it -- the fleet record is where the number lives, not where the
+         * day's use of them is decided -- and a driver whose number nobody has yet has no chat to open, so
+         * they are not offered until that field is filled. The number is the one a link can actually use.
+         */
+        fun fleterosWithPhone(): List<DriversResponseDriversInner> {
+            val byId = drivers.associateBy { it.id }
+            return schedules
+                .filter { it.driverType == SchedulesResponseSchedulesInner.DriverType.fletero }
+                .mapNotNull { it.driverId }
+                .distinct()
+                .mapNotNull { byId[it] }
+                .filter { waMeNumber(it.phone.orEmpty()).isNotEmpty() }
+        }
 
         val selectedDriver: DriversResponseDriversInner?
             get() = drivers.firstOrNull { it.id == selectedDriverId }
@@ -305,6 +326,20 @@ class LoadingViewModel @Inject constructor(
     fun shareText() {
         val text = state.value.exportText ?: return
         shareManager.shareText(text)
+    }
+
+    /**
+     * Opens the one-on-one chat for [driver], carrying this day's own export text.
+     *
+     * What goes out is the schedule the announcement sends, to the number the fleet has for that person,
+     * and the device being unable to open it is reported rather than left to look sent.
+     */
+    fun openWhatsAppFor(driver: DriversResponseDriversInner) {
+        val text = state.value.exportText ?: return
+        val link = waMeLink(driver.phone.orEmpty(), text) ?: return
+        if (!shareManager.openLink(link)) {
+            _state.update { it.copy(message = SHARE_FAILED) }
+        }
     }
 
     /**

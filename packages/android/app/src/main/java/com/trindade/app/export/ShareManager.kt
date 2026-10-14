@@ -39,6 +39,15 @@ interface ShareManager {
      * @return true if the chooser was launched successfully, false otherwise.
      */
     fun sharePdf(file: File, title: String? = null): Boolean
+
+    /**
+     * Opens [url], the one-on-one chat link the operator picked.
+     *
+     * The `wa.me` address is WhatsApp's own published link rather than a package this application names:
+     * which installed application answers it is the system's decision, so this seam carries a URL and not
+     * a target. Returns false when the device has nothing to open it with.
+     */
+    fun openLink(url: String): Boolean
 }
 
 /**
@@ -117,6 +126,24 @@ class AndroidShareManager @Inject constructor(
             false
         }
     }
+
+    /**
+     * Builds the [Intent] that opens a chat link.
+     *
+     * Exposed as internal for direct JVM/Robolectric verification of the action, the address and the
+     * absence of a named package.
+     */
+    internal fun createLinkIntent(url: String): Intent =
+        Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+
+    override fun openLink(url: String): Boolean {
+        return try {
+            context.startActivity(createLinkIntent(url))
+            true
+        } catch (_: Throwable) {
+            false
+        }
+    }
 }
 
 /**
@@ -125,6 +152,7 @@ class AndroidShareManager @Inject constructor(
 object NoOpShareManager : ShareManager {
     override fun shareText(text: String, title: String?): Boolean = true
     override fun sharePdf(file: File, title: String?): Boolean = true
+    override fun openLink(url: String): Boolean = true
 }
 
 /**
