@@ -25,8 +25,25 @@ describe('waMeLink', () => {
   it('builds the chat link with the text percent-encoded', () => {
     assert.equal(
       waMeLink('+55 (11) 98888-7777', 'Cronograma\n04:00 — Ana'),
-      'https://wa.me/5511988887777?text=Cronograma%0A04%3A00%20%E2%80%94%20Ana',
+      'https://api.whatsapp.com/send?phone=5511988887777&text=Cronograma%0A04%3A00%20%E2%80%94%20Ana',
     );
+  });
+
+  it('names the endpoint that answers without redirecting, which is what keeps an emoji whole', () => {
+    // `wa.me` answers with a 302 to `api.whatsapp.com/send`, and that hop is where a four-byte character
+    // comes back as U+FFFD. The schedule's announcement carries 🚛 and 🕟, so the link names the endpoint
+    // that answers directly instead of the one that redirects to it: same payload, one hop fewer, no
+    // chance for the relay to mangle it.
+    const link = waMeLink('+55 (11) 98888-7777', '🚛 Cronograma\n🕟 04:00');
+
+    assert.equal(
+      link,
+      'https://api.whatsapp.com/send?phone=5511988887777&text=%F0%9F%9A%9B%20Cronograma%0A%F0%9F%95%9F%2004%3A00',
+    );
+    assert.ok(link?.startsWith('https://api.whatsapp.com/send?phone=5511988887777&text='));
+    assert.ok(!link?.includes('wa.me'), 'the redirecting host must not be what the browser opens');
+    // Percent-encoded UTF-8 is what travels: four bytes for 🚛, and none of them replaced.
+    assert.ok(link?.includes('%F0%9F%9A%9B') && !link.includes('%EF%BF%BD'));
   });
 
   it('answers null for a driver with no number, so no action is offered', () => {

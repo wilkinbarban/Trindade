@@ -469,7 +469,7 @@ class LoadingViewModelTest {
         model.openWhatsAppFor(model.state.value.fleterosWithPhone().single())
 
         assertEquals(
-            "https://wa.me/5511988887777?text=" +
+            "https://api.whatsapp.com/send?phone=5511988887777&text=" +
                 java.net.URLEncoder.encode(FakeLoadingApi.EXPORT_TEXT, "UTF-8").replace("+", "%20"),
             shareManager.lastOpenedLink,
         )

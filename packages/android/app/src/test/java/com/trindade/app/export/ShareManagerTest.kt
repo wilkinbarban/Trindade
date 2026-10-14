@@ -46,12 +46,12 @@ class ShareManagerTest {
 
     @Test
     fun `the one-on-one link opens as an address the system resolves, never as a named package`() {
-        val intent = shareManager.createLinkIntent("https://wa.me/5511988887777?text=oi%20boa")
+        val intent = shareManager.createLinkIntent("https://api.whatsapp.com/send?phone=5511988887777&text=oi%20boa")
 
         assertEquals(Intent.ACTION_VIEW, intent.action)
-        assertEquals("https://wa.me/5511988887777?text=oi%20boa", intent.data.toString())
+        assertEquals("https://api.whatsapp.com/send?phone=5511988887777&text=oi%20boa", intent.data.toString())
         assertNull(
-            "A wa.me address is answered by whichever application the system picks, so none is named",
+            "A chat address is answered by whichever application the system picks, so none is named",
             intent.`package`,
         )
         assertTrue(intent.flags and Intent.FLAG_ACTIVITY_NEW_TASK != 0)
