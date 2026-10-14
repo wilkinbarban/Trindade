@@ -43,6 +43,21 @@ function nextLoadingDate(batchDate: string): Date {
   return date;
 }
 
+/**
+ * The next loading day after `batchDate`, as a date string: the following day, or Monday when the batch
+ * day is a Friday.
+ *
+ * Exported because the dashboard's active-schedule window has to name the same day the text this module
+ * renders announces. The parts are read in UTC on purpose: the Date above is built from date-only parts,
+ * so formatting it in São Paulo would name the previous day.
+ */
+export function nextLoadingDateString(batchDate: string): string {
+  const date = nextLoadingDate(batchDate);
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  return `${date.getUTCFullYear()}-${month}-${day}`;
+}
+
 function formatPtBrDate(date: Date): string {
   const weekday = WEEKDAYS[date.getUTCDay()];
   const day = String(date.getUTCDate()).padStart(2, '0');

@@ -1023,6 +1023,12 @@
           "schedulesTomorrow": {
             "type": "integer"
           },
+          "activeScheduleDate": {
+            "type": "string"
+          },
+          "activeScheduleCount": {
+            "type": "integer"
+          },
           "activeUsers": {
             "type": "integer"
           },
@@ -1054,6 +1060,8 @@
         "required": [
           "reportsToday",
           "schedulesTomorrow",
+          "activeScheduleDate",
+          "activeScheduleCount",
           "activeUsers",
           "reportsTotal",
           "schedulesTotal",

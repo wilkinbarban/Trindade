@@ -5,6 +5,7 @@ import Fastify from 'fastify';
 import Database from 'better-sqlite3';
 import bcrypt from 'bcryptjs';
 import { createAuthenticate } from '../auth/auth.middleware.js';
+import { AuthAdmissionLimiter } from '../auth/auth.admission-limiter.js';
 import { authRoutes } from '../auth/auth.routes.js';
 import { dashboardRoutes } from './dashboard.routes.js';
 import { REFERENCE_DATASET, verifyReferencePrerequisites } from '../../db/reference-data.js';
@@ -47,7 +48,16 @@ export async function buildDashboardTestApp(): Promise<{
   const app = Fastify({ logger: false });
   app.decorate('db', db);
   app.decorate('authenticate', createAuthenticate(fixtures.jwtSecret));
-  await app.register(authRoutes, { prefix: '/api/auth', jwtSecret: fixtures.jwtSecret });
+  // The admission limiter allows five logins per username in fifteen minutes, which is right for
+  // production and wrong for a file whose every case logs in to read the summary: the sixth case would
+  // be refused and would fail on a token it never received. The limiter's own behaviour is asserted by
+  // its own tests, so this file gets room instead of an accidental dependence on how many cases it has.
+  const admissionLimiter = new AuthAdmissionLimiter({ maxUsernameLogin: 10_000, maxGlobalLogin: 10_000 });
+  await app.register(authRoutes, {
+    prefix: '/api/auth',
+    jwtSecret: fixtures.jwtSecret,
+    authAdmissionLimiter: admissionLimiter,
+  });
   await app.register(dashboardRoutes, { prefix: '/api/dashboard' });
   await app.ready();
   return { app, db, fixtures };

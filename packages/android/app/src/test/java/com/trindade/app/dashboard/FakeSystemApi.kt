@@ -54,6 +54,8 @@ class FakeSystemApi(
          */
         const val REPORTS_TODAY = 2
         const val SCHEDULES_TOMORROW = 7
+        const val ACTIVE_SCHEDULE_DATE = "2026-08-25"
+        const val ACTIVE_SCHEDULE_COUNT = 4
         const val ACTIVE_USERS = 5
         const val REPORTS_TOTAL = 42
         const val SCHEDULES_TOTAL = 13
@@ -74,6 +76,8 @@ class FakeSystemApi(
         fun summary(latestReportId: Int? = LATEST_REPORT_ID) = DashboardSummary(
             reportsToday = REPORTS_TODAY,
             schedulesTomorrow = SCHEDULES_TOMORROW,
+            activeScheduleDate = ACTIVE_SCHEDULE_DATE,
+            activeScheduleCount = ACTIVE_SCHEDULE_COUNT,
             activeUsers = ACTIVE_USERS,
             reportsTotal = REPORTS_TOTAL,
             schedulesTotal = SCHEDULES_TOTAL,

@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { getSaoPauloDateString } from '../../utils/date.js';
+import { activeScheduleDate } from './active-schedule.js';
 
 interface CountRow {
   count: number;
@@ -13,6 +14,8 @@ export async function dashboardRoutes(fastify: FastifyInstance) {
       const db = fastify.db;
       const today = getSaoPauloDateString();
       const tomorrow = getSaoPauloDateString(new Date(Date.now() + 24 * 60 * 60 * 1000));
+      // The day the card is about, which is not always tomorrow: see `activeScheduleDate`.
+      const activeDate = activeScheduleDate();
 
       const reportsToday = db
         .prepare(
@@ -38,6 +41,14 @@ export async function dashboardRoutes(fastify: FastifyInstance) {
            WHERE schedule_date = ? AND is_active = 1`
         )
         .get(tomorrow) as CountRow;
+
+      const schedulesActive = db
+        .prepare(
+          `SELECT COUNT(*) AS count
+           FROM loading_schedules
+           WHERE schedule_date = ? AND is_active = 1`
+        )
+        .get(activeDate) as CountRow;
 
       const activeUsers = db
         .prepare(
@@ -102,6 +113,8 @@ export async function dashboardRoutes(fastify: FastifyInstance) {
       return reply.send({
         reportsToday: reportsToday.count,
         schedulesTomorrow: schedulesTomorrow.count,
+        activeScheduleDate: activeDate,
+        activeScheduleCount: schedulesActive.count,
         activeUsers: activeUsers.count,
         reportsTotal: reportsTotal.count,
         schedulesTotal: schedulesTotal.count,
