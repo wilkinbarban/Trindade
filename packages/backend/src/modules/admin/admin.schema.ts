@@ -57,12 +57,17 @@ export type UpdateTaskBody = z.infer<typeof UpdateTaskSchema>;
 export const CreateDriverSchema = z.object({
   name: z.string().min(1, 'Driver name is required'),
   license_plate: z.string().optional(),
+  // The number the one-on-one WhatsApp dispatch opens a chat with. Optional because a driver list is
+  // mostly company drivers and fleteros whose number nobody has yet, and nullable on the update so an
+  // operator can take a number back off a driver rather than only replace it.
+  phone: z.string().optional(),
   driver_type: z.enum(['casa', 'fletero']).optional().default('fletero'),
 });
 
 export const UpdateDriverSchema = z.object({
   name: z.string().min(1).optional(),
   license_plate: z.string().optional(),
+  phone: z.string().nullable().optional(),
   driver_type: z.enum(['casa', 'fletero']).optional(),
   is_active: z.union([z.literal(0), z.literal(1)]).optional(),
 });
@@ -170,6 +175,7 @@ export const DriverSchema = z
     id: z.number().int(),
     name: z.string(),
     license_plate: z.string().nullable(),
+    phone: z.string().nullable(),
     driver_type: z.enum(['casa', 'fletero']),
     is_active: z.number().int(),
     created_by_user_id: z.number().int().nullable(),

@@ -485,7 +485,7 @@ export function listScheduleHistory(
 export function listDrivers(db: Database.Database): DriverRow[] {
   return db
     .prepare(
-      `SELECT id, name, license_plate, driver_type
+      `SELECT id, name, license_plate, phone, driver_type
        FROM drivers
        WHERE is_active = 1
        ORDER BY name ASC`
@@ -499,14 +499,14 @@ export function createDriver(
 ): DriverRow {
   const result = db
     .prepare(
-      `INSERT INTO drivers (name, license_plate, driver_type)
-       VALUES (?, ?, 'fletero')`
+      `INSERT INTO drivers (name, license_plate, phone, driver_type)
+       VALUES (?, ?, ?, 'fletero')`
     )
-    .run(data.name, data.license_plate ?? null);
+    .run(data.name, data.license_plate ?? null, data.phone ?? null);
 
   return db
     .prepare(
-      `SELECT id, name, license_plate, driver_type
+      `SELECT id, name, license_plate, phone, driver_type
        FROM drivers
        WHERE id = ?`
     )

@@ -48,6 +48,9 @@ export type CreateScheduleBody = z.infer<typeof CreateScheduleSchema>;
 export const CreateDriverSchema = z.object({
   name: z.string().min(1, 'Driver name is required'),
   license_plate: z.string().optional(),
+  // Optional here for the same reason it is optional in the admin schema: the loading screen's quick
+  // add is where a fletero is usually first typed in, and a number nobody has yet must not block it.
+  phone: z.string().optional(),
 });
 
 export type CreateDriverBody = z.infer<typeof CreateDriverSchema>;
@@ -130,6 +133,7 @@ export const DriverSchema = z
     id: z.number().int(),
     name: z.string(),
     license_plate: z.string().nullable(),
+    phone: z.string().nullable(),
     driver_type: z.enum(['casa', 'fletero']),
   })
   .strict();

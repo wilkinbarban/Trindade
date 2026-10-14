@@ -23,6 +23,7 @@ const digest = (path: string) => createHash('sha256').update(readFileSync(path))
 function makeRevisionOneShape(db: Database.Database): void {
   db.exec('DROP TABLE auth_sessions');
   db.exec('ALTER TABLE users DROP COLUMN security_version');
+  withoutDriverPhone(db);
   db.pragma('user_version = 1');
 }
 
@@ -36,8 +37,7 @@ function insertUser(db: Database.Database, username: string): number {
   );
 }
 
-/** Replace report_temperatures with the pre-`reading_index` shape it had before versioning. */
-function makeLegacyShape(db: Database.Database): void {
+/** Replace report_temperatures with the pre-`reading_index` shape it had before versioning. */function makeLegacyShape(db: Database.Database): void {
   db.pragma('foreign_keys = OFF');
   try {
     db.exec('DROP TABLE report_temperatures');
@@ -54,6 +54,26 @@ function makeLegacyShape(db: Database.Database): void {
   } finally {
     db.pragma('foreign_keys = ON');
   }
+}
+
+/**
+ * Drop a column when the schema declares it, so a fixture describing an older revision builds either
+ * way: before the column exists there is nothing to drop, and after it exists the fixture is the older
+ * shape the migration has to widen.
+ */
+function dropColumnIfPresent(db: Database.Database, table: string, column: string): void {
+  const columns = (db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).map((row) => row.name);
+  if (columns.includes(column)) db.exec(`ALTER TABLE ${table} DROP COLUMN ${column}`);
+}
+
+/**
+ * A database written before revision 4 has no `drivers.phone`, whatever else its shape is, so every
+ * fixture below that describes an older revision drops it. Without this the revision 4 step meets a
+ * column that already exists and refuses with a duplicate-column error, and the fixture would be lying
+ * about the revision it claims to be.
+ */
+function withoutDriverPhone(db: Database.Database): void {
+  dropColumnIfPresent(db, 'drivers', 'phone');
 }
 
 const migrateScript = join(import.meta.dirname, 'migrate.ts');
@@ -99,6 +119,7 @@ describe('schema migration', () => {
     build.exec(seed);
     makeLegacyShape(build);
     build.exec('ALTER TABLE users DROP COLUMN security_version');
+    withoutDriverPhone(build);
     build.close();
 
     const db = new Database(path);
@@ -123,6 +144,7 @@ describe('schema migration', () => {
     const path = join(fixtureRoot(), 'production-shape.db');
     const fresh = openDatabase(path);
     fresh.exec('ALTER TABLE users DROP COLUMN security_version');
+    withoutDriverPhone(fresh);
     fresh.pragma('user_version = 0'); // revision 2 shape before versioning
     fresh.close();
 
@@ -256,6 +278,52 @@ describe('schema migration', () => {
     db.close();
   });
 
+  it('adds the driver phone column to a revision 3 database and keeps its rows', () => {
+    const path = join(fixtureRoot(), 'revision-three-phone.db');
+    const build = new Database(path);
+    build.exec(schema);
+    build.exec(seed);
+    // The revision 3 shape: a drivers table without the column a later revision adds, and rows that
+    // already exist in it, because the migration's job is to widen the table and not to rewrite it.
+    dropColumnIfPresent(build, 'drivers', 'phone');
+    build.exec(
+      "INSERT INTO drivers (name, license_plate, driver_type) VALUES ('Fletero Anterior', 'OLD-0001', 'fletero')," +
+        " ('Casa Anterior', NULL, 'casa')",
+    );
+    build.pragma('user_version = 3');
+    build.close();
+
+    const db = new Database(path);
+    const before = readSchemaReport(db);
+    assert.equal(before.verdict, 'outdated');
+    assert.equal(before.version, 3);
+
+    const result = migrateDatabase(db);
+    if (result.outcome !== 'migrated') assert.fail(`expected migrated, got ${result.outcome}`);
+    assert.equal(result.from, 3);
+    assert.equal(result.to, SCHEMA_VERSION);
+    assert.equal(result.report.verdict, 'current');
+
+    const columns = db.prepare('PRAGMA table_info(drivers)').all() as {
+      name: string;
+      notnull: number;
+    }[];
+    const phone = columns.find((column) => column.name === 'phone');
+    assert.ok(phone, 'the migration must add drivers.phone');
+    assert.equal(phone.notnull, 0, 'the phone is optional, so the column is nullable');
+
+    const kept = db
+      .prepare("SELECT name, driver_type, phone FROM drivers WHERE name = 'Fletero Anterior'")
+      .get() as { name: string; driver_type: string; phone: string | null };
+    assert.equal(kept.driver_type, 'fletero', 'the migration must not rewrite the rows it widens');
+    assert.equal(kept.phone, null, 'a driver that existed before the migration has no phone');
+    assert.equal(db.prepare("SELECT COUNT(*) FROM drivers WHERE name IN ('Fletero Anterior','Casa Anterior')").pluck().get(), 2);
+    assert.equal(db.pragma('user_version', { simple: true }), SCHEMA_VERSION);
+
+    assert.equal(migrateDatabase(db).outcome, 'already-current');
+    db.close();
+  });
+
   it('carries legacy temperature readings forward as reading_index 1 when migrating from revision 0', () => {
     const path = join(fixtureRoot(), 'legacy-readings.db');
     const build = new Database(path);
@@ -263,6 +331,7 @@ describe('schema migration', () => {
     build.exec(seed);
     makeLegacyShape(build);
     build.exec('ALTER TABLE users DROP COLUMN security_version');
+    withoutDriverPhone(build);
     const userId = insertUser(build, 'legacy-reader');
     const reportId = Number(
       build
@@ -299,7 +368,7 @@ describe('schema migration', () => {
   // a revision its steps cannot reach would leave every migrated database stamped low.
   it('leaves every lower revision stamped at exactly the supported revision', () => {
     const cases: ReadonlyArray<{ from: number; prepare: (db: Database.Database) => void }> = [
-      { from: 0, prepare: (db) => { db.exec('ALTER TABLE users DROP COLUMN security_version'); db.pragma('user_version = 0'); } },
+      { from: 0, prepare: (db) => { db.exec('ALTER TABLE users DROP COLUMN security_version'); withoutDriverPhone(db); db.pragma('user_version = 0'); } },
       { from: 1, prepare: (db) => { makeRevisionOneShape(db); } },
     ];
 
@@ -336,7 +405,7 @@ describe('schema migration', () => {
     assert.equal(code, 0, output);
     assert.match(output, /before  verdict: outdated/);
     assert.match(output, /migrate: legacy report_temperatures already current/);
-    assert.match(output, /migrate: stamped user_version = 3/);
+    assert.match(output, new RegExp(`migrate: stamped user_version = ${SCHEMA_VERSION}`));
     assert.match(output, /after  verdict: current/);
   });
 
@@ -347,12 +416,13 @@ describe('schema migration', () => {
     build.exec(seed);
     makeLegacyShape(build);
     build.exec('ALTER TABLE users DROP COLUMN security_version');
+    withoutDriverPhone(build);
     build.close();
 
     const { code, output } = await runMigrate(path);
     assert.equal(code, 0, output);
     assert.match(output, /migrate: rebuilt legacy report_temperatures/);
-    assert.match(output, /migrate: stamped user_version = 3/);
+    assert.match(output, new RegExp(`migrate: stamped user_version = ${SCHEMA_VERSION}`));
     assert.match(output, /after  verdict: current/);
   });
 
@@ -364,6 +434,6 @@ describe('schema migration', () => {
 
     const { code, output } = await runMigrate(path);
     assert.equal(code, 1, output);
-    assert.match(output, /refused — revision 4 is newer/);
+    assert.match(output, new RegExp(`refused — revision ${SCHEMA_VERSION + 1} is newer`));
   });
 });

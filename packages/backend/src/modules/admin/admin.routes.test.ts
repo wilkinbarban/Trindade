@@ -643,19 +643,72 @@ describe('Admin Routes', () => {
     assert.ok(body.drivers.length >= 3, 'should have at least 3 seed drivers');
   });
 
-  it('POST /admin/drivers creates a new driver', async () => {
-    const res = await app.inject({
+  it('POST /admin/drivers creates a new driver, with and without a phone', async () => {
+    const withPhone = await app.inject({
       method: 'POST',
       url: '/api/admin/drivers',
       headers: { authorization: `Bearer ${adminToken}` },
       payload: {
         name: 'Admin Driver Test',
         license_plate: 'ADM-0001',
+        phone: '5511988887777',
       },
     });
 
-    assert.strictEqual(res.statusCode, 201);
-    assert.strictEqual(JSON.parse(res.body).driver.name, 'Admin Driver Test');
+    assert.strictEqual(withPhone.statusCode, 201);
+    const created = JSON.parse(withPhone.body).driver;
+    assert.strictEqual(created.name, 'Admin Driver Test');
+    assert.strictEqual(created.phone, '5511988887777', 'the phone the operator typed must come back');
+
+    const withoutPhone = await app.inject({
+      method: 'POST',
+      url: '/api/admin/drivers',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { name: 'Admin Driver Sem Telefone' },
+    });
+
+    assert.strictEqual(withoutPhone.statusCode, 201);
+    assert.strictEqual(
+      JSON.parse(withoutPhone.body).driver.phone,
+      null,
+      'the phone is optional: a driver created without one answers null and not undefined',
+    );
+  });
+
+  it('PATCH /admin/drivers/:id sets a phone and clears it again with null', async () => {
+    const created = JSON.parse(
+      (
+        await app.inject({
+          method: 'POST',
+          url: '/api/admin/drivers',
+          headers: { authorization: `Bearer ${adminToken}` },
+          payload: { name: 'Admin Driver Telefone Editavel' },
+        })
+      ).body,
+    ).driver;
+    assert.strictEqual(created.phone, null);
+
+    const set = await app.inject({
+      method: 'PATCH',
+      url: `/api/admin/drivers/${created.id}`,
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { phone: '5511977776666' },
+    });
+    assert.strictEqual(set.statusCode, 200);
+    assert.strictEqual(JSON.parse(set.body).driver.phone, '5511977776666');
+
+    const cleared = await app.inject({
+      method: 'PATCH',
+      url: `/api/admin/drivers/${created.id}`,
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { phone: null },
+    });
+    assert.strictEqual(cleared.statusCode, 200);
+    assert.strictEqual(
+      JSON.parse(cleared.body).driver.phone,
+      null,
+      'a phone the operator removes must be removable, not merely overwritable',
+    );
   });
 
   it('PATCH /admin/drivers/:id toggles is_active', async () => {

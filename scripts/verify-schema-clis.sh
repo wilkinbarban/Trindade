@@ -19,6 +19,9 @@ cd "$repo_root"
 
 status_cli='packages/backend/dist/db/status.js'
 migrate_cli='packages/backend/dist/db/migrate.js'
+# The revision the built artifacts support, read from the module itself rather than written here, so
+# this script does not have to be edited every time the schema moves forward.
+supported_revision="$(node -e "import('$repo_root/packages/backend/dist/db/schema-version.js').then((module) => console.log(module.SCHEMA_VERSION))")"
 work_dir="$(mktemp -d)"
 db_path="$work_dir/trindade.db"
 
@@ -70,14 +73,16 @@ require_cli 0 'verdict: current' 'npm run db:status: reached the same verdict th
 run_cli node "$migrate_cli" "$db_path"
 require_cli 0 'already current' 'migrate: left a current database alone (exit 0)'
 
-# The operator adoption path: model a pre-versioning database by removing the revision 3
-# column from a fresh fixture before clearing its version. Adoption retains existing data,
-# runs the additive revisions, and stamps revision 3 without rebuilding the database.
+# The operator adoption path: model a pre-versioning database by removing the columns later
+# revisions added from a fresh fixture before clearing its version. Adoption retains existing
+# data, runs the additive revisions, and stamps the supported revision without rebuilding the
+# database.
 DB_PATH="$db_path" node -e "
   const { createRequire } = require('node:module');
   const Database = createRequire(process.cwd() + '/package.json')('better-sqlite3');
   const base = new Database(process.env.DB_PATH);
   base.exec('ALTER TABLE users DROP COLUMN security_version');
+  base.exec('ALTER TABLE drivers DROP COLUMN phone');
   base.pragma('user_version = 0');
   base.close();
 "
@@ -86,7 +91,7 @@ run_cli node "$status_cli" "$db_path"
 require_cli 1 'verdict: unversioned' 'status: reported an unversioned database (exit 1)'
 
 run_cli node "$migrate_cli" "$db_path"
-require_cli 0 'stamped user_version = 3' 'migrate: adopted an unversioned database by stamping revision 3 (exit 0)'
+require_cli 0 "stamped user_version = $supported_revision" "migrate: adopted an unversioned database by stamping revision $supported_revision (exit 0)"
 
 run_cli node "$status_cli" "$db_path"
 require_cli 0 'verdict: current' 'status: reported the adopted database as current (exit 0)'

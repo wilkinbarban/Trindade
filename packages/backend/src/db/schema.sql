@@ -152,6 +152,7 @@ CREATE TABLE IF NOT EXISTS drivers (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   name        TEXT    NOT NULL,
   license_plate TEXT,                        -- optional for fleteros
+  phone       TEXT,                        -- optional fletero number for the 1-on-1 WhatsApp dispatch
   driver_type TEXT    NOT NULL DEFAULT 'fletero' CHECK(driver_type IN ('casa', 'fletero')),
   is_active   INTEGER NOT NULL DEFAULT 1,
   created_by_user_id INTEGER REFERENCES users(id),

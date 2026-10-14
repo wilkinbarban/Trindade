@@ -14,7 +14,7 @@ import type Database from 'better-sqlite3';
  * Databases created before versioning carry `user_version = 0` and are reported as
  * `unversioned`; nothing about them is assumed, and no startup path rewrites them.
  */
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 /**
  * The tables a database created by revision 1 must contain: the baseline the

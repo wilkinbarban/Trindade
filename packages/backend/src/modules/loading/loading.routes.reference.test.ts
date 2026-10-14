@@ -151,6 +151,35 @@ describe('Loading Schedule Routes', () => {
     assert.strictEqual(body.driver.license_plate, null);
   });
 
+  it('POST /drivers persists the optional phone and the list returns it', async () => {
+    // The phone is what the one-on-one WhatsApp dispatch needs: a fletero with no number cannot be
+    // reached from the schedule, so it has to survive the create and come back on the read the screen
+    // actually lists from, in both directions -- a number the operator typed and the absence of one.
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/loading/drivers',
+      headers: { authorization: `Bearer ${token}` },
+      payload: { name: 'Fletero Com Telefone', phone: '5511955554444' },
+    });
+
+    assert.strictEqual(created.statusCode, 201);
+    assert.strictEqual(JSON.parse(created.body).driver.phone, '5511955554444');
+
+    const list = await app.inject({
+      method: 'GET',
+      url: '/api/loading/drivers',
+      headers: { authorization: `Bearer ${token}` },
+    });
+    const body = JSON.parse(list.body);
+    const mine = body.drivers.find((driver: { name: string }) => driver.name === 'Fletero Com Telefone');
+    assert.ok(mine, 'the driver just created must be in the list');
+    assert.strictEqual(mine.phone, '5511955554444', 'the list must carry the phone, not only the create answer');
+
+    const plain = body.drivers.find((driver: { name: string }) => driver.name === 'Ativo Silva');
+    assert.ok(plain, 'the seeded driver is the control for a driver with no phone');
+    assert.strictEqual(plain.phone, null, 'a driver without a phone answers null rather than omitting the key');
+  });
+
   it('POST /drivers validates body and returns 400 on empty name', async () => {
     const res = await app.inject({
       method: 'POST',

@@ -458,6 +458,12 @@
               "null"
             ]
           },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "driver_type": {
             "type": "string",
             "enum": [
@@ -470,6 +476,7 @@
           "id",
           "name",
           "license_plate",
+          "phone",
           "driver_type"
         ],
         "additionalProperties": false
@@ -1507,6 +1514,12 @@
                     "null"
                   ]
                 },
+                "phone": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
                 "driver_type": {
                   "type": "string",
                   "enum": [
@@ -1519,6 +1532,7 @@
                 "id",
                 "name",
                 "license_plate",
+                "phone",
                 "driver_type"
               ],
               "additionalProperties": false
@@ -1548,6 +1562,12 @@
                   "null"
                 ]
               },
+              "phone": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
               "driver_type": {
                 "type": "string",
                 "enum": [
@@ -1560,6 +1580,7 @@
               "id",
               "name",
               "license_plate",
+              "phone",
               "driver_type"
             ],
             "additionalProperties": false
@@ -2350,6 +2371,9 @@
           },
           "license_plate": {
             "type": "string"
+          },
+          "phone": {
+            "type": "string"
           }
         },
         "required": [
@@ -3045,6 +3069,12 @@
               "null"
             ]
           },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "driver_type": {
             "type": "string",
             "enum": [
@@ -3069,6 +3099,7 @@
           "id",
           "name",
           "license_plate",
+          "phone",
           "driver_type",
           "is_active",
           "created_by_user_id",
@@ -3089,6 +3120,12 @@
                 "type": "string"
               },
               "license_plate": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "phone": {
                 "type": [
                   "string",
                   "null"
@@ -3118,6 +3155,7 @@
               "id",
               "name",
               "license_plate",
+              "phone",
               "driver_type",
               "is_active",
               "created_by_user_id",
@@ -3151,6 +3189,12 @@
                     "null"
                   ]
                 },
+                "phone": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
                 "driver_type": {
                   "type": "string",
                   "enum": [
@@ -3175,6 +3219,7 @@
                 "id",
                 "name",
                 "license_plate",
+                "phone",
                 "driver_type",
                 "is_active",
                 "created_by_user_id",
@@ -3199,6 +3244,9 @@
           "license_plate": {
             "type": "string"
           },
+          "phone": {
+            "type": "string"
+          },
           "driver_type": {
             "type": "string",
             "enum": [
@@ -3221,6 +3269,12 @@
           },
           "license_plate": {
             "type": "string"
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "driver_type": {
             "type": "string",

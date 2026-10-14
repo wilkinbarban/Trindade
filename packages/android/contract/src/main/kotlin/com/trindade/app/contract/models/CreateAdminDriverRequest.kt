@@ -33,6 +33,7 @@ import kotlinx.serialization.Contextual
  *
  * @param name 
  * @param licensePlate 
+ * @param phone 
  * @param driverType 
  */
 @Serializable
@@ -44,6 +45,9 @@ data class CreateAdminDriverRequest (
 
     @SerialName(value = "license_plate")
     val licensePlate: kotlin.String? = null,
+
+    @SerialName(value = "phone")
+    val phone: kotlin.String? = null,
 
     @SerialName(value = "driver_type")
     val driverType: CreateAdminDriverRequest.DriverType? = DriverType.fletero

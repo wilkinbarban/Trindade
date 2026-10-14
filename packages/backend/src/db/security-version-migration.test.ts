@@ -5,6 +5,7 @@ import { describe, it } from 'node:test';
 import Database from 'better-sqlite3';
 import { migrateDatabase } from './migrations.js';
 import { migrateSecurityVersion } from './security-version-migration.js';
+import { SCHEMA_VERSION } from './schema-version.js';
 
 const schema = readFileSync(join(import.meta.dirname, 'schema.sql'), 'utf8');
 
@@ -12,6 +13,10 @@ function revisionTwo(): Database.Database {
   const db = new Database(':memory:');
   db.exec(schema);
   db.exec('ALTER TABLE users DROP COLUMN security_version');
+  // A revision 2 database predates every later column, so the fixture omits the one revision 4 adds
+  // as well: without this the additive step meets a column that already exists and the migration
+  // refuses with a duplicate-column error instead of exercising the cutover this file is about.
+  db.exec('ALTER TABLE drivers DROP COLUMN phone');
   db.pragma('user_version = 2');
   db.exec("INSERT INTO roles (id, name) VALUES (1, 'Administrador')");
   db.exec("INSERT INTO users (id, username, password_hash, display_name, role_id) VALUES (1, 'owner', 'hash', 'Owner', 1)");
@@ -27,7 +32,7 @@ describe('revision 2 → 3 security cutover', () => {
     const db = revisionTwo();
     try {
       assert.equal(migrateDatabase(db).outcome, 'migrated');
-      assert.equal(db.pragma('user_version', { simple: true }), 3);
+      assert.equal(db.pragma('user_version', { simple: true }), SCHEMA_VERSION);
       assert.equal(db.prepare('SELECT security_version FROM users WHERE id = 1').pluck().get(), 1);
       assert.throws(() => db.prepare('UPDATE users SET security_version = 0 WHERE id = 1').run(), /CHECK constraint/);
       assert.ok(db.prepare("SELECT revoked_at FROM auth_sessions WHERE token_hash = 'live'").pluck().get());

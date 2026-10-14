@@ -13,20 +13,24 @@ import {
   rotateSession,
 } from '../modules/auth/auth.sessions.service.js';
 import { migrateDatabase } from './migrations.js';
+import { SCHEMA_VERSION } from './schema-version.js';
 
 const schema = readFileSync(join(import.meta.dirname, 'schema.sql'), 'utf8');
 
 /**
- * The revision 2 shape, produced by OMITTING the `users.security_version` column the
- * revision 3 step adds, rather than dropping it after the fact. A revision 2 database
- * never had that column, so removing it from the shipped schema is the honest fixture:
- * it proves the cutover works against the shape the previous build actually wrote.
+ * The revision 2 shape, produced by OMITTING the columns later revisions add -- the
+ * `users.security_version` column the revision 3 step adds and the `drivers.phone` column the
+ * revision 4 step adds -- rather than dropping them after the fact. A revision 2 database never
+ * had either, so removing them from the shipped schema is the honest fixture: it proves the cutover
+ * works against the shape the previous build actually wrote.
  *
- * The only occurrence in `schema.sql` is the users column, so a single line removal is
- * exact. The fixture builder asserts the omission really happened, so a future schema
- * edit cannot silently turn this drill into a no-op.
+ * Each column has exactly one occurrence in `schema.sql`, so a single line removal is exact. The
+ * fixture builder asserts both omissions really happened, so a future schema edit cannot silently
+ * turn this drill into a no-op.
  */
-const revisionTwoSchema = schema.replace(/^[ \t]*security_version[^\n]*\n/m, '');
+const revisionTwoSchema = schema
+  .replace(/^[ \t]*security_version[^\n]*\n/m, '')
+  .replace(/^[ \t]*phone[^\n]*\n/m, '');
 
 type Authenticate = ReturnType<typeof createAuthenticate>;
 type DrillReply = {
@@ -104,7 +108,7 @@ describe('synthetic revision 2 → 3 security cutover drill', () => {
     assert.notEqual(
       revisionTwoSchema,
       schema,
-      'schema.sql no longer contains the revision 3 users.security_version column this fixture omits',
+      'schema.sql no longer contains the columns this fixture omits (users.security_version, drivers.phone)',
     );
     const db = new Database(path);
     try {
@@ -114,6 +118,10 @@ describe('synthetic revision 2 → 3 security cutover drill', () => {
         (column) => column.name,
       );
       assert.ok(!columns.includes('security_version'), 'the revision 2 fixture must not carry the revision 3 column');
+      const driverColumns = (db.prepare('PRAGMA table_info(drivers)').all() as { name: string }[]).map(
+        (column) => column.name,
+      );
+      assert.ok(!driverColumns.includes('phone'), 'the revision 2 fixture must not carry the revision 4 column');
 
       db.exec("INSERT INTO roles (id, name) VALUES (1, 'Administrador')");
       db.prepare(
@@ -142,8 +150,8 @@ describe('synthetic revision 2 → 3 security cutover drill', () => {
       const result = migrateDatabase(db);
       if (result.outcome !== 'migrated') assert.fail(`expected migrated, got ${result.outcome}`);
       assert.equal(result.from, 2);
-      assert.equal(result.to, 3);
-      assert.equal(db.pragma('user_version', { simple: true }), 3);
+      assert.equal(result.to, SCHEMA_VERSION);
+      assert.equal(db.pragma('user_version', { simple: true }), SCHEMA_VERSION);
 
       // The row survives with a revocation stamp, so the refresh gate reports `revoked`
       // (session ended) rather than `unknown` (token never existed).
@@ -218,7 +226,7 @@ describe('synthetic revision 2 → 3 security cutover drill', () => {
     }
   });
 
-  it('rejects pre-cutover access by secret rotation and keeps the migrated revision 3 version gate', async () => {
+  it('rejects pre-cutover access by secret rotation and keeps the migrated security_version gate', async () => {
     const dbPath = join(tempRoot(), 'cutover-jwt.db');
     buildPreCutoverDatabase(dbPath, 1);
 
@@ -248,7 +256,7 @@ describe('synthetic revision 2 → 3 security cutover drill', () => {
       assert.throws(() => jwt.verify(preCutoverAccess, postCutoverSecret), /invalid signature/i);
       assert.equal((jwt.verify(postCutoverAccess, postCutoverSecret) as jwt.JwtPayload).sub, 1);
 
-      // On the migrated revision 3 database, the middleware additionally enforces the stored
+      // On the migrated database, the middleware additionally enforces the stored
       // security_version, independently of the signature.
       const authenticate = createAuthenticate(postCutoverSecret);
       assert.equal(

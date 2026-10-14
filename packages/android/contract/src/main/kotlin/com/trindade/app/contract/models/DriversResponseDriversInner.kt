@@ -34,6 +34,7 @@ import kotlinx.serialization.Contextual
  * @param id 
  * @param name 
  * @param licensePlate 
+ * @param phone 
  * @param driverType 
  */
 @Serializable
@@ -48,6 +49,9 @@ data class DriversResponseDriversInner (
 
     @SerialName(value = "license_plate")
     val licensePlate: kotlin.String?,
+
+    @SerialName(value = "phone")
+    val phone: kotlin.String?,
 
     @SerialName(value = "driver_type")
     val driverType: DriversResponseDriversInner.DriverType

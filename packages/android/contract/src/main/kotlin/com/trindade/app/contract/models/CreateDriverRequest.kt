@@ -33,6 +33,7 @@ import kotlinx.serialization.Contextual
  *
  * @param name 
  * @param licensePlate 
+ * @param phone 
  */
 @Serializable
 
@@ -42,7 +43,10 @@ data class CreateDriverRequest (
     val name: kotlin.String,
 
     @SerialName(value = "license_plate")
-    val licensePlate: kotlin.String? = null
+    val licensePlate: kotlin.String? = null,
+
+    @SerialName(value = "phone")
+    val phone: kotlin.String? = null
 
 ) {
 

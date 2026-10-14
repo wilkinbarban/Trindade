@@ -349,10 +349,16 @@ export function createDriver(
 ): DriverRow {
   const result = db
     .prepare(
-      `INSERT INTO drivers (name, license_plate, driver_type, created_by_user_id)
-       VALUES (?, ?, ?, ?)`
+      `INSERT INTO drivers (name, license_plate, phone, driver_type, created_by_user_id)
+       VALUES (?, ?, ?, ?, ?)`
     )
-    .run(data.name, data.license_plate ?? null, data.driver_type ?? 'fletero', createdByUserId);
+    .run(
+      data.name,
+      data.license_plate ?? null,
+      data.phone ?? null,
+      data.driver_type ?? 'fletero',
+      createdByUserId
+    );
 
   return db
     .prepare('SELECT * FROM drivers WHERE id = ?')
@@ -379,6 +385,12 @@ export function updateDriver(
   if (data.license_plate !== undefined) {
     updates.push('license_plate = ?');
     params.push(data.license_plate);
+  }
+  // `null` is a value here and `undefined` is not: an operator who clears the field is removing the
+  // number, and one who never touched it must leave whatever is stored alone.
+  if (data.phone !== undefined) {
+    updates.push('phone = ?');
+    params.push(data.phone);
   }
   if (data.driver_type !== undefined) {
     updates.push('driver_type = ?');

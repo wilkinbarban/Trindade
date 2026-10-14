@@ -132,8 +132,10 @@ describe('schema revision', () => {
   it('classifies every revision state without touching a database', () => {
     assert.equal(classifySchema(observation()).verdict, 'current');
     assert.equal(classifySchema(observation({ version: 0 })).verdict, 'unversioned');
-    assert.equal(classifySchema(observation(), 4).verdict, 'outdated');
-    assert.equal(classifySchema(observation({ version: 5 }), 4).verdict, 'newer');
+    // Stated against the constant rather than against a literal, so the pair stays a pair the next
+    // time the supported revision moves: one below it is pending, one above it is never downgraded.
+    assert.equal(classifySchema(observation({ version: SCHEMA_VERSION - 1 })).verdict, 'outdated');
+    assert.equal(classifySchema(observation({ version: SCHEMA_VERSION + 1 })).verdict, 'newer');
     assert.equal(
       classifySchema(observation({ tables: SCHEMA_TABLES.filter((t) => t !== 'reports') })).verdict,
       'incompatible',
@@ -161,9 +163,9 @@ describe('schema revision', () => {
     assert.deepEqual(formatReport('/tmp/fresh.db', classifySchema(observation())), [
       'database: /tmp/fresh.db',
       'integrity: ok',
-      'schema revision: 3 (this build supports 3)',
+      `schema revision: ${SCHEMA_VERSION} (this build supports ${SCHEMA_VERSION})`,
       'tables: 15 observed, 0 missing, 0 unexpected',
-      'verdict: current — revision 3; 15 tables present',
+      `verdict: current — revision ${SCHEMA_VERSION}; 15 tables present`,
     ]);
 
     const missing = formatReport(
