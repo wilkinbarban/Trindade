@@ -706,7 +706,7 @@ class LoadingScreenTest {
             failsOnRead = 2,
         )
         val model = LoadingViewModel(LoadingRepository(api))
-        val today = LoadingViewModel.saoPauloToday()
+        val today = saoPauloToday()
         val row = FakeLoadingApi.entry(MOVED_ROW_ID, SLOT_MOVED_FROM)
 
         // The two inputs `MainActivity` supplies: the save report the editor leaves behind, and the way the

@@ -446,7 +446,7 @@ fun LoadingRoute(
      */
     LaunchedEffect(date) {
         val read = viewModel.onDateChange(
-            date ?: LoadingViewModel.saoPauloToday(),
+            date ?: saoPauloToday(),
             force = date != null || stale,
         )
         if (stale && read?.await() == true) onStaleRead()

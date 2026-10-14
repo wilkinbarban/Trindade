@@ -261,6 +261,13 @@ class MainActivity : ComponentActivity() {
                                     onOpenReport = { openReportId = it },
                                     onOpenReports = { tab = Tab.REPORTS },
                                     onOpenLoading = { tab = Tab.LOADING },
+                                    // A day that is not today's is opened as the day it is, which is the
+                                    // same screen the loading history uses for the same purpose.
+                                    onOpenLoadingDay = { day ->
+                                        loadingDay = day
+                                        loadingDayFromHistory = false
+                                        tab = Tab.LOADING
+                                    },
                                 )
                                 Tab.REPORTS -> ReportGeneratorRoute(
                                     onCreated = { openReportId = it },

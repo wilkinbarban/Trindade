@@ -91,7 +91,7 @@ class LoadingViewModelTest {
         // The date drives the request, so a wrong one asks the wrong question rather than showing the
         // right answer in the wrong place.
         assertEquals(model.state.value.date, api.lastSchedulesDate)
-        assertEquals(LoadingViewModel.saoPauloToday(), api.lastSchedulesDate)
+        assertEquals(saoPauloToday(), api.lastSchedulesDate)
     }
 
     @Test
@@ -159,7 +159,7 @@ class LoadingViewModelTest {
 
     @Test
     fun `reports the date in the ISO form the API expects`() {
-        val today = LoadingViewModel.saoPauloToday()
+        val today = saoPauloToday()
 
         assertTrue("expected an ISO date, got $today", Regex("""\d{4}-\d{2}-\d{2}""").matches(today))
     }

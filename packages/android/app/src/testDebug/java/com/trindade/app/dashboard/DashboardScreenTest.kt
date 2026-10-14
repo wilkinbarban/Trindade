@@ -18,6 +18,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.trindade.app.R
 import com.trindade.app.contract.models.DashboardSummary
+import com.trindade.app.loading.saoPauloToday
 import com.trindade.app.ui.theme.TrindadeTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -77,6 +78,7 @@ class DashboardScreenTest {
         onOpenReport: (Int) -> Unit = {},
         onOpenReports: () -> Unit = {},
         onOpenLoading: () -> Unit = {},
+        onOpenLoadingDay: (String) -> Unit = {},
     ) {
         composeRule.setContent {
             TrindadeTheme {
@@ -85,6 +87,7 @@ class DashboardScreenTest {
                     onOpenReport = onOpenReport,
                     onOpenReports = onOpenReports,
                     onOpenLoading = onOpenLoading,
+                    onOpenLoadingDay = onOpenLoadingDay,
                 )
             }
         }
@@ -105,7 +108,7 @@ class DashboardScreenTest {
         // The five labels, in the web's order and with the web's words.
         for (id in listOf(
             R.string.dashboard_reports_today,
-            R.string.dashboard_schedules_tomorrow,
+            R.string.dashboard_active_schedule,
             R.string.dashboard_active_users,
             R.string.dashboard_reports_total,
             R.string.dashboard_schedules_total,
@@ -121,10 +124,14 @@ class DashboardScreenTest {
 
         // The four plain counts. Every number in the fake's summary is one of its own, so none of these
         // assertions can pass because the screen drew another card's value in its place.
-        displayed(FakeSystemApi.SCHEDULES_TOMORROW.toString())
+        displayed(FakeSystemApi.ACTIVE_SCHEDULE_COUNT.toString())
         displayed(FakeSystemApi.ACTIVE_USERS.toString())
         displayed(FakeSystemApi.REPORTS_TOTAL.toString())
         displayed(FakeSystemApi.SCHEDULES_TOTAL.toString())
+
+        // The day the count belongs to is drawn beside it: a number of carregamentos without its day is
+        // one the operator cannot act on, which is what the card stops being once the day is on it.
+        displayed(FakeSystemApi.ACTIVE_SCHEDULE_DATE)
     }
 
     /**
@@ -165,14 +172,45 @@ class DashboardScreenTest {
         assertEquals(1, openedReportsList)
     }
 
+    /**
+     * The loads card opens the day the operation is on rather than a day of its own, and the halves are
+     * asserted apart: a card wired to both callbacks would hide the choice, and a card wired to the wrong
+     * one would send an operator looking for a schedule on the wrong day. The second case is the one the
+     * day itself decides -- the day being loaded that is today's own belongs to the grid that is today's.
+     */
     @Test
-    fun `the schedules card opens the loading surface`() {
-        var openedLoading = 0
-        render(state = state(), onOpenLoading = { openedLoading += 1 })
+    fun `the loads card opens the day the operation is on`() {
+        var openedToday = 0
+        val openedDays = mutableListOf<String>()
+        render(
+            state = state(),
+            onOpenLoading = { openedToday++ },
+            onOpenLoadingDay = { openedDays += it },
+        )
 
-        card(copy(R.string.dashboard_schedules_tomorrow)).performClick()
+        card(copy(R.string.dashboard_active_schedule)).performClick()
+        composeRule.waitForIdle()
 
-        assertEquals(1, openedLoading)
+        assertEquals(0, openedToday)
+        assertEquals(listOf(FakeSystemApi.ACTIVE_SCHEDULE_DATE), openedDays)
+    }
+
+    @Test
+    fun `a day being loaded that is today opens today's grid`() {
+        var openedToday = 0
+        val openedDays = mutableListOf<String>()
+        val today = saoPauloToday()
+        render(
+            state = state(FakeSystemApi.summary().copy(activeScheduleDate = today)),
+            onOpenLoading = { openedToday++ },
+            onOpenLoadingDay = { openedDays += it },
+        )
+
+        card(copy(R.string.dashboard_active_schedule)).performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(1, openedToday)
+        assertEquals(emptyList<String>(), openedDays)
     }
 
     /**
@@ -216,7 +254,7 @@ class DashboardScreenTest {
 
         for (id in listOf(
             R.string.dashboard_reports_today,
-            R.string.dashboard_schedules_tomorrow,
+            R.string.dashboard_active_schedule,
         )) {
             val node = composeRule.onNodeWithText(copy(id)).performScrollTo()
             node.assertIsDisplayed()
@@ -238,6 +276,7 @@ class DashboardScreenTest {
                         onOpenReport = {},
                         onOpenReports = {},
                         onOpenLoading = {},
+                        onOpenLoadingDay = {},
                     )
                 }
             }
@@ -246,7 +285,7 @@ class DashboardScreenTest {
         // Verify Overview title and all cards can be scrolled into view and displayed on small screen
         composeRule.onNodeWithText(copy(R.string.dashboard_overview)).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText(copy(R.string.dashboard_reports_today)).performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText(copy(R.string.dashboard_schedules_tomorrow)).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText(copy(R.string.dashboard_active_schedule)).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText(copy(R.string.dashboard_active_users)).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText(copy(R.string.dashboard_reports_total)).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText(copy(R.string.dashboard_schedules_total)).performScrollTo().assertIsDisplayed()

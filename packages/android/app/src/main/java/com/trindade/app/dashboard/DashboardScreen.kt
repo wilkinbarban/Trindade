@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.trindade.app.R
 import com.trindade.app.contract.models.DashboardSummary
+import com.trindade.app.loading.saoPauloToday
 
 /**
  * The dashboard: the five cards the web's own dashboard draws, in the web's order and with the web's
@@ -64,6 +65,7 @@ fun DashboardScreen(
     onOpenReport: (Int) -> Unit,
     onOpenReports: () -> Unit,
     onOpenLoading: () -> Unit,
+    onOpenLoadingDay: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     when {
@@ -144,10 +146,22 @@ fun DashboardScreen(
                 }
 
                 DashboardCard(
-                    label = stringResource(R.string.dashboard_schedules_tomorrow),
-                    onClick = onOpenLoading,
+                    label = stringResource(R.string.dashboard_active_schedule),
+                    onClick = {
+                        // The grid is today's and only today's, which is the loading screen's own rule,
+                        // shared here rather than copied; any other day is opened as the day it is.
+                        if (summary.activeScheduleDate == saoPauloToday()) onOpenLoading()
+                        else onOpenLoadingDay(summary.activeScheduleDate)
+                    },
                 ) {
-                    SummaryValue(summary.schedulesTomorrow)
+                    SummaryValue(summary.activeScheduleCount)
+                    // The day the count belongs to, under it: a number of carregamentos without its day is
+                    // one the operator cannot act on, which is what this card stops being once it is here.
+                    Text(
+                        text = summary.activeScheduleDate,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
 
                 // The three cards the web leaves unlinked, and the reason is the same one there: they
@@ -192,6 +206,7 @@ fun DashboardRoute(
     onOpenReport: (Int) -> Unit,
     onOpenReports: () -> Unit,
     onOpenLoading: () -> Unit,
+    onOpenLoadingDay: (String) -> Unit,
     viewModel: DashboardViewModel = hiltViewModel(key = sessionKey),
 ) {
     val state by viewModel.state.collectAsState()
@@ -204,6 +219,7 @@ fun DashboardRoute(
         onOpenReport = onOpenReport,
         onOpenReports = onOpenReports,
         onOpenLoading = onOpenLoading,
+        onOpenLoadingDay = onOpenLoadingDay,
     )
 }
 
