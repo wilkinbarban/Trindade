@@ -29,7 +29,7 @@ class RegisterViewModelTest {
     private val api = TestApi()
     private val model by lazy { RegisterViewModel(AuthRepository(api, TestTokens(), Json)) }
 
-    private fun fill(password: String = "senha12345") {
+    private fun fill(password: String = "senha1234567890") {
         model.onUsernameChange("  joao  ")
         model.onDisplayNameChange("  Joao Silva  ")
         model.onPasswordChange(password)
@@ -49,7 +49,7 @@ class RegisterViewModelTest {
         model.onConfirmPasswordChange("different")
         model.submit()
         assertEquals(RegisterMessage.Validation(RegisterViewModel.PASSWORD_MISMATCH), model.state.value.message)
-        model.onConfirmPasswordChange("senha12345")
+        model.onConfirmPasswordChange("senha1234567890")
         assertNull(model.state.value.message)
         assertTrue(model.state.value.canSubmit)
         model.reset()
@@ -60,11 +60,11 @@ class RegisterViewModelTest {
         fill("short")
         model.submit()
         assertEquals(RegisterMessage.Validation(RegisterViewModel.PASSWORD_TOO_SHORT), model.state.value.message)
-        model.onPasswordChange("senha12345")
+        model.onPasswordChange("senha1234567890")
         model.onConfirmPasswordChange("different")
         model.submit()
         assertEquals(RegisterMessage.Validation(RegisterViewModel.PASSWORD_MISMATCH), model.state.value.message)
-        model.onConfirmPasswordChange("senha12345")
+        model.onConfirmPasswordChange("senha1234567890")
         model.onUsernameChange("u".repeat(51))
         model.submit()
         assertEquals(RegisterMessage.Validation(RegisterViewModel.USERNAME_TOO_LONG), model.state.value.message)
@@ -98,6 +98,37 @@ class RegisterViewModelTest {
         }
     }
 
+    @Test fun `password below fifteen visible graphemes is refused before the API`() {
+        // The server accepts a password only from fifteen visible graphemes on; a client that enables
+        // the button at eight makes the operator type a password twice and lose it to a 400.
+        model.reset()
+        fill("p".repeat(14))
+        model.submit()
+        assertEquals(RegisterMessage.Validation(RegisterViewModel.PASSWORD_TOO_SHORT), model.state.value.message)
+        assertEquals(0, api.calls)
+
+        model.reset()
+        fill("p".repeat(15))
+        model.submit()
+        assertEquals(1, api.calls)
+    }
+
+    @Test fun `graphemes are counted, not code points`() {
+        // Sixteen code points that carry eight visible characters are eight characters to the server,
+        // and counting code points here would hand it a password it refuses.
+        model.reset()
+        fill("e\u0301".repeat(8))
+        model.submit()
+        assertEquals(RegisterMessage.Validation(RegisterViewModel.PASSWORD_TOO_SHORT), model.state.value.message)
+        assertEquals(0, api.calls)
+
+        // Fifteen of the same decomposed characters do reach the API: same graphemes, twice the code points.
+        model.reset()
+        fill("e\u0301".repeat(15))
+        model.submit()
+        assertEquals("e\u0301".repeat(15), api.request?.password)
+    }
+
     @Test fun `password at both exact limits reaches API`() {
         for (password in listOf("p".repeat(72), "€".repeat(24))) {
             model.reset()
@@ -128,7 +159,7 @@ class RegisterViewModelTest {
         assertEquals(1, api.calls)
         assertEquals("joao", api.request?.username)
         assertEquals("Joao Silva", api.request?.displayName)
-        assertEquals("senha12345", api.request?.password)
+        assertEquals("senha1234567890", api.request?.password)
         assertEquals("received", model.state.value.successMessage)
         assertEquals("", model.state.value.password)
         assertEquals("", model.state.value.confirmPassword)
@@ -157,7 +188,7 @@ class RegisterViewModelTest {
         assertFalse(model.state.value.submitting)
         assertNull(model.state.value.successMessage)
         assertEquals(RegisterMessage.FromServer("Dados de cadastro inválidos. Verifique as informações e tente novamente."), model.state.value.message)
-        assertEquals("senha12345", model.state.value.password)
+        assertEquals("senha1234567890", model.state.value.password)
     }
 
     @Test fun `409 bootstrap refusal preserves server words`() {
@@ -218,7 +249,7 @@ class RegisterViewModelTest {
             assertEquals(expected, model.state.value.message)
             assertFalse(model.state.value.submitting)
             assertNull(model.state.value.successMessage)
-            assertEquals("senha12345", model.state.value.password)
+            assertEquals("senha1234567890", model.state.value.password)
         }
         assertEquals(cases.size, api.calls)
     }

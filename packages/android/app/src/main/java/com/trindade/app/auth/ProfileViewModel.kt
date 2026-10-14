@@ -103,13 +103,14 @@ class ProfileViewModel @Inject constructor(
         /**
          * Whether there is a password change worth sending.
          *
-         * The eight-character minimum is the server's rule, stated at the point of typing the way the
-         * vehicle rule is stated in the loading form: an operator who learns it from a 400 has typed the
-         * password twice and lost the correction. Emptiness is checked instead of a minimum for the
-         * current password, which has no length rule of its own.
+         * The server's rule is stated at the point of typing, the way the vehicle rule is stated in the
+         * loading form: an operator who learns it from a 400 has typed the password twice and lost the
+         * correction. [PasswordPolicy] supplies both halves of that rule, so the button never enables for
+         * a password the server would refuse. Emptiness is checked instead of a minimum for the current
+         * password, which has no length rule of its own.
          */
         val canChangePassword: Boolean
-            get() = !changing && currentPassword.isNotEmpty() && newPassword.length >= MIN_PASSWORD_LENGTH
+            get() = !changing && currentPassword.isNotEmpty() && PasswordPolicy.violationOf(newPassword) == null
     }
 
     /**
@@ -533,7 +534,7 @@ class ProfileViewModel @Inject constructor(
          * have to be the same number: a form that says eight and a server that wants another is a rule
          * learned from a refusal.
          */
-        const val MIN_PASSWORD_LENGTH = 8
+        const val MIN_PASSWORD_LENGTH = PasswordPolicy.MIN_GRAPHEMES
 
         /**
          * How long a check's answer is trusted before the next entry asks GitHub again.

@@ -48,7 +48,7 @@
     <string name="register_display_name">Nome de Exibição</string>
     <string name="register_password">Senha</string>
     <string name="register_confirm_password">Confirmar Senha</string>
-    <string name="register_password_helper">Mínimo 8 caracteres</string>
+    <string name="register_password_helper">Mínimo 15 caracteres visíveis</string>
     <string name="register_submit">Solicitar cadastro</string>
     <string name="register_back_to_login">Voltar para o login</string>
     <string name="register_success_title">Solicitação Enviada</string>

@@ -179,16 +179,31 @@ class ProfileViewModelTest {
     }
 
     @Test
-    fun `the password change mirrors the eight-character rule`() {
+    fun `the password change mirrors the fifteen-grapheme rule`() {
         val model = profileViewModel()
         model.open()
 
         model.onCurrentPasswordChange("segredo")
-        model.onNewPasswordChange("1234567")
+        model.onNewPasswordChange("12345678901234")
         assertEquals(false, model.state.value.canChangePassword)
 
-        // Eight is the server's minimum, and it is the same number the screen prints next to the field.
+        // Eight visible characters are no longer enough: the server refuses anything under fifteen,
+        // and the screen prints the same number next to the field.
         model.onNewPasswordChange("12345678")
+        assertEquals(false, model.state.value.canChangePassword)
+
+        // Fifteen is the server's minimum, and it is the same number the screen prints next to the field.
+        model.onNewPasswordChange("123456789012345")
+        assertEquals(true, model.state.value.canChangePassword)
+
+        // Decomposed characters count as one each, so sixteen code points are eight characters here too.
+        model.onNewPasswordChange("e\u0301".repeat(8))
+        assertEquals(false, model.state.value.canChangePassword)
+
+        // A password the byte ceiling refuses does not enable the button either.
+        model.onNewPasswordChange("€".repeat(25))
+        assertEquals(false, model.state.value.canChangePassword)
+        model.onNewPasswordChange("€".repeat(24))
         assertEquals(true, model.state.value.canChangePassword)
 
         model.onCurrentPasswordChange("")
@@ -204,7 +219,7 @@ class ProfileViewModelTest {
         val model = profileViewModel(api, store)
         model.open()
         model.onCurrentPasswordChange("segredo")
-        model.onNewPasswordChange("novasenha")
+        model.onNewPasswordChange("novasenha123456")
         model.changePassword()
 
         // The server revoked every session of this user, this one included, so the local session goes with
@@ -213,7 +228,7 @@ class ProfileViewModelTest {
         assertEquals(1, store.clears)
         assertEquals(0, api.logoutBodies.size)
         assertEquals(
-            ChangePasswordRequest(currentPassword = "segredo", newPassword = "novasenha"),
+            ChangePasswordRequest(currentPassword = "segredo", newPassword = "novasenha123456"),
             api.changePasswordBodies.single(),
         )
         assertEquals(true, model.state.value.signedOut)
@@ -233,7 +248,7 @@ class ProfileViewModelTest {
         val model = profileViewModel(api)
         model.open()
         model.onCurrentPasswordChange("errada")
-        model.onNewPasswordChange("novasenha")
+        model.onNewPasswordChange("novasenha123456")
         model.changePassword()
 
         // Asserted against a sentence that is neither this app's fallback nor its generic one: if the
@@ -251,7 +266,7 @@ class ProfileViewModelTest {
         val model = profileViewModel(api, store)
         model.open()
         model.onCurrentPasswordChange("segredo")
-        model.onNewPasswordChange("novasenha")
+        model.onNewPasswordChange("novasenha123456")
         model.changePassword()
 
         assertEquals(ProfileViewModel.UNREACHABLE, model.state.value.message)
@@ -288,7 +303,7 @@ class ProfileViewModelTest {
         val model = profileViewModel(api, store)
         model.open()
         model.onCurrentPasswordChange("segredo")
-        model.onNewPasswordChange("novasenha")
+        model.onNewPasswordChange("novasenha123456")
         model.changePassword()
         assertEquals(true, model.state.value.signedOut)
 

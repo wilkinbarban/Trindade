@@ -114,7 +114,7 @@ class RegisterApiPayloadTest {
                 MockResponse()
                     .setResponseCode(400)
                     .setHeader("Content-Type", "application/json")
-                    .setBody("""{"error":"Invalid input","details":{"fieldErrors":{"password":["String must contain at least 8 character(s)"]}}}"""),
+                    .setBody("""{"error":"Invalid input","details":{"fieldErrors":{"password":["String must contain at least 15 character(s)"]}}}"""),
             )
 
             val request = RegisterRequest(

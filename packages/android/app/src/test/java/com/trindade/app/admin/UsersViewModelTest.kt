@@ -109,7 +109,7 @@ class UsersViewModelTest {
         worker.confirmDelete()
         worker.onUsernameChange("hacker")
         worker.onDisplayNameChange("Hacker")
-        worker.onPasswordChange("senha1234")
+        worker.onPasswordChange("senha1234567890")
         worker.save()
         assertEquals(0, workerApi.creates + workerApi.updates + workerApi.deletes)
 
@@ -168,7 +168,7 @@ class UsersViewModelTest {
         // 3. Mutation attempts issue NO repository calls
         model.onUsernameChange("hacker")
         model.onDisplayNameChange("Hacker")
-        model.onPasswordChange("senha1234")
+        model.onPasswordChange("senha1234567890")
         model.save()
         assertEquals(0, api.creates)
         assertEquals(0, api.updates)
@@ -267,7 +267,7 @@ class UsersViewModelTest {
         assertEquals(1, admin.state.value.isActive)
     }
 
-    @Test fun `create validation enforces required username, display name, password and 4-char minimum`() {
+    @Test fun `create validation enforces required username, display name, password and the fifteen-grapheme minimum`() {
         val api = UserAdminApi(rows = fixtureUsers)
         val model = viewModel(api, role = "Administrador", userId = 42)
         model.load()
@@ -275,7 +275,7 @@ class UsersViewModelTest {
         // Missing username
         model.onUsernameChange("   ")
         model.onDisplayNameChange("Novo Usuário")
-        model.onPasswordChange("senha1234")
+        model.onPasswordChange("senha1234567890")
         model.save()
         assertEquals(UsersViewModel.USERNAME, model.state.value.error)
         assertEquals(0, api.creates)
@@ -294,31 +294,36 @@ class UsersViewModelTest {
         assertEquals(UsersViewModel.PASSWORD, model.state.value.error)
         assertEquals(0, api.creates)
 
-        // Password shorter than 4 characters
+        // Password below the server's fifteen visible graphemes
         model.onPasswordChange("123")
         model.save()
         assertEquals(UsersViewModel.PASSWORD_TOO_SHORT, model.state.value.error)
         assertEquals(0, api.creates)
 
-        // Valid create (4 characters passes backend minimum)
-        assertEquals(4, UsersViewModel.MIN_PASSWORD_LENGTH)
-        model.onPasswordChange("1234")
+        model.onPasswordChange("12345678901234")
+        model.save()
+        assertEquals(UsersViewModel.PASSWORD_TOO_SHORT, model.state.value.error)
+        assertEquals(0, api.creates)
+
+        // Valid create: fifteen visible characters are the server's minimum
+        assertEquals(15, UsersViewModel.MIN_PASSWORD_LENGTH)
+        model.onPasswordChange("123456789012345")
         model.onRoleIdChange(2)
         model.save()
         assertEquals(1, api.creates)
         assertNotNull(api.lastCreateBody)
         assertEquals("novousuario", api.lastCreateBody!!["username"]?.jsonPrimitive?.content)
         assertEquals("Novo Usuário", api.lastCreateBody!!["display_name"]?.jsonPrimitive?.content)
-        assertEquals("1234", api.lastCreateBody!!["password"]?.jsonPrimitive?.content)
+        assertEquals("123456789012345", api.lastCreateBody!!["password"]?.jsonPrimitive?.content)
         assertEquals("2", api.lastCreateBody!!["role_id"]?.jsonPrimitive?.content)
     }
 
-    @Test fun `password minimum validation aligns with backend Zod 4-character rule on edit as well`() {
+    @Test fun `password minimum validation aligns with the published fifteen-grapheme contract on edit as well`() {
         val api = UserAdminApi(rows = fixtureUsers)
         val model = viewModel(api, role = "Administrador", userId = 42)
         model.load()
 
-        // 1. Self edit with short password (< 4 chars) fails with PASSWORD_TOO_SHORT
+        // 1. Self edit below fifteen visible characters fails with PASSWORD_TOO_SHORT
         model.edit(adminUser)
         model.onDisplayNameChange("Admin")
         model.onPasswordChange("123")
@@ -326,24 +331,30 @@ class UsersViewModelTest {
         assertEquals(UsersViewModel.PASSWORD_TOO_SHORT, model.state.value.error)
         assertEquals(0, api.updates)
 
-        // Self edit with exactly 4 chars succeeds
-        model.onPasswordChange("1234")
+        model.onPasswordChange("12345678901234")
+        model.save()
+        assertEquals(UsersViewModel.PASSWORD_TOO_SHORT, model.state.value.error)
+        assertEquals(0, api.updates)
+
+        // Self edit with exactly fifteen visible characters succeeds
+        model.onPasswordChange("123456789012345")
         model.save()
         assertEquals(1, api.updates)
-        assertEquals("1234", api.lastUpdateBody!!["password"]?.jsonPrimitive?.content)
+        assertEquals("123456789012345", api.lastUpdateBody!!["password"]?.jsonPrimitive?.content)
 
-        // 2. Edit other user with short password (< 4 chars) fails with PASSWORD_TOO_SHORT
+        // 2. Edit other user below the minimum fails, and graphemes are counted, not code points:
+        // sixteen code points that carry eight visible characters are eight characters here too.
         model.edit(workerUser)
-        model.onPasswordChange("ab")
+        model.onPasswordChange("e\u0301".repeat(8))
         model.save()
         assertEquals(UsersViewModel.PASSWORD_TOO_SHORT, model.state.value.error)
         assertEquals(1, api.updates) // No new update issued
 
-        // Edit other user with exactly 4 chars succeeds
-        model.onPasswordChange("abcd")
+        // Edit other user with fifteen visible characters succeeds
+        model.onPasswordChange("abcdefghijklmno")
         model.save()
         assertEquals(2, api.updates)
-        assertEquals("abcd", api.lastUpdateBody!!["password"]?.jsonPrimitive?.content)
+        assertEquals("abcdefghijklmno", api.lastUpdateBody!!["password"]?.jsonPrimitive?.content)
     }
 
     @Test fun `edit self updates display name and password while omitting username, role and status`() {
@@ -439,8 +450,8 @@ class UsersViewModelTest {
         // 1. Password cleared after successful create
         model.onUsernameChange("novousuario")
         model.onDisplayNameChange("Novo")
-        model.onPasswordChange("segredo123")
-        assertEquals("segredo123", model.password.value)
+        model.onPasswordChange("segredo123456789")
+        assertEquals("segredo123456789", model.password.value)
 
         model.save()
         assertEquals("", model.password.value)
@@ -448,8 +459,8 @@ class UsersViewModelTest {
 
         // 2. Password cleared on cancelEdit
         model.edit(workerUser)
-        model.onPasswordChange("novaSenha456")
-        assertEquals("novaSenha456", model.password.value)
+        model.onPasswordChange("novaSenha456789")
+        assertEquals("novaSenha456789", model.password.value)
 
         model.cancelEdit()
         assertEquals("", model.password.value)
@@ -469,7 +480,7 @@ class UsersViewModelTest {
         assertFalse(model.state.value.hasPasswordWarning)
         assertNull(model.state.value.passwordWarning)
 
-        // 2. Short password (< 4 chars): warning active AND save is blocked
+        // 2. Below the server's minimum: warning active AND save is blocked
         model.onPasswordChange("abc")
         assertTrue(model.state.value.hasPasswordWarning)
         assertEquals(UsersViewModel.PASSWORD_WARNING, model.state.value.passwordWarning)
@@ -477,19 +488,20 @@ class UsersViewModelTest {
         assertEquals(UsersViewModel.PASSWORD_TOO_SHORT, model.state.value.error)
         assertEquals(0, api.creates)
 
-        // 3. 4-character password: meets backend minimum, warning remains active, but save is NOT blocked!
-        model.onPasswordChange("pass")
+        // 3. Fifteen visible characters, all lowercase: meets the server's minimum, the advisory stays
+        // active, and the save is NOT blocked, because the advisory is advice and the minimum is a rule.
+        model.onPasswordChange("passwordpassword")
         assertTrue(model.state.value.hasPasswordWarning)
         model.save()
         assertNull(model.state.value.error)
         assertEquals(1, api.creates)
 
-        // 4. 8-character password without uppercase or digit: warning active, save succeeds
-        model.onPasswordChange("password")
+        // 4. Another weak password above the minimum: warning active, save succeeds
+        model.onPasswordChange("outrasenhabemfraca")
         assertTrue(model.state.value.hasPasswordWarning)
 
-        // 5. Strong password (>= 8 chars, uppercase, digit): warning is cleared!
-        model.onPasswordChange("Password123")
+        // 5. Strong password (>= 15 chars, uppercase, digit): warning is cleared!
+        model.onPasswordChange("Password12345678")
         assertFalse(model.state.value.hasPasswordWarning)
         assertNull(model.state.value.passwordWarning)
     }
@@ -537,7 +549,7 @@ class UsersViewModelTest {
 
         model.onUsernameChange("novo")
         model.onDisplayNameChange("Nome")
-        model.onPasswordChange("pass1234")
+        model.onPasswordChange("pass1234567890123")
 
         // Refusal 403
         api.writeResult = UserWriteResult.Refused(403)
@@ -606,7 +618,7 @@ class UsersViewModelTest {
 
         model.onUsernameChange("user")
         model.onDisplayNameChange("Name")
-        model.onPasswordChange("pass")
+        model.onPasswordChange("passwordlongenough")
 
         api.writeResult = UserWriteResult.Refused(400)
         model.save()

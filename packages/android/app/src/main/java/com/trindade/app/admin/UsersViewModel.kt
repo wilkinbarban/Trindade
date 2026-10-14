@@ -3,6 +3,7 @@ package com.trindade.app.admin
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.trindade.app.auth.AuthRepository
+import com.trindade.app.auth.PasswordPolicy
 import com.trindade.app.contract.models.AdminUserResponseUser
 import com.trindade.app.contract.models.CreateAdminUserRequest
 import com.trindade.app.contract.models.UpdateAdminUserRequest
@@ -222,15 +223,15 @@ class UsersViewModel @Inject constructor(
             if (username.isEmpty()) return validation(USERNAME)
             if (displayName.isEmpty()) return validation(DISPLAY_NAME)
             if (pwd.isEmpty()) return validation(PASSWORD)
-            if (pwd.length < MIN_PASSWORD_LENGTH) return validation(PASSWORD_TOO_SHORT)
+            passwordViolation(pwd)?.let { return validation(it) }
         } else {
             if (current.isSelfEditing) {
                 if (displayName.isEmpty()) return validation(DISPLAY_NAME)
-                if (pwd.isNotEmpty() && pwd.length < MIN_PASSWORD_LENGTH) return validation(PASSWORD_TOO_SHORT)
+                if (pwd.isNotEmpty()) passwordViolation(pwd)?.let { return validation(it) }
             } else {
                 if (username.isEmpty()) return validation(USERNAME)
                 if (displayName.isEmpty()) return validation(DISPLAY_NAME)
-                if (pwd.isNotEmpty() && pwd.length < MIN_PASSWORD_LENGTH) return validation(PASSWORD_TOO_SHORT)
+                if (pwd.isNotEmpty()) passwordViolation(pwd)?.let { return validation(it) }
             }
         }
 
@@ -305,16 +306,30 @@ class UsersViewModel @Inject constructor(
     private fun changeForm(change: UiState.() -> UiState) = _state.update { it.change().copy(error = null, refusedStatus = null) }
     private fun validation(message: String) = _state.update { it.copy(error = message, refusedStatus = null) }
 
+    /**
+     * The message for a password the server would refuse, or null when it would accept it.
+     *
+     * The rule itself lives in [PasswordPolicy], shared with the registration and profile forms, so the
+     * admin panel cannot save a user whose password the server refuses on the strength of a rule the
+     * other two screens no longer state that way.
+     */
+    private fun passwordViolation(pwd: String): String? = when (PasswordPolicy.violationOf(pwd)) {
+        PasswordPolicy.Violation.TOO_FEW_GRAPHEMES -> PASSWORD_TOO_SHORT
+        PasswordPolicy.Violation.TOO_MANY_BYTES -> PASSWORD_TOO_MANY_BYTES
+        null -> null
+    }
+
     companion object {
         const val ADMIN = "Administrador"
         const val WORKER = "Trabalhador"
         const val DEFAULT_ROLE_ID = 2
-        const val MIN_PASSWORD_LENGTH = 4
+        const val MIN_PASSWORD_LENGTH = PasswordPolicy.MIN_GRAPHEMES
         const val USERNAME = "Enter a username."
         const val DISPLAY_NAME = "Enter a display name."
         const val PASSWORD = "Enter a password."
-        const val PASSWORD_TOO_SHORT = "Password must be at least 4 characters long."
-        const val PASSWORD_WARNING = "Recomendamos uma senha de pelo menos 8 caracteres com letras maiúsculas e números"
+        const val PASSWORD_TOO_SHORT = "Password must be at least 15 visible characters long."
+        const val PASSWORD_TOO_MANY_BYTES = "Password must not exceed 72 bytes."
+        const val PASSWORD_WARNING = "Recomendamos uma senha de pelo menos 15 caracteres com letras maiúsculas e números"
         const val REFUSED = "The server refused this user operation."
         const val UNREACHABLE = "Could not reach the server. Try again."
     }
