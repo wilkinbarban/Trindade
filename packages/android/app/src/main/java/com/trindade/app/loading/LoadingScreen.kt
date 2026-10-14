@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CircularProgressIndicator
@@ -25,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -245,7 +247,7 @@ private fun SlotBlock(
                     // rule: an action that is drawn but refuses is still an offer. The day travels with the id
                     // because that screen reads the row out of its day (`GET /api/loading/schedules?date=`),
                     // and the day this grid is showing is written down here and nowhere else.
-                    if (!entry.isReadOnly()) {
+                    if (!entry.isReadOnly() && !state.loading) {
                         NavigationActionButton(
                             onClick = { onEditEntry(entry.id, state.date) },
                             text = stringResource(R.string.report_edit),
@@ -254,7 +256,7 @@ private fun SlotBlock(
                     AdminDestructiveButton(
                         onClick = { onDelete(entry.id) },
                         text = stringResource(R.string.report_photo_remove),
-                        enabled = !state.busy,
+                        enabled = !state.busy && !state.loading,
                     )
                 }
             }
@@ -274,7 +276,9 @@ private fun SlotBlock(
             AdminSecondaryButton(
                 onClick = { onStartAdding(slot) },
                 text = stringResource(R.string.loading_add_entry),
-                enabled = !state.busy,
+                // Withheld while the day is in the air: the slot belongs to the grid that is being replaced,
+                // and the form it opens would be filled against a day nobody has read yet.
+                enabled = !state.busy && !state.loading,
                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
             )
         }
@@ -294,10 +298,24 @@ private fun AddEntryForm(
         Text(text = stringResource(R.string.loading_pick_driver), style = MaterialTheme.typography.labelLarge)
 
         state.drivers.forEach { driver ->
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            // The whole row is the control and the radio beside the name is the picture of the choice,
+            // which is the shape the edit surface gives its slots and for the same reason: the name is what
+            // the operator aims at, and a circle handed its own click is a second, smaller target for one
+            // decision. The button is therefore given no click of its own.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .defaultMinSize(minHeight = 48.dp)
+                    .selectable(
+                        selected = state.selectedDriverId == driver.id,
+                        role = Role.RadioButton,
+                        onClick = { onDriverSelected(driver.id) },
+                    ),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 RadioButton(
                     selected = state.selectedDriverId == driver.id,
-                    onClick = { onDriverSelected(driver.id) },
+                    onClick = null,
                 )
                 Text(text = driver.name, style = MaterialTheme.typography.bodyMedium)
             }
@@ -308,10 +326,21 @@ private fun AddEntryForm(
         if (state.needsVehicle) {
             Text(text = stringResource(R.string.loading_pick_vehicle), style = MaterialTheme.typography.labelLarge)
             state.vehicles.forEach { vehicle ->
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                // Same row as the drivers', with the description and plate as its own text.
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .defaultMinSize(minHeight = 48.dp)
+                        .selectable(
+                            selected = state.selectedVehicleId == vehicle.id,
+                            role = Role.RadioButton,
+                            onClick = { onVehicleSelected(vehicle.id) },
+                        ),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     RadioButton(
                         selected = state.selectedVehicleId == vehicle.id,
-                        onClick = { onVehicleSelected(vehicle.id) },
+                        onClick = null,
                     )
                     Text(
                         text = "${vehicle.description} · ${vehicle.licensePlate}",
@@ -327,7 +356,9 @@ private fun AddEntryForm(
         ) {
             AdminPrimaryButton(
                 onClick = onConfirm,
-                enabled = state.canConfirm,
+                // The form is complete on its own terms, and it is still not offered while the day is being
+                // read: confirming would name a slot of a day whose rows nobody has seen yet.
+                enabled = state.canConfirm && !state.loading,
                 text = stringResource(R.string.loading_confirm),
             )
             AdminSecondaryButton(

@@ -8,15 +8,22 @@ import androidx.compose.ui.platform.ClipboardManager
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.SemanticsNodeInteraction
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasProgressBarRangeInfo
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -156,6 +163,136 @@ class LoadingScreenTest {
         schedules = listOf(responsiveEntry),
         timeSlots = listOf("04:00"),
     )
+
+    /**
+     * The grid with one slot's add form open, which is where the two selections live.
+     *
+     * The selected driver is the company one, so the vehicle list is drawn as well: a company driver
+     * brings no vehicle of their own and the server refuses the assignment without one.
+     */
+    private fun addingState() = LoadingViewModel.UiState(
+        date = DATE,
+        loading = false,
+        schedules = listOf(editable.copy(timeSlot = "04:00")),
+        timeSlots = listOf("04:00"),
+        drivers = FakeLoadingApi.defaultDrivers(),
+        vehicles = FakeLoadingApi.defaultVehicles(),
+        addingToSlot = "04:00",
+        selectedDriverId = FakeLoadingApi.CASA_DRIVER_ID,
+    )
+
+    private fun renderAddingForm(
+        onDriverSelected: (Int) -> Unit = {},
+        onVehicleSelected: (Int) -> Unit = {},
+    ) {
+        composeRule.setContent {
+            TrindadeTheme {
+                LoadingScreen(
+                    state = addingState(),
+                    onBack = {},
+                    onOpenHistory = {},
+                    onStartAdding = {},
+                    onCancelAdding = {},
+                    onDriverSelected = onDriverSelected,
+                    onVehicleSelected = onVehicleSelected,
+                    onConfirmAdd = {},
+                    onDelete = {},
+                    onEditEntry = { _, _ -> },
+                    onLoadExport = {},
+                )
+            }
+        }
+    }
+
+    /** One state of the grid, drawn as given: the date-scoped rule is the view model's and is asserted there. */
+    private fun renderState(state: LoadingViewModel.UiState) {
+        composeRule.setContent {
+            TrindadeTheme {
+                LoadingScreen(
+                    state = state,
+                    onBack = {},
+                    onOpenHistory = {},
+                    onStartAdding = {},
+                    onCancelAdding = {},
+                    onDriverSelected = {},
+                    onVehicleSelected = {},
+                    onConfirmAdd = {},
+                    onDelete = {},
+                    onEditEntry = { _, _ -> },
+                    onLoadExport = {},
+                )
+            }
+        }
+    }
+
+    // ---- The two selections of the add form (AND-03) ----
+
+    /**
+     * The rule this pair of tests exists for: the whole row is the control.
+     *
+     * The trap the change closes is small and real. The radio alone used to own the click, so the row an
+     * operator reads -- the name of the driver, the description and plate of the vehicle -- was a label
+     * they could touch with nothing happening, while a circle a few points wide did the selecting. The
+     * label is what they aim at, which is why the tap below goes to the label and not to the button.
+     */
+    @Test
+    fun `the whole driver row is the control and the label selects that driver`() {
+        val selected = mutableListOf<Int>()
+        renderAddingForm(onDriverSelected = { selected += it })
+
+        composeRule.onNodeWithText("Fletero").performScrollTo().assertIsDisplayed().performClick()
+
+        assertEquals(listOf(FakeLoadingApi.FLETERO_DRIVER_ID), selected)
+    }
+
+    @Test
+    fun `a driver row carries the radio role and its own selected state`() {
+        renderAddingForm()
+
+        val chosen = composeRule.onNodeWithText("Carlos").performScrollTo()
+        chosen.assertIsDisplayed()
+        chosen.assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.RadioButton))
+        chosen.assertIsSelected()
+
+        composeRule.onNodeWithText("Fletero").assertIsNotSelected()
+    }
+
+    @Test
+    fun `the whole vehicle row is the control too`() {
+        val selected = mutableListOf<Int>()
+        renderAddingForm(onVehicleSelected = { selected += it })
+
+        composeRule.onNodeWithText("Fiorino · XYZ9876").performScrollTo().assertIsDisplayed().performClick()
+
+        assertEquals(listOf(FakeLoadingApi.VEHICLE_ID), selected)
+    }
+
+    // ---- A day that is still being read offers nothing to change (AND-01) ----
+
+    /**
+     * The other half of the date-scoped rule, on the screen's side.
+     *
+     * Clearing the day's rows belongs to the view model, and this leg does not re-assert it: what is
+     * asserted here is that the actions the grid still draws while a read is in the air -- the way into a
+     * new entry and the removal of a row already on screen -- cannot be spent on data whose day has not
+     * been confirmed. A grid that cleared its rows but left the buttons live would offer a form for a slot
+     * of a day nobody has read yet.
+     */
+    @Test
+    fun `while the day is being read the grid offers no mutation`() {
+        renderState(state().copy(loading = true))
+
+        // One way into a new entry per configured slot, and not one of them is live while the day is
+        // unread: the count is asserted first so a grid that drew no slots at all cannot pass by absence.
+        val waysIn = composeRule.onAllNodesWithText(copy(R.string.loading_add_entry))
+        waysIn.assertCountEquals(SLOTS.size)
+        repeat(SLOTS.size) { index -> waysIn[index].assertIsNotEnabled() }
+
+        // And the removal of every row the settled day drew is withheld too.
+        val removals = composeRule.onAllNodesWithText(copy(R.string.report_photo_remove))
+        removals.assertCountEquals(day.size)
+        repeat(day.size) { index -> removals[index].assertIsNotEnabled() }
+    }
 
     // ---- Rendering ----
 

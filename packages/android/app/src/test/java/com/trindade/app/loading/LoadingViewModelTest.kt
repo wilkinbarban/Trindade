@@ -299,6 +299,35 @@ class LoadingViewModelTest {
     }
 
     @Test
+    fun `changing the day clears the previous day's rows until its own answer arrives`() = runTest {
+        // The constructor's read is held open, then settled, so the grid starts on a day it has actually
+        // read: the point below is not an empty grid but a grid with rows that belong to another day.
+        val api = FakeLoadingApi(
+            schedulesToReturn = listOf(FakeLoadingApi.entry(1, "04:00")),
+            gateSchedules = true,
+        )
+        val model = viewModel(api)
+        api.scheduleGates[0].complete(Unit)
+        assertEquals("the grid starts on the day it read", 1, model.state.value.schedules.size)
+
+        // The operator names another day. Its answer is still in the air.
+        val nextDay = model.onDateChange("2026-08-14")!!
+
+        assertTrue("the new day is being read", model.state.value.loading)
+        assertEquals("2026-08-14", model.state.value.date)
+        assertEquals("no row of the previous day survives the change", 0, model.state.value.schedules.size)
+        assertEquals("and no slot list of it either", 0, model.state.value.timeSlots.size)
+        assertEquals("nor the drivers offered for its form", 0, model.state.value.drivers.size)
+        assertEquals("nor its vehicles", 0, model.state.value.vehicles.size)
+
+        // The answer to the new day is the only thing that fills it, and it fills it with its own rows.
+        api.scheduleGates[1].complete(Unit)
+        assertTrue(nextDay.await())
+        assertEquals(1, model.state.value.schedules.size)
+        assertFalse(model.state.value.loading)
+    }
+
+    @Test
     fun `a failed forced arrival reports no success and the next forced arrival retries`() = runTest {
         var reads = 0
         val api = object : LoadingApi by FakeLoadingApi() {

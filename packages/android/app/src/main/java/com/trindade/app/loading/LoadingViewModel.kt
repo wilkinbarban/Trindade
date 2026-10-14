@@ -137,7 +137,29 @@ class LoadingViewModel @Inject constructor(
      */
     fun onDateChange(date: String, force: Boolean = false): Deferred<Boolean>? {
         if (!force && date == state.value.date) return null
-        _state.update { it.copy(date = date) }
+
+        // A day the operator names empties the grid before its own answer arrives. Rows, slots, drivers
+        // and vehicles all belong to the read that named the previous day, and drawing them under the new
+        // day's header -- even for the moment a read takes -- shows one day's schedule as if it were
+        // another's, which is the failure this screen exists to avoid. The token in `load` is what keeps a
+        // late answer to the old day from refilling what this clears.
+        //
+        // Only a day that actually changes clears: the arrival that follows a write names the day already
+        // on screen, and clearing there would blank the grid the operator just edited for no reason.
+        if (date != state.value.date) {
+            _state.update {
+                it.copy(
+                    date = date,
+                    schedules = emptyList(),
+                    timeSlots = emptyList(),
+                    drivers = emptyList(),
+                    vehicles = emptyList(),
+                    addingToSlot = null,
+                    selectedDriverId = null,
+                    selectedVehicleId = null,
+                )
+            }
+        }
         return load()
     }
 
