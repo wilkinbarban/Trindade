@@ -31,6 +31,9 @@ export function migrateLegacyReportTemperatures(db: Database.Database): boolean 
         SELECT id, report_id, location, 1, value, created_at FROM report_temperatures;
         DROP TABLE report_temperatures;
         ALTER TABLE new_report_temperatures RENAME TO report_temperatures;
+        -- The rebuild drops the table the index was attached to, so the index has to come back
+        -- with the renamed table or every read by report_id loses its index after a migration.
+        CREATE INDEX IF NOT EXISTS idx_report_temperatures_report_id ON report_temperatures(report_id);
       `);
     })();
   } finally {

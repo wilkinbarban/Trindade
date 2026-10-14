@@ -260,3 +260,25 @@ describe('Database Initialization', () => {
     db.close();
   });
 });
+
+
+it('keeps idx_report_temperatures_report_id after migrating the legacy temperatures table', () => {
+  const db = new Database(':memory:');
+  db.exec(`
+    CREATE TABLE reports (id INTEGER PRIMARY KEY AUTOINCREMENT);
+    CREATE TABLE report_temperatures (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      report_id INTEGER NOT NULL REFERENCES reports(id),
+      location TEXT NOT NULL,
+      value REAL NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX idx_report_temperatures_report_id ON report_temperatures(report_id);
+  `);
+  assert.strictEqual(migrateLegacyReportTemperatures(db), true, 'the legacy table should have been rebuilt');
+  const index = db
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'idx_report_temperatures_report_id'")
+    .get();
+  assert.ok(index, 'the migration dropped idx_report_temperatures_report_id and never recreated it');
+  db.close();
+});
