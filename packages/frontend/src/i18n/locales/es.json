@@ -63,7 +63,8 @@
     "deleteConfirm": "¿Está seguro de que desea eliminar permanentemente este elemento? Esta acción no se puede deshacer.",
     "deletePermanently": "Eliminar permanentemente",
     "switchLanguage": "Cambiar idioma",
-    "back": "Volver"
+    "back": "Volver",
+    "share": "Compartir"
   },
   "reports": {
     "newReport": "Nuevo Reporte",
@@ -170,7 +171,9 @@
     "selectVehicleFor": "Seleccionar vehículo para {{name}}",
     "historyTitle": "Historial de Cargamento",
     "historyDesc": "Todos los cargamentos, con filtros y acciones permitidas por el servidor.",
-    "sendToFletero": "Enviar directo al fletero"
+    "sendToFletero": "Enviar directo al fletero",
+    "shareCopied": "Texto copiado para compartir.",
+    "shareUnavailable": "Este navegador no puede compartir ni copiar."
   },
   "admin": {
     "title": "Administración",

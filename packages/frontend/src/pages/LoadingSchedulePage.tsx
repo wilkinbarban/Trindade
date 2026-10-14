@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 import { LucideSend, LucideFileDown } from 'lucide-react';
 import { api } from '../api/client';
 import { Button } from '../components/ui/button';
@@ -33,7 +34,10 @@ function todayDate(): string {
 
 export function LoadingSchedulePage() {
   const { t } = useTranslation();
-  const date = todayDate();
+  // The dashboard links here with the batch whose text announces the day being loaded, so the date can
+  // arrive in the URL; without it the screen keeps opening on today, the way it always did.
+  const [searchParams] = useSearchParams();
+  const date = searchParams.get('date') ?? todayDate();
 
   // Data
   const [schedules, setSchedules] = useState<ScheduleRow[]>([]);

@@ -2,12 +2,16 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
+import { shareOrCopy } from '../lib/whatsapp';
 import { Card, CardContent } from '../components/ui/card';
 import { LoadingSpinner } from '../components/ui/loading-spinner';
 
 interface DashboardSummary {
   reportsToday: number;
   schedulesTomorrow: number;
+  activeScheduleDate: string;
+  activeScheduleBatchDate: string | null;
+  activeScheduleCount: number;
   activeUsers: number;
   reportsTotal: number;
   schedulesTotal: number;
@@ -56,6 +60,25 @@ export function DashboardPage() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [shareNote, setShareNote] = useState('');
+
+  /**
+   * Sends the active schedule's own text: the batch date the summary carries is what the export takes,
+   * and the message it renders is the one that announces the day the card is showing.
+   */
+  async function handleShareActiveSchedule() {
+    const batchDate = summary?.activeScheduleBatchDate;
+    if (!batchDate) return;
+    setShareNote('');
+    try {
+      const data = await api.get<{ text: string }>(`/loading/export?date=${batchDate}`);
+      const outcome = await shareOrCopy(data.text);
+      if (outcome === 'copied') setShareNote(t('loading.shareCopied'));
+      else if (outcome === 'failed') setShareNote(t('loading.shareUnavailable'));
+    } catch {
+      setShareNote(t('loading.exportError'));
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -126,10 +149,47 @@ export function DashboardPage() {
           to={summary?.latestReportId ? `/reports/${summary.latestReportId}` : '/reports'}
         />
         <SummaryCard
-          title={t('dashboard.schedulesTomorrow')}
-          value={<span className="text-3xl font-bold text-green-600">{summary?.schedulesTomorrow ?? 0}</span>}
+          title={t('dashboard.activeSchedule')}
+          value={
+            <div className="space-y-1">
+              <span className="text-3xl font-bold text-green-600">{summary?.activeScheduleCount ?? 0}</span>
+              <div className="text-xs text-gray-500" data-testid="active-schedule-date">
+                {summary?.activeScheduleDate ?? ''}
+              </div>
+              {/*
+                The way into the schedule and the way to send it, both on the card: the batch date is the one
+                the export takes, and the summary carries it so this link does not have to work it out.
+              */}
+              <div className="flex flex-wrap items-center gap-3 pt-1">
+                <Link
+                  to={
+                    summary?.activeScheduleBatchDate
+                      ? `/loading?date=${summary.activeScheduleBatchDate}`
+                      : '/loading'
+                  }
+                  className="text-xs text-blue-600 hover:underline"
+                  data-testid="view-active-schedule"
+                >
+                  {t('dashboard.viewSchedule')}
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleShareActiveSchedule}
+                  disabled={!summary?.activeScheduleBatchDate}
+                  className="text-xs text-green-700 hover:underline disabled:text-gray-400 disabled:no-underline"
+                  data-testid="share-active-schedule"
+                >
+                  {t('dashboard.shareSchedule')}
+                </button>
+              </div>
+              {shareNote && (
+                <div className="text-xs text-gray-500" data-testid="active-schedule-share-note">
+                  {shareNote}
+                </div>
+              )}
+            </div>
+          }
           icon="🚛"
-          to="/loading"
         />
         <SummaryCard
           title={t('dashboard.activeUsers')}
