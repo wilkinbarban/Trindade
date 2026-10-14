@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useSearchParams } from 'react-router-dom';
 import { LucideSend, LucideFileDown } from 'lucide-react';
 import { api } from '../api/client';
 import { Button } from '../components/ui/button';
@@ -34,10 +33,9 @@ function todayDate(): string {
 
 export function LoadingSchedulePage() {
   const { t } = useTranslation();
-  // The dashboard links here with the batch whose text announces the day being loaded, so the date can
-  // arrive in the URL; without it the screen keeps opening on today, the way it always did.
-  const [searchParams] = useSearchParams();
-  const date = searchParams.get('date') ?? todayDate();
+  // This screen is the current day's grid and only that: a date in the URL is ignored on purpose, which is
+  // what its spec pins down. A different day belongs to the edit screen, and the dashboard links there.
+  const date = todayDate();
 
   // Data
   const [schedules, setSchedules] = useState<ScheduleRow[]>([]);

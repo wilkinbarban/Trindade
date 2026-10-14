@@ -6,6 +6,19 @@ import { shareOrCopy } from '../lib/whatsapp';
 import { Card, CardContent } from '../components/ui/card';
 import { LoadingSpinner } from '../components/ui/loading-spinner';
 
+/** The day in São Paulo, which is the day the schedule screens are about. */
+function saoPauloToday(): string {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const parts = formatter.formatToParts(new Date());
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
+  return `${get('year')}-${get('month')}-${get('day')}`;
+}
+
 interface DashboardSummary {
   reportsToday: number;
   schedulesTomorrow: number;
@@ -163,9 +176,10 @@ export function DashboardPage() {
               <div className="flex flex-wrap items-center gap-3 pt-1">
                 <Link
                   to={
-                    summary?.activeScheduleBatchDate
-                      ? `/loading?date=${summary.activeScheduleBatchDate}`
-                      : '/loading'
+                    // Today's grid is the screen for today, and the edit screen is the one that takes a day.
+                    !summary?.activeScheduleDate || summary.activeScheduleDate === saoPauloToday()
+                      ? '/loading'
+                      : `/loading/edit?date=${summary.activeScheduleDate}`
                   }
                   className="text-xs text-blue-600 hover:underline"
                   data-testid="view-active-schedule"
