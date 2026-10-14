@@ -174,4 +174,48 @@ test.describe('Admin Edit & Export (Phase 4)', () => {
 
     // Nothing here asserts a rejection, because there is none to assert.
   });
+
+  /**
+   * The fleet table's number column, and the blank it draws when there is no number to draw.
+   *
+   * Two drivers through the API, one with a number and one without, because which of the two an operator
+   * can reach on WhatsApp is exactly what this column is for: the blank is the answer rather than an
+   * accident, and asserting the cell's own position is what tells an empty cell apart from a missing one.
+   */
+  test('4.4 fleet table carries each driver’s number and leaves the cell blank when there is none', async ({ page }) => {
+    const identities = await getE2EIdentities(page);
+    const loginRes = await page.request.post(`${API_BASE}/auth/login`, { data: identities.admin });
+    expect(loginRes.ok()).toBeTruthy();
+    const token = (await loginRes.json()).token;
+    const auth = { authorization: `Bearer ${token}` };
+    const suffix = Date.now();
+    const withNumber = `Fletero Com Numero ${suffix}`;
+    const withoutNumber = `Fletero Sem Numero ${suffix}`;
+
+    const first = await page.request.post(`${API_BASE}/admin/drivers`, {
+      headers: auth,
+      data: { name: withNumber, phone: '+55 (11) 98888-7777', driver_type: 'fletero' },
+    });
+    expect(first.status()).toBe(201);
+
+    // No number at all, which is the case the column has to keep distinguishable from a hidden one.
+    const second = await page.request.post(`${API_BASE}/admin/drivers`, {
+      headers: auth,
+      data: { name: withoutNumber, driver_type: 'fletero' },
+    });
+    expect(second.status()).toBe(201);
+
+    await goToProtected(page, '/admin', identities.admin);
+    await page.getByRole('button', { name: /Motoristas|Conductores/ }).click();
+
+    // The header names the column, in whichever language the application is running in.
+    await expect(page.getByRole('columnheader', { name: /Telefone|Teléfono/ })).toBeVisible();
+
+    // The number is the third cell of the row: after the id and the name.
+    const withRow = page.locator('tbody tr', { hasText: withNumber });
+    await expect(withRow.locator('td').nth(2)).toHaveText('+55 (11) 98888-7777');
+
+    const withoutRow = page.locator('tbody tr', { hasText: withoutNumber });
+    await expect(withoutRow.locator('td').nth(2)).toHaveText('');
+  });
 });

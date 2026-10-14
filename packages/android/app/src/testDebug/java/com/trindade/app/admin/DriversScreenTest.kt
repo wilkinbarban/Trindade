@@ -83,6 +83,31 @@ class DriversScreenTest {
         assertEquals(1, toggled)
     }
 
+    /**
+     * The number the fleet keeps, drawn in the list the way the plate is: the one an operator typed, and
+     * nothing where nobody has one. A blank is the answer the list exists to give here -- it is how the
+     * panel shows who has a number recorded and who does not -- so the case worth asserting is that the
+     * driver without one is rendered at all (no error, no crash) and that no number appears for them.
+     */
+    @Test fun `a driver's number is drawn and a driver without one shows none`() {
+        render(
+            state(
+                drivers = listOf(
+                    driver(1, 7).copy(phone = "+55 (11) 98888-7777"),
+                    driver(2, 8),
+                ),
+            ),
+        )
+
+        composeRule.onNodeWithText("+55 (11) 98888-7777").performScrollTo().assertIsDisplayed()
+
+        // The second card renders its own lines and no number: the plate it does have is there, which is
+        // what says the card was drawn rather than skipped.
+        composeRule.onNodeWithText("Motorista 2").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("ABC2").performScrollTo().assertIsDisplayed()
+        composeRule.onAllNodesWithText("+55", substring = true).assertCountEquals(1)
+    }
+
     @Test fun `admin create form exposes fields and forwards driver type selection`() {
         var type = ""
         render(state(drivers = emptyList()), onDriverTypeChange = { type = it })
