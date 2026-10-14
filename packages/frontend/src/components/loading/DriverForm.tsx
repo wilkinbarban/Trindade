@@ -1,11 +1,17 @@
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, ApiClientError } from '../../api/client';
+import { cleanPhone, filterPhoneInput } from '../../lib/phone';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 
 export interface DriverFormProps {
-  onSaved: (driver: { id: number; name: string; license_plate: string | null }) => void;
+  onSaved: (driver: {
+    id: number;
+    name: string;
+    license_plate: string | null;
+    phone: string | null;
+  }) => void;
   onCancel: () => void;
 }
 
@@ -13,6 +19,7 @@ export function DriverForm({ onSaved, onCancel }: DriverFormProps) {
   const { t } = useTranslation();
   const [name, setName] = useState('');
   const [plate, setPlate] = useState('');
+  const [phone, setPhone] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -23,10 +30,11 @@ export function DriverForm({ onSaved, onCancel }: DriverFormProps) {
 
     try {
       const data = await api.post<{
-        driver: { id: number; name: string; license_plate: string | null };
+        driver: { id: number; name: string; license_plate: string | null; phone: string | null };
       }>('/loading/drivers', {
         name: name.trim(),
         license_plate: plate.trim() || undefined,
+        phone: cleanPhone(phone) || undefined,
       });
       onSaved(data.driver);
     } catch (err) {
@@ -57,6 +65,14 @@ export function DriverForm({ onSaved, onCancel }: DriverFormProps) {
         placeholder={t('loading.licensePlate')}
         disabled={saving}
         data-testid="driver-form-plate"
+      />
+      <Input
+        type="tel"
+        value={phone}
+        onChange={(e) => setPhone(filterPhoneInput(e.target.value))}
+        placeholder={t('loading.phone')}
+        disabled={saving}
+        data-testid="driver-form-phone"
       />
       {error && (
         <p className="text-sm text-red-600" role="alert" data-testid="driver-form-error">

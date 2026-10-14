@@ -3,13 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { api, ApiClientError } from '../../api/client';
 import { Button } from '../ui/button';
 import { DriverForm } from './DriverForm';
-
-interface DriverRow {
-  id: number;
-  name: string;
-  license_plate: string | null;
-  driver_type: 'casa' | 'fletero';
-}
+import type { DriverRow } from './ScheduleGrid';
 
 export interface DriverSelectProps {
   timeSlot: string;

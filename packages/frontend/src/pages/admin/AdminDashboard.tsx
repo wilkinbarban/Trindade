@@ -7,6 +7,7 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { LoadingSpinner } from '../../components/ui/loading-spinner';
 import { passwordIssue, passwordIssueKey } from '../../lib/password-policy';
+import { cleanPhone, filterPhoneInput } from '../../lib/phone';
 
 /**
  * The hint under a new-password field.
@@ -57,6 +58,7 @@ interface Driver {
   id: number;
   name: string;
   license_plate: string | null;
+  phone: string | null;
   driver_type: 'casa' | 'fletero';
   is_active: number;
   created_by_user_id: number | null;
@@ -216,6 +218,7 @@ export function AdminDashboard() {
 
   // Driver form
   const [driverName, setDriverName] = useState('');
+  const [driverPhone, setDriverPhone] = useState('');
   const [driverType, setDriverType] = useState<'casa' | 'fletero'>('fletero');
 
   // Vehicle form
@@ -346,6 +349,7 @@ export function AdminDashboard() {
     setCatType('check');
     setDriverType('fletero');
     setDriverName('');
+    setDriverPhone('');
     setVehDesc('');
     setVehPlate('');
     setSlotInput('');
@@ -402,6 +406,7 @@ export function AdminDashboard() {
     if (!canEditDriver(driver)) return;
     setEditingId(driver.id);
     setDriverName(driver.name);
+    setDriverPhone(driver.phone ?? '');
     setDriverType(driver.driver_type || 'fletero');
     setShowForm(true);
   }
@@ -540,11 +545,15 @@ export function AdminDashboard() {
       if (editingId) {
         await api.patch(`/admin/drivers/${editingId}`, {
           name: driverName,
+          // An emptied field on an edit removes the number, which is why it is null here and undefined on
+          // a create: the endpoint treats null as "remove it" and an omitted key as "leave it alone".
+          phone: cleanPhone(driverPhone) || null,
           driver_type: isWorker ? 'fletero' : driverType,
         });
       } else {
         await api.post('/admin/drivers', {
           name: driverName,
+          phone: cleanPhone(driverPhone) || undefined,
           driver_type: isWorker ? 'fletero' : driverType,
         });
       }
@@ -847,6 +856,12 @@ export function AdminDashboard() {
         <InlineForm
           fields={[
             { label: t('admin.form.name'), name: 'name', value: driverName, onChange: setDriverName },
+            {
+              label: t('admin.form.phone'),
+              name: 'phone',
+              value: driverPhone,
+              onChange: (value: string) => setDriverPhone(filterPhoneInput(value)),
+            },
           ]}
           onSubmit={handleCreateDriver}
           onCancel={handleCancel}

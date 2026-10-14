@@ -26,6 +26,8 @@ export interface DriverRow {
   id: number;
   name: string;
   license_plate: string | null;
+  /** The number the one-on-one WhatsApp dispatch opens a chat with, or null when nobody has it yet. */
+  phone: string | null;
   driver_type: 'casa' | 'fletero';
 }
 
