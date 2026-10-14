@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { LucideX, LucideCopy, LucideCheck } from 'lucide-react';
+import { LucideX, LucideCopy, LucideCheck, LucideShare2 } from 'lucide-react';
 import { api } from '../../api/client';
 import { Button } from '../ui/button';
 import { LoadingSpinner } from '../ui/loading-spinner';
 import { Dialog } from '../ui/dialog';
+import { shareOrCopy } from '../../lib/whatsapp';
 import { useAuth } from '../../contexts/AuthContext';
 
 // ---- Props ----
@@ -24,6 +25,7 @@ export function ExportPreview({ reportId, open, onClose }: ExportPreviewProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [shareNote, setShareNote] = useState('');
 
   useEffect(() => {
     if (!open || !reportId) return;
@@ -78,6 +80,22 @@ export function ExportPreview({ reportId, open, onClose }: ExportPreviewProps) {
     }
   }
 
+  /**
+   * The native share, with the copy as its fallback. The report is the message itself, so the sheet is
+   * where an operator picks WhatsApp or any other app; a dismissed sheet says nothing.
+   */
+  async function handleShare() {
+    setShareNote('');
+    const outcome = await shareOrCopy(text);
+    if (outcome === 'copied') {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+      setShareNote(t('loading.shareCopied'));
+    } else if (outcome === 'failed') {
+      setShareNote(t('loading.shareUnavailable'));
+    }
+  }
+
   if (!open) return null;
 
   return (
@@ -119,23 +137,34 @@ export function ExportPreview({ reportId, open, onClose }: ExportPreviewProps) {
 
         {/* Footer */}
         {!loading && !error && (
-          <div className="flex items-center justify-end gap-2 p-4 border-t border-gray-200 shrink-0 flex-wrap">
-            <Button variant="outline" onClick={onClose}>
-              {t('ui.close')}
-            </Button>
-            <Button onClick={handleCopy} disabled={copied} data-testid="copy-export-btn">
-              {copied ? (
-                <>
-                  <LucideCheck className="h-4 w-4" />
-                  {t('reports.copied')}
-                </>
-              ) : (
-                <>
-                  <LucideCopy className="h-4 w-4" />
-                  {t('reports.copyWhatsApp')}
-                </>
-              )}
-            </Button>
+          <div className="flex flex-col gap-2 p-4 border-t border-gray-200 shrink-0">
+            {shareNote && (
+              <p className="text-xs text-gray-500" data-testid="export-share-note">
+                {shareNote}
+              </p>
+            )}
+            <div className="flex items-center justify-end gap-2 flex-wrap">
+              <Button variant="outline" onClick={onClose}>
+                {t('ui.close')}
+              </Button>
+              <Button variant="outline" onClick={handleShare} data-testid="share-export-btn">
+                <LucideShare2 className="h-4 w-4" />
+                {t('ui.share')}
+              </Button>
+              <Button onClick={handleCopy} disabled={copied} data-testid="copy-export-btn">
+                {copied ? (
+                  <>
+                    <LucideCheck className="h-4 w-4" />
+                    {t('reports.copied')}
+                  </>
+                ) : (
+                  <>
+                    <LucideCopy className="h-4 w-4" />
+                    {t('reports.copyWhatsApp')}
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         )}
     </Dialog>

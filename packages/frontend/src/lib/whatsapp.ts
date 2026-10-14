@@ -1,0 +1,59 @@
+/**
+ * The WhatsApp actions, in one module because three screens need them: the schedule export, the report
+ * export, and the dashboard's card for the day being loaded.
+ *
+ * The link is the one WhatsApp documents for a private chat: `wa.me` takes the number in international
+ * form with no punctuation at all, and the text percent-encoded, which is what the mobile app's intent
+ * and the web client both accept. Nothing here decides which number is right: a driver whose number was
+ * written without a country code produces a link to that number, and the operator sees where it goes
+ * before sending it.
+ */
+
+/** The digits of a number, which is the form `wa.me` needs. */
+export function waMeNumber(phone: string): string {
+  return phone.replace(/\D/g, '');
+}
+
+/**
+ * The private chat link for [phone] carrying [text], or null when there is no number to dial.
+ *
+ * Null rather than a link to nowhere: a driver whose number nobody has yet must not be offered an action
+ * that would open an empty chat, and the caller renders no button at all.
+ */
+export function waMeLink(phone: string, text: string): string | null {
+  const number = waMeNumber(phone);
+  if (!number) return null;
+  return `https://wa.me/${number}?text=${encodeURIComponent(text)}`;
+}
+
+export type ShareOutcome = 'shared' | 'copied' | 'cancelled' | 'failed';
+
+/**
+ * Hands [text] to the platform's own share sheet, and copies it when there is no sheet to hand it to.
+ *
+ * A dismissed sheet answers `cancelled` and copies nothing: the operator said no, and putting the text on
+ * the clipboard anyway would be the opposite of what they asked for. Any other refusal from the sheet
+ * falls back to the clipboard, because a browser that cannot share can still copy, and only when neither
+ * is available does this answer `failed`.
+ */
+export async function shareOrCopy(text: string): Promise<ShareOutcome> {
+  const navigatorLike = (globalThis as { navigator?: Navigator }).navigator;
+
+  if (typeof navigatorLike?.share === 'function') {
+    try {
+      await navigatorLike.share({ text });
+      return 'shared';
+    } catch (error) {
+      if ((error as { name?: string } | null)?.name === 'AbortError') return 'cancelled';
+    }
+  }
+
+  const clipboard = navigatorLike?.clipboard;
+  if (!clipboard) return 'failed';
+  try {
+    await clipboard.writeText(text);
+    return 'copied';
+  } catch {
+    return 'failed';
+  }
+}

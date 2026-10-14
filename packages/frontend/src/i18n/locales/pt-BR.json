@@ -33,7 +33,10 @@
     "loadingError": "Erro ao carregar dashboard",
     "deferredNotice": "Novos módulos estarão disponíveis em versões futuras.",
     "higieneCount": "Hig. & Org. -> {{done}} Tarefas",
-    "recepcionCount": "Recepção -> {{done}} Mercadorias"
+    "recepcionCount": "Recepção -> {{done}} Mercadorias",
+    "activeSchedule": "Cronograma ativo",
+    "viewSchedule": "Ver cronograma",
+    "shareSchedule": "Enviar pelo WhatsApp"
   },
   "nav": {
     "menu": "Menu",
@@ -166,7 +169,8 @@
     "selectVehicle": "Selecionar veículo...",
     "selectVehicleFor": "Selecionar veículo para {{name}}",
     "historyTitle": "Histórico de Carregamento",
-    "historyDesc": "Todos os carregamentos, com filtros e ações permitidas pelo servidor."
+    "historyDesc": "Todos os carregamentos, com filtros e ações permitidas pelo servidor.",
+    "sendToFletero": "Enviar direto para o fletero"
   },
   "admin": {
     "title": "Administração",
