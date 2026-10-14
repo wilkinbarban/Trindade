@@ -245,19 +245,20 @@
       "fletero": "Terceirizado (Fletero)"
     },
     "table": {
-      "id": "ID",
-      "namePtBr": "Nome (pt-BR)",
-      "nameEs": "Nombre (ES)",
-      "order": "Ordem",
-      "status": "Status",
       "actions": "Ações",
       "category": "Categoria",
-      "type": "Tipo",
-      "group": "Grupo",
-      "name": "Nome",
-      "plate": "Placa",
       "description": "Descrição",
-      "temperatureReadings": "Leituras"
+      "group": "Grupo",
+      "id": "ID",
+      "name": "Nome",
+      "nameEs": "Nombre (ES)",
+      "namePtBr": "Nome (pt-BR)",
+      "order": "Ordem",
+      "phone": "Telefone",
+      "plate": "Placa",
+      "status": "Status",
+      "temperatureReadings": "Leituras",
+      "type": "Tipo"
     },
     "empty": {
       "categories": "Nenhuma categoria encontrada",

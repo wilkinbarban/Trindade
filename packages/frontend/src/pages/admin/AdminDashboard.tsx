@@ -1181,6 +1181,7 @@ export function AdminDashboard() {
                   <tr className="border-b text-left text-xs text-gray-500 uppercase">
                     <th className="py-2 pr-2">{t('admin.table.id')}</th>
                     <th className="py-2 pr-2">{t('admin.table.name')}</th>
+                    <th className="py-2 pr-2">{t('admin.table.phone')}</th>
                     <th className="py-2 pr-2">{t('admin.table.type') || t('admin.form.type')}</th>
                     <th className="py-2 pr-2">{t('admin.table.status')}</th>
                     <th className="py-2">{t('admin.table.actions')}</th>
@@ -1191,6 +1192,9 @@ export function AdminDashboard() {
                     <tr key={d.id} className="border-b last:border-0 hover:bg-gray-50">
                       <td className="py-2 pr-2">{d.id}</td>
                       <td className="py-2 pr-2">{d.name}</td>
+                      {/* Blank when nobody has the number yet, which is what the column is for: the
+                          difference between a driver the operator can reach and one they cannot. */}
+                      <td className="py-2 pr-2">{d.phone || ''}</td>
                       <td className="py-2 pr-2 text-xs">
                         {d.driver_type === 'casa'
                           ? (t('admin.driverTypes.casa') || 'Casa')
@@ -1226,7 +1230,7 @@ export function AdminDashboard() {
                     </tr>
                   ))}
                   {drivers.length === 0 && (
-                    <tr><td colSpan={5} className="py-4 text-center text-gray-400">{t('admin.empty.drivers')}</td></tr>
+                    <tr><td colSpan={6} className="py-4 text-center text-gray-400">{t('admin.empty.drivers')}</td></tr>
                   )}
                 </tbody>
               </table>

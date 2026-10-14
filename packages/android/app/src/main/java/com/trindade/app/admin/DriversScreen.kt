@@ -141,6 +141,9 @@ fun DriversScreen(
                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(driver.name, style = MaterialTheme.typography.titleMedium)
                     Text(driver.licensePlate.orEmpty())
+                    // The number the fleet keeps, blank when nobody typed one: the list exists to show
+                    // who can be reached on WhatsApp, and an empty line is that answer.
+                    Text(driver.phone.orEmpty())
                     Text(if (driver.driverType == AdminDriverResponseDriver.DriverType.casa) "Casa" else "Fletero")
                     Text(if (driver.isActive == 1) "Ativo" else "Inativo")
                     Row(
