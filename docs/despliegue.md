@@ -16,13 +16,13 @@ Este documento define el procedimiento operativo oficial para desplegar actualiz
 
 ---
 
-## 2. Regla de Orden de Despliegue (Revisión 3)
+## 2. Regla de Orden de Despliegue (Revisión 4)
 
-La Revisión 3 representa una transición controlada con invalidación de sesiones de seguridad:
+La Revisión 4 es una migración **aditiva** que añade la columna opcional `drivers.phone` y **no** invalida ninguna sesión. La Revisión 3 sí lo hacía —fue una transición controlada con invalidación de sesiones de seguridad— y una base que todavía está en la Revisión 2 pasa también por ese paso antes de llegar a la 4:
 1. Detener la API antes de capturar la copia de seguridad consistente final.
 2. Aplicar la migración de esquema de forma aislada (`make db-migrate`).
 3. Validar el estado del esquema con `make db-status` antes de encender la nueva versión del servicio.
-4. **Regla de oro**: Nunca ejecutar código de la versión 2 sobre datos de la versión 3.
+4. **Regla de oro**: Nunca ejecutar código de una versión anterior sobre datos de una versión posterior. Una imagen vieja clasifica la base como `newer` y se niega a tocarla, que es la compuerta haciendo su trabajo.
 
 ---
 
@@ -53,7 +53,7 @@ docker run --rm \
   -v trindade_sqlite_data:/app/packages/backend/data \
   trindade-api:v0.3.0 \
   node packages/backend/dist/db/status.js /app/packages/backend/data/trindade.db
-# Debe responder: verdict: current — revision 3; 15 tables present
+# Debe responder: verdict: current — revision 4; 15 tables present
 ```
 
 ### Paso 5: Desplegar el Contenedor de la API

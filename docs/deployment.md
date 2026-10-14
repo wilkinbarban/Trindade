@@ -25,13 +25,23 @@ This runbook defines the operational procedure for deploying updates to Trindade
 
 ### Deployment order rule
 
-Revision 3 is a controlled cutover, not an additive live migration. Stop the API before
-capturing the final consistent recovery set and running the explicit migration. Validate the
-new schema before starting the new API. Never run a revision-2 binary against a revision-3
-database; it cannot safely enforce the new security-version rules. Every existing session, including
-administrator sessions, is invalidated at cutover. Operators must sign in again. Rollback after
-migration requires restoring the verified pre-cutover database **and** its matching old code;
-never restore old sessions into a revision-3 database.
+The order below is the same for every cutover, whether the migration adds a column or rebuilds a
+security table: stop the API before capturing the final consistent recovery set and running the
+explicit migration, and validate the new schema before starting the new API. **Never run an older
+binary against a newer database.** It cannot safely enforce rules it does not know, and the CLI is
+built to refuse that case rather than downgrade: an older build classifies a newer revision as
+`newer` and will not touch it. Rollback after a migration requires restoring the verified
+pre-cutover database **and** its matching old code.
+
+What differs per release is what the migration does to live sessions, and this release's step does
+**not** invalidate any:
+
+| Cutover | What it does to sessions |
+| --- | --- |
+| **3 → 4** (this release) | **Nothing.** It adds the optional `drivers.phone` column and keeps every session, administrators included, signed in. |
+| 2 → 3 | Invalidates every live session, administrator sessions included: `users.security_version` is stamped and the refresh sessions are revoked, so operators must sign in again. A database still at revision 2 goes through that step on its way to 4. |
+
+Never restore old sessions into a database whose revision revoked them.
 
 ---
 
@@ -40,7 +50,7 @@ never restore old sessions into a revision-3 database.
 Public `POST /api/auth/setup` is retired and always returns 410; `GET /api/auth/setup/status`
 only reports whether users exist. No browser or mobile client can create the first administrator.
 Provision from the operator container only, after an approved recovery snapshot and after
-`db:status` reports a **current revision-3** schema with `auth_sessions`. The CLI refuses an existing user,
+`db:status` reports a **current** schema at the revision this build supports, with `auth_sessions`. The CLI refuses an existing user,
 missing database, or obsolete session schema, and rechecks those conditions inside an immediate
 SQLite transaction. Run it only on the intended empty installation; never run `db:reset` against
 production. Keep the account password out of arguments, environment, shell history, and logs.
@@ -113,8 +123,9 @@ against an empty live installation.
    curl -sS https://trindademasas.duckdns.org/api/health
    ```
    Confirm the running service is healthy and record its database revision **and the revision
-   supported by that running image**. The old revision-2 image normally reports `current` at
-   revision 2; that does **not** mean the new revision-3 image has no migration to run. Section
+   supported by that running image**. The old image normally reports `current` at the revision it
+   supports —revision 3 for the release before this one— and that does **not** mean the new image has
+   no migration to run. Section
    5 reclassifies the stopped database using the new image and determines the pending steps.
    If the old service reports `incompatible` or `newer`, stop and investigate before building.
 
@@ -170,11 +181,14 @@ controlled cutover in Section 5.
 
 ---
 
-## 5. Controlled Revision-3 Cutover (Deliberate Operator Write)
+## 5. Controlled Revision-4 Cutover (Deliberate Operator Write)
 
 Schedule a maintenance window. Stop the old API **before** the final backup and migration.
-Do not permit any other database writers during the window. Existing sessions, administrator
-sessions included, will not survive the revision-3 migration.
+Do not permit any other database writers during the window. This release's migration is
+additive and does **not** invalidate sessions: a database arriving from revision 3 keeps every
+session, administrators included, and nobody has to sign in again. A database arriving from
+revision 2 does not, because the `2 → 3` step it must also run revokes them — the table in
+Section 1's order rule states which step does what.
 
 > **Important**: Never run migrations without the approved recovery set from Section 3. Migrations mutate production data and must remain an explicit, operator-invoked step.
 
@@ -191,7 +205,7 @@ sessions included, will not survive the revision-3 migration.
      packages/backend/dist/db/status.js
    ```
    Compare the database revision, **not the verdict**, with Section 2: revision 2 is normally
-   `current` for the old image and `outdated` for the new revision-3 image. `docker compose run` mounts the same
+   `current` for the old image and `outdated` for the new revision-4 image. `docker compose run` mounts the same
    `trindade_sqlite_data` volume and inherits the service's `DATABASE_PATH`, so it inspects the
    real production database and not a fresh one. Do not use `docker exec` here: the new
    container is not running yet, and the old one carries the old code and its old migrations.
@@ -212,18 +226,21 @@ sessions included, will not survive the revision-3 migration.
      | 0 → 1 | Rebuilds the legacy `report_temperatures` table into the `reading_index` shape. Idempotent: it no-ops once `reading_index` exists. |
      | 1 → 2 | Creates `auth_sessions` and its indexes. |
      | 2 → 3 | Adds `users.security_version`, revokes all live refresh sessions, and stamps revision 3. |
+     | 3 → 4 | Adds the optional `drivers.phone` column. Additive: every row is kept, no session is invalidated, and a driver that already exists answers a null number until an operator types one. |
 
-   - A revision-2 database runs only the 2 → 3 step. Never restart the old API after this step.
+   - A database at revision 3 runs only the `3 → 4` step; one at revision 2 runs `2 → 3` and then
+     `3 → 4`. Never restart the old API after the first step that changes it: it reports `newer` and
+     refuses, which is the guard doing its job.
 
-4. Confirm the database is now `current` at revision 3, still from the new image:
+4. Confirm the database is now `current` at revision 4, still from the new image:
    ```bash
    docker compose run --rm --no-deps --entrypoint node api \
      packages/backend/dist/db/status.js
    ```
-   Must exit 0 and print `verdict: current` at revision 3. **Do not start the API until it does.**
+   Must exit 0 and print `verdict: current` at revision 4. **Do not start the API until it does.**
 
 5. If migration or validation fails, keep the API stopped and use Section 8, Scenario B with
-   the final recovery set. Do not boot any revision-2 binary against revision 3.
+   the final recovery set. Do not boot an older binary against the migrated database.
 
 ---
 
@@ -284,9 +301,10 @@ If any gate or verification fails, execute the appropriate rollback procedure im
 
 Use this if the new container fails to boot, crashes, or exhibits a frontend regression.
 
-Only use code-only rollback **before** revision-3 migration. After migration, stop the API
-and use Scenario B with the final pre-cutover recovery set and matching old code. Never boot
-revision-2 code on a revision-3 database or attempt to transplant old sessions into revision 3.
+Only use code-only rollback **before** the migration this release requires. After it, stop the API
+and use Scenario B with the final pre-cutover recovery set and matching old code. Never boot older
+code on a newer database —it reports `newer` and refuses— and never attempt to transplant old
+sessions into a database whose revision revoked them.
 
 1. Revert Git to the previous known-good commit:
    ```bash
@@ -350,7 +368,7 @@ after database writes.
      'const Database = require("better-sqlite3"); const db = new Database(process.env.DATABASE_PATH); db.prepare("UPDATE auth_sessions SET revoked_at = datetime(\x27now\x27) WHERE revoked_at IS NULL").run(); db.close()'
    ```
    Verify the session update succeeded and the new signing secret is configured before
-   bringing traffic back. Never transplant the old refresh sessions into revision 3.
+   bringing traffic back. Never transplant the old refresh sessions into a database whose revision revoked them.
 
 4. Revert code to the previous commit (Scenario A) if the rollback requires the previous application version:
    ```bash
@@ -467,13 +485,13 @@ sudo nginx -t && sudo systemctl reload nginx
 
 ### Step 4: Launch container stack
 Build images first, then follow the controlled Section 5 sequence (stop API, final backup,
-status, migrate if required, validate). Only after revision 3 is current:
+status, migrate if required, validate). Only after the revision this build supports is current:
 ```bash
 docker compose up -d
 ```
 
 **Seed behavior**:
-A fresh volume loads the operational catalog. Confirm revision 3 with `db:status` before
+A fresh volume loads the operational catalog. Confirm the current revision with `db:status` before
 starting the API; if outdated, stop the API and follow Section 5. Provision the first
 administrator out of band with the operator CLI in Section 1. The browser cannot create it.
 
@@ -481,7 +499,7 @@ administrator out of band with the operator CLI in Section 1. The browser cannot
 
 A database transferred from another host arrives at whatever revision it was stamped with. If it
 predates the current build, follow Sections 4 and 5 after the transfer using the new image,
-with the API stopped. Never start an older image on a revision-3 transferred database. Do not assume the transfer also migrated it.
+with the API stopped. Never start an older image on a newer transferred database. Do not assume the transfer also migrated it.
 
 ```bash
 # On the source server:

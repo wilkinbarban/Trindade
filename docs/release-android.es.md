@@ -29,7 +29,8 @@ versionCode = major * 10000 + minor * 100 + patch   (ej. v0.3.0 -> 300)
 | `v0.1.0` | `0.1.0` | `100` | Versión inicial de pruebas |
 | `v0.2.0` | `0.2.0` | `200` | Primera versión con reportes y cargas |
 | `v0.2.1` | `0.2.1` | `201` | Parche de verificación de actualizaciones |
-| **`v0.3.0`** | **`0.3.0`** | **`300`** | **Paridad funcional total Android–Web (Actual)** |
+| `v0.3.0` | `0.3.0` | `300` | Paridad funcional total Android–Web |
+| **`v0.4.0`** | **`0.4.0`** | **`400`** | **Teléfono del chofer, compartir nativo por WhatsApp, envío directo 1 a 1 y tarjeta del cronograma activo (Actual)** |
 
 ---
 

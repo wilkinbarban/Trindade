@@ -6,6 +6,29 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [0.4.0] — 2026-10-14
+
+### 🎯 Adicionado (Operação de carregamento e exportação WhatsApp)
+- **Telefone do motorista e do fletero** (`drivers.phone`): campo **opcional** no cadastro rápido do cronograma e na aba de frota do painel administrativo, na web e no Android. O número é guardado como o operador o escreveu —a lista devolve o que ele digitou, e um valor que voltasse reformatado se leria como a aplicação tendo-o corrigido— e a limpeza tem uma regra única nos dois clientes: enquanto o operador digita, os caracteres que não podem compor um número não chegam ao campo, e ao salvar o texto é recortado e os espaços repetidos colapsados. Editar e esvaziar o campo remove o número; deixá-lo intocado não o altera.
+- **Compartilhamento nativo por WhatsApp** (web e Android): o diálogo de exportação do cronograma e o do relatório passam a usar a folha de compartilhamento do sistema, com a cópia como reserva. Uma folha que o operador descarta responde como descartada e **não** copia nada: colocar o texto na área de transferência depois de ele ter dito que não seria o oposto do que pediu.
+- **Envio direto, um a um, para fleteros** (web e Android): na exportação do cronograma, cada fletero **daquele lote** cujo número é conhecido ganha um atalho que abre o chat privado com o texto do dia já carregado. A lista sai do lote e não da frota inteira —um cronograma de um dia enviado a quem não está nele é uma mensagem sobre um dia que não lhe diz respeito— e cada motorista aparece uma vez, ainda que ocupe vários horários.
+- **Cartão do Cronograma Ativo no Dashboard** (web e Android): mostra **o dia que está sendo carregado** e a sua contagem, e abre o lote correspondente; substitui a contagem de "Cargas de Amanhã", que era um número sobre um dia que o operador não estava carregando.
+
+### 🔧 Alterado
+- **Janela operativa de 15 horas**: o resumo do Dashboard passa a considerar a operação que termina às 10:00 (horário de São Paulo). Depois desse corte, o dia ativo aponta para a **próxima data de carregamento** —sexta avança para segunda— em sincronia com o anúncio exportado, em vez de somar um dia no calendário.
+- **Contrato da API**: `/api/dashboard/summary` passa a expor `activeScheduleDate`, `activeScheduleCount` e `activeScheduleBatchDate`. O texto exportado do cronograma e o do relatório foram verificados ponta a ponta, e a semântica de `date` —a data do lote, não a do dia de carga— ficou documentada no contrato.
+- **Android**: o cartão do Dashboard e o diálogo de exportação do cronograma abrem, respectivamente, o dia do lote e a pantalla de edição daquele dia; a regra de "que dia é hoje em São Paulo" passou a ser uma única função, lida pelas duas telas, em vez de duas cópias que podem discordar à meia-noite.
+
+### 🔒 Backend & Banco de Dados (Revisão 4)
+- **Revisão 4 do esquema SQLite (`PRAGMA user_version = 4`)**: coluna `drivers.phone` opcional, com migração aditiva `3 → 4`. A migração só acrescenta a coluna e **não invalida sessões**.
+- **Nulo e ausente são intenções distintas no PATCH administrativo**: `null` remove o número, uma chave ausente deixa-o como está, e o cliente web e o Android enviam cada uma das duas quando corresponde.
+
+### 🧪 Testes e Qualidade
+- 471 testes de backend, 34 testes puros de frontend, 54 testes ponta a ponta (Playwright/Chromium) e 797 testes JVM do Android com Robolectric e Compose UI Test, todos passando sobre o mesmo commit.
+- APK release **0.4.0** (versionCode 400) construído e verificado: assinatura conferida contra a impressão digital fixada do projeto, esquema APK v2, não depurável e `API_BASE_URL` de produção.
+
+---
+
 ## [0.3.0] — 2026-09-29
 
 ### 🎯 Adicionado (Android)
