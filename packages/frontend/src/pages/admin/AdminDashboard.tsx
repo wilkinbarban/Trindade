@@ -861,6 +861,9 @@ export function AdminDashboard() {
               name: 'phone',
               value: driverPhone,
               onChange: (value: string) => setDriverPhone(filterPhoneInput(value)),
+              // The number is optional, and this form makes every field required unless told otherwise:
+              // without this, the browser would refuse to save a driver whose number nobody has yet.
+              required: false,
             },
           ]}
           onSubmit={handleCreateDriver}
