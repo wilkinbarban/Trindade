@@ -99,7 +99,13 @@ class DriversViewModel @Inject constructor(
                     name = name, licensePlate = plate,
                     driverType = if (current.isAdmin) UpdateAdminDriverRequest.DriverType.valueOf(type) else null,
                 ))
-            } ?: repository.create(CreateAdminDriverRequest(name, plate, driverType))
+            } ?: repository.create(
+                CreateAdminDriverRequest(
+                    name = name,
+                    licensePlate = plate,
+                    driverType = driverType,
+                ),
+            )
             finishWrite(result)
         }
     }

@@ -242,7 +242,7 @@ class DriversApiPayloadTest {
         isActive: Int,
         driverType: String = "fletero",
     ): String =
-        """{"id":$driverId,"name":"$name","license_plate":null,"driver_type":"$driverType","is_active":$isActive,"created_by_user_id":null,"created_at":"2026-01-01T00:00:00Z"}"""
+        """{"id":$driverId,"name":"$name","license_plate":null,"phone":null,"driver_type":"$driverType","is_active":$isActive,"created_by_user_id":null,"created_at":"2026-01-01T00:00:00Z"}"""
 
     private companion object {
         const val DRIVER_ID = 55

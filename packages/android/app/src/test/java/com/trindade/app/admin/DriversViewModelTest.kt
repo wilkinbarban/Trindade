@@ -243,7 +243,7 @@ class DriversViewModelTest {
     )
 
     private fun driver(id: Int, owner: Int, type: String = "fletero", active: Int = 1) =
-        AdminDriverResponseDriver(id, "Driver$id", null,
+        AdminDriverResponseDriver(id, "Driver$id", null, null,
             if (type == "casa") AdminDriverResponseDriver.DriverType.casa else AdminDriverResponseDriver.DriverType.fletero,
             active, owner, "now")
 }
@@ -258,7 +258,7 @@ private class DriverApi(var rows: List<AdminDriverResponseDriver> = emptyList())
     var deferredRead: CompletableDeferred<List<AdminDriverResponseDriver>>? = null
     var failDrivers = false
     var writeResult: DriverWriteResult = DriverWriteResult.Saved(
-        AdminDriverResponseDriver(5, "Ana", null, AdminDriverResponseDriver.DriverType.fletero, 1, 42, "now"),
+        AdminDriverResponseDriver(5, "Ana", null, null, AdminDriverResponseDriver.DriverType.fletero, 1, 42, "now"),
     )
     override suspend fun drivers(): Response<AdminDriversResponse> {
         reads++

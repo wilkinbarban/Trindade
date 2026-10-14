@@ -298,7 +298,7 @@ class FakeLoadingApi(
 
     override suspend fun vehicles(): Response<VehiclesResponse> = Response.success(VehiclesResponse(vehicles = vehiclesToReturn))
     override suspend fun createDriver(body: CreateDriverRequest): Response<DriverResponse> =
-        Response.success(DriverResponse(driver = DriversResponseDriversInner(id = 99, name = body.name, licensePlate = body.licensePlate, driverType = DriversResponseDriversInner.DriverType.fletero)))
+        Response.success(DriverResponse(driver = DriversResponseDriversInner(id = 99, name = body.name, licensePlate = body.licensePlate, phone = body.phone, driverType = DriversResponseDriversInner.DriverType.fletero)))
 
     override suspend fun createSchedule(body: CreateScheduleRequest): Response<ScheduleResponse> {
         createdBody = body
@@ -389,8 +389,8 @@ class FakeLoadingApi(
 
         /** One company driver and one external, which is the pairing the vehicle rule turns on. */
         fun defaultDrivers() = listOf(
-            DriversResponseDriversInner(id = CASA_DRIVER_ID, name = "Carlos", licensePlate = null, driverType = DriversResponseDriversInner.DriverType.casa),
-            DriversResponseDriversInner(id = FLETERO_DRIVER_ID, name = "Fletero", licensePlate = "ABC1234", driverType = DriversResponseDriversInner.DriverType.fletero),
+            DriversResponseDriversInner(id = CASA_DRIVER_ID, name = "Carlos", licensePlate = null, phone = null, driverType = DriversResponseDriversInner.DriverType.casa),
+            DriversResponseDriversInner(id = FLETERO_DRIVER_ID, name = "Fletero", licensePlate = "ABC1234", phone = null, driverType = DriversResponseDriversInner.DriverType.fletero),
         )
 
         fun defaultVehicles() = listOf(

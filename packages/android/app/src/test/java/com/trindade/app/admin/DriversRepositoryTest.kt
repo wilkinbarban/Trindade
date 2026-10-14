@@ -117,6 +117,6 @@ class DriversRepositoryTest {
         .setResponseCode(code).setBody(body).addHeader("Content-Type", "application/json")
 
     private companion object {
-        const val driver = """{"id":1,"name":"Ana","license_plate":null,"driver_type":"fletero","is_active":1,"created_by_user_id":8,"created_at":"2026-01-01"}"""
+        const val driver = """{"id":1,"name":"Ana","license_plate":null,"phone":null,"driver_type":"fletero","is_active":1,"created_by_user_id":8,"created_at":"2026-01-01"}"""
     }
 }

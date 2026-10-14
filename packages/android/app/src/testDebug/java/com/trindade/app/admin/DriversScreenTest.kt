@@ -32,7 +32,7 @@ class DriversScreenTest {
         owner: Int?,
         type: AdminDriverResponseDriver.DriverType = AdminDriverResponseDriver.DriverType.fletero,
         active: Int = 1,
-    ) = AdminDriverResponseDriver(id, "Motorista $id", "ABC$id", type, active, owner, "2026-01-01")
+    ) = AdminDriverResponseDriver(id, "Motorista $id", "ABC$id", null, type, active, owner, "2026-01-01")
 
     private fun state(
         role: String = DriversViewModel.ADMIN,
