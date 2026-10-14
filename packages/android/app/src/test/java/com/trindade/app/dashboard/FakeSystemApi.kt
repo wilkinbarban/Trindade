@@ -55,6 +55,8 @@ class FakeSystemApi(
         const val REPORTS_TODAY = 2
         const val SCHEDULES_TOMORROW = 7
         const val ACTIVE_SCHEDULE_DATE = "2026-08-25"
+        // The batch that announces the date above: a Tuesday is loaded from the Monday batch.
+        const val ACTIVE_SCHEDULE_BATCH_DATE = "2026-08-24"
         const val ACTIVE_SCHEDULE_COUNT = 4
         const val ACTIVE_USERS = 5
         const val REPORTS_TOTAL = 42
@@ -77,6 +79,7 @@ class FakeSystemApi(
             reportsToday = REPORTS_TODAY,
             schedulesTomorrow = SCHEDULES_TOMORROW,
             activeScheduleDate = ACTIVE_SCHEDULE_DATE,
+            activeScheduleBatchDate = ACTIVE_SCHEDULE_BATCH_DATE,
             activeScheduleCount = ACTIVE_SCHEDULE_COUNT,
             activeUsers = ACTIVE_USERS,
             reportsTotal = REPORTS_TOTAL,

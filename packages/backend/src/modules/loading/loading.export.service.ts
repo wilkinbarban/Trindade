@@ -58,6 +58,30 @@ export function nextLoadingDateString(batchDate: string): string {
   return `${date.getUTCFullYear()}-${month}-${day}`;
 }
 
+/**
+ * The batch date whose text announces `loadingDate`: the day before, or the Friday before a Monday.
+ *
+ * This is the direction a client needs when it knows the day the trucks load -- the dashboard's card
+ * knows it -- and has to ask for that loading's text, because the export takes the batch date. It is the
+ * inverse of [nextLoadingDateString] and lives beside it so both directions obey one calendar: a client
+ * that subtracted a day itself would get a Monday wrong every week.
+ *
+ * A day the calendar never loads has no batch date and answers null, which is how a caller tells "no
+ * batch announces this day" apart from "the date is wrong". Saturday is that case: the Friday batch
+ * announces Monday, so nothing announces a Saturday.
+ */
+export function batchDateFor(loadingDate: string): string | null {
+  const [year, month, day] = loadingDate.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  const utcDay = date.getUTCDay();
+  if (utcDay === 6) return null;
+  date.setUTCDate(date.getUTCDate() - 1);
+  if (utcDay === 1) date.setUTCDate(date.getUTCDate() - 2); // Monday is announced by the Friday before
+  const isoMonth = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const isoDay = String(date.getUTCDate()).padStart(2, '0');
+  return `${date.getUTCFullYear()}-${isoMonth}-${isoDay}`;
+}
+
 function formatPtBrDate(date: Date): string {
   const weekday = WEEKDAYS[date.getUTCDay()];
   const day = String(date.getUTCDate()).padStart(2, '0');

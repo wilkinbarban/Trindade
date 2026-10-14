@@ -1,5 +1,5 @@
 import { getSaoPauloDateString, getSaoPauloHour } from '../../utils/date.js';
-import { nextLoadingDateString } from '../loading/loading.export.service.js';
+import { batchDateFor, nextLoadingDateString } from '../loading/loading.export.service.js';
 
 /**
  * The hour, in São Paulo, at which the day's loading is over and the next one is being prepared.
@@ -26,4 +26,17 @@ export const ACTIVE_WINDOW_CUTOFF_HOUR = 10;
 export function activeScheduleDate(now: Date = new Date()): string {
   const today = getSaoPauloDateString(now);
   return getSaoPauloHour(now) < ACTIVE_WINDOW_CUTOFF_HOUR ? today : nextLoadingDateString(today);
+}
+
+/**
+ * The batch whose entries are loaded on [activeScheduleDate].
+ *
+ * A schedule is stored under the day it is prepared and loaded the following day, which is what the
+ * export's own date parameter means: the rows of a batch dated D are loaded on the next loading day, and
+ * the WhatsApp text for D announces that day. So the batch of the active loading day is the day before
+ * it -- the Friday before a Monday -- and it is also the date a client passes to the export to get the
+ * text for the day being loaded. Null on a day the calendar never loads: nothing announces a Saturday.
+ */
+export function activeScheduleBatchDate(now: Date = new Date()): string | null {
+  return batchDateFor(activeScheduleDate(now));
 }

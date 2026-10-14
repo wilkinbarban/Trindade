@@ -8,9 +8,14 @@ import { z } from 'zod';
  *
  * `activeScheduleDate` and `activeScheduleCount` are the operational window's answer -- which loading day
  * an operator is working on right now and how many entries it has -- which is today's schedule until ten
- * in the morning and the next loading day from then on. The two are sent together so a client can link the
- * card straight at the day the count belongs to instead of guessing it. `latestReportId` is the newest
- * active report for today, or null when there is none.
+ * in the morning and the next loading day from then on. A batch is stored under the day it is prepared and
+ * loaded on the following loading day, so the count is of the batch's entries and
+ * `activeScheduleBatchDate` names that batch: it is the date to hand to the loading export to get the text
+ * for the day the card is showing, and null on a day no batch announces (a Saturday).
+ *
+ * `schedulesTomorrow` is the older field and counts what it always counted: the entries stored for
+ * tomorrow's date, which under the convention above is tomorrow's batch, loaded the day after.
+ * `latestReportId` is the newest active report for today, or null when there is none.
  *
  * `higieneDone`/`higieneTotal` and `recepcionDone`/`recepcionTotal` are progress pairs for two
  * fixed categories, so a client can render a fraction without knowing which category is which.
@@ -20,6 +25,7 @@ export const DashboardSummarySchema = z
     reportsToday: z.number().int(),
     schedulesTomorrow: z.number().int(),
     activeScheduleDate: z.string(),
+    activeScheduleBatchDate: z.string().nullable(),
     activeScheduleCount: z.number().int(),
     activeUsers: z.number().int(),
     reportsTotal: z.number().int(),

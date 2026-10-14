@@ -147,14 +147,17 @@ describe('Dashboard Routes', () => {
     t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-08-24T11:00:00.000Z') }); // 08:00 in São Paulo
     t.after(() => t.mock.timers.reset());
 
+    // The entries loaded on Monday are the ones stored under the Friday batch, because a schedule is
+    // stored under the day it is prepared and loaded on the following loading day.
     const body = await summaryWith([
-      ['2026-08-24', 1],
-      ['2026-08-24', 1],
-      ['2026-08-25', 1],
-      ['2026-08-24', 0], // a deactivated row must not count
+      ['2026-08-21', 1],
+      ['2026-08-21', 1],
+      ['2026-08-24', 1], // today's batch, loaded tomorrow
+      ['2026-08-21', 0], // a deactivated row must not count
     ]);
 
     assert.strictEqual(body.activeScheduleDate, '2026-08-24');
+    assert.strictEqual(body.activeScheduleBatchDate, '2026-08-21');
     assert.strictEqual(body.activeScheduleCount, 2);
   });
 
@@ -164,12 +167,12 @@ describe('Dashboard Routes', () => {
 
     const body = await summaryWith([
       ['2026-08-24', 1],
-      ['2026-08-24', 1],
-      ['2026-08-25', 1],
-      ['2026-08-25', 0], // a deactivated row must not count
+      ['2026-08-24', 0], // a deactivated row must not count
+      ['2026-08-25', 1], // tomorrow's batch, loaded the day after
     ]);
 
     assert.strictEqual(body.activeScheduleDate, '2026-08-25');
+    assert.strictEqual(body.activeScheduleBatchDate, '2026-08-24');
     assert.strictEqual(body.activeScheduleCount, 1);
   });
 
@@ -177,12 +180,14 @@ describe('Dashboard Routes', () => {
     t.after(() => t.mock.timers.reset());
 
     t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-08-24T12:59:59.000Z') }); // 09:59:59
-    const before = await summaryWith([['2026-08-24', 1]]);
+    const before = await summaryWith([['2026-08-21', 1]]);
     assert.strictEqual(before.activeScheduleDate, '2026-08-24', '09:59:59 is still the day being loaded');
+    assert.strictEqual(before.activeScheduleBatchDate, '2026-08-21');
 
     t.mock.timers.setTime(new Date('2026-08-24T13:00:00.000Z').getTime()); // 10:00:00
-    const at = await summaryWith([['2026-08-25', 1]]);
+    const at = await summaryWith([['2026-08-24', 1]]);
     assert.strictEqual(at.activeScheduleDate, '2026-08-25', '10:00:00 already belongs to the next loading day');
+    assert.strictEqual(at.activeScheduleBatchDate, '2026-08-24');
   });
 
   it('a Friday after the cutoff points at Monday, which is the day the WhatsApp text announces', async (t) => {
@@ -191,11 +196,47 @@ describe('Dashboard Routes', () => {
 
     const body = await summaryWith([
       ['2026-08-29', 1], // the Saturday nobody loads
-      ['2026-08-31', 1],
-      ['2026-08-31', 1],
+      ['2026-08-28', 1],
+      ['2026-08-28', 1],
     ]);
 
     assert.strictEqual(body.activeScheduleDate, '2026-08-31');
+    assert.strictEqual(body.activeScheduleBatchDate, '2026-08-28');
     assert.strictEqual(body.activeScheduleCount, 2);
+  });
+
+  /**
+   * The card offers the WhatsApp export, and the export takes the batch date: the text announces the day
+   * the batch is loaded. So the summary has to say which batch date belongs to the day it is showing, or
+   * every client would have to reinvent the weekend rule and one of them would get it wrong.
+   */
+  it('names the batch date whose text announces the active loading day', async (t) => {
+    t.after(() => t.mock.timers.reset());
+
+    t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-08-24T11:00:00.000Z') }); // Monday 08:00: today is being loaded
+    const morning = await summaryWith([['2026-08-24', 2]]);
+    assert.strictEqual(morning.activeScheduleDate, '2026-08-24');
+    assert.strictEqual(morning.activeScheduleBatchDate, '2026-08-21'); // the Friday batch loads on Monday
+
+    t.mock.timers.setTime(new Date('2026-08-24T13:30:00.000Z').getTime()); // Monday 10:30: tomorrow's is being prepared
+    const afternoon = await summaryWith([['2026-08-25', 1]]);
+    assert.strictEqual(afternoon.activeScheduleDate, '2026-08-25');
+    assert.strictEqual(afternoon.activeScheduleBatchDate, '2026-08-24');
+  });
+
+  /**
+   * A Saturday is a day the loading calendar never loads, so no batch date exists for it. The field says
+   * null rather than handing back the previous Friday, which would produce a text about Monday.
+   */
+  it('says null for a batch date when the calendar cannot announce the active day', async (t) => {
+    t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-08-29T11:00:00.000Z') }); // Saturday 08:00
+    t.after(() => t.mock.timers.reset());
+
+    const body = await summaryWith([['2026-08-29', 1]]);
+
+    assert.strictEqual(body.activeScheduleDate, '2026-08-29');
+    assert.strictEqual(body.activeScheduleBatchDate, null);
+    // The rows stored for that Saturday are not what the card counts: no batch announces them.
+    assert.strictEqual(body.activeScheduleCount, 0);
   });
 });

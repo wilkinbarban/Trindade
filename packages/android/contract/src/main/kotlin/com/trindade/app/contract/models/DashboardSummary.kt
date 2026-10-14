@@ -34,6 +34,7 @@ import kotlinx.serialization.Contextual
  * @param reportsToday 
  * @param schedulesTomorrow 
  * @param activeScheduleDate 
+ * @param activeScheduleBatchDate 
  * @param activeScheduleCount 
  * @param activeUsers 
  * @param reportsTotal 
@@ -56,6 +57,9 @@ data class DashboardSummary (
 
     @SerialName(value = "activeScheduleDate")
     val activeScheduleDate: kotlin.String,
+
+    @SerialName(value = "activeScheduleBatchDate")
+    val activeScheduleBatchDate: kotlin.String?,
 
     @SerialName(value = "activeScheduleCount")
     val activeScheduleCount: kotlin.Int,

@@ -637,10 +637,14 @@ function buildRegistry(): OpenAPIRegistry {
   registry.registerPath({
     method: 'get',
     path: '/api/loading/export',
-    summary: 'Render the WhatsApp text for one date',
+    summary: 'Render the WhatsApp text for one batch',
     description:
-      'Formatted on the server in Brazilian Portuguese, ascending by time slot. A client must ' +
-      'fetch this text rather than reimplement the format.',
+      'The verbatim, ready-to-send message for the batch prepared on `date`: its entries in ascending ' +
+      'time-slot order, and the loading day it announces on its first line. A schedule is stored under the ' +
+      'day it is prepared and loaded on the following loading day -- the Friday batch is loaded on Monday -- ' +
+      'so a client that knows the day being loaded must ask for that day\'s batch date, which the dashboard ' +
+      'summary carries as `activeScheduleBatchDate`. A client must fetch this text rather than reimplement ' +
+      'the format.',
     tags: ['loading'],
     request: { query: ExportQuerySchema },
     responses: {
@@ -851,8 +855,11 @@ function buildRegistry(): OpenAPIRegistry {
     path: '/api/reports/{id}/export',
     summary: 'Render the WhatsApp text for one report',
     description:
-      'Formatted on the server in Brazilian Portuguese. A client must fetch this text rather than ' +
-      'reimplement the format.',
+      'The verbatim, ready-to-send message for one report: the shift header, the date and the person ' +
+      'responsible, one section per answered category with its checks, its selected products and its ' +
+      'temperature readings, the notes with the cold-chamber warnings, and the photo links as absolute ' +
+      'URLs when the server was configured with a public base URL. Formatted on the server in Brazilian ' +
+      'Portuguese; a client must fetch this text rather than reimplement the format.',
     tags: ['reports'],
     request: { params: REPORT_ID_PARAMS },
     responses: {

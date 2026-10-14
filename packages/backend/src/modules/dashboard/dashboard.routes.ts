@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { getSaoPauloDateString } from '../../utils/date.js';
-import { activeScheduleDate } from './active-schedule.js';
+import { activeScheduleBatchDate, activeScheduleDate } from './active-schedule.js';
 
 interface CountRow {
   count: number;
@@ -16,6 +16,7 @@ export async function dashboardRoutes(fastify: FastifyInstance) {
       const tomorrow = getSaoPauloDateString(new Date(Date.now() + 24 * 60 * 60 * 1000));
       // The day the card is about, which is not always tomorrow: see `activeScheduleDate`.
       const activeDate = activeScheduleDate();
+      const activeBatchDate = activeScheduleBatchDate();
 
       const reportsToday = db
         .prepare(
@@ -42,13 +43,19 @@ export async function dashboardRoutes(fastify: FastifyInstance) {
         )
         .get(tomorrow) as CountRow;
 
-      const schedulesActive = db
-        .prepare(
-          `SELECT COUNT(*) AS count
-           FROM loading_schedules
-           WHERE schedule_date = ? AND is_active = 1`
-        )
-        .get(activeDate) as CountRow;
+      // A batch is stored under the day it is prepared and loaded on the next loading day, so the entries
+      // that belong to the day being loaded are its batch's. A loading day with no batch -- one the calendar
+      // never loads -- has none, and zero is the honest answer rather than the rows of the day itself.
+      const schedulesActive =
+        activeBatchDate === null
+          ? { count: 0 }
+          : (db
+              .prepare(
+                `SELECT COUNT(*) AS count
+                 FROM loading_schedules
+                 WHERE schedule_date = ? AND is_active = 1`
+              )
+              .get(activeBatchDate) as CountRow);
 
       const activeUsers = db
         .prepare(
@@ -114,6 +121,7 @@ export async function dashboardRoutes(fastify: FastifyInstance) {
         reportsToday: reportsToday.count,
         schedulesTomorrow: schedulesTomorrow.count,
         activeScheduleDate: activeDate,
+        activeScheduleBatchDate: activeBatchDate,
         activeScheduleCount: schedulesActive.count,
         activeUsers: activeUsers.count,
         reportsTotal: reportsTotal.count,
