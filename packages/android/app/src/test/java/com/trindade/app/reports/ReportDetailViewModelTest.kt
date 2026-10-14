@@ -3,7 +3,9 @@ package com.trindade.app.reports
 import com.trindade.app.contract.models.PhotoResponse
 import com.trindade.app.contract.models.ReportResponse
 import com.trindade.app.contract.models.ReportResponseReport
+import com.trindade.app.export.ShareManager
 import com.trindade.app.network.ReportsApi
+import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -14,6 +16,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -49,6 +52,40 @@ class ReportDetailViewModelTest {
         api: FakeReportsApi = FakeReportsApi(),
         compressor: PhotoCompressor = FakePhotoCompressor(),
     ) = ReportDetailViewModel(ReportsRepository(api), compressor).also { it.load(REPORT_ID) }
+
+    @Test
+    fun `sharing the report hands its export text to the platform chooser`() {
+        val payload = "Relatório — segunda linha"
+        val shareManager = RecordingShareManager()
+        val model = ReportDetailViewModel(
+            ReportsRepository(FakeReportsApi(exportToReturn = payload)),
+            FakePhotoCompressor(),
+            shareManager,
+        )
+        model.load(REPORT_ID)
+        model.loadExport()
+
+        model.shareExport()
+
+        assertEquals(payload, shareManager.lastSharedText)
+    }
+
+    @Test
+    fun `sharing without an export yet shares nothing rather than an empty message`() {
+        val shareManager = RecordingShareManager()
+        val model = ReportDetailViewModel(
+            ReportsRepository(FakeReportsApi()),
+            FakePhotoCompressor(),
+            shareManager,
+        )
+        model.load(REPORT_ID)
+
+        model.shareExport()
+
+        // The action is offered beside the text it would send, so a share before that text arrives would
+        // put nothing in front of the operator and call it a message.
+        assertNull(shareManager.lastSharedText)
+    }
 
     @Test
     fun `opens the report and its photos`() {
@@ -219,4 +256,25 @@ private class FakePhotoCompressor(
     private val returns: ByteArray? = "jpeg-bytes".toByteArray(),
 ) : PhotoCompressor {
     override suspend fun compressToJpeg(path: String): ByteArray? = returns
+}
+
+/**
+ * Records what the screen asked the platform to share.
+ *
+ * The seam is asserted rather than the intent: what goes out is the report's own server-rendered text, and
+ * nothing goes out when there is no text yet.
+ */
+private class RecordingShareManager : ShareManager {
+    var lastSharedText: String? = null
+    var lastSharedTitle: String? = null
+
+    override fun shareText(text: String, title: String?): Boolean {
+        lastSharedText = text
+        lastSharedTitle = title
+        return true
+    }
+
+    override fun sharePdf(file: File, title: String?): Boolean = true
+
+    override fun openLink(url: String): Boolean = true
 }

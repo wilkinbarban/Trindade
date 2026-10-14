@@ -61,6 +61,7 @@ fun ReportDetailScreen(
     onAddPhoto: (String) -> Unit,
     onDeletePhoto: (Int) -> Unit,
     onLoadExport: () -> Unit,
+    onShareExport: () -> Unit,
     onEdit: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
@@ -225,6 +226,13 @@ fun ReportDetailScreen(
                     text = stringResource(R.string.export_copy),
                     modifier = Modifier.fillMaxWidth(),
                 )
+                // The report's own text, which is what the export is for: the operator sends the report as
+                // the server rendered it, and the chooser is where they pick who receives it.
+                AdminPrimaryButton(
+                    onClick = onShareExport,
+                    text = stringResource(R.string.export_share_text),
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
         }
     }
@@ -266,6 +274,7 @@ fun ReportDetailRoute(
         onAddPhoto = viewModel::attachPhoto,
         onDeletePhoto = viewModel::deletePhoto,
         onLoadExport = viewModel::loadExport,
+        onShareExport = viewModel::shareExport,
         onEdit = onEdit,
         onBack = onBack,
     )

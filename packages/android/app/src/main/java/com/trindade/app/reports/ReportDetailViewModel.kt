@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.trindade.app.contract.models.PhotosResponsePhotosInner
 import com.trindade.app.contract.models.ReportResponseReport
+import com.trindade.app.export.NoOpShareManager
+import com.trindade.app.export.ShareManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,6 +29,9 @@ import kotlinx.coroutines.launch
 class ReportDetailViewModel @Inject constructor(
     private val repository: ReportsRepository,
     private val compressor: PhotoCompressor,
+    // The platform seam for sharing, injected rather than reached for: the screen offers the action and
+    // the default is the no-op the tests get, so a view model built without one shares nothing.
+    private val shareManager: ShareManager = NoOpShareManager,
 ) : ViewModel() {
 
     data class UiState(
@@ -145,6 +150,17 @@ class ReportDetailViewModel @Inject constructor(
                 )
             }
         }
+    }
+
+    /**
+     * Shares the report's own server-rendered text.
+     *
+     * Offered beside that text rather than before it: a share fired with nothing loaded would put an empty
+     * message in front of the operator and call it the report.
+     */
+    fun shareExport() {
+        val text = state.value.exportText ?: return
+        shareManager.shareText(text)
     }
 
     private fun deleteRefusal(state: UiState): String =

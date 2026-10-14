@@ -118,7 +118,17 @@ class ReportDetailScreenTest {
     private lateinit var clipboard: ClipboardManager
 
     /** The screen as the route draws it, with no-op callbacks unless the test observes export. */
-    private fun render(state: ReportDetailViewModel.UiState, onLoadExport: () -> Unit = {}) {
+    /**
+     * Renders the screen. `onLoadExport` is deliberately the **last** parameter: every existing test passes
+     * its callback as a trailing lambda, and a Kotlin trailing lambda binds to the final parameter, so a new
+     * parameter appended after this one would silently take every one of those lambdas away from the load
+     * action. New callbacks go before it, and the tests that use them name them.
+     */
+    private fun render(
+        state: ReportDetailViewModel.UiState,
+        onShareExport: () -> Unit = {},
+        onLoadExport: () -> Unit = {},
+    ) {
         composeRule.setContent {
             clipboard = LocalClipboardManager.current
             TrindadeTheme {
@@ -127,6 +137,7 @@ class ReportDetailScreenTest {
                     onAddPhoto = {},
                     onDeletePhoto = {},
                     onLoadExport = onLoadExport,
+                    onShareExport = onShareExport,
                     onEdit = {},
                     onBack = {},
                 )
@@ -215,6 +226,23 @@ class ReportDetailScreenTest {
     }
 
     @Test
+    fun `the export payload offers the share the report's own text is for`() {
+        val payload = "  Relatório — café 汉字\n\tsegunda linha  \n"
+        var shares = 0
+        render(
+            state = state(report(canEdit = true, readOnly = false)).copy(exportText = payload),
+            onShareExport = { shares++ },
+        )
+
+        // The action sits with the payload it sends, and the payload is the server's own text rather than
+        // anything this screen assembled.
+        composeRule.onNodeWithText(copy(R.string.export_share_text))
+            .performScrollTo().assertIsDisplayed().assertIsEnabled().performClick()
+        composeRule.waitForIdle()
+        assertEquals(1, shares)
+    }
+
+    @Test
     fun `export payload displays whitespace unicode and newlines verbatim with copy enabled`() {
         val payload = "  Relatório — café 漢字\n\tsegunda linha  \n"
         render(state(report(canEdit = true, readOnly = false)).copy(exportText = payload))
@@ -274,6 +302,7 @@ class ReportDetailScreenTest {
                     onAddPhoto = {},
                     onDeletePhoto = {},
                     onLoadExport = {},
+                    onShareExport = {},
                     onEdit = { edited++ },
                     onBack = { backed++ },
                 )
