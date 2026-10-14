@@ -298,6 +298,7 @@
     <string name="drivers_edit_title">Editar motorista</string>
     <string name="drivers_create_title">Criar motorista</string>
     <string name="drivers_name">Nome</string>
+    <string name="drivers_phone">Telefone (WhatsApp)</string>
     <string name="drivers_type">Tipo</string>
     <string name="drivers_type_value">Tipo: %1$s</string>
     <string name="drivers_type_casa">Próprio (Casa)</string>

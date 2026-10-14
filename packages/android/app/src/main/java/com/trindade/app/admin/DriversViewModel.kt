@@ -6,6 +6,8 @@ import com.trindade.app.auth.AuthRepository
 import com.trindade.app.contract.models.AdminDriverResponseDriver
 import com.trindade.app.contract.models.CreateAdminDriverRequest
 import com.trindade.app.contract.models.UpdateAdminDriverRequest
+import com.trindade.app.ui.cleanPhone
+import com.trindade.app.ui.filterPhoneInput
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.Job
@@ -29,6 +31,7 @@ class DriversViewModel @Inject constructor(
         val editingId: Int? = null,
         val name: String = "",
         val licensePlate: String = "",
+        val phone: String = "",
         val driverType: String = "fletero",
         val error: String? = null,
         val refusedStatus: Int? = null,
@@ -62,6 +65,12 @@ class DriversViewModel @Inject constructor(
 
     fun onNameChange(value: String) = changeForm { copy(name = value) }
     fun onLicensePlateChange(value: String) = changeForm { copy(licensePlate = value) }
+
+    /**
+     * The field keeps only what can belong to a number while the operator types; the tidying happens
+     * once, on the save, so the spacing they are writing is not eaten keystroke by keystroke.
+     */
+    fun onPhoneChange(value: String) = changeForm { copy(phone = filterPhoneInput(value)) }
     fun onDriverTypeChange(value: String) = changeForm {
         copy(driverType = if (isAdmin) value else FLETERO)
     }
@@ -70,11 +79,13 @@ class DriversViewModel @Inject constructor(
         val current = _state.value
         if (current.loading || !current.canEdit(driver) || current.saving) return
         _state.update { it.copy(editingId = driver.id, name = driver.name,
-            licensePlate = driver.licensePlate.orEmpty(), driverType = driver.driverType.value, error = null) }
+            licensePlate = driver.licensePlate.orEmpty(), phone = driver.phone.orEmpty(),
+            driverType = driver.driverType.value, error = null) }
     }
 
     fun cancelEdit() = _state.update {
-        it.copy(editingId = null, name = "", licensePlate = "", driverType = FLETERO, error = null, refusedStatus = null)
+        it.copy(editingId = null, name = "", licensePlate = "", phone = "", driverType = FLETERO,
+            error = null, refusedStatus = null)
     }
 
     fun save() {
@@ -92,17 +103,26 @@ class DriversViewModel @Inject constructor(
         } else {
             current.licensePlate.trim().ifEmpty { null }
         }
+        // An emptied field on an edit is the operator asking for the number to go, and the repository
+        // turns that empty value into the explicit null the endpoint reads as removal. On a create,
+        // empty is simply a number nobody has yet, so the key stays out of the body.
+        val phone = if (current.editingId != null) {
+            cleanPhone(current.phone)
+        } else {
+            cleanPhone(current.phone).ifEmpty { null }
+        }
         _state.update { it.copy(saving = true, error = null, refusedStatus = null) }
         viewModelScope.launch {
             val result = current.editingId?.let { id ->
                 repository.update(id, UpdateAdminDriverRequest(
-                    name = name, licensePlate = plate,
+                    name = name, licensePlate = plate, phone = phone,
                     driverType = if (current.isAdmin) UpdateAdminDriverRequest.DriverType.valueOf(type) else null,
                 ))
             } ?: repository.create(
                 CreateAdminDriverRequest(
                     name = name,
                     licensePlate = plate,
+                    phone = phone,
                     driverType = driverType,
                 ),
             )

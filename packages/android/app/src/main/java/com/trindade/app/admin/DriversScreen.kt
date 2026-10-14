@@ -21,7 +21,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.trindade.app.R
 import com.trindade.app.contract.models.AdminDriverResponseDriver
 import com.trindade.app.ui.components.AdminChoiceChip
 import com.trindade.app.ui.components.AdminPrimaryButton
@@ -36,6 +38,7 @@ fun DriversScreen(
     onRefresh: () -> Unit,
     onNameChange: (String) -> Unit,
     onLicensePlateChange: (String) -> Unit,
+    onPhoneChange: (String) -> Unit,
     onDriverTypeChange: (String) -> Unit,
     onSave: () -> Unit,
     onCancel: () -> Unit,
@@ -90,6 +93,14 @@ fun DriversScreen(
                 value = state.licensePlate,
                 onValueChange = onLicensePlateChange,
                 label = { Text("Placa") },
+                enabled = !state.saving,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            // The number is optional, so an empty field saves a driver the same way the form always has.
+            OutlinedTextField(
+                value = state.phone,
+                onValueChange = onPhoneChange,
+                label = { Text(stringResource(R.string.drivers_phone)) },
                 enabled = !state.saving,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -169,6 +180,7 @@ fun DriversRoute(
         onRefresh = viewModel::load,
         onNameChange = viewModel::onNameChange,
         onLicensePlateChange = viewModel::onLicensePlateChange,
+        onPhoneChange = viewModel::onPhoneChange,
         onDriverTypeChange = viewModel::onDriverTypeChange,
         onSave = viewModel::save,
         onCancel = viewModel::cancelEdit,

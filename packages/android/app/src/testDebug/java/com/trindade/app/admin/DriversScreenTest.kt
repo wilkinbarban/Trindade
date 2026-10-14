@@ -44,7 +44,8 @@ class DriversScreenTest {
     ) = DriversViewModel.UiState(
         loading = loading, saving = saving, drivers = drivers, role = role,
         currentUserId = 7, editingId = editingId, name = "Motorista",
-        licensePlate = "ABC1", driverType = DriversViewModel.FLETERO, error = error,
+        licensePlate = "ABC1", phone = "+55 11 98888-7777", driverType = DriversViewModel.FLETERO,
+        error = error,
     )
 
     private fun render(
@@ -53,6 +54,7 @@ class DriversScreenTest {
         onToggle: (AdminDriverResponseDriver) -> Unit = {},
         onNameChange: (String) -> Unit = {},
         onLicensePlateChange: (String) -> Unit = {},
+        onPhoneChange: (String) -> Unit = {},
         onDriverTypeChange: (String) -> Unit = {},
         onSave: () -> Unit = {},
         onCancel: () -> Unit = {},
@@ -63,6 +65,7 @@ class DriversScreenTest {
             DriversScreen(
                 state = state, onBack = onBack, onRefresh = onRefresh,
                 onNameChange = onNameChange, onLicensePlateChange = onLicensePlateChange,
+                onPhoneChange = onPhoneChange,
                 onDriverTypeChange = onDriverTypeChange, onSave = onSave, onCancel = onCancel,
                 onEdit = onEdit, onToggle = onToggle,
             )
@@ -87,6 +90,9 @@ class DriversScreenTest {
         composeRule.onNodeWithText("Novo motorista").performClick()
         composeRule.onNodeWithText("Nome").assertIsDisplayed()
         composeRule.onNodeWithText("Placa").assertIsDisplayed()
+        // The number is optional: the field is there, and it starts from what the driver already has.
+        composeRule.onNodeWithText("Telefone (WhatsApp)").assertIsDisplayed()
+        composeRule.onNodeWithText("+55 11 98888-7777").assertIsDisplayed()
         composeRule.onNodeWithText("Tipo do motorista").assertIsDisplayed()
         composeRule.onNodeWithText("Casa").performClick()
 

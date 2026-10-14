@@ -11,6 +11,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.After
@@ -136,6 +137,59 @@ class DriversViewModelTest {
         assertNull(createApi.lastCreate?.licensePlate)
     }
 
+    @Test fun `editing a driver carries their number into the form and typing keeps only number characters`() {
+        val api = DriverApi(rows = listOf(driver(8, 42, phone = "+55 (11) 98888-7777")))
+        val model = viewModel(api, role = "Administrador")
+        model.load()
+        model.edit(model.state.value.drivers[0])
+        assertEquals("+55 (11) 98888-7777", model.state.value.phone)
+
+        model.onPhoneChange("+55 (11) 98888-7777 ramal")
+        assertEquals("+55 (11) 98888-7777 ", model.state.value.phone)
+
+        // Closing the form does not leave the last driver's number behind for the next one.
+        model.cancelEdit()
+        assertEquals("", model.state.value.phone)
+    }
+
+    @Test fun `a blank number on a new driver is omitted, which is what optional means here`() {
+        val api = DriverApi()
+        val model = viewModel(api, role = "Administrador")
+        model.load()
+        model.onNameChange("New Driver")
+        model.onPhoneChange("   ")
+        model.save()
+        assertEquals("New Driver", api.lastCreate?.name)
+        assertNull("A number nobody has yet must be absent, not an empty string", api.lastCreate?.phone)
+    }
+
+    @Test fun `a number typed on a new driver is saved cleaned`() {
+        val api = DriverApi()
+        val model = viewModel(api, role = "Administrador")
+        model.load()
+        model.onNameChange("New Driver")
+        model.onPhoneChange("  +55 (11) 98888-7777  ")
+        model.save()
+        assertEquals("+55 (11) 98888-7777", api.lastCreate?.phone)
+    }
+
+    @Test fun `emptying the number on an edit reaches the wire as an explicit null, not as a missing key`() {
+        val api = DriverApi(rows = listOf(driver(8, 42, phone = "+55 (11) 98888-7777")))
+        val model = viewModel(api, role = "Administrador")
+        model.load()
+        model.edit(model.state.value.drivers[0])
+        model.onPhoneChange("")
+        model.save()
+
+        val body = api.lastUpdateBody
+        assertNotNull(body)
+        assertTrue(
+            "An emptied field asks for removal: the endpoint reads a missing key as leave it alone",
+            body!!.containsKey("phone"),
+        )
+        assertTrue("The removal travels as JSON null", body["phone"] is JsonNull)
+    }
+
     @Test fun `refused and unreachable writes differ and successful writes reload`() {
         val api = DriverApi()
         val model = viewModel(api)
@@ -242,8 +296,8 @@ class DriversViewModelTest {
         DriversRepository(api), AuthRepository(DriverProfileApi(role), DriverStore(), Json),
     )
 
-    private fun driver(id: Int, owner: Int, type: String = "fletero", active: Int = 1) =
-        AdminDriverResponseDriver(id, "Driver$id", null, null,
+    private fun driver(id: Int, owner: Int, type: String = "fletero", active: Int = 1, phone: String? = null) =
+        AdminDriverResponseDriver(id, "Driver$id", null, phone,
             if (type == "casa") AdminDriverResponseDriver.DriverType.casa else AdminDriverResponseDriver.DriverType.fletero,
             active, owner, "now")
 }
@@ -254,6 +308,9 @@ private class DriverApi(var rows: List<AdminDriverResponseDriver> = emptyList())
     var updates = 0
     var lastCreate: CreateAdminDriverRequest? = null
     var lastUpdate: UpdateAdminDriverRequest? = null
+
+    /** The body as it went out, so a test can tell an explicit null apart from a key nobody sent. */
+    var lastUpdateBody: JsonObject? = null
     var firstRead: CompletableDeferred<List<AdminDriverResponseDriver>>? = null
     var deferredRead: CompletableDeferred<List<AdminDriverResponseDriver>>? = null
     var failDrivers = false
@@ -273,9 +330,11 @@ private class DriverApi(var rows: List<AdminDriverResponseDriver> = emptyList())
     }
     override suspend fun updateDriver(id: Int, body: JsonObject): Response<AdminDriverResponse> {
         updates++
+        lastUpdateBody = body
         lastUpdate = UpdateAdminDriverRequest(
             name = body["name"]?.jsonPrimitive?.content,
             licensePlate = body["license_plate"]?.jsonPrimitive?.content,
+            phone = body["phone"]?.let { if (it is JsonNull) null else it.jsonPrimitive.content },
             driverType = body["driver_type"]?.jsonPrimitive?.content?.let(UpdateAdminDriverRequest.DriverType::valueOf),
             isActive = body["is_active"]?.jsonPrimitive?.content?.let {
                 if (it == "1") UpdateAdminDriverRequest.IsActive._1 else UpdateAdminDriverRequest.IsActive._0

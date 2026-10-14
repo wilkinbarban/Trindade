@@ -5,6 +5,7 @@ import com.trindade.app.contract.models.UpdateAdminDriverRequest
 import com.trindade.app.network.AdminApi
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -80,6 +81,29 @@ class DriversRepositoryTest {
             assertFalse("is_active must be serialized as JSON number, not string", isActive.isString)
             assertEquals("1", isActive.content)
             assertFalse("Untouched driver_type must be omitted from PATCH body, not sent as explicit null", body.containsKey("driver_type"))
+        }
+    }
+
+    @Test fun `an emptied number asks for removal while an untouched one is left alone`() = runBlocking {
+        MockWebServer().use { server ->
+            server.enqueue(json("""{"driver":$driver}"""))
+            server.enqueue(json("""{"driver":$driver}"""))
+            val repository = repository(server)
+
+            repository.update(1, UpdateAdminDriverRequest(phone = ""))
+
+            val cleared = Json.parseToJsonElement(server.takeRequest().body.readUtf8()).jsonObject
+            assertTrue(
+                "An emptied field is the operator asking for the number to go: the endpoint reads a missing " +
+                    "key as leave it alone, so the null has to be there",
+                cleared.containsKey("phone"),
+            )
+            assertTrue(cleared["phone"] is JsonNull)
+
+            repository.update(1, UpdateAdminDriverRequest(phone = "+55 (11) 98888-7777"))
+
+            val set = Json.parseToJsonElement(server.takeRequest().body.readUtf8()).jsonObject
+            assertEquals("+55 (11) 98888-7777", set["phone"]?.jsonPrimitive?.content)
         }
     }
 
