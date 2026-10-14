@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -42,6 +43,7 @@ fun ReportGeneratorScreen(
     onTemperatureChange: (Int, Int, String) -> Unit,
     onSubmit: () -> Unit,
     onOpenHistory: () -> Unit,
+    onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -75,6 +77,27 @@ fun ReportGeneratorScreen(
             }
         }
 
+        // A read that could not supply a piece the form is made of says which piece, and offers the way to
+        // try again. The reason is what separates this screen from one that drew an empty form: the
+        // operator reads a fact about the read instead of guessing what a blank page means.
+        if (state.stage == ReportGeneratorViewModel.Stage.FAILED ||
+            state.stage == ReportGeneratorViewModel.Stage.INCOMPLETE
+        ) {
+            items(state.missing) { prerequisite ->
+                Text(
+                    text = stringResource(missingMessage(prerequisite)),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+            item {
+                NavigationActionButton(
+                    onClick = onRetry,
+                    text = stringResource(R.string.report_retry),
+                )
+            }
+        }
+
         // Shown once the server has answered with an id, because that id is the one thing the next
         // screen needs and a form that just stops being submittable would look like a failure.
         state.createdReportId?.let { id ->
@@ -92,27 +115,50 @@ fun ReportGeneratorScreen(
         // object for the same answers.
         val form = ReportFormState(state.checks, state.temperatures, state.selectedProducts, state.offers)
 
-        items(state.categories.filter { it.parentCategoryId == null }) { category ->
-            CategoryForm(
-                category = category,
-                children = state.categories.filter { it.parentCategoryId == category.id },
-                form = form,
-                onCheckChange = onCheckChange,
-                onProductToggle = onProductToggle,
-                onTemperatureChange = onTemperatureChange,
-            )
-        }
+        when (state.stage) {
+            ReportGeneratorViewModel.Stage.LOADING -> item {
+                CircularProgressIndicator()
+            }
 
-        item {
-            AdminPrimaryButton(
-                onClick = onSubmit,
-                text = stringResource(R.string.report_submit),
-                enabled = state.canSubmit,
-                loading = state.submitting,
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-            )
+            // The two halves that can draw something: the whole form when everything arrived, and the form
+            // the server did supply when only the product lists are missing. What is left of the form cannot
+            // be answered, so it is not drawn at all -- the reasons above are what the operator reads.
+            ReportGeneratorViewModel.Stage.READY,
+            ReportGeneratorViewModel.Stage.INCOMPLETE,
+            -> {
+                items(state.categories.filter { it.parentCategoryId == null }) { category ->
+                    CategoryForm(
+                        category = category,
+                        children = state.categories.filter { it.parentCategoryId == category.id },
+                        form = form,
+                        onCheckChange = onCheckChange,
+                        onProductToggle = onProductToggle,
+                        onTemperatureChange = onTemperatureChange,
+                    )
+                }
+
+                item {
+                    AdminPrimaryButton(
+                        onClick = onSubmit,
+                        text = stringResource(R.string.report_submit),
+                        enabled = state.canSubmit,
+                        loading = state.submitting,
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    )
+                }
+            }
+
+            ReportGeneratorViewModel.Stage.FAILED -> Unit
         }
     }
+}
+
+/** The sentence one missing prerequisite is read as, in the operator's own language. */
+@androidx.annotation.StringRes
+private fun missingMessage(prerequisite: ReportGeneratorViewModel.Prerequisite): Int = when (prerequisite) {
+    ReportGeneratorViewModel.Prerequisite.SHIFT -> R.string.report_missing_shift
+    ReportGeneratorViewModel.Prerequisite.CATEGORIES -> R.string.report_missing_categories
+    ReportGeneratorViewModel.Prerequisite.OFFERS -> R.string.report_missing_offers
 }
 
 /** The screen with its ViewModel attached. */
@@ -137,5 +183,6 @@ fun ReportGeneratorRoute(
         onTemperatureChange = viewModel::onTemperatureChange,
         onSubmit = viewModel::submit,
         onOpenHistory = onOpenHistory,
+        onRetry = viewModel::retry,
     )
 }

@@ -31,11 +31,33 @@ class ReportGeneratorViewModel @Inject constructor(
     private val repository: ReportsRepository,
 ) : ViewModel() {
 
+    /** The three things the server supplies before this form can be answered at all. */
+    enum class Prerequisite { SHIFT, CATEGORIES, OFFERS }
+
+    /**
+     * The shape of the generator, decided by its prerequisites and not by how many of them came back.
+     *
+     * [FAILED] is the state that refuses the form outright: without the shift the report would be filed
+     * against a guessed one, and without categories there is nothing to answer. [INCOMPLETE] draws the
+     * form the server did supply and says what is missing, which is the product lists' case -- the sections
+     * are answerable except for the product tasks, and the operator can see that much while deciding
+     * whether to retry.
+     */
+    enum class Stage { LOADING, READY, INCOMPLETE, FAILED }
+
     data class UiState(
         val loading: Boolean = true,
         val categories: List<CategoriesResponseCategoriesInner> = emptyList(),
         val offers: ProductsResponse? = null,
         val turno: String? = null,
+        /**
+         * What the last read could not supply, named rather than left as an empty collection.
+         *
+         * An empty collection is what made this screen look like a day with no tasks instead of a read
+         * that never arrived: the form drew the nothing it was handed and the operator had no sentence to
+         * read and nothing to press.
+         */
+        val missing: List<Prerequisite> = emptyList(),
         /** One boolean per `check`, `check_assai` and `check_normal` task. */
         val checks: Map<Int, Boolean> = emptyMap(),
         /** One entry per `temperature` task, holding exactly `temperatureReadings` readings. */
@@ -47,7 +69,17 @@ class ReportGeneratorViewModel @Inject constructor(
         val createdReportId: Int? = null,
         val message: String? = null,
     ) {
-        val ready: Boolean get() = !loading && categories.isNotEmpty() && offers != null && turno != null
+        val stage: Stage
+            get() = when {
+                loading -> Stage.LOADING
+                // The shift and the categories are the two the form cannot be drawn without, so their
+                // absence refuses it instead of drawing a version of it that cannot be answered.
+                missing.any { it == Prerequisite.SHIFT || it == Prerequisite.CATEGORIES } -> Stage.FAILED
+                missing.isNotEmpty() -> Stage.INCOMPLETE
+                else -> Stage.READY
+            }
+
+        val ready: Boolean get() = stage == Stage.READY && categories.isNotEmpty()
 
         val canSubmit: Boolean get() = ready && !submitting && createdReportId == null
     }
@@ -66,13 +98,14 @@ class ReportGeneratorViewModel @Inject constructor(
             val offers = repository.productOffers()
             val turno = repository.detectedTurno()
 
-            // The shift is the one absence worth refusing outright. A form that opens without it would
+            // What the read could not supply is named, in the order the screen reads it, and the shift
+            // stays the one absence that refuses the form outright: a form that opened without it would
             // have to guess which shift the report belongs to, and the server is the only party that
-            // detects it; a wrong guess produces a report filed against the wrong shift.
-            val message = if (turno == null) {
-                "Não foi possível detectar o turno. Verifique a conexão e tente de novo."
-            } else {
-                null
+            // detects it, so a wrong guess produces a report filed against the wrong shift.
+            val missing = buildList {
+                if (turno == null) add(Prerequisite.SHIFT)
+                if (categories == null) add(Prerequisite.CATEGORIES)
+                if (offers == null) add(Prerequisite.OFFERS)
             }
 
             _state.update { current ->
@@ -81,12 +114,19 @@ class ReportGeneratorViewModel @Inject constructor(
                     categories = categories.orEmpty(),
                     offers = offers,
                     turno = turno,
-                    temperatures = current.temperatures + initialReadings(categories.orEmpty()),
-                    message = message,
+                    missing = missing,
+                    // The operator's own answers win over the seed: a retry is about the read and not about
+                    // their work, and putting the seed's fresh, empty lists last would wipe a temperature they
+                    // had already typed for a task the read happened to list again.
+                    temperatures = initialReadings(categories.orEmpty()) + current.temperatures,
+                    message = null,
                 )
             }
         }
     }
+
+    /** The way out of a read that could not supply what the form needs. */
+    fun retry() = load()
 
     fun onCheckChange(taskId: Int, checked: Boolean) =
         _state.update { it.copy(checks = it.checks + (taskId to checked)) }

@@ -43,8 +43,10 @@ import retrofit2.Response
  * the contract says.
  */
 class FakeReportsApi(
-    private val categories: List<CategoriesResponseCategoriesInner> = defaultCategories(),
-    private val offers: ProductsResponse = defaultOffers(),
+    /** Null makes the categories call fail, the same convention as [turnoValue] and for the same reason. */
+    var categories: List<CategoriesResponseCategoriesInner>? = defaultCategories(),
+    /** Null makes the offers call fail, the same convention as [turnoValue] and for the same reason. */
+    var offers: ProductsResponse? = defaultOffers(),
     /** Null makes the shift call fail, which is the only way a caller sees it as undetectable. */
     private val turnoValue: String? = DEFAULT_TURNO,
     private val createResponse: Response<ReportResponse> = Response.success(ReportResponse(report = createdReport())),
@@ -130,9 +132,11 @@ class FakeReportsApi(
      */
     var remainingHistoryItems = historyItemCount ?: 0
 
-    override suspend fun categories(): Response<CategoriesResponse> = Response.success(CategoriesResponse(categories))
+    override suspend fun categories(): Response<CategoriesResponse> =
+        categories?.let { Response.success(CategoriesResponse(it)) } ?: Response.error(500, EMPTY_BODY)
 
-    override suspend fun products(): Response<ProductsResponse> = Response.success(offers)
+    override suspend fun products(): Response<ProductsResponse> =
+        offers?.let { Response.success(it) } ?: Response.error(500, EMPTY_BODY)
 
     override suspend fun turno(): Response<TurnoResponse> {
         val value = turnoValue ?: return Response.error(500, EMPTY_BODY)

@@ -76,12 +76,15 @@ class ReportGeneratorViewModelTest {
     @Test
     fun `refuses to submit while the shift is unknown`() {
         // The one absence worth refusing outright: the server detects the shift, and a form without it
-        // would have to guess, producing a report filed against the wrong one.
+        // would have to guess, producing a report filed against the wrong one. The refusal is typed rather
+        // than a sentence left in the state, and the sentence the operator reads comes from the screen's
+        // own resources, which is what the screen's lane asserts.
         val model = viewModel(FakeReportsApi(turnoValue = null))
 
         assertEquals(false, model.state.value.ready)
         assertEquals(false, model.state.value.canSubmit)
-        assertNotNull("the operator has to be told why", model.state.value.message)
+        assertEquals(ReportGeneratorViewModel.Stage.FAILED, model.state.value.stage)
+        assertEquals(listOf(ReportGeneratorViewModel.Prerequisite.SHIFT), model.state.value.missing)
     }
 
     @Test
@@ -149,6 +152,90 @@ class ReportGeneratorViewModelTest {
         // Case-insensitive on purpose: pinning the exact wording would make this test fail on a copy
         // edit that broke nothing, and what it is checking is which refusal was recognised.
         assertEquals(true, model.state.value.message!!.contains("existe", ignoreCase = true))
+    }
+    // ---- The prerequisites, named instead of left as an empty form (AND-02) ----
+
+    /**
+     * The rule this group exists for: a read that could not supply something says which something.
+     *
+     * The failure it closes is quiet and worse than an error message. The screen drew its form from
+     * whatever the reads left in the state, so a failed call left an empty collection and the operator saw
+     * a blank form with a dead submit button and no sentence explaining either -- a form that looks like a
+     * day with no tasks rather than a read that did not arrive.
+     */
+    @Test
+    fun `a read that supplies nothing names the shift, the categories and the offers`() {
+        val api = FakeReportsApi(turnoValue = null).apply {
+            categories = null
+            offers = null
+        }
+        val model = viewModel(api)
+
+        val state = model.state.value
+        assertEquals(ReportGeneratorViewModel.Stage.FAILED, state.stage)
+        assertEquals(
+            listOf(
+                ReportGeneratorViewModel.Prerequisite.SHIFT,
+                ReportGeneratorViewModel.Prerequisite.CATEGORIES,
+                ReportGeneratorViewModel.Prerequisite.OFFERS,
+            ),
+            state.missing,
+        )
+        assertEquals(false, state.canSubmit)
+    }
+
+    @Test
+    fun `a missing shift refuses the form on its own`() {
+        val model = viewModel(FakeReportsApi(turnoValue = null))
+
+        assertEquals(ReportGeneratorViewModel.Stage.FAILED, model.state.value.stage)
+        assertEquals(listOf(ReportGeneratorViewModel.Prerequisite.SHIFT), model.state.value.missing)
+    }
+
+    @Test
+    fun `missing offers leave the form incomplete rather than unusable`() {
+        val api = FakeReportsApi().apply { offers = null }
+        val model = viewModel(api)
+
+        val state = model.state.value
+        assertEquals(ReportGeneratorViewModel.Stage.INCOMPLETE, state.stage)
+        assertEquals(listOf(ReportGeneratorViewModel.Prerequisite.OFFERS), state.missing)
+        // The sections the server did supply are still there: the form is drawn, it just cannot be sent.
+        assertEquals(true, state.categories.isNotEmpty())
+        assertEquals(false, state.canSubmit)
+    }
+
+    @Test
+    fun `a complete read is ready and can be sent`() {
+        val model = viewModel()
+
+        assertEquals(ReportGeneratorViewModel.Stage.READY, model.state.value.stage)
+        assertEquals(emptyList<ReportGeneratorViewModel.Prerequisite>(), model.state.value.missing)
+        assertEquals(true, model.state.value.canSubmit)
+    }
+
+    @Test
+    fun `retrying after a failure keeps what the operator already answered`() {
+        val api = FakeReportsApi()
+        val model = viewModel(api)
+        model.onCheckChange(CHECK_TASK_ID, true)
+        model.onTemperatureChange(TEMPERATURE_TASK_ID, 0, "12")
+
+        // The next read fails whole, and what the operator typed is not the read's business.
+        api.categories = null
+        model.load()
+        assertEquals(ReportGeneratorViewModel.Stage.FAILED, model.state.value.stage)
+        assertEquals(listOf(ReportGeneratorViewModel.Prerequisite.CATEGORIES), model.state.value.missing)
+        assertEquals(true, model.state.value.checks[CHECK_TASK_ID])
+        assertEquals("12", model.state.value.temperatures[TEMPERATURE_TASK_ID]?.first())
+
+        // And the retry that succeeds leaves them where they were, including for the task the recovered read
+        // lists again: the seed fills what has no answer and never replaces one.
+        api.categories = FakeReportsApi.defaultCategories()
+        model.load()
+        assertEquals(ReportGeneratorViewModel.Stage.READY, model.state.value.stage)
+        assertEquals(true, model.state.value.checks[CHECK_TASK_ID])
+        assertEquals("12", model.state.value.temperatures[TEMPERATURE_TASK_ID]?.first())
     }
 }
 

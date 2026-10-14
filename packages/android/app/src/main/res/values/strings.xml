@@ -57,6 +57,15 @@
 
     <string name="report_submit">Salvar relatório</string>
     <string name="report_created">Relatório %1$d salvo.</string>
+    <!--
+      What the generator says when a read did not supply a piece the form is made of, and the way back.
+      Each missing piece is named rather than left as a blank form, because an operator who sees an empty
+      form reads it as a day with no tasks, and that is a different fact from a read that never arrived.
+    -->
+    <string name="report_missing_shift">Não foi possível detectar o turno. Verifique a conexão e tente de novo.</string>
+    <string name="report_missing_categories">As tarefas do relatório não chegaram. Verifique a conexão e tente de novo.</string>
+    <string name="report_missing_offers">As listas de produtos não chegaram: as tarefas de produto não podem ser respondidas.</string>
+    <string name="report_retry">Tentar de novo</string>
     <!-- The edit surface, the web's own `ReportEditPage`. Each is that page's own `pt-BR` text for the
          same control, out of the locale's `reports` block:
            - `editTitle` is "Editar", and it is one string here because the web uses the one key for

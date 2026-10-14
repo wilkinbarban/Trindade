@@ -2,6 +2,7 @@ package com.trindade.app.reports
 
 import android.content.Context
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -139,6 +140,7 @@ class ReportGeneratorScreenTest {
                     onTemperatureChange = { _, _, _ -> },
                     onSubmit = {},
                     onOpenHistory = {},
+                    onRetry = {},
                 )
             }
         }
@@ -274,6 +276,7 @@ class ReportGeneratorScreenTest {
                     onTemperatureChange = { _, _, _ -> },
                     onSubmit = { submitted++ },
                     onOpenHistory = { openedHistory++ },
+                    onRetry = {},
                 )
             }
         }
@@ -301,5 +304,73 @@ class ReportGeneratorScreenTest {
         )
         submitNode.performClick()
         assertEquals(1, submitted)
+    }
+
+    // ---- The prerequisites, said out loud (AND-02) ----
+
+    /**
+     * The rule this pair exists for: a form that cannot be answered says why instead of being drawn blank.
+     *
+     * The failure it closes is quiet. The screen drew its form from whatever the reads left behind, so a
+     * read that failed left an empty collection and the operator saw a page with a dead button: to them
+     * that is a day with no tasks, which is a different fact from a read that never arrived. The reasons
+     * come from the screen's own resources -- a Portuguese copy the test reads through the same catalogue
+     * the app draws from.
+     */
+    @Test
+    fun `a failed read says what is missing and offers the way to try again, and draws no form`() {
+        var retried = 0
+        composeRule.setContent {
+            TrindadeTheme {
+                ReportGeneratorScreen(
+                    state = state(listOf(category(id = 8, namePt = "Higiene"))).copy(
+                        missing = listOf(
+                            ReportGeneratorViewModel.Prerequisite.SHIFT,
+                            ReportGeneratorViewModel.Prerequisite.CATEGORIES,
+                        ),
+                    ),
+                    onCheckChange = { _, _ -> },
+                    onProductToggle = { _, _, _ -> },
+                    onTemperatureChange = { _, _, _ -> },
+                    onSubmit = {},
+                    onOpenHistory = {},
+                    onRetry = { retried++ },
+                )
+            }
+        }
+
+        displayed(copy(R.string.report_missing_shift))
+        displayed(copy(R.string.report_missing_categories))
+
+        // The copy of the form the read could not supply is not drawn at all.
+        composeRule.onNodeWithText("Higiene").assertDoesNotExist()
+
+        composeRule.onNodeWithText(copy(R.string.report_retry)).performScrollTo().performClick()
+        assertEquals(1, retried)
+    }
+
+    @Test
+    fun `an incomplete read draws the form it did get and says what cannot be answered`() {
+        composeRule.setContent {
+            TrindadeTheme {
+                ReportGeneratorScreen(
+                    state = state(listOf(category(id = 8, namePt = "Higiene"))).copy(
+                        offers = null,
+                        missing = listOf(ReportGeneratorViewModel.Prerequisite.OFFERS),
+                    ),
+                    onCheckChange = { _, _ -> },
+                    onProductToggle = { _, _, _ -> },
+                    onTemperatureChange = { _, _, _ -> },
+                    onSubmit = {},
+                    onOpenHistory = {},
+                    onRetry = {},
+                )
+            }
+        }
+
+        // The sections the server did supply are drawn: the form is incomplete, not useless.
+        displayed("Higiene")
+        displayed(copy(R.string.report_missing_offers))
+        composeRule.onNodeWithText(copy(R.string.report_submit)).assertIsNotEnabled()
     }
 }
