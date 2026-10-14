@@ -1,9 +1,12 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import Database from 'better-sqlite3';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { openDatabase } from './index.js';
 import { migrateLegacyReportTemperatures } from './report-temperatures-migration.js';
+import { SCHEMA_VERSION } from './schema-version.js';
 
 const schemaPath = join(import.meta.dirname, 'schema.sql');
 const seedPath = join(import.meta.dirname, 'seed.sql');
@@ -261,6 +264,28 @@ describe('Database Initialization', () => {
   });
 });
 
+
+it('completes an interrupted creation whose schema committed without its seed or stamp', () => {
+  const root = mkdtempSync(join(tmpdir(), 'trindade-interrupted-'));
+  const databasePath = join(root, 'interrupted.db');
+  const crashed = new Database(databasePath);
+  crashed.exec(schema);
+  // The creation transaction never ran: the schema is complete but there is no seed
+  // and no revision stamp, which is exactly the state a crash between the two leaves.
+  crashed.close();
+
+  try {
+    const db = openDatabase(databasePath);
+    assert.equal(db.pragma('user_version', { simple: true }), SCHEMA_VERSION);
+    assert.ok(
+      (db.prepare('SELECT COUNT(*) FROM roles').pluck().get() as number) > 0,
+      'the interrupted creation must be seeded before it is served',
+    );
+    db.close();
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
 
 it('keeps idx_report_temperatures_report_id after migrating the legacy temperatures table', () => {
   const db = new Database(':memory:');

@@ -25,13 +25,17 @@ export function openDatabase(databasePath: string): DatabaseType {
     }
   }
   db.pragma('foreign_keys = ON');
-  if (installation.kind === 'fresh') {
-    const schema = readFileSync(join(import.meta.dirname, 'schema.sql'), 'utf8');
+  if (installation.kind === 'fresh' || installation.kind === 'interrupted') {
+    if (installation.kind === 'fresh') {
+      const schema = readFileSync(join(import.meta.dirname, 'schema.sql'), 'utf8');
+      db.exec(schema);
+    }
     const seed = readFileSync(join(import.meta.dirname, 'seed.sql'), 'utf8');
-    db.exec(schema);
     // The revision stamp belongs to the creation transaction: a crash must leave
     // either a fully seeded, stamped database or none at all. An existing database
     // is never stamped here (see the Production Immutability Gate in the README).
+    // An interrupted creation shares this transaction: its schema is already complete
+    // (classification proved it), so only the seed and stamp it lost are replayed.
     db.transaction(() => {
       db.exec(seed);
       stampSchemaVersion(db);
