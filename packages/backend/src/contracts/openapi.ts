@@ -960,7 +960,8 @@ function buildRegistry(): OpenAPIRegistry {
   //
   // Mounted at `/api/admin` by `routes.ts`, which registers both the admin module and the audit
   // module under that prefix. The two guards in `admin.routes.ts` split the surface: `catalogGuard`
-  // admits Administrador and Trabalhador, and `adminGuard` admits Administrador only. Each
+  // admits Administrador and Trabalhador to the catalog reads and to creating a catalog item, and
+  // `adminGuard` admits Administrador alone to everything else, the item writes included. Each
   // description below states which one applies, because OpenAPI has no way to say it in the schema.
 
   registry.registerPath({
@@ -1067,8 +1068,8 @@ function buildRegistry(): OpenAPIRegistry {
     path: '/api/admin/tasks/{id}',
     summary: 'Update a report task',
     description:
-      `${ADMINISTRATOR_OR_WORKER} A Trabalhador may edit only a task they created, and may not set ` +
-      '`is_active`; both are refused with 403. An Administrador has neither limit.',
+      `${ADMINISTRATOR_ONLY} Editing a task that already exists is the administrator's job: a worker ` +
+      'may add one, and every change to an existing row is refused by the role.',
     tags: ['admin'],
     request: {
       params: ADMIN_ID_PARAMS,
@@ -1078,7 +1079,7 @@ function buildRegistry(): OpenAPIRegistry {
       200: jsonResponse("The updated task, without the category name that only the list carries", AdminTaskResponseSchema),
       400: errorResponse('The identifier is not a number, or the body failed validation'),
       401: UNAUTHORIZED,
-      403: errorResponse('A Trabalhador tried to set is_active, or to edit another user\'s task'),
+      403: errorResponse('A Trabalhador tried to edit a task'),
       404: errorResponse('No such task'),
     },
   });
@@ -1088,15 +1089,15 @@ function buildRegistry(): OpenAPIRegistry {
     path: '/api/admin/tasks/{id}',
     summary: 'Delete a report task',
     description:
-      `${ADMINISTRATOR_OR_WORKER} A Trabalhador may delete only a task they created, and is refused ` +
-      'with 403 otherwise. An Administrador may delete any task.',
+      `${ADMINISTRATOR_ONLY} Deleting is the destructive half of the catalog writes, so it stays with ` +
+      'the administrator even though a worker may add a task.',
     tags: ['admin'],
     request: { params: ADMIN_ID_PARAMS },
     responses: {
       200: jsonResponse('The task was deleted', SuccessResponseSchema),
       400: errorResponse('The identifier is not a number, or the task is referenced elsewhere'),
       401: UNAUTHORIZED,
-      403: errorResponse("A Trabalhador tried to delete another user's task"),
+      403: errorResponse('A Trabalhador tried to delete a task'),
       404: errorResponse('No such task'),
     },
   });
@@ -1139,9 +1140,8 @@ function buildRegistry(): OpenAPIRegistry {
     path: '/api/admin/drivers/{id}',
     summary: 'Update a driver',
     description:
-      `${ADMINISTRATOR_OR_WORKER} A Trabalhador may edit only a ` +
-      '`fletero` driver they created, may not set `is_active`, and may not change the `driver_type` ' +
-      "to `casa`; each of those is refused with 403. An Administrador has none of those limits.",
+      `${ADMINISTRATOR_ONLY} Editing a driver that already exists is the administrator's job: a worker ` +
+      'may add a fletero driver, and every change to an existing row is refused by the role.',
     tags: ['admin'],
     request: {
       params: ADMIN_ID_PARAMS,
@@ -1151,7 +1151,7 @@ function buildRegistry(): OpenAPIRegistry {
       200: jsonResponse('The updated driver', AdminDriverResponseSchema),
       400: errorResponse('The identifier is not a number, or the body failed validation'),
       401: UNAUTHORIZED,
-      403: errorResponse("A Trabalhador tried to set is_active, change the type, or edit another user's driver"),
+      403: errorResponse('A Trabalhador tried to edit a driver'),
       404: errorResponse('No such driver'),
     },
   });

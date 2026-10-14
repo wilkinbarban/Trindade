@@ -35,20 +35,24 @@ function expectMatch<T extends z.ZodTypeAny>(schema: T, body: string): z.infer<T
 const DeleteResponseSchema = z.object({ success: z.literal(true) }).strict();
 
 /**
- * The admin surface's read endpoints, and the role each one admits.
+ * The admin surface's endpoints, and the role each one admits.
  *
  * Two guards, measured from `admin.routes.ts` rather than assumed:
  *
- * - `catalogGuard` admits `Administrador` and `Trabalhador`. It covers the read endpoints below for
- *   `categories`, `tasks` and `drivers`. `tasks` and `drivers` are the two a `Trabalhador` also
- *   writes -- within limits the handlers enforce -- and the SPA draws both tabs for a worker, so a
- *   worker reading them is the surface's real shape rather than an accident. Documenting these three
- *   as admin-only would describe a server that does not exist, which is why the schema work must not
- *   obscure the guard split.
- * - `adminGuard` admits `Administrador` only, and covers `vehicles`, `time-slots`, `users` and
- *   `audit`.
+ * - `catalogGuard` admits `Administrador` and `Trabalhador`. It covers the catalog reads below for
+ *   `categories`, `tasks` and `drivers`, and the creation of a task or a fletero driver. A
+ *   `Trabalhador` keeps the day-to-day job the SPA draws for them -- adding the task or the driver
+ *   they found -- and the SPA draws both tabs for a worker, so a worker reading them is the
+ *   surface's real shape rather than an accident. Documenting these as admin-only would describe a
+ *   server that does not exist, which is why the schema work must not obscure the guard split.
+ * - `adminGuard` admits `Administrador` only. It covers `vehicles`, `time-slots`, `users` and
+ *   `audit`, and the writes that touch a catalog row that already exists: editing or deleting a task
+ *   and editing a driver. Those three are the destructive ones, and a worker is refused by the role
+ *   before the handler runs -- the ownership path that used to admit a worker to their own rows is
+ *   gone.
  *
- * The last test in this file asserts that split, so the comment above cannot quietly stop being true.
+ * The last two tests in this file assert that split in both directions, so the comment above cannot
+ * quietly stop being true.
  */
 describe('admin responses match their declared schemas', () => {
   let app: FastifyInstance;
@@ -407,6 +411,47 @@ describe('admin responses match their declared schemas', () => {
     for (const url of ['/api/admin/vehicles', '/api/admin/time-slots', '/api/admin/users', '/api/admin/audit']) {
       const res = await app.inject({ method: 'GET', url, headers: workerAuth });
       assert.strictEqual(res.statusCode, 403, `a Trabalhador must not read ${url}: ${res.body}`);
+    }
+  });
+
+  // The other half of the same split, and the half a client author reads from the role sentence of the
+  // three item operations: a Trabalhador may read the catalog and may create in it, while editing and
+  // deleting an item are an Administrador's. Asserted from the server's own answers, because the
+  // contract's sentence and the server's behaviour have to agree and only one of them is enforced.
+  it('refuses a worker the three catalog item writes', async () => {
+    // Each item is created by the worker itself, which is the only shape that isolates the rule: an item
+    // the worker owns is exactly what the old ownership path would have let them edit, so a 403 here can
+    // come from the role and from nothing else.
+    const ownTaskRes = await app.inject({
+      method: 'POST',
+      url: '/api/admin/tasks',
+      headers: workerAuth,
+      payload: { category_id: 1, name_pt: 'Tarefa do trabalhador', name_es: 'Tarea del trabajador' },
+    });
+    assert.strictEqual(ownTaskRes.statusCode, 201, ownTaskRes.body);
+    const ownTask = expectMatch(TaskResponseSchema, ownTaskRes.body) as { task: { id: number } };
+
+    const ownDriverRes = await app.inject({
+      method: 'POST',
+      url: '/api/admin/drivers',
+      headers: workerAuth,
+      payload: { name: 'Fletero do trabalhador', driver_type: 'fletero' },
+    });
+    assert.strictEqual(ownDriverRes.statusCode, 201, ownDriverRes.body);
+    const ownDriver = expectMatch(DriverResponseSchema, ownDriverRes.body) as { driver: { id: number } };
+
+    for (const [method, url] of [
+      ['PATCH', `/api/admin/tasks/${ownTask.task.id}`],
+      ['DELETE', `/api/admin/tasks/${ownTask.task.id}`],
+      ['PATCH', `/api/admin/drivers/${ownDriver.driver.id}`],
+    ] as const) {
+      const res = await app.inject({
+        method,
+        url,
+        headers: workerAuth,
+        payload: method === 'PATCH' ? { name_pt: 'Tentativa do trabalhador' } : undefined,
+      });
+      assert.strictEqual(res.statusCode, 403, `a Trabalhador must not ${method} ${url}: ${res.body}`);
     }
   });
 });

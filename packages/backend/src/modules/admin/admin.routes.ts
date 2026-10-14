@@ -20,7 +20,13 @@ import * as service from './admin.service.js';
  * Admin module — Fastify plugin.
  *
  * Registered at /api/admin in server.ts.
- * All routes require Admin role via `preHandler: [fastify.authenticate, requireRole('Administrador')]`.
+ *
+ * The surface is split by two guards, and the split is deliberate: `catalogGuard` admits
+ * `Administrador` and `Trabalhador` to the catalog reads and to creating a catalog item, while
+ * `adminGuard` admits `Administrador` alone to everything else, including editing and deleting a
+ * catalog item. The distinction is the destructive one: a worker keeps the day-to-day job of adding
+ * the task or the fletero they found, and the existing rows stay under an administrator's control.
+ * `admin.contract.test.ts` asserts both directions against a running server.
  */
 export async function adminRoutes(fastify: FastifyInstance) {
   // Shared preHandler for all admin routes
@@ -186,7 +192,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
 
   fastify.patch(
     '/tasks/:id',
-    { preHandler: catalogGuard },
+    { preHandler: adminGuard },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { id } = request.params as { id: string };
       const taskId = parseInt(id, 10);
@@ -200,21 +206,6 @@ export async function adminRoutes(fastify: FastifyInstance) {
           error: 'Invalid input',
           details: parse.error.flatten(),
         });
-      }
-
-      if (isWorker(request)) {
-        if (parse.data.is_active !== undefined) {
-          return reply.status(403).send({ error: 'Insufficient permissions' });
-        }
-        const existing = fastify.db
-          .prepare('SELECT created_by_user_id FROM report_tasks WHERE id = ?')
-          .get(taskId) as { created_by_user_id: number | null } | undefined;
-        if (!existing) {
-          return reply.status(404).send({ error: 'Task not found' });
-        }
-        if (existing.created_by_user_id !== request.user!.sub) {
-          return reply.status(403).send({ error: 'Insufficient permissions' });
-        }
       }
 
       const task = await service.updateTask(fastify.db, taskId, parse.data);
@@ -237,24 +228,12 @@ export async function adminRoutes(fastify: FastifyInstance) {
 
   fastify.delete(
     '/tasks/:id',
-    { preHandler: catalogGuard },
+    { preHandler: adminGuard },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { id } = request.params as { id: string };
       const taskId = parseInt(id, 10);
       if (isNaN(taskId)) {
         return reply.status(400).send({ error: 'Invalid task ID' });
-      }
-
-      if (isWorker(request)) {
-        const existing = fastify.db
-          .prepare('SELECT created_by_user_id FROM report_tasks WHERE id = ?')
-          .get(taskId) as { created_by_user_id: number | null } | undefined;
-        if (!existing) {
-          return reply.status(404).send({ error: 'Task not found' });
-        }
-        if (existing.created_by_user_id !== request.user!.sub) {
-          return reply.status(403).send({ error: 'Insufficient permissions' });
-        }
       }
 
       try {
@@ -332,7 +311,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
 
   fastify.patch(
     '/drivers/:id',
-    { preHandler: catalogGuard },
+    { preHandler: adminGuard },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { id } = request.params as { id: string };
       const driverId = parseInt(id, 10);
@@ -346,21 +325,6 @@ export async function adminRoutes(fastify: FastifyInstance) {
           error: 'Invalid input',
           details: parse.error.flatten(),
         });
-      }
-
-      if (isWorker(request)) {
-        if (parse.data.is_active !== undefined || parse.data.driver_type === 'casa') {
-          return reply.status(403).send({ error: 'Insufficient permissions' });
-        }
-        const existing = fastify.db
-          .prepare('SELECT driver_type, created_by_user_id FROM drivers WHERE id = ?')
-          .get(driverId) as { driver_type: 'casa' | 'fletero'; created_by_user_id: number | null } | undefined;
-        if (!existing) {
-          return reply.status(404).send({ error: 'Driver not found' });
-        }
-        if (existing.driver_type !== 'fletero' || existing.created_by_user_id !== request.user!.sub) {
-          return reply.status(403).send({ error: 'Insufficient permissions' });
-        }
       }
 
       const driver = service.updateDriver(fastify.db, driverId, parse.data);

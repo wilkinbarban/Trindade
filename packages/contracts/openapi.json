@@ -6281,7 +6281,7 @@
     "/api/admin/tasks/{id}": {
       "patch": {
         "summary": "Update a report task",
-        "description": "Admits Administrador and Trabalhador: those are the only two roles this API defines, so the only refusal from the guard is a missing or invalid token, with 401. A Trabalhador may edit only a task they created, and may not set `is_active`; both are refused with 403. An Administrador has neither limit.",
+        "description": "Administrador only: a Trabalhador is refused with 403, and a missing or invalid token with 401. Editing a task that already exists is the administrator's job: a worker may add one, and every change to an existing row is refused by the role.",
         "tags": [
           "admin"
         ],
@@ -6336,7 +6336,7 @@
             }
           },
           "403": {
-            "description": "A Trabalhador tried to set is_active, or to edit another user's task",
+            "description": "A Trabalhador tried to edit a task",
             "content": {
               "application/json": {
                 "schema": {
@@ -6359,7 +6359,7 @@
       },
       "delete": {
         "summary": "Delete a report task",
-        "description": "Admits Administrador and Trabalhador: those are the only two roles this API defines, so the only refusal from the guard is a missing or invalid token, with 401. A Trabalhador may delete only a task they created, and is refused with 403 otherwise. An Administrador may delete any task.",
+        "description": "Administrador only: a Trabalhador is refused with 403, and a missing or invalid token with 401. Deleting is the destructive half of the catalog writes, so it stays with the administrator even though a worker may add a task.",
         "tags": [
           "admin"
         ],
@@ -6405,7 +6405,7 @@
             }
           },
           "403": {
-            "description": "A Trabalhador tried to delete another user's task",
+            "description": "A Trabalhador tried to delete a task",
             "content": {
               "application/json": {
                 "schema": {
@@ -6519,7 +6519,7 @@
     "/api/admin/drivers/{id}": {
       "patch": {
         "summary": "Update a driver",
-        "description": "Admits Administrador and Trabalhador: those are the only two roles this API defines, so the only refusal from the guard is a missing or invalid token, with 401. A Trabalhador may edit only a `fletero` driver they created, may not set `is_active`, and may not change the `driver_type` to `casa`; each of those is refused with 403. An Administrador has none of those limits.",
+        "description": "Administrador only: a Trabalhador is refused with 403, and a missing or invalid token with 401. Editing a driver that already exists is the administrator's job: a worker may add a fletero driver, and every change to an existing row is refused by the role.",
         "tags": [
           "admin"
         ],
@@ -6574,7 +6574,7 @@
             }
           },
           "403": {
-            "description": "A Trabalhador tried to set is_active, change the type, or edit another user's driver",
+            "description": "A Trabalhador tried to edit a driver",
             "content": {
               "application/json": {
                 "schema": {

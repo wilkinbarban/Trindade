@@ -560,7 +560,7 @@ describe('Admin Routes', () => {
     assert.strictEqual(res.statusCode, 404);
   });
 
-  it('worker can create and edit only owned tasks, without deactivation or legacy edits', async () => {
+  it('worker can create a task but can neither edit nor delete one', async () => {
     const createRes = await app.inject({
       method: 'POST',
       url: '/api/admin/tasks',
@@ -575,14 +575,20 @@ describe('Admin Routes', () => {
     const createdTask = JSON.parse(createRes.body).task;
     assert.strictEqual(createdTask.created_by_user_id, fixtures.worker.id);
 
+    // The item writes belong to an Administrador: the catalog guard admits a worker to read the module
+    // and to create in it, and these routes refuse the role before the handler runs. The row is checked
+    // after each refusal, because a 403 that still wrote would be the worst of both answers.
     const editOwnRes = await app.inject({
       method: 'PATCH',
       url: `/api/admin/tasks/${createdTask.id}`,
       headers: { authorization: `Bearer ${workerToken}` },
       payload: { name_pt: 'Tarefa Worker Editada' },
     });
-    assert.strictEqual(editOwnRes.statusCode, 200);
-    assert.strictEqual(JSON.parse(editOwnRes.body).task.name_pt, 'Tarefa Worker Editada');
+    assert.strictEqual(editOwnRes.statusCode, 403);
+    const afterEdit = db
+      .prepare('SELECT name_pt FROM report_tasks WHERE id = ?')
+      .get(createdTask.id) as { name_pt: string };
+    assert.strictEqual(afterEdit.name_pt, 'Tarefa Worker', 'a refused edit must not have changed the row');
 
     const deactivateOwnRes = await app.inject({
       method: 'PATCH',
@@ -605,7 +611,9 @@ describe('Admin Routes', () => {
       url: `/api/admin/tasks/${createdTask.id}`,
       headers: { authorization: `Bearer ${workerToken}` },
     });
-    assert.strictEqual(deleteRes.statusCode, 200);
+    assert.strictEqual(deleteRes.statusCode, 403);
+    const stillThere = db.prepare('SELECT id FROM report_tasks WHERE id = ?').get(createdTask.id);
+    assert.ok(stillThere, 'a refused delete must not have removed the row');
 
     const casaDriver = db
       .prepare("INSERT INTO drivers (name, driver_type, is_active) VALUES ('Casa Para Eliminar', 'casa', 1)")
@@ -672,7 +680,7 @@ describe('Admin Routes', () => {
     assert.strictEqual(JSON.parse(res2.body).driver.is_active, 1);
   });
 
-  it('worker can create and edit only owned fletero drivers', async () => {
+  it('worker can create a fletero driver but can neither edit nor delete one', async () => {
     const casaRes = await app.inject({
       method: 'POST',
       url: '/api/admin/drivers',
@@ -704,8 +712,11 @@ describe('Admin Routes', () => {
       headers: { authorization: `Bearer ${workerToken}` },
       payload: { name: 'Fletero Worker Editado' },
     });
-    assert.strictEqual(editOwnRes.statusCode, 200);
-    assert.strictEqual(JSON.parse(editOwnRes.body).driver.name, 'Fletero Worker Editado');
+    assert.strictEqual(editOwnRes.statusCode, 403);
+    const afterEdit = db
+      .prepare('SELECT name FROM drivers WHERE id = ?')
+      .get(driver.id) as { name: string };
+    assert.strictEqual(afterEdit.name, 'Fletero Worker', 'a refused edit must not have changed the row');
 
     const deactivateOwnRes = await app.inject({
       method: 'PATCH',
