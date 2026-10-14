@@ -43,9 +43,11 @@ interface ShareManager {
     /**
      * Opens [url], the one-on-one chat link the operator picked.
      *
-     * The `wa.me` address is WhatsApp's own published link rather than a package this application names:
+     * The address is WhatsApp's canonical chat endpoint rather than a package this application names:
      * which installed application answers it is the system's decision, so this seam carries a URL and not
-     * a target. Returns false when the device has nothing to open it with.
+     * a target. The short `wa.me` form is deliberately not used because it redirects to this endpoint, and
+     * a four-byte character does not survive that hop. Returns false when the device has nothing to open
+     * it with.
      */
     fun openLink(url: String): Boolean
 }

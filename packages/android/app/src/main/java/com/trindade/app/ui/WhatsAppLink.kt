@@ -5,9 +5,11 @@ import java.net.URLEncoder
 /**
  * The one-on-one chat link, kept pure so the screens that offer it hold no logic of their own.
  *
- * The link is WhatsApp's own published form -- `https://wa.me/<digits>?text=<encoded>` -- and not an
- * intent aimed at a package: which installed application answers a `wa.me` address is the system's
- * decision, and this is the same rule the web already applies.
+ * The link names WhatsApp's canonical chat endpoint rather than the short form that redirects to it:
+ * `wa.me` answers with a 302 to `api.whatsapp.com/send`, and that hop is where a four-byte UTF-8
+ * character -- every emoji the announcement carries -- comes back as U+FFFD. The address below is the
+ * one the device and the system resolve directly, so the payload arrives as the operator saw it, and it
+ * is still an address rather than a package this application names.
  */
 
 /**
@@ -31,5 +33,8 @@ fun waMeLink(phone: String, text: String): String? {
     // URLEncoder writes a space as `+`, which is a form-encoding convention; a URL wants `%20`, and the
     // export text carries line breaks, emoji and colons that each have to arrive as the operator saw them.
     val encoded = URLEncoder.encode(text, "UTF-8").replace("+", "%20")
-    return "https://wa.me/$number?text=$encoded"
+    // The canonical endpoint and not `wa.me`: the short form answers with a 302 to this address, and a
+    // four-byte character does not survive that hop -- it comes back as U+FFFD, which is what turned the
+    // announcement's emoji into blanks. One request, no redirect, the emoji whole.
+    return "https://api.whatsapp.com/send?phone=$number&text=$encoded"
 }

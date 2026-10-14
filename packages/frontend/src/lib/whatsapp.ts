@@ -2,14 +2,17 @@
  * The WhatsApp actions, in one module because three screens need them: the schedule export, the report
  * export, and the dashboard's card for the day being loaded.
  *
- * The link is the one WhatsApp documents for a private chat: `wa.me` takes the number in international
- * form with no punctuation at all, and the text percent-encoded, which is what the mobile app's intent
- * and the web client both accept. Nothing here decides which number is right: a driver whose number was
- * written without a country code produces a link to that number, and the operator sees where it goes
- * before sending it.
+ * The link names WhatsApp's canonical chat endpoint rather than the short one that redirects to it:
+ * `wa.me` answers with a 302 to `api.whatsapp.com/send`, and that hop is where a four-byte UTF-8
+ * character -- every emoji the schedule's announcement carries -- comes back as U+FFFD. The endpoint
+ * below answers the request directly, so the payload arrives as the operator saw it. The number travels
+ * in international form with no punctuation at all, and the text percent-encoded, which is what the
+ * mobile app's intent and the web client both accept. Nothing here decides which number is right: a
+ * driver whose number was written without a country code produces a link to that number, and the
+ * operator sees where it goes before sending it.
  */
 
-/** The digits of a number, which is the form `wa.me` needs. */
+/** The digits of a number, which is the form the chat link needs. */
 export function waMeNumber(phone: string): string {
   return phone.replace(/\D/g, '');
 }
@@ -23,7 +26,10 @@ export function waMeNumber(phone: string): string {
 export function waMeLink(phone: string, text: string): string | null {
   const number = waMeNumber(phone);
   if (!number) return null;
-  return `https://wa.me/${number}?text=${encodeURIComponent(text)}`;
+  // The canonical endpoint and not `wa.me`: the short form answers with a 302 to this address, and a
+  // four-byte character does not survive that hop -- it comes back as U+FFFD, which is what turned the
+  // announcement's emoji into blanks. One request, no redirect, the emoji whole.
+  return `https://api.whatsapp.com/send?phone=${number}&text=${encodeURIComponent(text)}`;
 }
 
 export type ShareOutcome = 'shared' | 'copied' | 'cancelled' | 'failed';
