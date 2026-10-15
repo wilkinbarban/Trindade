@@ -306,3 +306,20 @@ sin ningún control de escritura para quien no puede corregir.
 `null` significa solo lectura. Si nadie le dijo quién está mirando, la pantalla muestra el día y no ofrece
 ninguna corrección: el modo por defecto es el seguro, y A6 lo conecta a la sesión real. El servidor aplica la
 misma frontera con su 403 — esta capa existe para que a nadie se le ofrezca un botón que será rechazado.
+
+## Cierre de A5b — la pantalla del histórico
+
+**Entregado**: `app/src/main/java/com/trindade/app/stock/StockHistoryScreen.kt` (203 líneas): título, selector
+de fecha, atajos de los días ya contados, y una tarjeta por producto **solo de los que tienen unidades**
+(código, nombre, categoría, cajas y unidades), con el vacío dicho cuando el día no tuvo conteo y **sin ningún
+control de escritura** para quien no puede corregir.
+
+**La decisión de seguridad**: el rol entra como **parámetro con `null` por defecto**, y `null` significa solo
+lectura — si nadie le dijo quién está mirando, la pantalla muestra el día y no ofrece corrección. El modo por
+defecto es el seguro y A6 lo conecta a la sesión real. El servidor aplica la misma frontera con su 403.
+
+**Verificación en el host Ubuntu**: la pantalla compila; **escondiéndola, la compilación falla** (o sea que
+es parte del build y no un archivo dejado al costado); y la suite completa pasa con el contrato presente. Sin
+prueba unitaria de UI, dicho tal cual.
+
+**Con esto A5 queda completa** (A5a el ViewModel y su frontera de rol, A5b la pantalla).
