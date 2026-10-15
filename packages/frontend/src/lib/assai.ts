@@ -100,7 +100,7 @@ export function assaiMessage(lines: readonly AssaiLine[]): string {
     return '🛒 Pedido Assaí\nNenhum produto com quantidade informada.';
   }
 
-  const rows = ordered.map((line) => `${line.product}: ${line.boxes} caixas (${line.units} und)`);
+  const rows = ordered.map((line) => `${line.product}: ${line.boxes} caixas`);
   return [
     '🛒 Pedido Assaí',
     '',

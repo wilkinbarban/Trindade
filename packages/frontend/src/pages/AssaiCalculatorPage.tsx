@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
 import { Card, CardContent } from '../components/ui/card';
@@ -15,45 +15,21 @@ import { shareOrCopy, waMeLink } from '../lib/whatsapp';
  * boxes. This screen is the table that collects the quantities, the verdict per product, and the two ways
  * the order leaves: a private chat to a driver the fleet already has, or any number the operator types.
  */
-interface DriverRow {
-  id: number;
-  name: string;
-  phone: string | null;
-}
-
 export function AssaiCalculatorPage() {
   const { t } = useTranslation();
   const [quantities, setQuantities] = useState<Record<string, string>>({});
-  const [drivers, setDrivers] = useState<DriverRow[]>([]);
-  const [selectedDriverId, setSelectedDriverId] = useState('');
+  // Un error solo se muestra cuando el operador ya salio del campo: mientras tipea el primer numero,
+  // decirle que esta mal es ruido, porque todavia no termino de escribirlo.
+  const [blurred, setBlurred] = useState<Record<string, boolean>>({});
   const [freeNumber, setFreeNumber] = useState('');
   const [note, setNote] = useState('');
-
-  useEffect(() => {
-    let cancelled = false;
-    api
-      .get<{ drivers: DriverRow[] }>('/loading/drivers')
-      .then((data) => {
-        if (cancelled) return;
-        // Only the drivers whose number is known can be reached, which is the same rule the schedule's
-        // one-on-one dispatch follows: an offer that opens an empty chat is not an offer.
-        setDrivers((data.drivers ?? []).filter((d) => (d.phone ?? '').trim() !== ''));
-      })
-      .catch(() => {
-        if (!cancelled) setDrivers([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const lines = useMemo(() => assaiLines(quantities), [quantities]);
   const hasError = assaiHasError(lines);
   const totalBoxes = assaiTotalBoxes(lines);
   const message = assaiMessage(lines);
 
-  const selectedDriver = drivers.find((d) => String(d.id) === selectedDriverId);
-  const targetNumber = (selectedDriver?.phone ?? freeNumber).trim();
+  const targetNumber = freeNumber.trim();
 
   async function handleShare() {
     setNote('');
@@ -108,8 +84,9 @@ export function AssaiCalculatorPage() {
                       placeholder="0"
                       aria-label={line.product}
                       data-testid={`assai-units-${line.product}`}
+                      onBlur={() => setBlurred({ ...blurred, [line.product]: true })}
                     />
-                    {!line.exact && (
+                    {!line.exact && blurred[line.product] === true && (
                       <span className="text-xs text-red-600" data-testid={`assai-error-${line.product}`}>
                         {t('assai.errorUnits')}
                       </span>
@@ -135,29 +112,11 @@ export function AssaiCalculatorPage() {
       <Card>
         <CardContent className="p-3 space-y-3">
           <div>
-            <label className="block text-xs font-medium text-gray-600">{t('assai.driver')}</label>
-            <select
-              value={selectedDriverId}
-              onChange={(e) => setSelectedDriverId(e.target.value)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-white"
-              data-testid="assai-driver"
-            >
-              <option value="">{t('assai.selectDriver')}</option>
-              {drivers.map((d) => (
-                <option key={d.id} value={String(d.id)}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
             <label className="block text-xs font-medium text-gray-600">{t('assai.freeNumber')}</label>
             <Input
               value={freeNumber}
               onChange={(e) => setFreeNumber(e.target.value)}
               placeholder="+55 …"
-              disabled={selectedDriverId !== ''}
               data-testid="assai-free-number"
             />
           </div>

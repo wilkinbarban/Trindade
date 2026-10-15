@@ -66,8 +66,9 @@ describe('assaiMessage', () => {
   it('leva so o que foi pedido, com as suas caixas', () => {
     const mensagem = assaiMessage(assaiLines({ [nhoque]: '30', [roloDois]: '20' }));
 
-    assert.ok(mensagem.includes('Nhoque 1kg: 2 caixas (30 und)'));
-    assert.ok(mensagem.includes('Rolo 2kg: 2 caixas (20 und)'));
+    assert.ok(mensagem.includes('Nhoque 1kg: 2 caixas'));
+    assert.ok(mensagem.includes('Rolo 2kg: 2 caixas'));
+    assert.ok(!mensagem.includes(' und'), 'a quantidade por caixa nao viaja no pedido');
     assert.ok(mensagem.includes('Total: 4 caixas'));
     assert.equal(mensagem.includes('Lasanha'), false);
   });
