@@ -114,3 +114,25 @@ viviendo solo en `AssaiOrder`: la pantalla dibuja y el ViewModel recuerda dónde
 
 **Siguiente unidad**: A3 — el cliente del Stock sobre los tipos ya generados en `packages/android/contract`
 y los tres endpoints (`GET /api/stock`, `POST /api/stock/add-entry`, `POST /api/stock/reset-product`).
+
+## Cierre de A3 — el cliente del Stock
+
+**Entregado** (commit propio, 216 líneas brutas entre los cuatro archivos): `network/StockApi.kt` (35
+líneas, la interfaz Retrofit escrita a mano sobre los modelos generados, con los cuatro caminos: día,
+alta, reset e historial), `stock/StockRepository.kt` (71 líneas, `@Singleton`, con la regla de que un día
+que no se pudo leer es **nada** y no un día vacío, y con el resultado de escritura en tres estados —
+guardado, rechazado y servidor inalcanzable— porque una negativa del servidor y un servidor ausente no son
+lo mismo), `stock/StockRepositoryTest.kt` (110 líneas) y el proveedor de `StockApi` en `di/NetworkModule.kt`
+con el molde de los clientes existentes.
+
+**Decisión de diseño**: las pruebas corren contra **MockWebServer** y no contra una interfaz falsa, porque
+la mitad de lo que hace esta clase es leer la forma de una respuesta —un cuerpo, una negativa, un corte— y
+un falso solo afirmaría mi idea del cable. Los casos fijan las claves que realmente viajan, incluido que un
+reset no lleva bultos.
+
+**Evidencia (host Ubuntu, `:app:testDebugUnitTest`)**: reporte JUnit
+`com.trindade.app.stock.StockRepositoryTest: tests=6 failures=0 errors=0 time=0.428s`, con los seis nombres
+en verde. Fase roja escondiendo el repositorio: el build falla, y el registro del host lo reporta así: (el registro no conservó la causa)
+
+**Siguiente unidad**: A4 — la pantalla del Stock en Compose sobre este repositorio, con las dos pestañas del
+catálogo, la acumulación corrida de bultos, el reset por producto, los totales y las exportaciones.
