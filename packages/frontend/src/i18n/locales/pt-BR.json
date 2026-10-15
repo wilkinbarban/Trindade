@@ -40,6 +40,8 @@
     "shareSchedule": "Enviar pelo WhatsApp",
     "stock": "Calculador de Estoque",
     "stockHint": "Contar caixas do dia",
+    "stockHistory": "Histórico de Contagem",
+    "stockHistoryHint": "Ver os dias contados",
     "title": "Dashboard",
     "viewSchedule": "Ver cronograma"
   },
@@ -57,6 +59,7 @@
     "reportHistory": "Histórico de Relatórios",
     "reports": "Relatórios",
     "stock": "Calculador de Estoque",
+    "stockHistory": "Histórico de Contagem",
     "whatsappExport": "Exportação WhatsApp"
   },
   "ui": {
@@ -422,8 +425,10 @@
   "stock": {
     "add": "Adicionar",
     "addBoxes": "Adicionar",
+    "backToCounter": "Voltar ao contador",
     "boxes": "Caixas",
     "boxesWord": "caixas",
+    "category": "Categoria",
     "close": "Fechar",
     "code": "Código",
     "copied": "Texto copiado para compartilhar.",
@@ -432,8 +437,10 @@
     "emailSubject": "Contagem de estoque",
     "emptyHistory": "Nenhum produto contado neste dia.",
     "freeNumber": "Coloque o WhatsApp",
+    "goToHistory": "Ir ao Histórico",
     "history": "Dias contados:",
     "historyFor": "Contagem de",
+    "historySubtitle": "Dias anteriores, com o que foi contado em cada um.",
     "historyTitle": "Histórico de Contagem",
     "invalidBoxes": "Digite uma quantidade inteira de caixas maior que zero.",
     "loadError": "Não foi possível carregar o dia da contagem.",

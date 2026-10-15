@@ -199,6 +199,12 @@ export function DashboardPage() {
           to="/stock-calculator"
         />
         <SummaryCard
+          title={t('dashboard.stockHistory')}
+          value={<span className="text-sm text-gray-500">{t('dashboard.stockHistoryHint')}</span>}
+          icon="🗓️"
+          to="/stock-history"
+        />
+        <SummaryCard
           title={t('dashboard.assai')}
           value={<span className="text-sm text-gray-500">{t('dashboard.assaiHint')}</span>}
           icon="🧮"

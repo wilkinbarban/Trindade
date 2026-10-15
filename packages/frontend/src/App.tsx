@@ -7,6 +7,7 @@ import { LoadingSpinner } from './components/ui/loading-spinner';
 import { AssaiCalculatorPage } from './pages/AssaiCalculatorPage';
 import { LoginPage } from './pages/LoginPage';
 import { StockCalculatorPage } from './pages/StockCalculatorPage';
+import { StockHistoryPage } from './pages/StockHistoryPage';
 import { SetupPage } from './pages/SetupPage';
 import { api } from './api/client';
 
@@ -144,6 +145,16 @@ export function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/stock-history"
+            element={
+              <ProtectedRoute>
+                <StockHistoryPage />
+              </ProtectedRoute>
+            }
+          />
+          {/* La ruta vieja redirige: un enlace ya compartido no debe morir. */}
+          <Route path="/stock/history" element={<Navigate to="/stock-history" replace />} />
           <Route
             path="/stock-calculator"
             element={

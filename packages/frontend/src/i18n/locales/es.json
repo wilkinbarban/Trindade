@@ -40,6 +40,8 @@
     "shareSchedule": "Enviar por WhatsApp",
     "stock": "Calculador de Estoque",
     "stockHint": "Contar cajas del día",
+    "stockHistory": "Historial de conteo",
+    "stockHistoryHint": "Ver los días contados",
     "title": "Panel de Control",
     "viewSchedule": "Ver cronograma"
   },
@@ -57,6 +59,7 @@
     "reportHistory": "Historial de Reportes",
     "reports": "Reportes",
     "stock": "Calculador de Estoque",
+    "stockHistory": "Historial de conteo",
     "whatsappExport": "Exportación WhatsApp"
   },
   "ui": {
@@ -422,8 +425,10 @@
   "stock": {
     "add": "Agregar",
     "addBoxes": "Agregar",
+    "backToCounter": "Volver al contador",
     "boxes": "Cajas",
     "boxesWord": "cajas",
+    "category": "Categoría",
     "close": "Cerrar",
     "code": "Código",
     "copied": "Texto copiado para compartir.",
@@ -432,8 +437,10 @@
     "emailSubject": "Conteo de stock",
     "emptyHistory": "Ningún producto contado en este día.",
     "freeNumber": "Coloque el WhatsApp",
+    "goToHistory": "Ir al Historial",
     "history": "Días contados:",
     "historyFor": "Conteo de",
+    "historySubtitle": "Días anteriores, con lo contado en cada uno.",
     "historyTitle": "Historial de conteo",
     "invalidBoxes": "Escribí una cantidad entera de cajas mayor que cero.",
     "loadError": "No se pudo cargar el día del conteo.",
