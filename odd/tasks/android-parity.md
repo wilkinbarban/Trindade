@@ -136,3 +136,25 @@ en verde. Fase roja escondiendo el repositorio: el build falla, y el registro de
 
 **Siguiente unidad**: A4 — la pantalla del Stock en Compose sobre este repositorio, con las dos pestañas del
 catálogo, la acumulación corrida de bultos, el reset por producto, los totales y las exportaciones.
+
+## Obligaciones nuevas integradas a la serie (directiva del 2026-10-15)
+
+**Cita literal del usuario**: «Sustitución de email destino de Stock: Cambiar el correo de pruebas
+wilkin.barban@gmail.com por xmitrindade@hotmail.com en StockCalculatorPage.tsx, StockHistoryPage.tsx,
+stock.test.ts y en las pantallas/exportaciones de Android (A4/A5).» y «Marca de agua / Copyright en ambas
+aplicaciones (Web y Android): Desenvolvido por Wilkin Barban Rosabal / E-mail: wilkin.barban@gmail.com. En
+Web: como pie de página sutil/marca de agua en AppShell.tsx y LoginPage.tsx. En Android: como pie de
+pantalla/marca de agua en las pantallas principales (DashboardScreen, LoginScreen, Perfil).»
+
+**Cómo se integran**:
+- **A4 y A5** usan `xmitrindade@hotmail.com` como destino del correo del stock: es el buzón de la planta.
+  El correo del autor (`wilkin.barban@gmail.com`) es una cosa distinta y no debe usarse como destino ✗
+  confundirlos perdería un conteo en un buzón que nadie lee.
+- **A6** lleva el pie en `DashboardScreen`, `LoginScreen` y `Perfil`: «Desenvolvido por Wilkin Barban
+  Rosabal» y «E-mail: wilkin.barban@gmail.com», como marca de agua discreta.
+- **Web: ya entregado** — `components/ui/DeveloperCredit.tsx` se renderiza en `AppShell` (barra lateral) y
+  en `LoginPage` (bajo la tarjeta), y el destino del stock es el nuevo en las dos pantallas y en las dos
+  aserciones de `stock.test.ts`. Verificado con 68/68 en la suite pura, typecheck 0 y build limpio.
+
+**Regla de diseño para Android**: un solo composable de crédito, usado por las tres pantallas, por el
+mismo motivo que en la web: un crédito escrito tres veces se queda viejo en dos.
