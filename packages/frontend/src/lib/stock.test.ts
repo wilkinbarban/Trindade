@@ -92,8 +92,8 @@ describe('the email that leaves the plant', () => {
     assert.ok(lineas.some((l) => /\|\s+150\s*$/.test(l)), 'las unidades van alineadas a la derecha');
     assert.ok(lineas.some((l) => /^Total\b/.test(l) && /\|\s+162\s*$/.test(l)), 'el total cae bajo la columna de unidades');
     assert.ok(body.includes('162'), 'el total general al final');
-    const link = mailtoLink('wilkin.barban@gmail.com', 'Contagem 2026-10-15', body);
-    assert.ok(link.startsWith('mailto:wilkin.barban@gmail.com'), 'el destinatario preconfigurado');
+    const link = mailtoLink('xmitrindade@hotmail.com', 'Contagem 2026-10-15', body);
+    assert.ok(link.startsWith('mailto:xmitrindade@hotmail.com'), 'el destinatario preconfigurado');
     assert.ok(link.includes(encodeURIComponent('Contagem 2026-10-15').slice(0, 6)), 'el asunto viaja codificado');
     assert.ok(link.includes('%0A') || link.includes('%20'), 'el cuerpo viaja codificado');
   });

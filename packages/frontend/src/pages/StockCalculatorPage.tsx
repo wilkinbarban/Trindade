@@ -34,7 +34,7 @@ import { shareOrCopy, waMeLink } from '../lib/whatsapp';
  * up it is the dense table an office screen wants. Both read the same state and call the same handlers,
  * because two layouts that drift are two counters.
  */
-const EMAIL_TO = 'wilkin.barban@gmail.com';
+const EMAIL_TO = 'xmitrindade@hotmail.com';
 
 interface HistoryDay {
   date: string;

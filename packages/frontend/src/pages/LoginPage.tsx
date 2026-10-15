@@ -5,6 +5,7 @@ import { ApiClientError, consumeSessionExpiredNotice } from '../api/client';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
+import { DeveloperCredit } from '../components/ui/DeveloperCredit';
 
 export function LoginPage() {
   const { t } = useTranslation();
@@ -118,6 +119,9 @@ export function LoginPage() {
             </form>
           </CardContent>
         </Card>
+        <div className="mt-6 flex justify-center">
+          <DeveloperCredit />
+        </div>
       </div>
     </div>
   );

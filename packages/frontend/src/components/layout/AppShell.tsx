@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { DeveloperCredit } from '../ui/DeveloperCredit';
 import { useTranslation } from 'react-i18next';
 import { LucideMenu, LucideX, LayoutDashboard, ClipboardList, Truck, MessageCircle, Clock, ShieldCheck, History } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -107,6 +108,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           <NavItem href="/assai-calculator" icon={<ClipboardList className="h-4 w-4" />} label={t('nav.assai')} />
           <NavItem href="/stock-calculator" icon={<ClipboardList className="h-4 w-4" />} label={t('nav.stock')} />
           <NavItem href="/stock-history" icon={<ClipboardList className="h-4 w-4" />} label={t('nav.stockHistory')} />
+          <div className="px-3 pt-6 pb-2 border-t border-gray-200 mt-4">
+            <DeveloperCredit />
+          </div>
           <NavItem href="/loading/reports-history" icon={<History className="h-4 w-4" />} label={t('nav.reportHistory')} />
           <NavItem href="/loading/history" icon={<Truck className="h-4 w-4" />} label={t('nav.loadingHistory')} />
 

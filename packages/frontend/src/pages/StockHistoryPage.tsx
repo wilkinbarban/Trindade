@@ -18,7 +18,7 @@ import { shareOrCopy, waMeLink } from '../lib/whatsapp';
  * twenty-five rows with twenty-four zeroes hides the one row somebody came for; and the role decides
  * whether the visit is a reading or a correction, with the server deciding the same thing again.
  */
-const EMAIL_TO = 'wilkin.barban@gmail.com';
+const EMAIL_TO = 'xmitrindade@hotmail.com';
 
 interface HistoryDay {
   date: string;
