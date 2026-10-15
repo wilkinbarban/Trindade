@@ -193,6 +193,12 @@ export function DashboardPage() {
           icon="🚛"
         />
         <SummaryCard
+          title={t('dashboard.stock')}
+          value={<span className="text-sm text-gray-500">{t('dashboard.stockHint')}</span>}
+          icon="📦"
+          to="/stock-calculator"
+        />
+        <SummaryCard
           title={t('dashboard.assai')}
           value={<span className="text-sm text-gray-500">{t('dashboard.assaiHint')}</span>}
           icon="🧮"

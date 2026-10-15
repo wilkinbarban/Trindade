@@ -38,6 +38,8 @@
     "schedulesTomorrow": "Cargas de Mañana",
     "schedulesTotal": "Historial de Cargamento Total",
     "shareSchedule": "Enviar por WhatsApp",
+    "stock": "Calculador de Estoque",
+    "stockHint": "Contar cajas del día",
     "title": "Panel de Control",
     "viewSchedule": "Ver cronograma"
   },
@@ -54,6 +56,7 @@
     "operations": "Operaciones",
     "reportHistory": "Historial de Reportes",
     "reports": "Reportes",
+    "stock": "Calculador de Estoque",
     "whatsappExport": "Exportación WhatsApp"
   },
   "ui": {
@@ -415,5 +418,38 @@
     "title": "Calculadora de Assaí",
     "totalLabel": "Total del pedido",
     "units": "Unidades"
+  },
+  "stock": {
+    "add": "Agregar",
+    "addBoxes": "Agregar",
+    "boxes": "Cajas",
+    "boxesWord": "cajas",
+    "code": "Código",
+    "copied": "Texto copiado para compartir.",
+    "date": "Día del conteo",
+    "driver": "Chofer",
+    "emailSubject": "Conteo de stock",
+    "freeNumber": "U otro número",
+    "history": "Días contados:",
+    "invalidBoxes": "Escribí una cantidad entera de cajas mayor que cero.",
+    "loadError": "No se pudo cargar el día del conteo.",
+    "massas": "Massas",
+    "message": "Mensaje",
+    "opened": "Abriendo…",
+    "product": "Producto",
+    "reset": "Resetear",
+    "resetDone": "Producto puesto en cero.",
+    "saveError": "No se pudo guardar. Probá de nuevo.",
+    "saved": "Cajas sumadas al total.",
+    "selectDriver": "Elegir chofer con teléfono",
+    "shareEmail": "Enviar por correo",
+    "shareWhatsapp": "Enviar por WhatsApp",
+    "subtitle": "Contá las cajas: el sistema acumula y calcula las unidades.",
+    "terceirizados": "Terceirizados",
+    "title": "Calculador de Estoque",
+    "total": "Total del día",
+    "unavailable": "Este navegador no puede abrir ni copiar.",
+    "units": "Unidades",
+    "unitsWord": "unidades"
   }
 }

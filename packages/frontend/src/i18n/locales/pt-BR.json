@@ -38,6 +38,8 @@
     "schedulesTomorrow": "Carregamentos Amanhã",
     "schedulesTotal": "Histórico de Cargamento Total",
     "shareSchedule": "Enviar pelo WhatsApp",
+    "stock": "Calculador de Estoque",
+    "stockHint": "Contar caixas do dia",
     "title": "Dashboard",
     "viewSchedule": "Ver cronograma"
   },
@@ -54,6 +56,7 @@
     "operations": "Operações",
     "reportHistory": "Histórico de Relatórios",
     "reports": "Relatórios",
+    "stock": "Calculador de Estoque",
     "whatsappExport": "Exportação WhatsApp"
   },
   "ui": {
@@ -415,5 +418,38 @@
     "title": "Calculadora de Assaí",
     "totalLabel": "Total do pedido",
     "units": "Unidades"
+  },
+  "stock": {
+    "add": "Adicionar",
+    "addBoxes": "Adicionar",
+    "boxes": "Caixas",
+    "boxesWord": "caixas",
+    "code": "Código",
+    "copied": "Texto copiado para compartilhar.",
+    "date": "Dia da contagem",
+    "driver": "Motorista",
+    "emailSubject": "Contagem de estoque",
+    "freeNumber": "Ou outro número",
+    "history": "Dias contados:",
+    "invalidBoxes": "Digite uma quantidade inteira de caixas maior que zero.",
+    "loadError": "Não foi possível carregar o dia da contagem.",
+    "massas": "Massas",
+    "message": "Mensagem",
+    "opened": "Abrindo…",
+    "product": "Produto",
+    "reset": "Resetar",
+    "resetDone": "Produto zerado.",
+    "saveError": "Não foi possível salvar. Tente de novo.",
+    "saved": "Caixas somadas ao total.",
+    "selectDriver": "Escolher motorista com telefone",
+    "shareEmail": "Enviar por e-mail",
+    "shareWhatsapp": "Enviar por WhatsApp",
+    "subtitle": "Conte as caixas: o sistema acumula e calcula as unidades.",
+    "terceirizados": "Terceirizados",
+    "title": "Calculador de Estoque",
+    "total": "Total do dia",
+    "unavailable": "Este navegador não consegue abrir nem copiar.",
+    "units": "Unidades",
+    "unitsWord": "unidades"
   }
 }

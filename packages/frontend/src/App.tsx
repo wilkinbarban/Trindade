@@ -6,6 +6,7 @@ import { AppShell } from './components/layout/AppShell';
 import { LoadingSpinner } from './components/ui/loading-spinner';
 import { AssaiCalculatorPage } from './pages/AssaiCalculatorPage';
 import { LoginPage } from './pages/LoginPage';
+import { StockCalculatorPage } from './pages/StockCalculatorPage';
 import { SetupPage } from './pages/SetupPage';
 import { api } from './api/client';
 
@@ -140,6 +141,14 @@ export function App() {
             element={
               <ProtectedRoute>
                 <ReportEditPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/stock-calculator"
+            element={
+              <ProtectedRoute>
+                <StockCalculatorPage />
               </ProtectedRoute>
             }
           />
