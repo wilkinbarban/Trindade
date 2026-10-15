@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
-import { StockHistoryModal } from '../components/stock/StockHistoryModal';
+import { Link } from 'react-router-dom';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -52,7 +52,6 @@ export function StockCalculatorPage() {
   const [note, setNote] = useState('');
   const [error, setError] = useState('');
   const [tab, setTab] = useState('');
-  const [historyOpen, setHistoryOpen] = useState(false);
 
   const load = useCallback(
     async (target: string) => {
@@ -162,9 +161,11 @@ export function StockCalculatorPage() {
           <h1 className="text-xl font-semibold text-gray-800">{t('stock.title')}</h1>
           <p className="text-sm text-gray-500">{t('stock.subtitle')}</p>
         </div>
-        <Button variant="outline" onClick={() => setHistoryOpen(true)} data-testid="stock-open-history">
-          {t('stock.openHistory')}
-        </Button>
+        <Link to="/stock-history">
+          <Button variant="outline" data-testid="stock-open-history">
+            {t('stock.goToHistory')}
+          </Button>
+        </Link>
       </div>
 
       <Card>
@@ -352,14 +353,6 @@ export function StockCalculatorPage() {
         </CardContent>
       </Card>
 
-      <StockHistoryModal
-        open={historyOpen}
-        onClose={() => setHistoryOpen(false)}
-        days={history}
-        onChanged={() => {
-          void load(date);
-        }}
-      />
     </div>
   );
 }
