@@ -8,6 +8,7 @@ import com.trindade.app.network.AuthApi
 import com.trindade.app.network.BigDecimalSerializer
 import com.trindade.app.network.LoadingApi
 import com.trindade.app.network.ReportsApi
+import com.trindade.app.network.StockApi
 import com.trindade.app.network.SystemApi
 import com.trindade.app.update.GitHubReleaseApi
 import dagger.Module
@@ -225,6 +226,10 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideAuditApi(@BackendClient retrofit: Retrofit): AuditApi = retrofit.create(AuditApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideStockApi(@BackendClient retrofit: Retrofit): StockApi = retrofit.create(StockApi::class.java)
 
     @Provides
     @Singleton
