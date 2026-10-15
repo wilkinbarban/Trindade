@@ -79,7 +79,7 @@ export function stockMessage(day: StockDay): string {
     const emoji = EMOJI_BY_CATEGORY[group.category] ?? '•';
     lines.push(`${emoji} *${group.category}*`);
     for (const product of group.products) {
-      lines.push(`  • ${product.name} (${product.code}) — ${product.boxes} cx · ${product.units} un`);
+      lines.push(`  • ${product.name} (${product.code}) — ${product.units} un`);
     }
     lines.push('');
   }
@@ -97,12 +97,12 @@ export function stockEmailBody(day: StockDay): string {
     return lines.join('\n');
   }
 
-  lines.push('Categoria | Código | Produto | Caixas | Unidades');
+  lines.push('Categoria | Código | Produto | Unidades');
   for (const product of countedProducts) {
-    lines.push(`${product.category} | ${product.code} | ${product.name} | ${product.boxes} | ${product.units}`);
+    lines.push(`${product.category} | ${product.code} | ${product.name} | ${product.units}`);
   }
   lines.push('');
-  lines.push(`Total | | | ${day.totalBoxes} | ${day.totalUnits}`);
+  lines.push(`Total | | | ${day.totalUnits}`);
   return lines.join('\n');
 }
 

@@ -44,8 +44,9 @@ describe('the message that leaves the plant', () => {
   it('lists only what was counted, with its boxes and its units, and closes with the totals', () => {
     const message = stockMessage(day);
     assert.ok(message.includes('787') && message.includes('CANUDO'), 'el código y el nombre');
-    assert.ok(message.includes('5') && message.includes('150'), 'bultos y unidades de esa línea');
-    assert.ok(message.includes('2') && message.includes('12'), 'la línea de Massas');
+    assert.ok(message.includes('  • CANUDO (787) — 150 un'), 'la fila lleva el producto y sus unidades');
+    assert.ok(!message.includes(' cx'), 'los bultos no viajan en el detalle');
+    assert.ok(message.includes('  • MASSA ROLO 2KG (1047) — 12 un'), 'la línea de Massas');
     assert.ok(!message.includes('PIZZA BROTINHO'), 'un producto sin contar no ensucia el mensaje');
     assert.ok(!message.includes('MASSA TOKO'), 'ni el otro');
     assert.ok(message.includes('7') && message.includes('250'), 'los totales');
@@ -70,7 +71,10 @@ describe('the email that leaves the plant', () => {
     const body = stockEmailBody(day);
     assert.ok(body.includes('787') && body.includes('CANUDO'));
     assert.ok(!body.includes('MASSA TOKO'), 'solo lo contado');
-    assert.ok(body.includes('7') && body.includes('250'), 'los totales');
+    assert.ok(body.includes('Categoria | Código | Produto | Unidades'), 'las columnas del correo');
+    assert.ok(!body.includes('Caixas'), 'el correo ya no lleva la columna de bultos');
+    assert.ok(body.includes('CANUDO | 150'), 'la fila del correo lleva las unidades');
+    assert.ok(body.includes('250'), 'el total general al final');
     const link = mailtoLink('wilkin.barban@gmail.com', 'Contagem 2026-10-15', body);
     assert.ok(link.startsWith('mailto:wilkin.barban@gmail.com'), 'el destinatario preconfigurado');
     assert.ok(link.includes(encodeURIComponent('Contagem 2026-10-15').slice(0, 6)), 'el asunto viaja codificado');

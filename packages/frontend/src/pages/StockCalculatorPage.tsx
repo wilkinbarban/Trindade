@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
+import { StockHistoryModal } from '../components/stock/StockHistoryModal';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -20,19 +21,18 @@ import { shareOrCopy, waMeLink } from '../lib/whatsapp';
  *
  * The screen collects what an operator counts and the API owns the arithmetic, so this file never
  * multiplies anything: it sends the boxes, reloads the day and shows what the server answered. That is
- * what keeps the two numbers agreeing with each other, and it is why a reset is a call and not a
- * local zero.
+ * what keeps the two numbers agreeing with each other, and it is why a reset is a call and not a local
+ * zero.
  *
  * The catalogue arrives with the day — every product of the catalogue, at zero if nothing was counted —
  * so the sections below are derived from the API rather than from a second copy of the list kept here.
+ *
+ * Two layouts, one behaviour. The counter is used standing at a shelf with a phone, so below `md` each
+ * product is a card with the metrics it is being counted against and a row big enough to tap; from `md`
+ * up it is the dense table an office screen wants. Both read the same state and call the same handlers,
+ * because two layouts that drift are two counters.
  */
 const EMAIL_TO = 'wilkin.barban@gmail.com';
-
-interface DriverRow {
-  id: number;
-  name: string;
-  phone: string | null;
-}
 
 interface HistoryDay {
   date: string;
@@ -46,14 +46,13 @@ export function StockCalculatorPage() {
   const [date, setDate] = useState(saopauloToday());
   const [day, setDay] = useState<StockDay | null>(null);
   const [history, setHistory] = useState<HistoryDay[]>([]);
-  const [drivers, setDrivers] = useState<DriverRow[]>([]);
-  const [selectedDriverId, setSelectedDriverId] = useState('');
   const [freeNumber, setFreeNumber] = useState('');
   const [quantities, setQuantities] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState('');
   const [error, setError] = useState('');
   const [tab, setTab] = useState('');
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const load = useCallback(
     async (target: string) => {
@@ -78,21 +77,6 @@ export function StockCalculatorPage() {
     void load(date);
   }, [date, load]);
 
-  useEffect(() => {
-    let cancelled = false;
-    api
-      .get<{ drivers: DriverRow[] }>('/loading/drivers')
-      .then((data) => {
-        if (!cancelled) setDrivers((data.drivers ?? []).filter((d) => (d.phone ?? '').trim() !== ''));
-      })
-      .catch(() => {
-        if (!cancelled) setDrivers([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   const groups = useMemo(() => (day === null ? [] : groupByCategory(day.products)), [day]);
   const active = useMemo(() => {
     if (groups.length === 0) return null;
@@ -101,9 +85,7 @@ export function StockCalculatorPage() {
 
   const message = day === null ? '' : stockMessage(day);
   const emailBody = day === null ? '' : stockEmailBody(day);
-  const selectedDriver = drivers.find((d) => String(d.id) === selectedDriverId);
-  const targetNumber = (selectedDriver?.phone ?? freeNumber).trim();
-  const countedBoxes = day?.totalBoxes ?? 0;
+  const targetNumber = freeNumber.trim();
 
   async function sendEntry(product: StockProduct) {
     const raw = (quantities[product.code] ?? '').trim();
@@ -175,9 +157,14 @@ export function StockCalculatorPage() {
 
   return (
     <div className="p-4 space-y-4" data-testid="stock-calculator">
-      <div>
-        <h1 className="text-xl font-semibold text-gray-800">{t('stock.title')}</h1>
-        <p className="text-sm text-gray-500">{t('stock.subtitle')}</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-semibold text-gray-800">{t('stock.title')}</h1>
+          <p className="text-sm text-gray-500">{t('stock.subtitle')}</p>
+        </div>
+        <Button variant="outline" onClick={() => setHistoryOpen(true)} data-testid="stock-open-history">
+          {t('stock.openHistory')}
+        </Button>
       </div>
 
       <Card>
@@ -220,61 +207,107 @@ export function StockCalculatorPage() {
           {error !== '' && <p className="text-sm text-red-600">{error}</p>}
 
           {active !== null && (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-xs text-gray-500 uppercase">
-                  <th className="py-2 pr-2">{t('stock.code')}</th>
-                  <th className="py-2 pr-2">{t('stock.product')}</th>
-                  <th className="py-2 pr-2">{t('stock.boxes')}</th>
-                  <th className="py-2 pr-2">{t('stock.units')}</th>
-                  <th className="py-2 pr-2">{t('stock.addBoxes')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {active.products.map((product) => (
-                  <tr key={product.code} className="border-b last:border-0">
-                    <td className="py-2 pr-2 text-gray-500">{product.code}</td>
-                    <td className="py-2 pr-2">{product.name}</td>
-                    <td className="py-2 pr-2 font-medium" data-testid={`stock-boxes-${product.code}`}>
-                      {product.boxes}
-                    </td>
-                    <td className="py-2 pr-2 text-gray-600" data-testid={`stock-units-${product.code}`}>
-                      {product.units} <span className="text-xs text-gray-400">({product.unitsPerBox}/cx)</span>
-                    </td>
-                    <td className="py-2 pr-2">
-                      <div className="flex items-center gap-2">
-                        <Input
-                          value={quantities[product.code] ?? ''}
-                          onChange={(e) => setQuantities({ ...quantities, [product.code]: e.target.value })}
-                          inputMode="numeric"
-                          placeholder="0"
-                          aria-label={product.name}
-                          className="w-20"
-                          data-testid={`stock-input-${product.code}`}
-                        />
-                        <Button onClick={() => sendEntry(product)} disabled={busy} data-testid={`stock-add-${product.code}`}>
-                          {t('stock.add')}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          onClick={() => resetProduct(product)}
-                          disabled={busy || product.boxes === 0}
-                          data-testid={`stock-reset-${product.code}`}
-                        >
-                          {t('stock.reset')}
-                        </Button>
-                      </div>
-                    </td>
+            <div className="space-y-3 md:hidden" data-testid="stock-cards">
+              {active.products.map((product) => (
+                <div key={product.code} className="border rounded-lg p-3 space-y-2" data-testid={`stock-card-${product.code}`}>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="font-medium text-gray-900">{product.name}</span>
+                    <span className="text-xs text-gray-500">{product.code}</span>
+                  </div>
+                  <div className="flex gap-4 text-sm text-gray-600">
+                    <span>
+                      {t('stock.boxes')}: <strong className="text-gray-900" data-testid={`stock-mobile-boxes-${product.code}`}>{product.boxes}</strong>
+                    </span>
+                    <span>
+                      {t('stock.units')}: <strong className="text-gray-900" data-testid={`stock-mobile-units-${product.code}`}>{product.units}</strong>
+                      <span className="text-xs text-gray-400"> ({product.unitsPerBox}/cx)</span>
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={quantities[product.code] ?? ''}
+                      onChange={(e) => setQuantities({ ...quantities, [product.code]: e.target.value })}
+                      inputMode="numeric"
+                      placeholder="0"
+                      aria-label={product.name}
+                      className="w-20"
+                      data-testid={`stock-mobile-input-${product.code}`}
+                    />
+                    <Button onClick={() => sendEntry(product)} disabled={busy} data-testid={`stock-mobile-add-${product.code}`}>
+                      {t('stock.add')}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => resetProduct(product)}
+                      disabled={busy || product.boxes === 0}
+                      data-testid={`stock-mobile-reset-${product.code}`}
+                    >
+                      {t('stock.reset')}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {active !== null && (
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-xs text-gray-500 uppercase">
+                    <th className="py-2 pr-2">{t('stock.code')}</th>
+                    <th className="py-2 pr-2">{t('stock.product')}</th>
+                    <th className="py-2 pr-2">{t('stock.boxes')}</th>
+                    <th className="py-2 pr-2">{t('stock.units')}</th>
+                    <th className="py-2 pr-2">{t('stock.addBoxes')}</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {active.products.map((product) => (
+                    <tr key={product.code} className="border-b last:border-0">
+                      <td className="py-2 pr-2 text-gray-500">{product.code}</td>
+                      <td className="py-2 pr-2">{product.name}</td>
+                      <td className="py-2 pr-2 font-medium" data-testid={`stock-boxes-${product.code}`}>
+                        {product.boxes}
+                      </td>
+                      <td className="py-2 pr-2 text-gray-600" data-testid={`stock-units-${product.code}`}>
+                        {product.units} <span className="text-xs text-gray-400">({product.unitsPerBox}/cx)</span>
+                      </td>
+                      <td className="py-2 pr-2">
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={quantities[product.code] ?? ''}
+                            onChange={(e) => setQuantities({ ...quantities, [product.code]: e.target.value })}
+                            inputMode="numeric"
+                            placeholder="0"
+                            aria-label={product.name}
+                            className="w-20"
+                            data-testid={`stock-input-${product.code}`}
+                          />
+                          <Button onClick={() => sendEntry(product)} disabled={busy} data-testid={`stock-add-${product.code}`}>
+                            {t('stock.add')}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => resetProduct(product)}
+                            disabled={busy || product.boxes === 0}
+                            data-testid={`stock-reset-${product.code}`}
+                          >
+                            {t('stock.reset')}
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
 
           <div className="flex items-center justify-between pt-2 border-t">
             <span className="text-sm text-gray-500">{t('stock.total')}</span>
             <span className="text-lg font-semibold text-green-700" data-testid="stock-total">
-              {countedBoxes} {t('stock.boxesWord')} · {day?.totalUnits ?? 0} {t('stock.unitsWord')}
+              {day?.totalBoxes ?? 0} {t('stock.boxesWord')} · {day?.totalUnits ?? 0} {t('stock.unitsWord')}
             </span>
           </div>
         </CardContent>
@@ -282,33 +315,14 @@ export function StockCalculatorPage() {
 
       <Card>
         <CardContent className="p-3 space-y-3">
-          <div className="grid gap-3 md:grid-cols-2">
-            <div>
-              <label className="block text-xs font-medium text-gray-600">{t('stock.driver')}</label>
-              <select
-                value={selectedDriverId}
-                onChange={(e) => setSelectedDriverId(e.target.value)}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-white"
-                data-testid="stock-driver"
-              >
-                <option value="">{t('stock.selectDriver')}</option>
-                {drivers.map((d) => (
-                  <option key={d.id} value={String(d.id)}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600">{t('stock.freeNumber')}</label>
-              <Input
-                value={freeNumber}
-                onChange={(e) => setFreeNumber(e.target.value)}
-                placeholder="+55 …"
-                disabled={selectedDriverId !== ''}
-                data-testid="stock-free-number"
-              />
-            </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600">{t('stock.freeNumber')}</label>
+            <Input
+              value={freeNumber}
+              onChange={(e) => setFreeNumber(e.target.value)}
+              placeholder="+55 …"
+              data-testid="stock-free-number"
+            />
           </div>
 
           <div>
@@ -337,6 +351,15 @@ export function StockCalculatorPage() {
           </div>
         </CardContent>
       </Card>
+
+      <StockHistoryModal
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        days={history}
+        onChanged={() => {
+          void load(date);
+        }}
+      />
     </div>
   );
 }
