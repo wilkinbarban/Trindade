@@ -6,7 +6,7 @@
  */
 export function DeveloperCredit() {
   return (
-    <div className="text-xs text-gray-400 leading-relaxed" data-testid="developer-credit">
+    <div className="text-[10px] sm:text-xs text-gray-400 leading-tight text-center select-none opacity-80" data-testid="developer-credit">
       <div>Desenvolvido por Wilkin Barban Rosabal</div>
       <div>E-mail: wilkin.barban@gmail.com</div>
     </div>
