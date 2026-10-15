@@ -53,3 +53,38 @@ assembleRelease) y validar en el emulador de Ubuntu.»
 L2 (orquestador, 2026-10-15): la regla de negocio no se reimplementa en Kotlin: A1 la traduce del módulo
 puro de la web con las mismas pruebas, y A3 consume los tipos ya generados desde el contrato publicado para
 que el cliente no pueda discrepar del servidor.
+
+## Cierre de A1 — la regla del pedido de Assaí en Kotlin
+
+**Entregado**: `app/src/main/java/com/trindade/app/assai/AssaiOrder.kt` (91 líneas) con el catálogo de los
+nueve productos y sus unidades por caja, la línea ya juzgada con `valid`/`filled`/`exact`, el total de lo
+que se puede servir, el mensaje con una fila por producto y el total al final, y `assaiVisibleErrors` con
+la misma regla de momento que la web; y `app/src/test/java/com/trindade/app/assai/AssaiOrderTest.kt` (75
+líneas, JUnit 4) con siete casos espejo de los de la web, uno por uno.
+
+**Evidencia de la verificación** (host Ubuntu, tarea `:app:testDebugUnitTest`):
+- Reporte JUnit: `com.trindade.app.assai.AssaiOrderTest: tests=7 failures=0 errors=0 time=0.054s`, con el
+  nombre de los siete casos en verde.
+- Fase roja con el módulo escondido: el build falla, y la causa leída del registro crudo es: (el grep del trabajo la habia recortado; se leyo despues del registro del host)
+
+**Cuatro intentos fallidos antes, todos por la verificación y ninguno por el código**: la bandera `--tests`
+sobre la tarea agregada `test`, que no la acepta — y cuyo `BUILD FAILED` reporté como el rojo del módulo
+ausente, que era falso y corregí ante el usuario; dos greps tan estrechos que borraron la causa del
+registro; y un contenedor `android-sdk:35` al que le faltan `build-tools;36.0.0` y `platforms;android-37.0`,
+corrido sin permiso de escritura sobre el SDK, de modo que gradle no podía instalarlos: mi código nunca
+llegó a compilarse. Un quinto intento quedó bloqueado por la política de seguridad, que detectó en el
+cuerpo del script un cambio recursivo de propiedad sobre el árbol montado; no corrió nada y el árbol quedó
+intacto.
+
+**Lecciones**:
+1. Al motivo de un fallo de build se lo lee, no se lo supone: `BUILD FAILED` no prueba nada por sí solo.
+2. La salida se captura cruda y se filtra después; un grep usado como diagnóstico puede tapar la causa.
+3. La evidencia de una corrida de pruebas es su reporte (`tests=`, `failures=` y el nombre de cada caso),
+   no el estado del build.
+4. La verificación no se hace con un contenedor privilegiado sobre el árbol de trabajo: si hace falta
+   completar el SDK, el lugar es un host propio, que además es donde vive el AVD.
+5. Un texto que cita un comando peligroso puede activar la misma guarda que el comando: describirlo en
+   palabras y no transcribirlo.
+
+**Siguiente unidad**: A2 — la pantalla Compose de Assaí con su ViewModel y la exportación por WhatsApp,
+consumiendo esta regla y sin repetir una línea de su aritmética.
