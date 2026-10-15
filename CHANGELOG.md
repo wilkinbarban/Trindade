@@ -6,6 +6,23 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [0.5.0] — 2026-10-15
+
+### 🎯 Adicionado (Calculadoras operacionais)
+- **Calculadora de Assaí** (`/assai-calculator`, web e Android): nove produtos com as suas unidades por caixa e a regra de que **um pedido só existe em caixas inteiras**. Uma quantidade que não fecha caixas é recusada em vez de arredondada —arredondar produziria um número que não corresponde ao que chega ao portão, e no portão se contam caixas—; o aviso por produto só aparece **depois de o operador sair do campo**, porque enquanto se digita uma quantidade está a ser escrita; e a exportação sai com uma linha por produto e o total, sem a quantidade por caixa, que é aritmética que quem lê não pediu.
+- **Calculador de Estoque** (`/stock-calculator`, web e Android): o catálogo de 25 produtos em **duas secções** (Terceirizados e Massas) que chega do servidor e não de uma cópia local, a acumulação corrida de caixas por produto com as unidades recalculadas a partir delas em cada escrita —assim os dois números não podem discordar—, o reset por produto que zera os totais **sem apagar o registo** do que já tinha sido contado, e os totais do dia como o servidor os respondeu.
+- **Histórico de Estoque** (`/stock-history`, web e Android): uma rota própria, com a antiga `/stock/history` a redirecionar porque um link já partilhado é um link que alguém pode abrir. Lista **só os produtos contados** —vinte e quatro zeros escondem a linha por que alguém veio—, com selector de data, exportação por WhatsApp e correio, e **controlo de papel**: um Trabalhador lê, um Administrador corrige, e o servidor aplica a mesma fronteira com o seu 403.
+- **Marca de água do autor**, no pé do login, do painel de administração e do perfil: «Desenvolvido por Wilkin Barban Rosabal» e «E-mail: wilkin.barban@gmail.com», em 10sp, com o tom atenuado do tema e centrada. Um componente único nas duas plataformas, porque um crédito escrito três vezes fica velho em duas.
+- **Paridade Android completa (A1–A7)**: a Calculadora de Assaí, o Calculador de Estoque e o Histórico de Estoque em Compose, sobre os tipos gerados do contrato publicado, mais os três acessos no `MainActivity` como **pestañas** —não como rotas, que é o que o shell tem— e a verificação no emulador de Ubuntu (`Trindade_UX_v030`).
+
+### 🔧 Alterado
+- **Correio do stock**: o destino passou a ser o da planta (`xmitrindade@hotmail.com`) em vez da morada de provas, e a tabela do correio passa a ser **medida a partir dos dados** —alinhada à esquerda nas três primeiras colunas e à direita nas unidades, com separador e o total debaixo dessa coluna— em vez de tubos sem largura. O correio do autor é outra coisa e continua a ser o do crédito.
+- **Sessão de duas horas**: o token de acesso deixou de expirar aos quinze minutos, que desligavam o operário a meio de uma contagem. A janela de quinze minutos do limitador de tentativas de login **ficou como estava**: essa é sobre adivinhar uma palavra-passe e não sobre terminar um trabalho.
+- **Validação ao sair do campo** (as duas calculadoras): a regra é pura e testada —o campo vazio não é um erro, é um campo que ninguém tocou—, o aviso espera que o campo seja deixado e volta a apagar-se ao reentrar para corrigir, porque a primeira tecla de uma correção não é o erro que se está a corrigir; e o botão de adicionar fica apagado quando não há nada para adicionar ou o que há não se pode adicionar.
+- **Esquema da base de dados: revisão 5** com a tabela `stock_counts`, aditiva e sem reescrever nada, com o catálogo em código e cada linha a guardar o nome e as unidades por caixa **do momento em que foi contada**, para que uma mudança futura do catálogo não reescreva uma contagem antiga. A migração corre com cópia de segurança preventiva verificada antes de tocar na base, e as filas ficaram intactas.
+- **Android**: as três superfícies novas entraram no `RolePolicy` no conjunto partilhado —os três os vê qualquer operário com sessão, como na web— e `RolePolicyTest` obrigou a declarar a mudança em vez de a deixar passar em silêncio.
+
+---
 ## [0.4.0] — 2026-10-14
 
 ### 🎯 Adicionado (Operação de carregamento e exportação WhatsApp)

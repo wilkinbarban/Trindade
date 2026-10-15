@@ -29,7 +29,7 @@ O ecossistema **Trindade Massas Operações** foi desenhado para unificar a roti
 
 ---
 
-## Aplicativo Móvel Android (v0.4.0)
+## Aplicativo Móvel Android (v0.5.0)
 
 O aplicativo móvel é distribuído diretamente via GitHub Releases com assinatura digital oficial em chave RSA 4096 (esquema APK v2).
 
@@ -55,6 +55,22 @@ O aplicativo móvel é distribuído diretamente via GitHub Releases com assinatu
 | **Perfil da Conta** | Troca de senha, checagem da versão instalada e logout seguro | Administrador e Trabalhador |
 
 ---
+
+## Calculadoras Operacionais (v0.5.0)
+
+Três ferramentas de balcão, na web e no Android, sobre a mesma regra e o mesmo contrato. Cada uma tem a sua
+regra de negócio num módulo puro, com os seus testes, e as duas plataformas respondem a mesma coisa.
+
+| Ferramenta | Rota (web) | O que faz |
+| --- | --- | --- |
+| **Calculadora de Assaí** | `/assai-calculator` | Nove produtos; o pedido só existe em caixas inteiras e sai por WhatsApp com uma linha por produto e o total |
+| **Calculador de Estoque** | `/stock-calculator` | O catálogo de 25 produtos em duas secções; acumulação corrida de caixas por produto, unidades recalculadas a partir delas e totais do dia |
+| **Histórico de Estoque** | `/stock-history` | Os dias já contados, só com os produtos contados, com exportação e controlo de papel (Trabalhador lê, Administrador corrige) |
+
+O **correio do stock** vai para a planta (`xmitrindade@hotmail.com`); a **marca de água** do autor, no pé das
+pantallas principais, é outra coisa e usa a morada do autor.
+
+Documentação detalhada: [`docs/calculadoras.md`](docs/calculadoras.md).
 
 ## Primeiros Passos e Desenvolvimento Local
 
@@ -86,7 +102,7 @@ make dev
 
 ---
 
-## Banco de Dados e Esquema (Revisão 4)
+## Banco de Dados e Esquema (Revisão 5)
 
 O banco de dados SQLite é versionado através de `PRAGMA user_version`:
 - **Revisão 1**: Estrutura operacional base (14 tabelas).
