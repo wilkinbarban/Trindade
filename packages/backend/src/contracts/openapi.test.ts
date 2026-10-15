@@ -59,6 +59,10 @@ const EXPECTED_PATHS = [
   '/api/reports/{id}/deactivate',
   '/api/reports/{id}/export',
   '/api/reports/{id}/photos',
+  '/api/stock',
+  '/api/stock/add-entry',
+  '/api/stock/history',
+  '/api/stock/reset-product',
   '/api/users/options',
   '/p/{token}',
 ];

@@ -10,6 +10,7 @@ import { getPhotoByPublicToken } from './modules/reports/reports.lifecycle.servi
 import { loadingRoutes } from './modules/loading/loading.routes.js';
 import { adminRoutes } from './modules/admin/admin.routes.js';
 import { auditRoutes } from './modules/audit/audit.routes.js';
+import { stockRoutes } from './modules/stock/stock.routes.js';
 
 export interface ApiRouteOptions {
   jwtSecret: string;
@@ -37,6 +38,7 @@ export async function registerApiRoutes(
   fastify: FastifyInstance,
   options: ApiRouteOptions,
 ): Promise<void> {
+  await fastify.register(stockRoutes, { prefix: '/api/stock' });
   await fastify.register(authRoutes, {
     prefix: '/api/auth',
     jwtSecret: options.jwtSecret,

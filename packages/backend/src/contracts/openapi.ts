@@ -99,6 +99,14 @@ import {
 } from '../modules/reports/reports.schema.js';
 import { DashboardSummarySchema } from '../modules/dashboard/dashboard.schema.js';
 import {
+  StockAddEntryBodySchema,
+  StockDaySchema,
+  StockHistoryDaySchema,
+  StockHistorySchema,
+  StockProductSchema,
+  StockResetBodySchema,
+} from '../modules/stock/stock.schema.js';
+import {
   HealthResponseSchema,
   PaginationSchema,
   SuccessResponseSchema,
@@ -272,6 +280,10 @@ function buildRegistry(): OpenAPIRegistry {
   registerComponent(registry, 'ReportUser', ReportUserSchema);
   registerComponent(registry, 'ReportPhoto', PhotoSchema);
   registerComponent(registry, 'DashboardSummary', DashboardSummarySchema);
+registerComponent(registry, 'StockProduct', StockProductSchema);
+registerComponent(registry, 'StockDay', StockDaySchema);
+registerComponent(registry, 'StockHistoryDay', StockHistoryDaySchema);
+registerComponent(registry, 'StockHistory', StockHistorySchema);
   registerComponent(registry, 'HealthResponse', HealthResponseSchema);
   registerComponent(registry, 'UserOptionsResponse', UserOptionsResponseSchema);
 
@@ -1351,6 +1363,64 @@ function buildRegistry(): OpenAPIRegistry {
   });
 
   // ---- dashboard, and the routes that belong to no module ----
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/stock',
+    summary: 'Read a day of counting',
+    description:
+      'Answers every product of the catalogue with its boxes and units for that day, plus the totals. A day ' +
+      'nobody counted yet answers the whole catalogue at zero rather than an empty list, so a client renders ' +
+      'the counter without inventing the products.',
+    tags: ['stock'],
+    responses: {
+      200: jsonResponse('The day, its products and its totals', StockDaySchema),
+      401: UNAUTHORIZED,
+    },
+  });
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/stock/add-entry',
+    summary: 'Add counted boxes to one product',
+    description:
+      'The boxes accumulate and the units are recomputed from them on every write, so the two numbers cannot ' +
+      'disagree. Every entry is appended to the log with the running total after it. An unknown product or a ' +
+      'count that adds nothing is refused without writing.',
+    tags: ['stock'],
+    responses: {
+      200: jsonResponse('The product after the entry', StockProductSchema),
+      400: INVALID_INPUT,
+      401: UNAUTHORIZED,
+    },
+  });
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/stock/reset-product',
+    summary: 'Reset one product of the day to zero',
+    description:
+      'Zeroes the boxes and the units of a single product without touching the rest of the day, and keeps the ' +
+      'log entry that says it was reset, so what had been counted is still readable afterwards.',
+    tags: ['stock'],
+    responses: {
+      200: jsonResponse('The product after the reset', StockProductSchema),
+      400: INVALID_INPUT,
+      401: UNAUTHORIZED,
+    },
+  });
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/stock/history',
+    summary: 'List the days that were counted',
+    description: 'One row per day, newest first, with how many products and boxes that day holds.',
+    tags: ['stock'],
+    responses: {
+      200: jsonResponse('The counted days', StockHistorySchema),
+      401: UNAUTHORIZED,
+    },
+  });
 
   registry.registerPath({
     method: 'get',

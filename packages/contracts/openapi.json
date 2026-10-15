@@ -1080,6 +1080,154 @@
         ],
         "additionalProperties": false
       },
+      "StockProduct": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "unitsPerBox": {
+            "type": "integer"
+          },
+          "boxes": {
+            "type": "integer"
+          },
+          "units": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "category",
+          "unitsPerBox",
+          "boxes",
+          "units"
+        ],
+        "additionalProperties": false
+      },
+      "StockDay": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "products": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "category": {
+                  "type": "string"
+                },
+                "unitsPerBox": {
+                  "type": "integer"
+                },
+                "boxes": {
+                  "type": "integer"
+                },
+                "units": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "code",
+                "name",
+                "category",
+                "unitsPerBox",
+                "boxes",
+                "units"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "totalBoxes": {
+            "type": "integer"
+          },
+          "totalUnits": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "date",
+          "products",
+          "totalBoxes",
+          "totalUnits"
+        ],
+        "additionalProperties": false
+      },
+      "StockHistoryDay": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "products": {
+            "type": "integer"
+          },
+          "boxes": {
+            "type": "integer"
+          },
+          "units": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "date",
+          "products",
+          "boxes",
+          "units"
+        ],
+        "additionalProperties": false
+      },
+      "StockHistory": {
+        "type": "object",
+        "properties": {
+          "days": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "date": {
+                  "type": "string"
+                },
+                "products": {
+                  "type": "integer"
+                },
+                "boxes": {
+                  "type": "integer"
+                },
+                "units": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "date",
+                "products",
+                "boxes",
+                "units"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "days"
+        ],
+        "additionalProperties": false
+      },
       "HealthResponse": {
         "type": "object",
         "properties": {
@@ -7348,6 +7496,150 @@
           },
           "403": {
             "description": "Administrador only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/stock": {
+      "get": {
+        "summary": "Read a day of counting",
+        "description": "Answers every product of the catalogue with its boxes and units for that day, plus the totals. A day nobody counted yet answers the whole catalogue at zero rather than an empty list, so a client renders the counter without inventing the products.",
+        "tags": [
+          "stock"
+        ],
+        "responses": {
+          "200": {
+            "description": "The day, its products and its totals",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockDay"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/stock/add-entry": {
+      "post": {
+        "summary": "Add counted boxes to one product",
+        "description": "The boxes accumulate and the units are recomputed from them on every write, so the two numbers cannot disagree. Every entry is appended to the log with the running total after it. An unknown product or a count that adds nothing is refused without writing.",
+        "tags": [
+          "stock"
+        ],
+        "responses": {
+          "200": {
+            "description": "The product after the entry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockProduct"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request body failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/stock/reset-product": {
+      "post": {
+        "summary": "Reset one product of the day to zero",
+        "description": "Zeroes the boxes and the units of a single product without touching the rest of the day, and keeps the log entry that says it was reset, so what had been counted is still readable afterwards.",
+        "tags": [
+          "stock"
+        ],
+        "responses": {
+          "200": {
+            "description": "The product after the reset",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockProduct"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request body failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/stock/history": {
+      "get": {
+        "summary": "List the days that were counted",
+        "description": "One row per day, newest first, with how many products and boxes that day holds.",
+        "tags": [
+          "stock"
+        ],
+        "responses": {
+          "200": {
+            "description": "The counted days",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockHistory"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
             "content": {
               "application/json": {
                 "schema": {
