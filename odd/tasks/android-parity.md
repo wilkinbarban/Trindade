@@ -413,3 +413,46 @@ cierre de la serie con `./gradlew assembleRelease` y la validación en el emulad
 donde se ven por fin las tres cosas que ningún compilador juzga: la posición real del crédito en
 `DashboardScreen` (quedó dentro de un bloque anidado), sus valores en pantalla (10.sp, alpha, centrado) y las
 tres pestañas dibujando sus pantallas.
+
+## Cierre de A7 — la serie completa, y el defecto que solo la pantalla podía mostrar
+
+**Lo que A7 encontró**: el crédito se dibujaba **con el estilo pedido** —10.sp, atenuado con alpha y
+centrado— y en el **lugar equivocado**: en la pantalla de login aparecía **arriba de todo**, sobre el logo,
+como primer elemento. Ningún compilador ni prueba unitaria podía verlo: un composable en cualquier punto del
+cuerpo es legal.
+
+**El diagnóstico, del usuario, confirmado por el arreglo**: en `LoginScreen` el crédito había quedado **fuera
+del `Column`**, como hijo directo del `BoxWithConstraints`, y **un `Box` ubica a sus hijos desde arriba**.
+Adentro del `Column`, como último hijo y con un `Spacer(16.dp)` después del botón de registro, quedó al pie.
+
+**Las otras dos pantallas, revisadas con el mismo criterio**: `ProfileScreen` ya estaba correcto (último hijo
+de su `Column` scrolleable); `DashboardScreen` estaba dentro de un bloque anidado —así que se dibujaba solo
+en esa rama y no era el pie de nada— y pasó a ser el último hijo del `Column` scrolleable.
+
+**Evidencia visual, leída como imagen**: la captura del build previo mostró el crédito arriba; la del build
+arreglado lo muestra **al pie**, centrado y en el tono atenuado del tema. La app corriendo era la de hoy
+(`versionCode=500`, `versionName=0.5.0`), instalada en el AVD `Trindade_UX_v030` tras desinstalar la 0.3.3
+vieja.
+
+**Las recetas que quedaron probadas**:
+- **Release**: `./gradlew :app:assembleRelease --no-daemon -PapiBaseUrl=https://trindademasas.duckdns.org/
+  -PversionName=0.5.0 -PversionCode=500` → BUILD SUCCESSFUL, 10.478.240 bytes, **`app-release-unsigned.apk`**.
+  El proyecto tiene **dos guardas deliberadas** sin valores por defecto (apiBaseUrl y versionName/versionCode:
+  un release no puede apuntar en silencio al loopback ni salir con una versión inventada), el `versionCode`
+  sale de la fórmula del CI (`major*10000 + minor*100 + patch` → 0.5.0 = 500) y **la firma es un paso del
+  carril del CI con el keystore**: publicar exige tag, carril y firma, y eso es decisión del usuario.
+- **Emulador**: rutas **absolutas** de `adb` y `emulator` (un `export PATH` detrás de un `&` se va al
+  proceso de fondo); para instalar el build de hoy hubo que **desinstalar** la app vieja (`VERSION_DOWNGRADE`
+  primero, `UPDATE_INCOMPATIBLE` después: Android no reemplaza una app firmada por A con una firmada por B).
+- **Captura**: `adb exec-out screencap -p` + `scp` y **leerla como imagen**. Tres veces las capturas de
+  intentos fallidos mostraban la app **vieja** del AVD y **no se usaron como evidencia**; la señal era el
+  tamaño (≈289 KB contra ≈136 KB) **más** el `dumpsys package` con la versión de hoy.
+
+**Límite honesto**: la captura es de la **pantalla de login**, una de las tres que llevan el crédito. Las
+pantallas de las **tres pestañas** requieren **sesión** y no hay credenciales, así que verlas —y ver el
+crédito al pie del dashboard— queda para el ojo del usuario.
+
+**Con esto A7 cierra y la serie de paridad Android queda completa**: diez unidades cerradas y verificadas,
+tres módulos nuevos en el shell como pestañas, el cliente del stock sobre el contrato publicado, el RBAC
+respetado en las dos capas, el crédito del autor al pie de tres pantallas, y la verificación visual en el
+emulador de Ubuntu.
