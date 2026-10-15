@@ -377,3 +377,39 @@ valores en pantalla real.
 histórico) como **pestañas**, no como rutas: entradas en `MainActivity.Tab` y en `RolePolicy.EntryPoint`,
 sumadas a `DEFAULT_DESTINATIONS`, con sus ramas en el `when (tab)` de `MainActivity.kt` (línea 258) y sus
 textos en `strings.xml`, porque el enum `Tab` pide `@StringRes`.
+
+## Cierre de A6b — los tres accesos como pestañas, y con ello A6 completa
+
+**Entregado** (un commit): las tres entradas nuevas en `RolePolicy` (`ASSAI_ORDER`, `STOCK_COUNTER` y
+`STOCK_HISTORY` en el enum y **sumadas a `SHARED_ENTRY_POINTS`**), las tres pestañas en `MainActivity.Tab` con
+sus textos nuevos en `values/strings.xml` (el proyecto no tiene `values-es`), los tres pares en
+`DEFAULT_DESTINATIONS`, las tres ramas del `when (tab)` que dibujan `AssaiCalculatorScreen`,
+`StockCalculatorScreen` y `StockHistoryScreen`, y los imports de las tres pantallas.
+
+**Por qué al conjunto compartido**: los tres los ve cualquier operario con sesión, exactamente como los
+ofrece la web. El propio archivo advierte que una entrada agregada «solo para el trabajador» se le entrega
+también al administrador — y acá eso es lo correcto. El histórico decide por sí mismo si la visita es una
+lectura o una corrección, y el servidor aplica esa frontera con su 403.
+
+**El fallo que la verificación trajo, y por qué fue una buena noticia**: `RolePolicyTest` falló con
+`expected` la lista de cinco entradas compartidas contra la de siete que existe ahora. Eso es la prueba
+haciendo su trabajo: **el cambio tuvo que declararse en vez de entrar en silencio**. El test se actualizó
+agregando las tres después de `CATALOG_DRIVERS`, que es donde las pone la declaración.
+
+**Lo que NO hubo que tocar**: `MainActivityNavigationTest` pasó entero (32 pruebas) y `NavigationActionButtonTest`
+también — las tres pestañas nuevas **no rompieron** la fila de navegación, que es justamente lo que ese test
+vigila.
+
+**Una decisión con su porqué**: la rama del histórico dibuja la pantalla **sin rol**. El modo por defecto de
+esa pantalla es solo lectura, así que un rol sin cablear solo puede ofrecer **menos**, y la corrección no
+depende de esa línea: el servidor aplica la misma frontera con su 403. Queda como detalle a cablear, no como
+agujero de permisos.
+
+**Evidencia (host Ubuntu)**: la compilación pasa con las tres pestañas y sus pantallas (`BUILD SUCCESSFUL`), y
+la suite completa pasa tras actualizar el test de rol (job-149, `salida=0` en las dos fases).
+
+**Con esto A6 queda completa** (A6a el crédito en tres pantallas, A6b los tres accesos). **Queda A7**: el
+cierre de la serie con `./gradlew assembleRelease` y la validación en el emulador Ubuntu `Trindade_UX_v030`,
+donde se ven por fin las tres cosas que ningún compilador juzga: la posición real del crédito en
+`DashboardScreen` (quedó dentro de un bloque anidado), sus valores en pantalla (10.sp, alpha, centrado) y las
+tres pestañas dibujando sus pantallas.
