@@ -12,16 +12,26 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.SemanticsPropertyKey
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.trindade.app.contract.models.CategoriesResponseCategoriesInner
 import com.trindade.app.contract.models.ProductsResponse
 import com.trindade.app.contract.models.ReportCategoryTasksInner
+
+/**
+ * Semantics property key exposing the keyboard type configured for a text input field,
+ * allowing Compose UI tests to verify keyboard semantics.
+ */
+val KeyboardTypeProperty = SemanticsPropertyKey<KeyboardType>("KeyboardType")
 
 /**
  * The report form's own state: what the operator has answered, plus the offers the product tasks choose
@@ -193,6 +203,10 @@ private fun ProductCheckBlock(
  * The number of fields comes from the task, not from what has been typed: an export refuses a report
  * missing a reading, so the form has to show how many it owes from the start rather than growing as
  * the operator fills it in.
+ *
+ * Uses a numeric decimal keypad ([KeyboardType.Decimal]) so operators get a numeric keypad on mobile
+ * devices, paired with an accessible minus toggle action to support negative cold-storage readings
+ * (e.g. -18°C) where numeric keypads lack a minus key.
  */
 @Composable
 private fun TemperatureBlock(
@@ -206,18 +220,74 @@ private fun TemperatureBlock(
         Spacer(Modifier.height(4.dp))
 
         readings.forEachIndexed { index, value ->
-            OutlinedTextField(
-                value = value,
-                onValueChange = {
-                    if (readOnly) return@OutlinedTextField
-                    onChange(index, it)
-                },
-                label = { Text("Leitura ${index + 1}") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                enabled = !readOnly,
-                modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                OutlinedTextField(
+                    value = value,
+                    onValueChange = { input ->
+                        if (readOnly) return@OutlinedTextField
+                        if (isValidTemperatureInput(input)) {
+                            onChange(index, input)
+                        }
+                    },
+                    label = { Text("Leitura ${index + 1}") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    enabled = !readOnly,
+                    modifier = Modifier
+                        .weight(1f)
+                        .semantics { this[KeyboardTypeProperty] = KeyboardType.Decimal },
+                )
+                OutlinedIconButton(
+                    onClick = {
+                        if (readOnly) return@OutlinedIconButton
+                        val toggled = toggleMinusSign(value)
+                        if (isValidTemperatureInput(toggled)) {
+                            onChange(index, toggled)
+                        }
+                    },
+                    enabled = !readOnly,
+                    modifier = Modifier.semantics(mergeDescendants = true) {
+                        contentDescription = "Alternar sinal negativo Leitura ${index + 1}"
+                    },
+                ) {
+                    Text(text = "−", style = MaterialTheme.typography.titleMedium)
+                }
+            }
         }
     }
+}
+
+/**
+ * Toggles a leading minus sign on a temperature reading string.
+ *
+ * If the string starts with an ASCII '-' or unicode '−', the leading minus is removed.
+ * Otherwise, an ASCII '-' is prefixed to the string.
+ */
+internal fun toggleMinusSign(value: String): String {
+    return when {
+        value.startsWith("-") -> value.removePrefix("-")
+        value.startsWith("−") -> value.removePrefix("−")
+        else -> "-$value"
+    }
+}
+
+/**
+ * Validates whether [input] is a valid partial or complete signed decimal temperature value.
+ *
+ * Accepts:
+ * - Empty string (clearing the field)
+ * - Single leading minus "-" or "−" (user starting to type a negative cold-storage temperature or toggling minus)
+ * - Positive and negative decimals using either comma or period separator (e.g. "-18,5", "-18.5", "4,5", "4.5", "-18")
+ *
+ * Rejects non-numeric characters, multiple minus signs, and multiple decimal separators.
+ */
+internal fun isValidTemperatureInput(input: String): Boolean {
+    if (input.isEmpty() || input == "-" || input == "−") return true
+    return input.matches(Regex("^[-\\u2212]?\\d*([.,]\\d*)?$"))
 }

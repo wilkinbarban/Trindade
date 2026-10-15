@@ -8,6 +8,7 @@ export interface JwtPayload {
   sub: number;
   username: string;
   role: string;
+  security_version: number;
 }
 
 /** Fastify instance augmentation — adds db and authenticate */
@@ -50,15 +51,21 @@ export function createAuthenticate(jwtSecret: string) {
 
     try {
       const decoded = jwt.verify(token, jwtSecret) as unknown as JwtPayload;
-
-      const user = request.server.db
-        .prepare('SELECT is_active FROM users WHERE id = ?')
-        .get(decoded.sub) as { is_active: number } | undefined;
-      if (!user || user.is_active !== 1) {
-        return reply.status(401).send({ error: 'User is inactive or deleted' });
+      if (!Number.isSafeInteger(decoded.sub) || decoded.sub <= 0 ||
+          !Number.isSafeInteger(decoded.security_version) || decoded.security_version <= 0) {
+        return reply.status(401).send({ error: 'Invalid or expired token' });
       }
 
-      request.user = decoded;
+      const user = request.server.db
+        .prepare(`SELECT u.is_active, u.security_version, u.username, r.name AS role
+                  FROM users u JOIN roles r ON r.id = u.role_id WHERE u.id = ?`)
+        .get(decoded.sub) as { is_active: number; security_version: number; username: string; role: string } | undefined;
+      if (!user || user.is_active !== 1 || user.security_version !== decoded.security_version) {
+        return reply.status(401).send({ error: 'Invalid or expired token' });
+      }
+
+      request.user = { sub: decoded.sub, username: user.username, role: user.role,
+        security_version: user.security_version };
     } catch {
       return reply.status(401).send({ error: 'Invalid or expired token' });
     }

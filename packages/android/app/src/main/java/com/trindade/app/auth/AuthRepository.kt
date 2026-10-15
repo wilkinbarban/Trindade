@@ -6,6 +6,7 @@ import com.trindade.app.contract.models.LoginRequest
 import com.trindade.app.contract.models.LogoutRequest
 import com.trindade.app.contract.models.ProfileResponseUser
 import com.trindade.app.contract.models.RefreshRequest
+import com.trindade.app.contract.models.RegisterRequest
 import com.trindade.app.contract.models.UpdateProfileRequest
 import com.trindade.app.logging.AppLogger
 import com.trindade.app.logging.NoOpAppLogger
@@ -362,6 +363,76 @@ class AuthRepository @Inject constructor(
     fun sessionRole(): String? = tokenStore.role()
 
     /**
+     * Requests worker self-registration pending administrator approval.
+     *
+     * This endpoint is public and grants no session, tokens, or immediate access.
+     * The backend creates only an inactive worker account (Trabalhador, is_active=0)
+     * and answers with a neutral conditional message whether the username was newly created
+     * or already existed, so no user enumeration is possible.
+     *
+     * Refusals (400 validation, 409 bootstrap required, 429 rate limit) are parsed and returned
+     * with the server's own error message and optional Retry-After header, except that the 400 whose
+     * body carries the schema validator's English `Invalid input` is reported with this client's
+     * Portuguese 400 sentence instead: see [registerRefusalMessage].
+     */
+    suspend fun register(username: String, displayName: String, password: String): RegisterResult {
+        val attempt = runCatchingCancellable {
+            api.register(
+                RegisterRequest(
+                    username = username,
+                    displayName = displayName,
+                    password = password,
+                ),
+            )
+        }
+        val response = attempt.getOrElse { failure ->
+            val cause = failure.unreachableCause()
+            logger.w(
+                TAG,
+                "Register failed without a usable answer: $cause " +
+                    "(${failure.javaClass.simpleName}: ${failure.message})",
+                failure,
+            )
+            return RegisterResult.Unreachable(cause)
+        }
+
+        if (response.isSuccessful) {
+            val body = response.body()
+            val message = body?.message?.takeIf { it.isNotBlank() } ?: REGISTER_SUCCESS_DEFAULT
+            return RegisterResult.Success(message)
+        }
+
+        val statusCode = response.code()
+        val retryAfter = response.headers()["Retry-After"]?.toIntOrNull()
+        val message = registerRefusalMessage(statusCode, response.errorMessage())
+        return RegisterResult.Rejected(statusCode = statusCode, message = message, retryAfterSeconds = retryAfter)
+    }
+
+    /**
+     * The sentence a registration refusal is reported with.
+     *
+     * The server's own words win, with one exception that has to be made here rather than upstream: a 400
+     * whose envelope carries the schema validator's default `Invalid input` is English, names no field and
+     * tells the operator nothing they could correct, so it is replaced by this client's Portuguese 400
+     * fallback. The exception is deliberately exact and 400-only: a sentence this backend wrote -- in
+     * Portuguese or otherwise -- is repeated untouched, so a refusal that already said what was wrong is
+     * never flattened into the generic one.
+     */
+    private fun registerRefusalMessage(statusCode: Int, serverMessage: String?): String {
+        if (statusCode == 400 && serverMessage == BACKEND_INVALID_INPUT) {
+            return fallbackRegisterRefusal(statusCode)
+        }
+        return serverMessage ?: fallbackRegisterRefusal(statusCode)
+    }
+
+    private fun fallbackRegisterRefusal(statusCode: Int): String = when (statusCode) {
+        400 -> "Dados de cadastro inválidos. Verifique as informações e tente novamente."
+        409 -> "A configuração inicial do sistema é necessária antes de registrar usuários."
+        429 -> "Limite de tentativas excedido. Tente novamente mais tarde."
+        else -> GENERIC
+    }
+
+    /**
      * The server's message for a failed call, or null when it sent one this client cannot read.
      *
      * `message` first and `error` after it, because this backend uses one or the other and the two
@@ -386,6 +457,16 @@ class AuthRepository @Inject constructor(
         const val GENERIC_REJECTION = "Não foi possível entrar. Verifique os dados e tente de novo."
         const val GENERIC = "Não foi possível concluir. Tente de novo."
         const val CHECK_CURRENT_PASSWORD = "Confira a senha atual e tente de novo."
+
+        /**
+         * The schema validator's default refusal for a payload it could not read: English, and it names no
+         * field, so it is the one refusal this client does not repeat. Matched literally rather than by
+         * pattern, because the whole claim is that this exact untranslatable sentence is the one replaced.
+         */
+        const val BACKEND_INVALID_INPUT = "Invalid input"
+
+        const val REGISTER_SUCCESS_DEFAULT =
+            "Solicitação de cadastro recebida. Se o acesso for aprovado pelo administrador, a conta será ativada. Entre em contato com a administração se não conseguir acessar."
     }
 }
 
@@ -416,4 +497,24 @@ sealed interface PasswordChangeResult {
     data object Changed : PasswordChangeResult
     data class Rejected(val message: String) : PasswordChangeResult
     data object Unreachable : PasswordChangeResult
+}
+
+/**
+ * What a worker registration attempt produced.
+ *
+ * Symmetrical with [LoginResult]:
+ * - [Success] carries the neutral conditional confirmation text from the server.
+ * - [Rejected] carries the HTTP status code, server-provided or fallback message, and optional Retry-After header.
+ * - [Unreachable] carries the [UnreachableCause] (Timeout, NoRoute, Tls, UnreadableBody, Unknown).
+ *
+ * Registration never issues or stores tokens, nor alters [sessionGeneration].
+ */
+sealed interface RegisterResult {
+    data class Success(val message: String) : RegisterResult
+    data class Rejected(
+        val statusCode: Int,
+        val message: String,
+        val retryAfterSeconds: Int? = null,
+    ) : RegisterResult
+    data class Unreachable(val cause: UnreachableCause) : RegisterResult
 }

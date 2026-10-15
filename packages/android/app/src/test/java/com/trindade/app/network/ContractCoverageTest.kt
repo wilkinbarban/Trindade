@@ -39,6 +39,14 @@ class ContractCoverageTest {
     }
 
     @Test
+    fun `auth api declares worker register operation`() {
+        val method = AuthApi::class.java.declaredMethods.firstOrNull { it.name == "register" }
+        org.junit.Assert.assertNotNull("AuthApi must declare register method", method)
+        val post = method?.getAnnotation(POST::class.java)
+        assertEquals("api/auth/register", post?.value)
+    }
+
+    @Test
     fun `every system interface method is documented in the contract`() {
         assertEveryMethodIsDocumented(SystemApi::class.java)
     }
@@ -46,6 +54,11 @@ class ContractCoverageTest {
     @Test
     fun `every loading interface method is documented in the contract`() {
         assertEveryMethodIsDocumented(LoadingApi::class.java)
+    }
+
+    @Test
+    fun `every admin interface method is documented in the contract`() {
+        assertEveryMethodIsDocumented(AdminApi::class.java)
     }
 
     private fun assertEveryMethodIsDocumented(api: Class<*>) {

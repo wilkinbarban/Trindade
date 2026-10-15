@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.trindade.app.R
+import com.trindade.app.ui.components.NavigationActionButton
 import java.io.File
 
 /**
@@ -59,6 +60,9 @@ fun ReportDetailScreen(
     onEdit: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    onShareText: () -> Unit = {},
+    onSharePdf: () -> Unit = {},
+    onCopyExport: (String) -> Unit = {},
 ) {
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
@@ -80,8 +84,13 @@ fun ReportDetailScreen(
         // action sits beside it because the two are the same kind of thing: a way to leave this screen
         // for the one that does something with the report rather than shows it.
         item {
-            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                TextButton(onClick = onBack) { Text(stringResource(R.string.report_back)) }
+            Row(
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                NavigationActionButton(onClick = onBack) {
+                    Text(stringResource(R.string.report_back))
+                }
                 // Drawn only when the server says the report may be edited, and the two flags behind
                 // that answer -- `readOnly` and `canEdit` -- are the server's, read rather than
                 // recomputed: which day, which creator and therefore whether an edit would be accepted
@@ -97,7 +106,9 @@ fun ReportDetailScreen(
                 // `canEdit` for the reason the predicate fails closed: a report whose flags never
                 // arrived is not an affirmative answer, and an absent answer must not offer an edit.
                 if (state.report?.isReadOnly() == false) {
-                    TextButton(onClick = onEdit) { Text(stringResource(R.string.report_edit)) }
+                    NavigationActionButton(onClick = onEdit) {
+                        Text(stringResource(R.string.report_edit))
+                    }
                 }
             }
         }
@@ -106,6 +117,16 @@ fun ReportDetailScreen(
             item {
                 Text(
                     text = message,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        }
+
+        if (state.report != null && state.report.temperatures.isEmpty()) {
+            item {
+                Text(
+                    text = stringResource(R.string.report_temperatures_required),
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodyMedium,
                 )
@@ -181,7 +202,7 @@ fun ReportDetailScreen(
             HorizontalDivider()
             Button(
                 onClick = onLoadExport,
-                enabled = !state.loadingExport,
+                enabled = !state.loadingExport && state.canLoadExport,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 if (state.loadingExport) {
@@ -196,11 +217,37 @@ fun ReportDetailScreen(
             item {
                 Text(text = text, style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(8.dp))
-                Button(
-                    onClick = { clipboard.setText(AnnotatedString(text)) },
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Button(
+                        onClick = {
+                            clipboard.setText(AnnotatedString(text))
+                            onCopyExport(text)
+                        },
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(stringResource(R.string.export_copy))
+                    }
+                    Button(
+                        onClick = onShareText,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(stringResource(R.string.export_share_text))
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = onSharePdf,
+                    enabled = !state.exportingPdf,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text(stringResource(R.string.export_copy))
+                    if (state.exportingPdf) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    } else {
+                        Text(stringResource(R.string.export_share_pdf))
+                    }
                 }
             }
         }
@@ -245,5 +292,7 @@ fun ReportDetailRoute(
         onLoadExport = viewModel::loadExport,
         onEdit = onEdit,
         onBack = onBack,
+        onShareText = viewModel::shareText,
+        onSharePdf = viewModel::sharePdf,
     )
 }

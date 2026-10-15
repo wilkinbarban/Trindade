@@ -1,9 +1,14 @@
 package com.trindade.app.reports
 
 import com.trindade.app.contract.models.PhotoResponse
+import com.trindade.app.contract.models.ReportDetailTemperaturesInner
 import com.trindade.app.contract.models.ReportResponse
 import com.trindade.app.contract.models.ReportResponseReport
+import com.trindade.app.export.PdfGenerator
+import com.trindade.app.export.ShareManager
 import com.trindade.app.network.ReportsApi
+import java.io.File
+import java.math.BigDecimal
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -14,6 +19,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -46,9 +52,22 @@ class ReportDetailViewModelTest {
     }
 
     private fun viewModel(
-        api: FakeReportsApi = FakeReportsApi(),
+        api: FakeReportsApi = FakeReportsApi(reportToReturn = reportWithTemperatures()),
         compressor: PhotoCompressor = FakePhotoCompressor(),
-    ) = ReportDetailViewModel(ReportsRepository(api), compressor).also { it.load(REPORT_ID) }
+        pdfGenerator: PdfGenerator = RecordingPdfGenerator(),
+        shareManager: ShareManager = RecordingShareManager(),
+    ) = ReportDetailViewModel(ReportsRepository(api), compressor, pdfGenerator, shareManager).also { it.load(REPORT_ID) }
+
+    private fun reportWithTemperatures(id: Int = REPORT_ID) = FakeReportsApi.createdReport(id = id).copy(
+        temperatures = listOf(
+            ReportDetailTemperaturesInner(
+                location = "Câmara 1",
+                locationEs = null,
+                readingIndex = 1,
+                value = BigDecimal(4),
+            ),
+        ),
+    )
 
     @Test
     fun `opens the report and its photos`() {
@@ -121,6 +140,117 @@ class ReportDetailViewModelTest {
 
         assertEquals("CRONOGRAMA DE CARREGAMENTO\n🕓 04:00", model.state.value.exportText)
         assertFalse(model.state.value.loadingExport)
+    }
+
+    @Test
+    fun `shareText delegates export text to share manager`() {
+        val shareManager = RecordingShareManager()
+        val model = viewModel(
+            api = FakeReportsApi(
+                reportToReturn = reportWithTemperatures(),
+                exportToReturn = "RELATÓRIO DO TURNO",
+            ),
+            shareManager = shareManager,
+        )
+
+        model.loadExport()
+        model.shareText()
+
+        assertEquals("RELATÓRIO DO TURNO", shareManager.lastSharedText)
+    }
+
+    @Test
+    fun `shareText does nothing when exportText is null`() {
+        val shareManager = RecordingShareManager()
+        val model = viewModel(shareManager = shareManager)
+
+        model.shareText()
+
+        assertNull(shareManager.lastSharedText)
+    }
+
+    @Test
+    fun `sharePdf generates native PDF named relatorio-id and shares it`() {
+        val pdfGenerator = RecordingPdfGenerator()
+        val shareManager = RecordingShareManager()
+        val model = viewModel(
+            api = FakeReportsApi(
+                reportToReturn = reportWithTemperatures(),
+                exportToReturn = "CONTEÚDO DO RELATÓRIO",
+            ),
+            pdfGenerator = pdfGenerator,
+            shareManager = shareManager,
+        )
+
+        model.loadExport()
+        model.sharePdf()
+
+        assertEquals("CONTEÚDO DO RELATÓRIO", pdfGenerator.lastText)
+        assertEquals("relatorio-$REPORT_ID.pdf", pdfGenerator.lastFileName)
+        assertEquals(pdfGenerator.fileToReturn, shareManager.lastSharedPdf)
+        assertFalse(model.state.value.exportingPdf)
+    }
+
+    @Test
+    fun `sharePdf sets error message when PDF generation fails`() {
+        val pdfGenerator = RecordingPdfGenerator(shouldThrow = true)
+        val shareManager = RecordingShareManager()
+        val model = viewModel(
+            api = FakeReportsApi(
+                reportToReturn = reportWithTemperatures(),
+                exportToReturn = "CONTEÚDO",
+            ),
+            pdfGenerator = pdfGenerator,
+            shareManager = shareManager,
+        )
+
+        model.loadExport()
+        model.sharePdf()
+
+        assertEquals(ReportDetailViewModel.PDF_FAILED, model.state.value.message)
+        assertFalse(model.state.value.exportingPdf)
+        assertNull(shareManager.lastSharedPdf)
+    }
+
+    @Test
+    fun `sharePdf sets error message when shareManager fails to launch`() {
+        val pdfGenerator = RecordingPdfGenerator()
+        val shareManager = RecordingShareManager(returns = false)
+        val model = viewModel(
+            api = FakeReportsApi(
+                reportToReturn = reportWithTemperatures(),
+                exportToReturn = "CONTEÚDO",
+            ),
+            pdfGenerator = pdfGenerator,
+            shareManager = shareManager,
+        )
+
+        model.loadExport()
+        model.sharePdf()
+
+        assertEquals(ReportDetailViewModel.SHARE_FAILED, model.state.value.message)
+        assertFalse(model.state.value.exportingPdf)
+    }
+
+    @Test
+    fun `share actions withhold and set feedback when report temperatures are empty`() {
+        val emptyTempReport = FakeReportsApi.createdReport(id = REPORT_ID).copy(
+            temperatures = emptyList(),
+        )
+        val api = FakeReportsApi(reportToReturn = emptyTempReport, exportToReturn = "TEXTO")
+        val pdfGenerator = RecordingPdfGenerator()
+        val shareManager = RecordingShareManager()
+        val model = viewModel(api = api, pdfGenerator = pdfGenerator, shareManager = shareManager)
+
+        model.loadExport()
+        model.shareText()
+
+        assertEquals(ReportDetailViewModel.TEMPERATURAS_OBRIGATORIAS, model.state.value.message)
+        assertNull(shareManager.lastSharedText)
+
+        model.sharePdf()
+        assertEquals(ReportDetailViewModel.TEMPERATURAS_OBRIGATORIAS, model.state.value.message)
+        assertNull(pdfGenerator.lastFileName)
     }
 
     @Test
@@ -219,4 +349,39 @@ private class FakePhotoCompressor(
     private val returns: ByteArray? = "jpeg-bytes".toByteArray(),
 ) : PhotoCompressor {
     override suspend fun compressToJpeg(path: String): ByteArray? = returns
+}
+
+private class RecordingShareManager(
+    var returns: Boolean = true,
+) : ShareManager {
+    var lastSharedText: String? = null
+    var lastSharedTitle: String? = null
+    var lastSharedPdf: File? = null
+
+    override fun shareText(text: String, title: String?): Boolean {
+        lastSharedText = text
+        lastSharedTitle = title
+        return returns
+    }
+
+    override fun sharePdf(file: File, title: String?): Boolean {
+        lastSharedPdf = file
+        lastSharedTitle = title
+        return returns
+    }
+}
+
+private class RecordingPdfGenerator(
+    var fileToReturn: File = File("/cache/exports/relatorio-42.pdf"),
+    var shouldThrow: Boolean = false,
+) : PdfGenerator {
+    var lastText: String? = null
+    var lastFileName: String? = null
+
+    override suspend fun generate(text: String, fileName: String): File {
+        if (shouldThrow) throw RuntimeException("PDF generation failed")
+        lastText = text
+        lastFileName = fileName
+        return fileToReturn
+    }
 }

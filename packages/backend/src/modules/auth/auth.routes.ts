@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import jwt from 'jsonwebtoken';
+import { AuthAdmissionLimiter, defaultAuthAdmissionLimiter } from './auth.admission-limiter.js';
 import bcrypt from 'bcryptjs';
 import { log as auditLog } from '../audit/audit.service.js';
 import {
@@ -7,8 +8,20 @@ import {
   loginSchema,
   logoutSchema,
   refreshSessionSchema,
+  registerSchema,
+  REGISTER_NEUTRAL_MESSAGE,
   updateProfileSchema,
 } from './auth.schema.js';
+import {
+  defaultRegistrationRateLimiter,
+  normalizeDisplayName,
+  normalizeUsername,
+  type RegistrationRateLimiter,
+} from './auth.rate-limiter.js';
+import {
+  isBootstrapRequired,
+  registerWorkerUser,
+} from './auth.service.js';
 import {
   issueSession,
   revokeSession,
@@ -25,6 +38,9 @@ const ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
 
 const DEFAULT_REFRESH_TOKEN_TTL_DAYS = 30;
 
+// Public dummy credential, not an account secret; match the production bcrypt work factor.
+const DUMMY_PASSWORD_HASH = '$2a$10$.5mQdDAjVaLkw/49P038a.zFFLfibA5Tzv3x2ycHqc4RXjDtjBtv2';
+
 export interface AuthRoutesOptions {
   jwtSecret: string;
   /** Refresh-token lifetime in days. Optional because test helpers register without it. */
@@ -36,6 +52,10 @@ export interface AuthRoutesOptions {
    * that has since appeared.
    */
   sessionStoreAvailable?: () => boolean;
+  /** Rate limiter and admission controller for public worker registration. */
+  rateLimiter?: RegistrationRateLimiter;
+  /** Shared login/refresh admission controller; override for isolated tests. */
+  authAdmissionLimiter?: AuthAdmissionLimiter;
 }
 
 interface UserRow {
@@ -45,11 +65,18 @@ interface UserRow {
   display_name: string;
   is_active: number;
   role: string;
+  security_version: number;
 }
 
 export async function authRoutes(fastify: FastifyInstance, options: AuthRoutesOptions) {
   const refreshTokenTtlDays = options.refreshTokenTtlDays ?? DEFAULT_REFRESH_TOKEN_TTL_DAYS;
   const sessionStoreAvailable = options.sessionStoreAvailable ?? (() => true);
+  const rateLimiter = options.rateLimiter ?? defaultRegistrationRateLimiter;
+  const admission = options.authAdmissionLimiter ?? defaultAuthAdmissionLimiter;
+
+  function tooMany(reply: FastifyReply, retryAfterSeconds: number) {
+    return reply.header('Retry-After', String(retryAfterSeconds)).status(429).send({ error: 'Too many requests' });
+  }
 
   /**
    * Refuse a session request with an operator-facing reason instead of letting the driver error
@@ -78,6 +105,8 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRoutesOp
       }
 
       const { username, password } = parse.data;
+      const decision = admission.login(username);
+      if (!decision.allowed) return tooMany(reply, decision.retryAfterSeconds);
       const db = fastify.db;
 
       if (!sessionStoreAvailable()) return refuseWithoutSessionStore(request, reply);
@@ -85,30 +114,41 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRoutesOp
       const user = db
         .prepare(
           `SELECT u.id, u.username, u.password_hash, u.display_name,
-                  u.is_active, r.name AS role
+                  u.is_active, u.security_version, r.name AS role
            FROM users u
            JOIN roles r ON u.role_id = r.id
            WHERE u.username = ?`
         )
         .get(username) as UserRow | undefined;
 
-      if (!user || !user.is_active) {
+      if (!admission.acquireCompare()) return tooMany(reply, 1);
+      let valid: boolean;
+      try {
+        valid = await bcrypt.compare(password, user?.password_hash ?? DUMMY_PASSWORD_HASH);
+      } finally {
+        admission.releaseCompare();
+      }
+
+      if (!user || !user.is_active || !valid) {
         return reply.status(401).send({ error: 'Invalid credentials' });
       }
 
-      const valid = await bcrypt.compare(password, user.password_hash);
-
-      if (!valid) {
-        return reply.status(401).send({ error: 'Invalid credentials' });
-      }
-
-      const token = jwt.sign(
-        { sub: user.id, username: user.username, role: user.role },
-        options.jwtSecret,
-        { expiresIn: ACCESS_TOKEN_TTL_SECONDS }
-      );
-
-      const refreshToken = issueSession(db, user.id, refreshTokenTtlDays, request.ip);
+      // bcrypt yields: re-check the credential and authority under the same write lock
+      // that creates the session. No old hash or role may survive this boundary.
+      const issued = db.transaction(() => {
+        const current = db.prepare(`SELECT u.id, u.username, u.password_hash, u.is_active,
+          u.security_version, r.name AS role FROM users u
+          JOIN roles r ON r.id = u.role_id WHERE u.id = ?`).get(user.id) as UserRow | undefined;
+        if (!current || current.is_active !== 1 || current.password_hash !== user.password_hash ||
+            !Number.isSafeInteger(current.security_version) || current.security_version <= 0) return null;
+        const refreshToken = issueSession(db, current.id, refreshTokenTtlDays, request.ip);
+        const token = jwt.sign({ sub: current.id, username: current.username, role: current.role,
+          security_version: current.security_version }, options.jwtSecret,
+          { expiresIn: ACCESS_TOKEN_TTL_SECONDS });
+        return { current, refreshToken, token };
+      }).immediate();
+      if (!issued) return reply.status(401).send({ error: 'Invalid credentials' });
+      const { current, refreshToken, token } = issued;
 
       try {
         auditLog(fastify.db, {
@@ -127,8 +167,8 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRoutesOp
         expiresIn: ACCESS_TOKEN_TTL_SECONDS,
         user: {
           id: user.id,
-          username: user.username,
-          role: user.role,
+          username: current.username,
+          role: current.role,
         },
       });
     }
@@ -150,6 +190,8 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRoutesOp
         });
       }
 
+      const decision = admission.refresh(parse.data.refreshToken);
+      if (!decision.allowed) return tooMany(reply, decision.retryAfterSeconds);
       if (!sessionStoreAvailable()) return refuseWithoutSessionStore(request, reply);
 
       const result = rotateSession(fastify.db, parse.data.refreshToken, refreshTokenTtlDays, request.ip);
@@ -171,35 +213,23 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRoutesOp
         return reply.status(401).send({ error: 'Invalid or expired session' });
       }
 
-      const user = fastify.db
-        .prepare(
-          `SELECT u.id, u.username, r.name AS role
-           FROM users u
-           JOIN roles r ON u.role_id = r.id
-           WHERE u.id = ?`
-        )
-        .get(result.userId) as { id: number; username: string; role: string } | undefined;
-
-      if (!user) {
-        return reply.status(401).send({ error: 'Invalid or expired session' });
-      }
-
       const token = jwt.sign(
-        { sub: user.id, username: user.username, role: user.role },
+        { sub: result.userId, username: result.username, role: result.role,
+          security_version: result.securityVersion },
         options.jwtSecret,
         { expiresIn: ACCESS_TOKEN_TTL_SECONDS }
       );
 
       try {
         auditLog(fastify.db, {
-          userId: user.id,
+          userId: result.userId,
           action: 'refresh',
           entityType: 'auth',
           ipAddress: request.ip,
         });
       } catch (err) {
         request.log.warn(
-          { err, userId: user.id },
+          { err, userId: result.userId },
           'Session refreshed but its audit record could not be persisted'
         );
       }
@@ -347,8 +377,8 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRoutesOp
       const db = fastify.db;
 
       const user = db
-        .prepare('SELECT password_hash FROM users WHERE id = ?')
-        .get(userId) as { password_hash: string } | undefined;
+        .prepare('SELECT password_hash, security_version FROM users WHERE id = ?')
+        .get(userId) as { password_hash: string; security_version: number } | undefined;
 
       if (!user) {
         return reply.status(404).send({ error: 'User not found' });
@@ -360,21 +390,25 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRoutesOp
       }
 
       const newHash = bcrypt.hashSync(newPassword, 10);
-      db.prepare("UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?").run(newHash, userId);
+      const changed = db.transaction(() => {
+        const current = db.prepare('SELECT password_hash, security_version, is_active FROM users WHERE id = ?')
+          .get(userId) as { password_hash: string; security_version: number; is_active: number } | undefined;
+        if (!current || current.is_active !== 1 || current.password_hash !== user.password_hash ||
+            current.security_version !== user.security_version || current.security_version !== request.user!.security_version) return false;
+        db.prepare("UPDATE users SET password_hash = ?, security_version = security_version + 1, updated_at = datetime('now') WHERE id = ?")
+          .run(newHash, userId);
+        revokeUserSessions(db, userId);
+        return true;
+      }).immediate();
+      if (!changed) return reply.status(409).send({ error: 'Password or account changed; sign in again' });
 
-      // The credential changed, so every session established with the old one ends. Other
-      // devices must re-authenticate instead of riding a token minted under the password
-      // that was just replaced.
-      revokeUserSessions(db, userId);
-
-      auditLog(fastify.db, {
-        userId: userId,
-        action: 'update',
-        entityType: 'user',
-        entityId: userId,
-        ipAddress: request.ip,
-      });
-
+      // Audit is best-effort: a failed audit write must not report a successful credential
+      // replacement as failed and encourage an unsafe retry with the old session.
+      try {
+        auditLog(db, { userId, action: 'update', entityType: 'user', entityId: userId, ipAddress: request.ip });
+      } catch (err) {
+        request.log.warn({ err, userId }, 'Password changed but its audit record could not be persisted');
+      }
       return reply.send({ success: true });
     }
   );
@@ -414,6 +448,78 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRoutesOp
       });
 
       return reply.send({ success: true });
+    }
+  );
+
+  // POST /api/auth/register — public worker self-registration pending admin approval
+  fastify.post(
+    '/register',
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const parse = registerSchema.safeParse(request.body);
+      if (!parse.success) {
+        return reply.status(400).send({
+          error: 'Invalid input',
+          details: parse.error.flatten(),
+        });
+      }
+
+      const { username, display_name, password } = parse.data;
+      const normalizedUsername = normalizeUsername(username);
+
+      // 1. Admission control: bounded global and normalized username rate limits
+      // before CPU-intensive work. Never trusts X-Forwarded-For or wildcard trustProxy.
+      const rateLimitCheck = rateLimiter.checkAndRecordAttempt(normalizedUsername);
+      if (!rateLimitCheck.allowed) {
+        reply.header('Retry-After', rateLimitCheck.retryAfterSeconds);
+        return reply.status(429).send({
+          error: 'Limite de solicitações excedido. Tente novamente mais tarde.',
+        });
+      }
+
+      // 2. Critical bootstrap invariant: when users table is empty, reject registration
+      // without inserting so first-run administrator setup cannot be preempted.
+      if (isBootstrapRequired(fastify.db)) {
+        return reply.status(409).send({
+          error: 'A configuração inicial do administrador é necessária antes de registrar usuários.',
+        });
+      }
+
+      // 3. Admission control: concurrent hash cap to bound bcrypt CPU load
+      if (!rateLimiter.tryAcquireHashSlot()) {
+        return reply.status(429).send({
+          error: 'Muitas solicitações simultâneas. Tente novamente em instantes.',
+        });
+      }
+
+      try {
+        const passwordHash = await bcrypt.hash(password, 10);
+        const result = registerWorkerUser(fastify.db, {
+          username: normalizedUsername,
+          displayName: normalizeDisplayName(display_name),
+          passwordHash,
+          ipAddress: request.ip,
+          logger: request.log,
+        });
+
+        if (result.outcome === 'bootstrap_required') {
+          return reply.status(409).send({
+            error: 'A configuração inicial do administrador é necessária antes de registrar usuários.',
+          });
+        }
+      } catch (err: any) {
+        request.log.error({ err }, 'Unexpected database error during worker registration');
+        return reply.status(500).send({
+          error: 'Erro interno ao processar a solicitação.',
+        });
+      } finally {
+        rateLimiter.releaseHashSlot();
+      }
+
+      // Both newly created accounts and duplicate usernames return the same neutral
+      // conditional response without falsely promising creation.
+      return reply.status(200).send({
+        message: REGISTER_NEUTRAL_MESSAGE,
+      });
     }
   );
 }

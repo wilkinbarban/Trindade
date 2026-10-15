@@ -37,6 +37,7 @@ import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.trindade.app.BuildConfig
 import com.trindade.app.R
+import com.trindade.app.ui.components.NavigationActionButton
 
 /**
  * The account screen: who is signed in, the display name, the password, and the way out.
@@ -88,7 +89,9 @@ fun ProfileScreen(
         modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        TextButton(onClick = onBack) { Text(stringResource(R.string.report_back)) }
+        NavigationActionButton(onClick = onBack) {
+            Text(stringResource(R.string.report_back))
+        }
         Text(text = stringResource(R.string.profile_title), style = MaterialTheme.typography.titleLarge)
 
         // One line for what went wrong, in the convention the other screens use.

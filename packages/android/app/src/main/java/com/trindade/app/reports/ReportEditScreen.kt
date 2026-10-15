@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.trindade.app.R
 import com.trindade.app.contract.models.UpdateReportRequest
+import com.trindade.app.ui.components.NavigationActionButton
 import kotlinx.coroutines.flow.first
 
 /**
@@ -70,8 +71,13 @@ fun ReportEditScreen(
     ) {
         // The same way out the detail draws, with this screen's own title beside it: the two are one
         // row because back belongs to the screen whose heading it sits with.
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = onBack) { Text(stringResource(R.string.report_back)) }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            NavigationActionButton(onClick = onBack) {
+                Text(stringResource(R.string.report_back))
+            }
             Text(text = stringResource(R.string.report_edit), style = MaterialTheme.typography.titleLarge)
         }
 

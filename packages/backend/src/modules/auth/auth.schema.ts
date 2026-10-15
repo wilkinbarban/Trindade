@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { WEAK_PASSWORDS } from './weak-passwords.js';
 
 /**
  * Auth request schemas.
@@ -16,9 +17,43 @@ export const loginSchema = z.object({
 
 export type LoginBody = z.infer<typeof loginSchema>;
 
+const passwordSegmenter = new Intl.Segmenter('und', { granularity: 'grapheme' });
+
+const weakPasswords = new Set(WEAK_PASSWORDS);
+
+/**
+ * The single rule for every password the system accepts or sets.
+ *
+ * Graphemes count visible characters, so a combining accent or an emoji sequence is one
+ * character rather than several UTF-16 units. The byte bound is measured on the original
+ * input: bcrypt silently truncates at 72 bytes, and refusing the input is the only way to
+ * avoid storing a shorter credential than the operator typed. Input is never trimmed or
+ * normalized, so a passphrase keeps exactly the characters it was given, and the weak list
+ * is compared case-insensitively against the whole value rather than against its parts.
+ *
+ * Exported because the admin module provisions the same kind of credential.
+ */
+export const passwordPolicy = z
+  .string()
+  .min(15, 'Password must be at least 15 visible graphemes')
+  .max(72, 'Password must not exceed 72 bytes')
+  .refine(
+    (val) => val.length < 15 || val.length > 72 || Array.from(passwordSegmenter.segment(val)).length >= 15,
+    'Password must be at least 15 visible graphemes',
+  )
+  .refine(
+    (val) => val.length > 72 || Buffer.byteLength(val, 'utf8') <= 72,
+    'Password must not exceed 72 bytes',
+  )
+  .refine(
+    (val) => !weakPasswords.has(val.toLowerCase()),
+    'Password is too common; choose another passphrase',
+  )
+  .describe('At least 15 Unicode graphemes (Intl.Segmenter), at most 72 original UTF-8 bytes; input unchanged.');
+
 export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),
-  newPassword: z.string().min(8, 'New password must be at least 8 characters long'),
+  newPassword: passwordPolicy,
 });
 
 export type ChangePasswordBody = z.infer<typeof changePasswordSchema>;
@@ -56,11 +91,29 @@ export const setupSchema = z
   .object({
     username: z.string().trim().min(1),
     displayName: z.string().trim().min(1),
-    password: z.string().min(8, 'Password must be at least 8 characters long'),
+    password: passwordPolicy,
   })
   .strict();
 
 export type SetupBody = z.infer<typeof setupSchema>;
+
+export const registerSchema = z
+  .object({
+    username: z
+      .string()
+      .trim()
+      .min(1, 'Username is required')
+      .max(50, 'Username must not exceed 50 characters'),
+    display_name: z
+      .string()
+      .trim()
+      .min(1, 'Display name is required')
+      .max(100, 'Display name must not exceed 100 characters'),
+    password: passwordPolicy,
+  })
+  .strict();
+
+export type RegisterBody = z.infer<typeof registerSchema>;
 
 // ---- Response Schemas ----
 //
@@ -117,3 +170,14 @@ export const SetupResponseSchema = z
     userId: z.number().int(),
   })
   .strict();
+
+export const RegisterResponseSchema = z
+  .object({
+    message: z.string(),
+  })
+  .strict();
+
+export type RegisterResponse = z.infer<typeof RegisterResponseSchema>;
+
+export const REGISTER_NEUTRAL_MESSAGE =
+  'Solicitação de cadastro recebida. Se o acesso for aprovado pelo administrador, a conta será ativada. Entre em contato com a administração se não conseguir acessar.';

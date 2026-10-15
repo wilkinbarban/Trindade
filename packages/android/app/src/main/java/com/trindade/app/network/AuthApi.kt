@@ -7,6 +7,8 @@ import com.trindade.app.contract.models.LogoutRequest
 import com.trindade.app.contract.models.ProfileResponse
 import com.trindade.app.contract.models.RefreshRequest
 import com.trindade.app.contract.models.RefreshResponse
+import com.trindade.app.contract.models.RegisterRequest
+import com.trindade.app.contract.models.RegisterResponse
 import com.trindade.app.contract.models.SetupRequest
 import com.trindade.app.contract.models.SetupResponse
 import com.trindade.app.contract.models.SetupStatusResponse
@@ -76,4 +78,12 @@ interface AuthApi {
     /** Whether setup is still required, which is only true while no user exists at all. */
     @GET("api/auth/setup/status")
     suspend fun setupStatus(): Response<SetupStatusResponse>
+
+    /**
+     * Request worker enrollment pending administrator approval.
+     * Answers 200 with a neutral conditional message whether the username was newly created
+     * or already existed, so no user enumeration is possible.
+     */
+    @POST("api/auth/register")
+    suspend fun register(@Body body: RegisterRequest): Response<RegisterResponse>
 }

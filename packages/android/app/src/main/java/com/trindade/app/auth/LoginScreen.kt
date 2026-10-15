@@ -22,6 +22,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -67,6 +68,7 @@ fun LoginScreen(
     onUsernameChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onSubmit: () -> Unit,
+    onRegisterClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     // The scroll container is the column's own `verticalScroll`: that modifier is what clips and
@@ -179,6 +181,14 @@ fun LoginScreen(
                     Text(stringResource(R.string.login_submit))
                 }
             }
+
+            Spacer(Modifier.height(12.dp))
+            TextButton(
+                onClick = onRegisterClick,
+                enabled = !state.submitting,
+            ) {
+                Text(stringResource(R.string.login_register_link))
+            }
         }
     }
 }
@@ -193,6 +203,7 @@ fun LoginScreen(
 @Composable
 fun LoginRoute(
     onSignedIn: () -> Unit,
+    onNavigateToRegister: () -> Unit = {},
     viewModel: LoginViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -211,6 +222,7 @@ fun LoginRoute(
         onUsernameChange = viewModel::onUsernameChange,
         onPasswordChange = viewModel::onPasswordChange,
         onSubmit = viewModel::submit,
+        onRegisterClick = onNavigateToRegister,
     )
 }
 

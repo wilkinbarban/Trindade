@@ -4,6 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.trindade.app.contract.models.PhotosResponsePhotosInner
 import com.trindade.app.contract.models.ReportResponseReport
+import com.trindade.app.export.NoOpPdfGenerator
+import com.trindade.app.export.NoOpShareManager
+import com.trindade.app.export.PdfGenerator
+import com.trindade.app.export.ShareManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,7 +31,14 @@ import kotlinx.coroutines.launch
 class ReportDetailViewModel @Inject constructor(
     private val repository: ReportsRepository,
     private val compressor: PhotoCompressor,
+    private val pdfGenerator: PdfGenerator,
+    private val shareManager: ShareManager,
 ) : ViewModel() {
+
+    internal constructor(
+        repository: ReportsRepository,
+        compressor: PhotoCompressor,
+    ) : this(repository, compressor, NoOpPdfGenerator, NoOpShareManager)
 
     data class UiState(
         val reportId: Int = 0,
@@ -37,10 +48,19 @@ class ReportDetailViewModel @Inject constructor(
         val uploadingPhoto: Boolean = false,
         val exportText: String? = null,
         val loadingExport: Boolean = false,
+        val exportingPdf: Boolean = false,
         val message: String? = null,
     ) {
         /** Five is the server's limit, and the add action is withheld rather than refused at the door. */
         val canAddPhoto: Boolean get() = !uploadingPhoto && photos.size < MAX_PHOTOS
+
+        /** Export actions require temperatures to be present on the report. */
+        val hasTemperatures: Boolean
+            get() = report?.temperatures?.isNotEmpty() == true
+
+        /** Export can be requested only when the report has temperatures. */
+        val canLoadExport: Boolean
+            get() = !loadingExport && (report == null || hasTemperatures)
     }
 
     private val _state = MutableStateFlow(UiState())
@@ -147,6 +167,47 @@ class ReportDetailViewModel @Inject constructor(
         }
     }
 
+    /** Shares the server export text via the platform chooser. */
+    fun shareText() {
+        val text = state.value.exportText ?: return
+        val report = state.value.report
+        if (report != null && report.temperatures.isEmpty()) {
+            _state.update { it.copy(message = TEMPERATURAS_OBRIGATORIAS) }
+            return
+        }
+        shareManager.shareText(text)
+    }
+
+    /**
+     * Generates an A4 PDF named relatorio-<id>.pdf in cache and launches the platform chooser.
+     */
+    fun sharePdf() {
+        val text = state.value.exportText ?: return
+        val report = state.value.report
+        if (report != null && report.temperatures.isEmpty()) {
+            _state.update { it.copy(message = TEMPERATURAS_OBRIGATORIAS) }
+            return
+        }
+        val id = report?.id ?: state.value.reportId
+        if (id <= 0 || state.value.exportingPdf) return
+
+        _state.update { it.copy(exportingPdf = true, message = null) }
+
+        viewModelScope.launch {
+            try {
+                val file = pdfGenerator.generate(text, "relatorio-$id.pdf")
+                val shared = shareManager.sharePdf(file)
+                if (!shared) {
+                    _state.update { it.copy(message = SHARE_FAILED) }
+                }
+            } catch (_: Throwable) {
+                _state.update { it.copy(message = PDF_FAILED) }
+            } finally {
+                _state.update { it.copy(exportingPdf = false) }
+            }
+        }
+    }
+
     private fun deleteRefusal(state: UiState): String =
         if (state.report?.canEdit == false) OUTSIDE_EDIT_WINDOW else GENERIC
 
@@ -158,12 +219,15 @@ class ReportDetailViewModel @Inject constructor(
         else -> GENERIC
     }
 
-    private companion object {
+    companion object {
         const val MAX_PHOTOS = 5
         const val NOT_FOUND = "Relatório não encontrado."
         const val UNREADABLE_PHOTO = "Não foi possível ler a foto."
         const val OUTSIDE_EDIT_WINDOW = "Fora do prazo de edição: este relatório é somente leitura."
         const val INCOMPLETE_REPORT = "Falta preencher todas as temperaturas para gerar o texto."
+        const val TEMPERATURAS_OBRIGATORIAS = "Falta colocar as temperaturas no relatório."
+        const val SHARE_FAILED = "Não foi possível compartilhar. Tente de novo."
+        const val PDF_FAILED = "Não foi possível gerar o PDF. Tente de novo."
         const val UNREACHABLE = "Sem conexão com o servidor. Verifique a rede e tente de novo."
         const val GENERIC = "Não foi possível concluir. Tente de novo."
     }

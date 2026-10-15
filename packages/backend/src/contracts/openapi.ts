@@ -13,13 +13,13 @@ import {
   LoginResponseSchema,
   ProfileResponseSchema,
   RefreshResponseSchema,
-  SetupResponseSchema,
+  RegisterResponseSchema,
   SetupStatusResponseSchema,
   changePasswordSchema,
   loginSchema,
   logoutSchema,
   refreshSessionSchema,
-  setupSchema,
+  registerSchema,
   updateProfileSchema,
 } from '../modules/auth/auth.schema.js';
 import {
@@ -255,7 +255,7 @@ function buildRegistry(): OpenAPIRegistry {
   registerComponent(registry, 'ProfileResponse', ProfileResponseSchema);
   registerComponent(registry, 'SuccessResponse', SuccessResponseSchema);
   registerComponent(registry, 'SetupStatusResponse', SetupStatusResponseSchema);
-  registerComponent(registry, 'SetupResponse', SetupResponseSchema);
+  registerComponent(registry, 'RegisterResponse', RegisterResponseSchema);
   registerComponent(registry, 'TextResponse', TextResponseSchema);
   registerComponent(registry, 'Pagination', PaginationSchema);
   registerComponent(registry, 'Schedule', ScheduleSchema);
@@ -301,7 +301,7 @@ function buildRegistry(): OpenAPIRegistry {
   registerComponent(registry, 'LogoutRequest', logoutSchema);
   registerComponent(registry, 'ChangePasswordRequest', changePasswordSchema);
   registerComponent(registry, 'UpdateProfileRequest', updateProfileSchema);
-  registerComponent(registry, 'SetupRequest', setupSchema);
+  registerComponent(registry, 'RegisterRequest', registerSchema);
   registerComponent(registry, 'CreateScheduleRequest', CreateScheduleSchema);
   registerComponent(registry, 'UpdateScheduleRequest', UpdateScheduleSchema);
   registerComponent(registry, 'CreateDriverRequest', CreateDriverSchema);
@@ -372,6 +372,7 @@ function buildRegistry(): OpenAPIRegistry {
       200: jsonResponse('Authenticated. The refresh token is the session and is rotated on every refresh.', LoginResponseSchema),
       400: INVALID_INPUT,
       401: errorResponse('The credentials are wrong, or the account is inactive'),
+      429: errorResponse('Too many login attempts or concurrent password checks; Retry-After gives seconds to wait'),
     },
   });
 
@@ -390,6 +391,7 @@ function buildRegistry(): OpenAPIRegistry {
       200: jsonResponse('A new token pair. The presented refresh token is no longer valid.', RefreshResponseSchema),
       400: INVALID_INPUT,
       401: errorResponse('The refresh token is unknown, expired, revoked, or its family was revoked'),
+      429: errorResponse('Too many refresh attempts; Retry-After gives seconds to wait'),
     },
   });
 
@@ -475,14 +477,30 @@ function buildRegistry(): OpenAPIRegistry {
   registry.registerPath({
     method: 'post',
     path: '/api/auth/setup',
-    summary: 'Create the first administrator',
-    description: 'Available only while no user exists. Refused once the installation has an administrator.',
+    summary: 'Legacy administrator setup endpoint (retired)',
+    description: 'Always refused. Provision the first administrator using the operator CLI, never over public HTTP.',
     tags: ['auth'],
-    request: { ...jsonRequest(setupSchema) },
     responses: {
-      201: jsonResponse('The administrator was created', SetupResponseSchema),
+      410: errorResponse('Public administrator provisioning is permanently unavailable'),
+    },
+  });
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/auth/register',
+    summary: 'Submit a worker self-registration request pending administrator approval',
+    description:
+      'Unauthenticated: allows workers to request an account. Returns a neutral confirmation message whether ' +
+      'the account was newly registered or the username was already taken. The created account is inactive ' +
+      'until approved by an administrator.',
+    tags: ['auth'],
+    request: { ...jsonRequest(registerSchema) },
+    responses: {
+      200: jsonResponse('Registration request received. Returns a neutral confirmation message.', RegisterResponseSchema),
       400: INVALID_INPUT,
-      409: errorResponse('Initial setup is already complete, or could not create the administrator'),
+      409: errorResponse('Initial administrator setup is required before users can register'),
+      429: errorResponse('Too many registration attempts or concurrent requests'),
+      500: errorResponse('An internal error occurred while processing the registration request'),
     },
   });
 

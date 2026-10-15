@@ -2,13 +2,21 @@ package com.trindade.app.reports
 
 import android.content.Context
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.trindade.app.R
+import com.trindade.app.contract.models.ReportDetailTemperaturesInner
 import com.trindade.app.contract.models.ReportResponseReport
 import com.trindade.app.ui.theme.TrindadeTheme
+import java.math.BigDecimal
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -175,5 +183,105 @@ class ReportDetailScreenTest {
 
         composeRule.onNodeWithText(copy(R.string.report_back)).assertIsDisplayed()
         composeRule.onNodeWithText(copy(R.string.report_edit)).assertIsDisplayed()
+    }
+
+    @Test
+    fun `does not offer export actions until export text is available`() {
+        val reportWithTemps = FakeReportsApi.createdReport().copy(
+            temperatures = listOf(
+                ReportDetailTemperaturesInner(
+                    location = "Câmara 1",
+                    locationEs = null,
+                    readingIndex = 1,
+                    value = BigDecimal(4),
+                ),
+            ),
+        )
+        render(state(reportWithTemps).copy(exportText = null))
+
+        composeRule.onNodeWithText(copy(R.string.export_load)).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText(copy(R.string.export_copy)).assertDoesNotExist()
+        composeRule.onNodeWithText(copy(R.string.export_share_text)).assertDoesNotExist()
+        composeRule.onNodeWithText(copy(R.string.export_share_pdf)).assertDoesNotExist()
+    }
+
+    @Test
+    fun `offers export actions and triggers callbacks when export text is available`() {
+        val reportWithTemps = FakeReportsApi.createdReport().copy(
+            temperatures = listOf(
+                ReportDetailTemperaturesInner(
+                    location = "Câmara 1",
+                    locationEs = null,
+                    readingIndex = 1,
+                    value = BigDecimal(4),
+                ),
+            ),
+        )
+        val sampleText = "RELATÓRIO DE CARGA DO TURNO"
+        var sharedTextCalled = false
+        var sharedPdfCalled = false
+        var copiedTextResult: String? = null
+
+        composeRule.setContent {
+            TrindadeTheme {
+                ReportDetailScreen(
+                    state = state(reportWithTemps).copy(exportText = sampleText),
+                    onAddPhoto = {},
+                    onDeletePhoto = {},
+                    onLoadExport = {},
+                    onEdit = {},
+                    onBack = {},
+                    onShareText = { sharedTextCalled = true },
+                    onSharePdf = { sharedPdfCalled = true },
+                    onCopyExport = { copiedTextResult = it },
+                )
+            }
+        }
+
+        composeRule.onNodeWithText(copy(R.string.export_copy)).performScrollTo().assertIsDisplayed().performClick()
+        assertEquals(sampleText, copiedTextResult)
+
+        composeRule.onNodeWithText(copy(R.string.export_share_text)).performScrollTo().assertIsDisplayed().performClick()
+        assertTrue("onShareText callback must be triggered", sharedTextCalled)
+
+        composeRule.onNodeWithText(copy(R.string.export_share_pdf)).performScrollTo().assertIsDisplayed().performClick()
+        assertTrue("onSharePdf callback must be triggered", sharedPdfCalled)
+    }
+
+    @Test
+    fun `withholds export actions and shows clear Portuguese feedback when report temperatures are empty`() {
+        val emptyTempReport = FakeReportsApi.createdReport().copy(temperatures = emptyList())
+        render(state(emptyTempReport).copy(exportText = null))
+
+        composeRule.onNodeWithText(copy(R.string.report_temperatures_required)).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText(copy(R.string.export_load)).performScrollTo().assertIsNotEnabled()
+        composeRule.onNodeWithText(copy(R.string.export_copy)).assertDoesNotExist()
+        composeRule.onNodeWithText(copy(R.string.export_share_text)).assertDoesNotExist()
+        composeRule.onNodeWithText(copy(R.string.export_share_pdf)).assertDoesNotExist()
+    }
+
+    @Test
+    fun `header navigation and edit actions are displayed and trigger callbacks`() {
+        var backCalled = false
+        var editCalled = false
+
+        composeRule.setContent {
+            TrindadeTheme {
+                ReportDetailScreen(
+                    state = state(report(canEdit = true, readOnly = false)),
+                    onAddPhoto = {},
+                    onDeletePhoto = {},
+                    onLoadExport = {},
+                    onEdit = { editCalled = true },
+                    onBack = { backCalled = true },
+                )
+            }
+        }
+
+        composeRule.onNodeWithText(copy(R.string.report_back)).assertIsDisplayed().performClick()
+        assertTrue("onBack callback must be triggered", backCalled)
+
+        composeRule.onNodeWithText(copy(R.string.report_edit)).assertIsDisplayed().performClick()
+        assertTrue("onEdit callback must be triggered", editCalled)
     }
 }

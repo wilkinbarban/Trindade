@@ -22,6 +22,8 @@ describe('Reports Routes', () => {
   let app: FastifyInstance;
   let db: Database.Database;
   let token: string;
+  let workerToken: string;
+  let workerUserId: number;
 
   before(async () => {
     const result = await buildTestApp();
@@ -29,6 +31,8 @@ describe('Reports Routes', () => {
     db = result.db;
     // photosDir is available as result.photosDir for file-path assertions
     token = await loginAs(app, result.fixtures.admin.username, result.fixtures.admin.password);
+    workerToken = await loginAs(app, result.fixtures.worker.username, result.fixtures.worker.password);
+    workerUserId = result.fixtures.worker.id;
   });
 
   after(async () => {
@@ -51,6 +55,27 @@ describe('Reports Routes', () => {
       payload: { turno: 'tarde' },
     });
     assert.strictEqual(res.statusCode, 401);
+  });
+
+  it('unauthenticated mutation requests return 401 for report update, deactivate, and delete', async () => {
+    const patchRes = await app.inject({
+      method: 'PATCH',
+      url: '/api/reports/1',
+      payload: { notes: 'Unauthenticated edit' },
+    });
+    assert.strictEqual(patchRes.statusCode, 401);
+
+    const deactivateRes = await app.inject({
+      method: 'PATCH',
+      url: '/api/reports/1/deactivate',
+    });
+    assert.strictEqual(deactivateRes.statusCode, 401);
+
+    const deleteRes = await app.inject({
+      method: 'DELETE',
+      url: '/api/reports/1',
+    });
+    assert.strictEqual(deleteRes.statusCode, 401);
   });
 
   // ---- Reference Data ----
@@ -1047,9 +1072,37 @@ describe('Reports Routes', () => {
     assert.strictEqual((db.prepare('SELECT COUNT(*) AS count FROM report_photos WHERE report_id = 9103').get() as any).count, 0);
   });
 
+  it('worker is denied (403) from report deactivate and delete', async () => {
+    db.prepare(
+      `INSERT INTO reports (id, user_id, turno, report_date, notes, is_active) VALUES (9104, ?, 'tarde', '2026-06-18', 'Worker cannot deactivate or delete', 1)`
+    ).run(workerUserId);
+    db.prepare(`INSERT INTO report_items (report_id, task_id, checked) VALUES (9104, 1, 1)`).run();
+
+    const deactivateRes = await app.inject({
+      method: 'PATCH',
+      url: '/api/reports/9104/deactivate',
+      headers: { authorization: `Bearer ${workerToken}` },
+    });
+    assert.strictEqual(deactivateRes.statusCode, 403);
+    assert.strictEqual((db.prepare('SELECT is_active FROM reports WHERE id = 9104').get() as any).is_active, 1);
+
+    const deleteRes = await app.inject({
+      method: 'DELETE',
+      url: '/api/reports/9104',
+      headers: { authorization: `Bearer ${workerToken}` },
+    });
+    assert.strictEqual(deleteRes.statusCode, 403);
+    assert.strictEqual((db.prepare('SELECT COUNT(*) AS count FROM reports WHERE id = 9104').get() as any).count, 1, 'report must not be deleted');
+    assert.strictEqual((db.prepare('SELECT COUNT(*) AS count FROM report_items WHERE report_id = 9104').get() as any).count, 1, 'report items must not be deleted');
+
+    // Clean up
+    db.prepare('DELETE FROM report_items WHERE report_id = 9104').run();
+    db.prepare('DELETE FROM reports WHERE id = 9104').run();
+  });
+
 
   it('cleanupExpiredPhotos deletes expired photo rows and files', async () => {
-    const { cleanupExpiredPhotos } = await import('./reports.lifecycle.service.js');
+    const { cleanupExpiredPhotos, getPhotoByPublicToken } = await import('./reports.lifecycle.service.js');
     const { writeFileSync, existsSync } = await import('node:fs');
     const { join } = await import('node:path');
     const result = await buildTestApp();
@@ -1066,6 +1119,7 @@ describe('Reports Routes', () => {
       assert.strictEqual(cleanup.deleted, 1);
       assert.strictEqual((localDb.prepare('SELECT COUNT(*) AS count FROM report_photos WHERE id = 9701').get() as any).count, 0);
       assert.strictEqual(existsSync(filePath), false);
+      assert.strictEqual(getPhotoByPublicToken(localDb, 'expired-token'), null, 'a link must not outlive the file it serves');
     } finally {
       await localApp.close();
       localDb.close();
@@ -1074,7 +1128,7 @@ describe('Reports Routes', () => {
 
 
   it('cleanupExpiredPhotos keeps fresh photo rows and files', async () => {
-    const { cleanupExpiredPhotos } = await import('./reports.lifecycle.service.js');
+    const { cleanupExpiredPhotos, getPhotoByPublicToken } = await import('./reports.lifecycle.service.js');
     const { writeFileSync, existsSync } = await import('node:fs');
     const { join } = await import('node:path');
     const result = await buildTestApp();
@@ -1092,6 +1146,7 @@ describe('Reports Routes', () => {
       assert.strictEqual(cleanup.errors, 0);
       assert.strictEqual((localDb.prepare('SELECT COUNT(*) AS count FROM report_photos WHERE id = 9702').get() as any).count, 1);
       assert.strictEqual(existsSync(filePath), true);
+      assert.strictEqual(getPhotoByPublicToken(localDb, 'fresh-token'), null, 'the link window ends before the file retention does');
     } finally {
       await localApp.close();
       localDb.close();

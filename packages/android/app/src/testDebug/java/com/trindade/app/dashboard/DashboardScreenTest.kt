@@ -2,9 +2,18 @@ package com.trindade.app.dashboard
 
 import android.content.Context
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasNoClickAction
 import androidx.compose.ui.test.hasProgressBarRangeInfo
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -45,8 +54,8 @@ import org.robolectric.annotation.GraphicsMode
  *    scroll possible, which is also why the two states that draw a single centred child are asserted
  *    without it: neither has a scrollable ancestor to scroll.
  *  * The cards are found by their labels, and on the two clickable ones the label selects the card
- *    itself. `clickable` merges a node's descendants, so a clickable card, its label and its value are
- *    one node: this is what makes tapping the label tap the card's own click.
+ *    itself. `clickable` merges a node's descendants, so a clickable card, its label, its domain badge,
+ *    and its affordance are one node: this is what makes tapping the label tap the card's own click.
  */
 @RunWith(AndroidJUnit4::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -95,6 +104,10 @@ class DashboardScreenTest {
     fun `the five cards and the values the summary carries are drawn`() {
         render(state = state())
 
+        // Header and deferred notice
+        displayed(copy(R.string.dashboard_overview))
+        displayed(copy(R.string.dashboard_deferred_notice))
+
         // The five labels, in the web's order and with the web's words.
         for (id in listOf(
             R.string.dashboard_reports_today,
@@ -104,6 +117,11 @@ class DashboardScreenTest {
             R.string.dashboard_schedules_total,
         )) {
             displayed(copy(id))
+        }
+
+        // All five domain badge glyphs matching web hierarchy
+        for (glyph in listOf("📋", "🚛", "👥", "📊", "📂")) {
+            displayed(glyph)
         }
 
         // The first card's two lines are the web's own breakdown, and each is built the way the screen
@@ -120,6 +138,36 @@ class DashboardScreenTest {
         displayed(FakeSystemApi.SCHEDULES_TOTAL.toString())
     }
 
+    @Test
+    fun `clickable and informational card roles are distinguished by semantics and affordances`() {
+        render(state = state())
+
+        // Clickable door cards: carry click actions, Role.Button, and visual navigation affordances ("→")
+        for (id in listOf(R.string.dashboard_reports_today, R.string.dashboard_schedules_tomorrow)) {
+            val label = copy(id)
+            composeRule.onNode(hasText(label).and(hasClickAction())).performScrollTo().assertIsDisplayed()
+            composeRule.onNode(hasText(label).and(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button)))
+                .assertIsDisplayed()
+            composeRule.onNode(hasText(label).and(hasText("→"))).assertIsDisplayed()
+        }
+
+        // Informational metric cards: have no click action and no navigation affordance
+        for (id in listOf(
+            R.string.dashboard_active_users,
+            R.string.dashboard_reports_total,
+            R.string.dashboard_schedules_total,
+        )) {
+            val label = copy(id)
+            composeRule.onNodeWithText(label).performScrollTo().assert(hasNoClickAction())
+            composeRule.onNode(hasText(label).and(hasText("→"))).assertDoesNotExist()
+            composeRule.onNode(hasText(label).and(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button)))
+                .assertDoesNotExist()
+        }
+
+        // Exactly the two clickable door cards render the navigation affordance
+        composeRule.onAllNodesWithText("→").assertCountEquals(2)
+    }
+
     /**
      * The web's own rule for the first card, carried over exactly: a summary that names a latest report
      * opens that report, and the same card opens the reports list when it does not. The two are asserted
@@ -130,42 +178,57 @@ class DashboardScreenTest {
     fun `the reports card opens the report the summary names`() {
         var openedReportId: Int? = null
         var openedReportsList = 0
+        var openedLoading = 0
         render(
             state = state(),
             onOpenReport = { openedReportId = it },
             onOpenReports = { openedReportsList += 1 },
+            onOpenLoading = { openedLoading += 1 },
         )
 
         card(copy(R.string.dashboard_reports_today)).performClick()
 
         assertEquals(FakeSystemApi.LATEST_REPORT_ID, openedReportId)
         assertEquals(0, openedReportsList)
+        assertEquals(0, openedLoading)
     }
 
     @Test
     fun `the reports card opens the reports list when the summary names no report`() {
         var openedReportId: Int? = null
         var openedReportsList = 0
+        var openedLoading = 0
         render(
             state = state(FakeSystemApi.summary(latestReportId = null)),
             onOpenReport = { openedReportId = it },
             onOpenReports = { openedReportsList += 1 },
+            onOpenLoading = { openedLoading += 1 },
         )
 
         card(copy(R.string.dashboard_reports_today)).performClick()
 
         assertNull(openedReportId)
         assertEquals(1, openedReportsList)
+        assertEquals(0, openedLoading)
     }
 
     @Test
     fun `the schedules card opens the loading surface`() {
         var openedLoading = 0
-        render(state = state(), onOpenLoading = { openedLoading += 1 })
+        var openedReportId: Int? = null
+        var openedReportsList = 0
+        render(
+            state = state(),
+            onOpenReport = { openedReportId = it },
+            onOpenReports = { openedReportsList += 1 },
+            onOpenLoading = { openedLoading += 1 },
+        )
 
         card(copy(R.string.dashboard_schedules_tomorrow)).performClick()
 
         assertEquals(1, openedLoading)
+        assertNull(openedReportId)
+        assertEquals(0, openedReportsList)
     }
 
     /**

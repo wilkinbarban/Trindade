@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.trindade.app.R
 import com.trindade.app.contract.models.ReportsResponseReportsInner
+import com.trindade.app.ui.components.NavigationActionButton
 import com.trindade.app.ui.displayDate
 import com.trindade.app.ui.displayMonth
 import com.trindade.app.ui.notesPreview
@@ -86,7 +87,9 @@ fun ReportsHistoryScreen(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         item {
-            TextButton(onClick = onBack) { Text(stringResource(R.string.report_back)) }
+            NavigationActionButton(onClick = onBack) {
+                Text(stringResource(R.string.report_back))
+            }
         }
 
         item {

@@ -3,8 +3,10 @@ package com.trindade.app.loading
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -30,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.trindade.app.R
 import com.trindade.app.contract.models.SchedulesResponseSchedulesInner
+import com.trindade.app.ui.components.NavigationActionButton
 
 /**
  * The loading schedule for one day.
@@ -60,6 +63,9 @@ fun LoadingScreen(
     onEditEntry: (Int, String) -> Unit,
     onLoadExport: () -> Unit,
     modifier: Modifier = Modifier,
+    onShareText: () -> Unit = {},
+    onSharePdf: () -> Unit = {},
+    onCopyExport: (String) -> Unit = {},
 ) {
     val clipboard = LocalClipboardManager.current
 
@@ -68,7 +74,9 @@ fun LoadingScreen(
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         item {
-            TextButton(onClick = onBack) { Text(stringResource(R.string.report_back)) }
+            NavigationActionButton(onClick = onBack) {
+                Text(stringResource(R.string.report_back))
+            }
         }
 
         item {
@@ -116,11 +124,38 @@ fun LoadingScreen(
         state.exportText?.let { text ->
             item {
                 Text(text = text, style = MaterialTheme.typography.bodyMedium)
-                Button(
-                    onClick = { clipboard.setText(AnnotatedString(text)) },
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Button(
+                        onClick = {
+                            clipboard.setText(AnnotatedString(text))
+                            onCopyExport(text)
+                        },
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(stringResource(R.string.export_copy))
+                    }
+                    Button(
+                        onClick = onShareText,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(stringResource(R.string.export_share_text))
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = onSharePdf,
+                    enabled = !state.exportingPdf,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text(stringResource(R.string.export_copy))
+                    if (state.exportingPdf) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    } else {
+                        Text(stringResource(R.string.export_share_pdf))
+                    }
                 }
             }
         }
@@ -351,5 +386,7 @@ fun LoadingRoute(
         onDelete = viewModel::deleteEntry,
         onEditEntry = onEditEntry,
         onLoadExport = viewModel::loadExport,
+        onShareText = viewModel::shareText,
+        onSharePdf = viewModel::sharePdf,
     )
 }

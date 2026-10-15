@@ -801,17 +801,121 @@ bind mount fails exactly that retained/retry leg.
 
 ---
 
+## Confirmed audit findings and technical blockers (2026-09-22)
+
+A source and contract audit confirmed four critical technical blockers, runtime failure points,
+and functional disparities affecting the Android client:
+
+1. **Report detail decoding lacks BigDecimal contextual serializer (Runtime crash):**
+   `NetworkModule.provideJson()` configures `Json { ignoreUnknownKeys = true }` without registering
+   a contextual serializer for `java.math.BigDecimal`. The generated contract models
+   `ReportDetailTemperaturesInner` and `ReportTemperatureDetail` specify
+   `@Contextual @SerialName("value") val value: java.math.BigDecimal`. When the app attempts to
+   decode any report detail response containing temperature readings from the backend,
+   `kotlinx.serialization` throws a runtime `SerializationException` ("Serializer for class
+   'BigDecimal' is not found in the module of serializer 'kotlinx.serialization.PolymorphicSerializer'"),
+   crashing the screen on arrival.
+
+2. **Generated `isActive` enum writes strings instead of numeric values (Validation 400 refusal):**
+   `openapi-generator` models for update requests (`UpdateAdminTaskRequest.IsActive`,
+   `UpdateAdminDriverRequest.IsActive`, etc.) define enum members annotated with string serial names:
+   `@SerialName(value = "0") _0(0)` and `@SerialName(value = "1") _1(1)`. `kotlinx.serialization`
+   serializes enums using their `@SerialName` string, sending `"0"` and `"1"` as JSON strings on the
+   wire. The backend Zod schema (`z.union([z.literal(0), z.literal(1)])`) and SQLite integer columns
+   enforce numeric integers (`0` or `1`). As a result, the server rejects task update requests with
+   HTTP 400 Bad Request.
+
+3. **App has no `BackHandler` (Navigation exit defect):**
+   There is zero usage of Compose `BackHandler` anywhere in the application. When an operator
+   presses the system/hardware back button or uses the system back gesture, Android immediately
+   destroys `MainActivity` and exits the app rather than dismissing open modal overlays
+   (`ReportEditScreen`, `LoadingEditScreen`), closing open inline forms (such as `TasksScreen`
+   create/edit form), dismissing dialogs, or returning from a secondary tab to `Tab.DASHBOARD`.
+
+4. **Android lacks WhatsApp share intent and PDF export (Functional disparity):**
+   `ReportDetailScreen` and `LoadingScreen` only copy export text to the Android clipboard
+   (`ClipboardManager.setText`). Unlike the web SPA which provides direct WhatsApp messaging links
+   and formatted PDF export, the Android client has no native `Intent.ACTION_SEND` integration
+   (for WhatsApp / system share sheet) and no PDF generation/export capabilities.
+
+---
+
 ## Slice C — The admin panel
 
 One surface per work unit, in dependency order: `tasks` and `drivers` are the two a
 `Trabalhador` can write, so they are the two whose role gating must be right first.
 
-### C1. Task types (`tasks`) — Administrador + Trabalhador
-### C2. Drivers (`drivers`) — Administrador + Trabalhador
-### C3. Categories (`categories`) — read for both, write Administrador only
-### C4. Vehicles (`vehicles`) — Administrador
-### C5. Time slots (`time-slots`) — Administrador, `PUT` replaces the set
-### C6. Users (`users`) — Administrador
+### C1. Task types (`tasks`) — Administrador + Trabalhador — IN PROGRESS
+- **C1-1 API & Data Layer (Done):** `AdminApi.kt`, `NetworkModule.kt`, `ContractCoverageTest.kt`, `TasksRepository.kt`, `TasksRepositoryTest.kt`. 5 contract tests and 5 repository tests verified clean.
+- **C1-2 View Model & State (Done):** `TasksViewModel.kt`, `FakeAdminApi.kt`, `TasksViewModelTest.kt`. Role-based permissions (`Administrador` full access, `Trabalhador` scoped to own tasks `createdByUserId == currentUserId`), inline form state, active toggle, delete confirmation with 400 FK constraint error handling. 9 view model tests verified clean.
+- **C1-3 Compose UI (Done):** `TasksScreen.kt` and `TasksScreenTest.kt`. Stateless screen with `TasksRoute`, category selector, temperature readings stepper, inline create/edit form, active toggle, delete confirmation dialog, and role-based action visibility (worker sees edit/delete only on own tasks and no active toggle; administrator sees all actions). 6 Robolectric Compose tests verified clean.
+- **C1-4 Integration (Done):** Navigation routing in `MainActivity.kt` under `RolePolicy.EntryPoint.CATALOG_TASKS` wired to `Tab.TASKS` and `TasksRoute(sessionKey = sessionKey, onBack = { tab = Tab.DASHBOARD })`.
+
+**Evidence (focused JVM):**
+- Focused pinned-container command succeeded: `./gradlew :app:testDebugUnitTest --tests "com.trindade.app.admin.*" --no-daemon --rerun-tasks`; 38 actionable tasks; BUILD SUCCESSFUL in 3m49s (20 tests passed across `TasksRepositoryTest`, `TasksViewModelTest`, and `TasksScreenTest`).
+
+**Remaining validation & blockers — Slice C1 is NOT delivered:**
+- **Wire serialization blocker:** `UpdateAdminTaskRequest.IsActive` writes strings `"0"`/`"1"` instead of numeric integers `0`/`1`, which fails backend Zod integer validation on live requests.
+- **Form & back navigation gaps:** Inline form dismiss/reset and back navigation handling in `TasksScreen` need correction and integration with `BackHandler`.
+- **Missing wire tests:** Wire serialization tests using `MockWebServer` (mirroring the `B3-1` standard) are missing to prove request bodies and response deserialization on the wire.
+- **BigDecimal runtime decoding:** Report detail decoding crashes on `BigDecimal` temperatures due to missing contextual serializer in `NetworkModule`.
+- **Gate execution:** Broader full unit test suite execution (`:app:testDebugUnitTest` / full CI lane `make ci-android`).
+- **Emulator verification:** Device/emulator verification per acceptance criterion E1-4.
+- **Explicit status:** Slice C1 delivery is **not claimed delivered**; it remains in progress and is formally gated on completion of Slice 1 of the sliced delivery plan below.
+
+### C2. Drivers (`drivers`) — Administrador + Trabalhador — IMPLEMENTED, DEVICE VALIDATION PENDING
+
+Android now has a role-gated drivers catalog with list, creation, editing and administrator-only active
+status toggle. A worker can create only `fletero` drivers and edit only their own; there is no delete
+because the backend offers none. `AdminApi` uses abstract Retrofit routes and numeric `is_active`
+serialization. A stalled MockWebServer test exposed default-method 501 stubs that intercepted Retrofit;
+those were removed and wire tests now have bounded waits. Pinned-container `assembleDebug` and 48
+focused C2/role/navigation/contract tests passed, independently re-run with 0 failures. This is not
+accepted as delivered until the full suite and both-role emulator walkthrough pass. No commit made.
+### C3. Categories (`categories`) — read for both, write Administrador only — IMPLEMENTED, DEVICE VALIDATION PENDING
+
+The admin-only panel now hosts category list/create/edit/active toggle/delete, confirmation and FK
+constraint feedback. Worker access remains limited to catalog reads needed by reports. The API's
+DELETE response is typed as the contract's `SuccessResponse`; wire coverage asserts its body.
+Pinned-container `assembleDebug` and 55 focused tests passed; an independent source/role check found
+only the DELETE typing mismatch, which was corrected and the 31 category tests rerun green. Full
+suite and both-role emulator validation are still required. No commit made.
+### C4. Vehicles (`vehicles`) — Administrador — IMPLEMENTED, DEVICE VALIDATION PENDING
+
+Admin-only vehicle list/create/edit/active toggle/delete is now accessible from the panel, with a
+confirmation dialog and FK refusal guidance. Retrofit wire tests prove numeric active flags and typed
+DELETE response. Pinned-container `assembleDebug` and 49 focused tests passed, then an independent
+backend/SPA/Android role and contract review reran all 49 green. Full suite and device role walk remain.
+No commit made.
+### C5. Time slots (`time-slots`) — Administrador, `PUT` replaces the set — IMPLEMENTED, DEVICE VALIDATION PENDING
+
+Admin panel now lists/adds/removes loading slots with whole-set PUT, ordering, duplicate prevention,
+validation and a nonempty minimum. The writer's pinned-container `assembleDebug` and 42 focused tests
+passed. Independent backend/SPA/Android readback matched the contract, but its test rerun was blocked
+by root-owned generated `packageDebug/tmp` build files (unprivileged container cannot delete them).
+No unsafe cleanup or permission change was performed. A later clean isolated pinned-container
+build independently reran the full Android suite (642/642); device role walk remains. No commit made.
+### C6. Users (`users`) — Administrador — IMPLEMENTED, FULL VALIDATION PENDING
+
+Admin-only user list/create/edit/activation/deletion is wired into the panel with self-role/status and
+self-deletion guards. Initial isolated full run compiled the APK and ran 538 tests, exposing three C6
+test failures; those were corrected. A production-shaped DELETE response uncovered a generated
+`SuccessResponse` enum expecting a string instead of the server's boolean `true`; category, vehicle,
+and user delete routes now parse JSON boolean explicitly, and 115 focused C3/C4/C6 tests passed in
+an isolated pinned-container build. Full suite and both-role device validation remain. No commit made.
+
+**Proposed follow-up — public worker enrollment (decision 2026-09-23):** The user selected
+**administrator approval** over instant public access. A future unauthenticated registration flow may
+create only a `Trabalhador` account with `is_active = 0`; it cannot log in until an administrator
+activates it from the users panel. Registration is not currently implemented on backend, OpenAPI,
+web, or Android. Before implementing it, address abuse of the public endpoint (rate limiting),
+username enumeration and safe password handling; registration must never accept `role_id` or
+`is_active` from the client. The user selected a **neutral, conditional response** for duplicate
+usernames (no explicit conflict or promise that an approval request was created). The tracked proxy
+chain appends `X-Forwarded-For` at two hops and Fastify currently does not trust proxy headers; do
+not add naive `trustProxy: true` or treat a spoofable header as an authenticated identity. Enforce a
+bounded global/target rate limit before hashing, with bounded input sizes; keep the approval UI
+operationally clear about pending accounts. This decision does not claim the feature delivered.
 
 Each surface: list, create, edit, deactivate/delete where the web allows it, an inline form
 matching the web's fields, and the same validation the server enforces stated where the operator
@@ -823,11 +927,112 @@ error handling. C1 establishes the form/validation convention; C2–C6 follow it
 
 ---
 
+## User-selected sliced delivery plan (2026-09-22)
+
+To resolve the audit findings and advance toward complete Android-Web parity through reviewable,
+bounded changes, the user selected a sliced delivery plan. Slices must be executed and reviewed in
+this exact order:
+
+### Slice 1: Wire serialization fixes, C1 form/back correction & MockWebServer wire tests
+- **Report BigDecimal serialization:** Register contextual `BigDecimal` serializer in
+  `NetworkModule.provideJson()` so that `ReportDetailTemperaturesInner` and `ReportTemperatureDetail`
+  decode correctly from the backend without runtime `SerializationException`.
+- **Numeric task active serialization:** Ensure `isActive` on `UpdateAdminTaskRequest` (and related
+  admin update payloads) serializes as integer `0` or `1` rather than string `"0"` or `"1"` on the wire,
+  satisfying the backend Zod contract (`z.union([z.literal(0), z.literal(1)])`).
+- **C1 form and back correction:** Correct inline form dismissal, reset state, and back-navigation
+  handling in `TasksScreen` and `MainActivity`.
+- **MockWebServer wire tests:** Add wire tests using `MockWebServer` and the app's real
+  Retrofit/Json stack (following the precedent of `B3-1`) proving:
+  1. A report detail response with `BigDecimal` temperatures deserializes cleanly into domain models.
+  2. A task update request with `isActive` serializes as numeric `0`/`1` on the wire.
+- **Delivery boundary:** C1 is **NOT delivered** until this slice is implemented, its MockWebServer
+  wire tests pass, and the full unit test suite succeeds.
+
+### Slice 2: Systematic Android BackHandler navigation
+- Implement Compose `BackHandler` systematically across all application destinations and layers:
+  - Inside edit overlays (`ReportEditScreen`, `LoadingEditScreen`): back gesture/button dismisses
+    the overlay and returns to the parent screen.
+  - Inside inline forms and dialogs (`TasksScreen` create/edit form, delete confirmation dialog):
+    back gesture/button dismisses the form/dialog before navigating away.
+  - Inside secondary tabs (`Tab.TASKS`, `Tab.REPORTS`, `Tab.LOADING`, `Tab.PROFILE`): back
+    gesture/button navigates back to `Tab.DASHBOARD` before exiting the activity.
+- Verify with Compose UI / Robolectric tests that back actions dismiss overlays and forms without
+  exiting the host activity.
+
+### Slice 3: Android web-equivalent exports (WhatsApp share and PDF), F icon, clear in-app navigation, visual/dashboard redesign
+- **Web-equivalent exports:**
+  - WhatsApp native share intent (`Intent.ACTION_SEND` targeting WhatsApp or system share sheet)
+    for report summaries and loading schedules, replacing clipboard-only copy.
+  - PDF export: formatted PDF generation/export matching web SPA capabilities.
+- **Brand icon ("F"):** Update Android app launcher icon and in-app brand headers with the official
+  "F" icon asset matching company identity.
+- **Clear in-app navigation:** Add explicit top bar back buttons, screen headers, and clear
+  navigation cues across all screens so operators do not rely solely on system gestures.
+- **Visual & dashboard redesign:** Redesign the Android dashboard and card layouts to match
+  the web SPA's visual polish, metric density, and information architecture.
+
+### Slice 3b: Visual usability remediation (2026-09-23) — IN PROGRESS
+- Replace unframed `TextButton` implementations of visible **Voltar** and **Editar** actions with
+  visually distinct, accessible outlined or filled controls; system back remains equivalent.
+- Make temperature readings accept signed decimal input, including negative cold-room values such as
+  `-18`, without weakening the existing comma-to-decimal parsing.
+- Replace the mistakenly integrated `F-cinta-mascaras` launcher artwork with the user-selected
+  `F-cinta-dinamica` adaptive icon resources. The source archive remains local-only; the selected
+  density copies become tracked Android resources.
+- Add the missing Android admin panel surfaces in the dependency order C2–C6, then D1. This is a
+  material parity gap, not a styling follow-up: drivers/fleteros are shared with Trabalhador; categories,
+  vehicles, time slots, users, and audit are Administrador-only. Profile/password already exists for both
+  roles and must remain reachable.
+- Re-check the final navigation against `RolePolicy` and backend guards on both roles before accepting
+  the emulator walkthrough.
+
+### Slice 4: Full emulator admin/worker parity walk
+- Full end-to-end verification walk on an Android emulator for both `Administrador` and
+  `Trabalhador` roles against a running backend instance.
+- Walk every row in the gap table:
+  - Verify `Administrador` has access to all admin surfaces, reports, loading, and audit.
+  - Verify `Trabalhador` sees only permitted surfaces (dashboard, reports, loading, own tasks,
+    drivers) and cannot see or open admin-only surfaces (categories, vehicles, users, time slots, audit).
+  - Verify actions, forms, exports, and navigation on device.
+- Satisfy acceptance criterion E1-4 with visual verification and recorded receipts across both roles.
+
+---
+
 ## Slice D — Audit
 
-### D1. Audit log (`/admin/audit`, Administrador)
+### D1. Audit log (`/admin/audit`, Administrador) — IMPLEMENTED, DEVICE VALIDATION PENDING
 
-Read-only, paged, with the same filters the web offers. Depends on `P1` for its schemas.
+Read-only paged logs with web-equivalent action/entity/user filters and nested detail view are now
+reachable from the administrator panel. Worker role is rejected before the network call and remains
+forbidden by the server. Independent source comparison matched backend and SPA. A user-authorized
+isolated pinned-container build (avoiding unrelated root-owned original build artifacts) passed
+`:app:assembleDebug :app:testDebugUnitTest`: **586 tests, 0 failures**. The test APK uses the debug
+loopback default; production emulator validation requires a separate `-PapiBaseUrl=https://…/` build.
+No commit made.
+
+**Superseded production-endpoint APK (2026-09-23):** The earlier isolated debug APK at
+`/tmp/trindade-isolated-build-rFgWAN/packages/android/app/build/outputs/apk/debug/app-debug.apk`
+(SHA-256 `79e512d5d7e9d05712b848447c3c0a1feb1f1fedbbbdc610c6a3775e67ad505b`) predates worker registration.
+
+**Current production-endpoint validation APK (2026-09-24):** A fresh isolated pinned-container build
+from all current Android sources with `-PapiBaseUrl=https://trindademasas.duckdns.org/` passed
+`:app:assembleDebug :app:testDebugUnitTest` (642/642, 71 suites), and the generated contract check
+passed (124 Kotlin files current). APK:
+`/tmp/trindade-android-verify.w0STGOZE/packages/android/app/build/outputs/apk/debug/app-debug.apk`,
+SHA-256 `eb521b28c83b4f73f48937eeebfe33f415a5180b2049325187d792e34bd08a0c`.
+Independent readback confirmed the production HTTPS URL in BuildConfig/DEX, source equality and
+`apksigner verify` (v2 debug certificate). This is a **debug-signed validation APK**, versionCode 1;
+it cannot update a release-signed `com.trindade.app` install (versionCode 201) without uninstalling it
+and losing local app data. No install or uninstall was attempted. Production registration backend
+availability remains unverified and its route is still uncommitted; an APK build does not deploy it.
+Android build deprecation/experimental warnings remain nonblocking; AGP 10/Compose dependency
+migration is not undertaken merely to silence warnings in this acceptance slice.
+**Pixel_8 partial production walkthrough (2026-09-24):** Windows/ADB became available; the APK above was transferred with SHA-256 verified on Windows and installed successfully in-place (`adb install -r`) over the same debug-signing certificate, preserving the installed session. Admin dashboard, panel, categories, vehicles, load slots, users, audit, profile, reports/history/detail, tasks, drivers and schedule were opened against the production endpoint. Screens loaded data without app crash; screenshots/UI dumps are at `/tmp/uiaccept/`. No create/edit/delete/toggle/logout/export/share actions were attempted. Observed clipped tab labels (`Dash/Relat/Horár/Taref/Moto/Paine`), validation APK version 0.1.0 offering published 0.2.1, and production schedule data over capacity (05:00 5/3, 05:30 6/3, shown with warning). A later user-authorized disposable-user test created a unique active `Trabalhador` through the administrator Users screen, edited its display name, and verified login and worker navigation in a separate Android user (10), preserving the existing admin session (user 0). Worker dashboard, reports/history/detail, schedule, tasks, drivers and profile loaded; admin-only panel entry points were absent. Both loading and report native PDF export opened an Android chooser with a PDF; no recipient was selected. After returning to user 0, the admin Users UI deleted only that test account and its list returned to the original two users; Android user 10 and temporary credentials were removed. No operational records were created by the worker. Evidence: `/tmp/ui-val/` and local QA screenshots.
+
+**2026-09-24 visual correction:** Replaced fixed-width tabs with a scrollable row (120dp minimum tab width) and adapted Compose navigation tests. Fresh pinned isolated production-HTTPS debug build passed 644/644 tests (71 suites); APK `/tmp/trindade-nav-green.mm9GXR/packages/android/app/build/outputs/apk/debug/app-debug.apk`, SHA-256 `cb89675403d2d1268bed97d3b4f4e634ef79986f4d3bf59acb225763be0cc031`. Verified same debug signer, installed in-place on Pixel_8, and confirmed full labels and admin last-tab navigation at 1080×2400; admin user0 session preserved. Worker rendering of this **new** tab build was covered by Compose tests but not rechecked on device. The validation APK remains debug version 0.1.0 and offers the older published 0.2.1 update. The backend's new public `/api/auth/register` route is not in committed HEAD; a read-only GET returned 404 (not proof that POST is absent), and registration/approval were not exercised. The user explicitly selected no backend deployment and no operational production writes in this pass. Other production-mutating flows (report creation/edit, task toggles, admin category/vehicle/time-slot changes) were deliberately not exercised because deletion would leave persistent audit history.
+
+**Temperature/quota read-only checks:** Pixel_8 report generator displayed per-camera reading fields and separate `−` controls; nonnumeric `abc` was rejected by the local input guard, the minus toggle produced and cleared a leading `-`, and the form was left unsaved. Kotlin validation accepts partial signed decimals and comma/period; report create/edit 400 mapping says `Relatório incompleto. Preencha todas as temperaturas e tente de novo.` when server refuses incomplete readings. The server requires configured active temperature readings, but that server refusal was **not** exercised on production. At 05:00 production schedule displayed red `5/3 fleteros ⚠` and retained `Adicionar`; source and tests show >3 is informational, not a backend quota gate. No fourth entry was created in this read-only pass. Do not mark E1-4 or full functional parity complete from this bounded pass.
 
 ---
 
@@ -862,6 +1067,16 @@ is the claim this feature exists to stop making.
 The operational edits go before the admin panel because they are the work the crew already does
 on the phone every day, they sit next to screens that already exist, and each is a smaller review
 than any admin surface.
+
+### Updated execution sequence with audit remediation (confirmed 2026-09-22)
+
+Following the audit findings and the user's selection of reviewable slices, the delivery sequence is refined as follows:
+
+1. **Slice 1 (Wire serialization + C1 stabilization):** Report BigDecimal wire serialization + numeric task active serialization + C1 form/back correction + MockWebServer wire tests (C1 not claimed delivered until this lands).
+2. **Slice 2 (Navigation):** Systematic Android `BackHandler` navigation across all screens and overlays.
+3. **Slice 3 (Exports, Branding & UI):** Android web-equivalent exports (WhatsApp share intent and PDF), F icon, clear in-app navigation, visual/dashboard redesign.
+4. **Subsequent Admin surfaces:** C2 (Drivers), C3 (Categories), C4 (Vehicles), C5 (Time slots), C6 (Users), Slice D (Audit).
+5. **Slice 4 (Parity walk):** Full emulator admin/worker parity walk (E1).
 
 ### Slice T — why a test lane sits between the contract and the first screen
 
@@ -915,3 +1130,8 @@ None outstanding. New ones are recorded here as they appear.
 - The SPA tab filter (`AdminDashboard.tsx:158-162`) matches those guards exactly.
 - The gap table was derived from `App.tsx` routes and the Android screen inventory
   (`find ... -name "*Screen.kt"`), not from memory.
+- Audit findings confirmed via source inspection (2026-09-22):
+  - `NetworkModule.provideJson()` lacks a contextual serializer for `java.math.BigDecimal`, causing runtime `SerializationException` on report detail temperature responses (`ReportDetailTemperaturesInner`, `ReportTemperatureDetail`).
+  - Contract update requests (`UpdateAdminTaskRequest.IsActive`) annotate enums with string serial names (`@SerialName("0")`, `@SerialName("1")`), causing `kotlinx.serialization` to emit string values instead of numeric integers on the wire, which fails backend Zod integer validation.
+  - Zero instances of `BackHandler` exist across `com.trindade.app`, causing system back gestures/buttons to terminate `MainActivity` rather than dismissing overlays, forms, or navigating between tabs.
+  - Export actions in `ReportDetailScreen` and `LoadingScreen` only copy to the Android clipboard, lacking native `ACTION_SEND` intents (WhatsApp / share sheet) and PDF export.

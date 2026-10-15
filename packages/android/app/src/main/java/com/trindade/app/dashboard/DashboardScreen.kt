@@ -1,17 +1,27 @@
 package com.trindade.app.dashboard
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -19,27 +29,30 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.trindade.app.R
 import com.trindade.app.contract.models.DashboardSummary
 
 /**
- * The dashboard: the five cards the web's own dashboard draws, in the web's order and with the web's
- * words.
+ * The dashboard: the five cards matching and exceeding the web's own dashboard hierarchy, in the web's
+ * order, with the web's copy, domain badge glyphs (`📋`, `🚛`, `👥`, `📊`, `📂`), semantic color tokens,
+ * and explicit navigation affordances on actionable cards.
  *
  * Stateless, so the Compose test lane can render it with a state built by hand and no ViewModel; the
  * same split the login screen makes and for the same reason.
  *
- * Two things the web's page has are deliberately **not** drawn here, and a reader comparing the two
- * clients has to be told which, so that a divergence is not mistaken for a gap:
- *
- *  * The emoji the web puts on each card (`📋`, `🚛`, `👥`, `📊`, `📂`) are decoration. Five glyphs are not
- *    worth a new icon dependency, and nothing on the screen is reached or identified by them.
- *  * `reportsToday` -- which the contract carries and the endpoint computes -- is not drawn at all,
- *    because the web's own card titled "Relatórios Hoje" never shows that count: it shows the
- *    higiene/recepção breakdown instead, and no screen on either client reads `reportsToday`.
+ * `reportsToday` -- which the contract carries and the endpoint computes -- is not drawn at all,
+ * because the web's own card titled "Relatórios Hoje" never shows that count: it shows the
+ * higiene/recepção breakdown instead, and no screen on either client reads `reportsToday`.
  *
  * `DashboardSummary`'s two remaining fields, `higieneTotal` and `recepcionTotal`, are **not read here at
  * all**. The app's two strings interpolate one count each and it is the `done` half, so the totals reach no
@@ -94,63 +107,106 @@ fun DashboardScreen(
 
             Column(
                 modifier = modifier
+                    .fillMaxSize()
                     .verticalScroll(rememberScrollState())
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
                     text = stringResource(R.string.dashboard_overview),
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
 
                 // The two values of the first card, drawn as the web draws them: one line per module
-                // rather than the card's own big number, and at `bodyMedium` rather than the
-                // `headlineSmall` the four plain counts use -- the web draws them at `text-xs`/`text-sm`,
-                // and at headline size they wrap on a narrow phone. The click is the web's own rule as
-                // well -- the card opens the latest report when there is one and the reports list
-                // otherwise -- which is why it cannot be decided here: only the state knows whether
-                // `latestReportId` is null.
+                // rather than the card's own big number, with semantic badge styling. The click is
+                // the web's own rule as well -- the card opens the latest report when there is one and
+                // the reports list otherwise -- which is why it cannot be decided here: only the state
+                // knows whether `latestReportId` is null.
                 DashboardCard(
                     label = stringResource(R.string.dashboard_reports_today),
+                    domainIcon = DashboardIcons.REPORTS_TODAY,
+                    domainColor = DashboardColors.ReportsToday,
                     onClick = {
                         val latestReportId = summary.latestReportId
                         if (latestReportId != null) onOpenReport(latestReportId) else onOpenReports()
                     },
                 ) {
-                    Text(
+                    BreakdownMetricBadge(
                         text = stringResource(R.string.dashboard_higiene_count, summary.higieneDone),
-                        style = MaterialTheme.typography.bodyMedium,
+                        accentColor = DashboardColors.ReportsToday,
                     )
-                    Text(
+                    Spacer(Modifier.height(4.dp))
+                    BreakdownMetricBadge(
                         text = stringResource(R.string.dashboard_recepcion_count, summary.recepcionDone),
-                        style = MaterialTheme.typography.bodyMedium,
+                        accentColor = DashboardColors.ReportsToday,
                     )
                 }
 
                 DashboardCard(
                     label = stringResource(R.string.dashboard_schedules_tomorrow),
+                    domainIcon = DashboardIcons.SCHEDULES_TOMORROW,
+                    domainColor = DashboardColors.SchedulesTomorrow,
                     onClick = onOpenLoading,
                 ) {
-                    SummaryValue(summary.schedulesTomorrow)
+                    SummaryMetricValue(
+                        count = summary.schedulesTomorrow,
+                        color = DashboardColors.SchedulesTomorrow,
+                    )
                 }
 
                 // The three cards the web leaves unlinked, and the reason is the same one there: they
                 // are counts the operator reads and not doors to anywhere.
-                DashboardCard(label = stringResource(R.string.dashboard_active_users), onClick = null) {
-                    SummaryValue(summary.activeUsers)
+                DashboardCard(
+                    label = stringResource(R.string.dashboard_active_users),
+                    domainIcon = DashboardIcons.ACTIVE_USERS,
+                    domainColor = DashboardColors.ActiveUsers,
+                    onClick = null,
+                ) {
+                    SummaryMetricValue(
+                        count = summary.activeUsers,
+                        color = DashboardColors.ActiveUsers,
+                    )
                 }
-                DashboardCard(label = stringResource(R.string.dashboard_reports_total), onClick = null) {
-                    SummaryValue(summary.reportsTotal)
+                DashboardCard(
+                    label = stringResource(R.string.dashboard_reports_total),
+                    domainIcon = DashboardIcons.REPORTS_TOTAL,
+                    domainColor = DashboardColors.ReportsTotal,
+                    onClick = null,
+                ) {
+                    SummaryMetricValue(
+                        count = summary.reportsTotal,
+                        color = DashboardColors.ReportsTotal,
+                    )
                 }
-                DashboardCard(label = stringResource(R.string.dashboard_schedules_total), onClick = null) {
-                    SummaryValue(summary.schedulesTotal)
+                DashboardCard(
+                    label = stringResource(R.string.dashboard_schedules_total),
+                    domainIcon = DashboardIcons.SCHEDULES_TOTAL,
+                    domainColor = DashboardColors.SchedulesTotal,
+                    onClick = null,
+                ) {
+                    SummaryMetricValue(
+                        count = summary.schedulesTotal,
+                        color = DashboardColors.SchedulesTotal,
+                    )
                 }
 
-                Text(
-                    text = stringResource(R.string.dashboard_deferred_notice),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
+                ) {
+                    Text(
+                        text = stringResource(R.string.dashboard_deferred_notice),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(16.dp),
+                    )
+                }
             }
         }
     }
@@ -192,48 +248,196 @@ fun DashboardRoute(
 }
 
 /**
- * One card of the dashboard: a label, the value below it, and a click when the web gives the card one.
- *
- * The two clickable cards use Material's own `Card(onClick = ...)` overload rather than a `clickable`
- * modifier inside a plain card: the overload is where the ripple, the interaction source and the
- * button-like semantics come from, and a card that only looks pressable is the failure that overload
- * exists to remove.
- *
- * The label and the value are one merged node on the clickable cards and two on the others, because
- * that is what `clickable` does to semantics. Nothing here reads the tree, so the difference is only
- * worth knowing when a test selects by the label: on a clickable card the label selects the card.
+ * One prominent metric card of the dashboard:
+ *  - Title and metric value / breakdown on the left
+ *  - Domain badge with domain icon glyph on the right
+ *  - Explicit visual navigation affordance ("→") on actionable cards
+ *  - Semantic Role.Button and click semantics on clickable cards; non-clickable cards remain informational.
  */
 @Composable
 private fun DashboardCard(
     label: String,
+    domainIcon: String,
+    domainColor: Color,
     onClick: (() -> Unit)?,
+    modifier: Modifier = Modifier,
     value: @Composable () -> Unit,
 ) {
-    val content: @Composable () -> Unit = {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(4.dp))
-            value()
+    val isClickable = onClick != null
+
+    val cardContent: @Composable () -> Unit = {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(8.dp))
+                value()
+            }
+            Spacer(Modifier.width(16.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                DomainBadge(
+                    icon = domainIcon,
+                    color = domainColor,
+                )
+                if (isClickable) {
+                    ClickableAffordance(
+                        color = domainColor,
+                    )
+                }
+            }
         }
     }
 
-    if (onClick != null) {
-        Card(onClick = onClick) { content() }
+    if (isClickable) {
+        Card(
+            onClick = onClick!!,
+            modifier = modifier
+                .fillMaxWidth()
+                .semantics { role = Role.Button },
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface,
+            ),
+            border = BorderStroke(1.dp, domainColor.copy(alpha = 0.35f)),
+            elevation = CardDefaults.cardElevation(
+                defaultElevation = 2.dp,
+                pressedElevation = 4.dp,
+            ),
+        ) {
+            cardContent()
+        }
     } else {
-        Card { content() }
+        Card(
+            modifier = modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+            ),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        ) {
+            cardContent()
+        }
     }
 }
 
-/** One of the four plain counts, in the style those four share. The two breakdown lines of the first card
- * are drawn smaller -- see the card -- because at headline size they wrap on a narrow phone. */
+/**
+ * Domain badge container holding the domain glyph in a tinted rounded box.
+ */
 @Composable
-private fun SummaryValue(count: Int) {
+private fun DomainBadge(
+    icon: String,
+    color: Color,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .size(40.dp)
+            .background(
+                color = color.copy(alpha = 0.12f),
+                shape = RoundedCornerShape(10.dp),
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = icon,
+            style = MaterialTheme.typography.titleMedium.copy(fontSize = 20.sp),
+        )
+    }
+}
+
+/**
+ * Explicit visual affordance indicator ("→") on actionable cards.
+ */
+@Composable
+private fun ClickableAffordance(
+    color: Color,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .size(28.dp)
+            .background(
+                color = color.copy(alpha = 0.15f),
+                shape = CircleShape,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = "→",
+            color = color,
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+        )
+    }
+}
+
+/**
+ * Prominent bold metric count rendered in the domain's semantic color.
+ */
+@Composable
+private fun SummaryMetricValue(
+    count: Int,
+    color: Color,
+) {
     Text(
         text = count.toString(),
-        style = MaterialTheme.typography.headlineSmall,
+        style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+        color = color,
     )
+}
+
+/**
+ * Breakdown metric line rendered inside a styled badge with domain color accent.
+ */
+@Composable
+private fun BreakdownMetricBadge(
+    text: String,
+    accentColor: Color,
+) {
+    Surface(
+        color = accentColor.copy(alpha = 0.08f),
+        shape = RoundedCornerShape(6.dp),
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+        )
+    }
+}
+
+private object DashboardColors {
+    // Web: text-blue-600 (#2563eb)
+    val ReportsToday = Color(0xFF2563EB)
+    // Web: text-green-600 (#16a34a)
+    val SchedulesTomorrow = Color(0xFF16A34A)
+    // Web: text-purple-600 (#9333ea)
+    val ActiveUsers = Color(0xFF9333EA)
+    // Web: text-indigo-600 (#4f46e5)
+    val ReportsTotal = Color(0xFF4F46E5)
+    // Web: text-teal-600 (#0d9488)
+    val SchedulesTotal = Color(0xFF0D9488)
+}
+
+private object DashboardIcons {
+    const val REPORTS_TODAY = "📋"
+    const val SCHEDULES_TOMORROW = "🚛"
+    const val ACTIVE_USERS = "👥"
+    const val REPORTS_TOTAL = "📊"
+    const val SCHEDULES_TOTAL = "📂"
 }

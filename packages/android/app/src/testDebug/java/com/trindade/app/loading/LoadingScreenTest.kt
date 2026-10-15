@@ -20,6 +20,7 @@ import com.trindade.app.network.LoadingApi
 import com.trindade.app.ui.theme.TrindadeTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -317,6 +318,54 @@ class LoadingScreenTest {
         assertEquals(listOf(today, today, today), api.asked)
         assertEquals(1, staleReads)
         assertEquals(SLOT_MOVED_TO, drawnSlot(row))
+    }
+
+    @Test
+    fun `does not offer export actions until export text is available`() {
+        render()
+
+        composeRule.onNodeWithText(copy(R.string.export_load)).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText(copy(R.string.export_copy)).assertDoesNotExist()
+        composeRule.onNodeWithText(copy(R.string.export_share_text)).assertDoesNotExist()
+        composeRule.onNodeWithText(copy(R.string.export_share_pdf)).assertDoesNotExist()
+    }
+
+    @Test
+    fun `offers export actions and triggers callbacks when export text is available`() {
+        val sampleText = "CRONOGRAMA DE CARREGAMENTO - 15/01/2025"
+        var sharedTextCalled = false
+        var sharedPdfCalled = false
+        var copiedTextResult: String? = null
+
+        composeRule.setContent {
+            TrindadeTheme {
+                LoadingScreen(
+                    state = state().copy(exportText = sampleText),
+                    onBack = {},
+                    onOpenHistory = {},
+                    onStartAdding = {},
+                    onCancelAdding = {},
+                    onDriverSelected = {},
+                    onVehicleSelected = {},
+                    onConfirmAdd = {},
+                    onDelete = {},
+                    onEditEntry = { _, _ -> },
+                    onLoadExport = {},
+                    onShareText = { sharedTextCalled = true },
+                    onSharePdf = { sharedPdfCalled = true },
+                    onCopyExport = { copiedTextResult = it },
+                )
+            }
+        }
+
+        composeRule.onNodeWithText(copy(R.string.export_copy)).performScrollTo().assertIsDisplayed().performClick()
+        assertEquals(sampleText, copiedTextResult)
+
+        composeRule.onNodeWithText(copy(R.string.export_share_text)).performScrollTo().assertIsDisplayed().performClick()
+        assertTrue("onShareText callback must be triggered", sharedTextCalled)
+
+        composeRule.onNodeWithText(copy(R.string.export_share_pdf)).performScrollTo().assertIsDisplayed().performClick()
+        assertTrue("onSharePdf callback must be triggered", sharedPdfCalled)
     }
 
     /**

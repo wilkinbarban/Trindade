@@ -11,6 +11,8 @@ import com.trindade.app.contract.models.LogoutRequest
 import com.trindade.app.contract.models.ProfileResponse
 import com.trindade.app.contract.models.RefreshRequest
 import com.trindade.app.contract.models.RefreshResponse
+import com.trindade.app.contract.models.RegisterRequest
+import com.trindade.app.contract.models.RegisterResponse
 import com.trindade.app.contract.models.SetupRequest
 import com.trindade.app.contract.models.SetupResponse
 import com.trindade.app.contract.models.SetupStatusResponse
@@ -457,6 +459,7 @@ private class FakeAuthApi(
     override suspend fun changePassword(body: ChangePasswordRequest): Response<SuccessResponse> = error(NOT_USED)
     override suspend fun setup(body: SetupRequest): Response<SetupResponse> = error(NOT_USED)
     override suspend fun setupStatus(): Response<SetupStatusResponse> = error(NOT_USED)
+    override suspend fun register(body: RegisterRequest): Response<RegisterResponse> = error(NOT_USED)
 
     private companion object {
         const val NOT_USED = "this fake does not implement that call; add it when a test needs it"

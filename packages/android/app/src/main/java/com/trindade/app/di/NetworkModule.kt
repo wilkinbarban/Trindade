@@ -2,7 +2,9 @@ package com.trindade.app.di
 
 import com.trindade.app.BuildConfig
 import com.trindade.app.auth.AuthInterceptor
+import com.trindade.app.network.AdminApi
 import com.trindade.app.network.AuthApi
+import com.trindade.app.network.BigDecimalSerializer
 import com.trindade.app.network.LoadingApi
 import com.trindade.app.network.ReportsApi
 import com.trindade.app.network.SystemApi
@@ -11,10 +13,13 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import java.math.BigDecimal
 import java.util.concurrent.TimeUnit
 import javax.inject.Qualifier
 import javax.inject.Singleton
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.modules.contextual
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
@@ -156,6 +161,9 @@ object NetworkModule {
     fun provideJson(): Json = Json {
         // Backends evolve; never fail the whole payload on an unknown key.
         ignoreUnknownKeys = true
+        serializersModule = SerializersModule {
+            contextual(BigDecimal::class, BigDecimalSerializer)
+        }
     }
 
     @Provides
@@ -209,6 +217,10 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideLoadingApi(@BackendClient retrofit: Retrofit): LoadingApi = retrofit.create(LoadingApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideAdminApi(@BackendClient retrofit: Retrofit): AdminApi = retrofit.create(AdminApi::class.java)
 
     @Provides
     @Singleton
