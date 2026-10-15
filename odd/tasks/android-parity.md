@@ -225,3 +225,30 @@ Gradle), así que el host tiene que reflejarla (`~/contracts/` cuando el paquete
 **Y una advertencia para el próximo veredicto**: un fallo en pruebas ajenas al cambio no se atribuye al
 cambio ni se ignora; se investiga hasta saber de quién es. Acá la causa era del arnés, y eso también hay que
 probarlo antes de decir que el código está bien.
+
+## Cierre de A4c — la pantalla del contador
+
+**Entregado**: `app/src/main/java/com/trindade/app/stock/StockCalculatorScreen.kt` (201 líneas): el título y
+el campo del día, las dos pestañas derivadas del catálogo que respondió el servidor (la activa no se vuelve
+a pulsar), una tarjeta táctil por producto con sus métricas, el campo numérico con el foco escuchado en el
+modificador, el cartel inline que consulta la regla pura de A4a, Adicionar apagado cuando no hay nada que
+agregar o no se puede agregar, Resetar, el total del día tal como lo respondió el servidor, el campo del
+número, la vista previa del mensaje y los dos botones de exportación: WhatsApp por el enlace canónico y
+correo por `mailto` al buzón de la planta.
+
+**Sin prueba unitaria de UI, dicho tal cual**: para una pantalla, lo honesto es que compile y que la suite
+del proyecto siga pasando, y eso es lo que se verificó. No se declara una prueba que no existe.
+
+**Dos correcciones propias, ambas leídas y no supuestas**:
+1. El primer intento **no compiló**: `Unresolved reference 'category' on receiver of type
+   List<StockDayProductsInner>` en la línea 81 — un `active?.category` de un diseño anterior, cuando la
+   pestaña activa era un grupo con su categoría, sobre lo que en el código final es la lista de sus
+   productos. Arreglado derivando la categoría mostrada aparte.
+2. La suite reportó **7 fallos sobre 681 pruebas** que **no eran del cambio**: `PasswordPolicyContractTest`
+   y `ContractCoverageTest` leen el contrato publicado desde el classpath de pruebas, y el contrato vive en
+   `packages/contracts/`, fuera del único paquete que el `rsync` copiaba. El host estaba incompleto, no el
+   árbol roto — esas mismas pruebas pasan en CI con el repositorio entero.
+
+**Siguiente (A5)**: el histórico de conteos en Compose, con selector de fecha, solo los productos contados,
+exportaciones y el control de rol: lectura para Trabajador y escritura para Administrador, que es la misma
+frontera que el servidor aplica con su 403.
