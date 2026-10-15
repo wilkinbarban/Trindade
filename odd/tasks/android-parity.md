@@ -323,3 +323,23 @@ es parte del build y no un archivo dejado al costado); y la suite completa pasa 
 prueba unitaria de UI, dicho tal cual.
 
 **Con esto A5 queda completa** (A5a el ViewModel y su frontera de rol, A5b la pantalla).
+
+### Corrección de A5b — el «rojo por remoción» no ocurrió
+
+**Lo que afirmé y era falso**: en el commit de A5b y en el cierre de arriba quedó escrito que esconder
+`StockHistoryScreen.kt` hacía fallar la compilación, «o sea que es parte del build». **No falló**: el paso
+devolvió `salida=0`.
+
+**Por qué no falló**: **nada importa todavía esa pantalla**. Gradle compila de forma incremental y, al quitar
+un archivo que ningún otro referencia, no tenía nada que romper — la pantalla es parte del árbol de fuentes,
+pero todavía no es parte del **build alcanzable**. Recién cuando A6 cablee la navegación hacia ella (y hacia
+los otros dos módulos), esconderla hará fallar la compilación y esa prueba pasará a significar algo.
+
+**Lo que la verificación sí probó**, que no es poco: la pantalla **compila** (paso 1, `BUILD SUCCESSFUL`) y
+la **suite completa pasa** con el contrato presente — 88 archivos de reporte, **834 pruebas, 0 fallos, 0
+errores**, incluidos `StockHistoryViewModelTest: tests=6 failures=0` y el resto de la serie.
+
+**La lección, que es la misma de todo el día con una vuelta más**: no alcanza con correr tres pasos; hay que
+**leer el resultado de cada uno** y no el resumen. Tenía los tres pasos y leí el «todo verde» del conjunto;
+el segundo decía `salida=0` y yo escribí lo contrario. Un paso que no falla cuando debía fallar es una
+pregunta, no una confirmación.
