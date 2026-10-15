@@ -28,6 +28,8 @@ describe('stock routes', () => {
   let userId = 0;
   const username = `stock-${randomUUID()}`;
   const password = randomUUID();
+  const workerUsername = `stock-worker-${randomUUID()}`;
+  const workerPassword = randomUUID();
 
   before(async () => {
     db = new Database(':memory:');
@@ -39,6 +41,12 @@ describe('stock routes', () => {
       .prepare('INSERT INTO users (username, password_hash, display_name, role_id, is_active) VALUES (?, ?, ?, ?, 1)')
       .run(username, await bcrypt.hash(password, 4), username, REFERENCE_DATASET.roles.find((r) => r.name === 'Administrador')!.id);
     userId = Number(inserted.lastInsertRowid);
+    db.prepare('INSERT INTO users (username, password_hash, display_name, role_id, is_active) VALUES (?, ?, ?, ?, 1)').run(
+      workerUsername,
+      await bcrypt.hash(workerPassword, 4),
+      workerUsername,
+      REFERENCE_DATASET.roles.find((r) => r.name === 'Trabalhador')!.id
+    );
 
     jwtSecret = randomUUID();
     app = Fastify({ logger: false });
@@ -98,5 +106,21 @@ describe('stock routes', () => {
     const history = await app.inject({ method: 'GET', url: '/api/stock/history', headers: headers() });
     assert.strictEqual(history.statusCode, 200);
     assert.deepStrictEqual((history.json() as { days: Array<{ date: string }> }).days.map((d) => d.date), ['2026-10-15']);
+  });
+
+  it('lets a worker read the day but refuses to let it write one', async () => {
+    const login = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { username: workerUsername, password: workerPassword } });
+    assert.strictEqual(login.statusCode, 200);
+    const workerHeaders = { authorization: `Bearer ${(login.json() as { token: string }).token}` };
+
+    const read = await app.inject({ method: 'GET', url: '/api/stock?date=2026-10-15', headers: workerHeaders });
+    const history = await app.inject({ method: 'GET', url: '/api/stock/history', headers: workerHeaders });
+    assert.deepStrictEqual([read.statusCode, history.statusCode], [200, 200], 'leer es de todos');
+
+    const add = await app.inject({ method: 'POST', url: '/api/stock/add-entry', headers: workerHeaders, payload: { date: '2026-10-15', product_code: '787', boxes_added: 1 } });
+    const reset = await app.inject({ method: 'POST', url: '/api/stock/reset-product', headers: workerHeaders, payload: { date: '2026-10-15', product_code: '787' } });
+    assert.deepStrictEqual([add.statusCode, reset.statusCode], [403, 403], 'escribir es del administrador');
+    // Y la prueba de que no escribio: una negativa que igual deja fila no es una negativa.
+    assert.strictEqual((db.prepare("SELECT COUNT(*) n FROM stock_counts WHERE product_code = '787'").get() as { n: number }).n, 0);
   });
 });

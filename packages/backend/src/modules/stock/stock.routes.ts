@@ -29,6 +29,11 @@ export async function stockRoutes(fastify: FastifyInstance) {
   });
 
   fastify.post('/add-entry', { preHandler: [fastify.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    // A count is a rewriting of the day's numbers, so the role decides who may rewrite it. The
+    // reads stay open to every session: a worker needs to see the counter, not to move it.
+    if (request.user!.role !== 'Administrador') {
+      return reply.status(403).send({ error: 'Insufficient permissions' });
+    }
     const parsed = addEntryBody.safeParse(request.body);
     if (!parsed.success) return reply.status(400).send({ error: 'Invalid entry' });
     try {
@@ -44,6 +49,11 @@ export async function stockRoutes(fastify: FastifyInstance) {
   });
 
   fastify.post('/reset-product', { preHandler: [fastify.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    // A count is a rewriting of the day's numbers, so the role decides who may rewrite it. The
+    // reads stay open to every session: a worker needs to see the counter, not to move it.
+    if (request.user!.role !== 'Administrador') {
+      return reply.status(403).send({ error: 'Insufficient permissions' });
+    }
     const parsed = resetBody.safeParse(request.body);
     if (!parsed.success) return reply.status(400).send({ error: 'Invalid reset' });
     try {
