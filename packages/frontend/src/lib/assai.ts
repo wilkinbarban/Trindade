@@ -76,6 +76,34 @@ export function assaiLines(inputs: Record<string, string>): AssaiLine[] {
   });
 }
 
+/** Where the operator is: which fields were left, and which one is being edited right now. */
+export interface AssaiFieldState {
+  blurred: Record<string, boolean>;
+  focused: string | null;
+}
+
+/**
+ * The products whose error should be shown right now.
+ *
+ * Whether a quantity can be ordered is a fact about the number; whether to say so is a fact about the
+ * moment. While the operator is typing, a quantity is allowed to be half written, and coming back into a
+ * field has to clear the warning it left behind, or the first keystroke of a correction accuses the
+ * operator of the very mistake they are in the middle of fixing.
+ */
+export function assaiVisibleErrors(lines: readonly AssaiLine[], state: AssaiFieldState): string[] {
+  return lines
+    .filter(
+      (line) =>
+        line.filled && !line.exact && state.blurred[line.product] === true && state.focused !== line.product
+    )
+    .map((line) => line.product);
+}
+
+/** True when some error is being shown, which is what the warning under the table follows. */
+export function assaiHasVisibleError(lines: readonly AssaiLine[], state: AssaiFieldState): boolean {
+  return assaiVisibleErrors(lines, state).length > 0;
+}
+
 /** True when any line stops the order, which is what disables the export. */
 export function assaiHasError(lines: readonly AssaiLine[]): boolean {
   return lines.some((line) => !line.exact);

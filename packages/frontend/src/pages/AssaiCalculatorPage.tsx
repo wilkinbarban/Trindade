@@ -4,7 +4,14 @@ import { api } from '../api/client';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { ASSAI_PRODUCTS, assaiHasError, assaiLines, assaiMessage, assaiTotalBoxes } from '../lib/assai';
+import {
+  ASSAI_PRODUCTS,
+  assaiHasError,
+  assaiLines,
+  assaiMessage,
+  assaiTotalBoxes,
+  assaiVisibleErrors,
+} from '../lib/assai';
 import { shareOrCopy, waMeLink } from '../lib/whatsapp';
 
 /**
@@ -21,11 +28,16 @@ export function AssaiCalculatorPage() {
   // Un error solo se muestra cuando el operador ya salio del campo: mientras tipea el primer numero,
   // decirle que esta mal es ruido, porque todavia no termino de escribirlo.
   const [blurred, setBlurred] = useState<Record<string, boolean>>({});
+  // El campo que se esta editando ahora, y si ya se intento compartir con el pedido incompleto.
+  const [focused, setFocused] = useState<string | null>(null);
+  const [triedShare, setTriedShare] = useState(false);
   const [freeNumber, setFreeNumber] = useState('');
   const [note, setNote] = useState('');
 
   const lines = useMemo(() => assaiLines(quantities), [quantities]);
   const hasError = assaiHasError(lines);
+  const visibleErrors = assaiVisibleErrors(lines, { blurred, focused });
+  const hasVisibleError = visibleErrors.length > 0;
   const totalBoxes = assaiTotalBoxes(lines);
   const message = assaiMessage(lines);
 
@@ -33,7 +45,10 @@ export function AssaiCalculatorPage() {
 
   async function handleShare() {
     setNote('');
-    if (hasError) return;
+    if (hasError) {
+      setTriedShare(true);
+      return;
+    }
 
     if (targetNumber !== '') {
       const link = waMeLink(targetNumber, message);
@@ -79,14 +94,22 @@ export function AssaiCalculatorPage() {
                   <td className="py-2 pr-2">
                     <Input
                       value={quantities[line.product] ?? ''}
-                      onChange={(e) => setQuantities({ ...quantities, [line.product]: e.target.value })}
                       inputMode="numeric"
                       placeholder="0"
                       aria-label={line.product}
                       data-testid={`assai-units-${line.product}`}
-                      onBlur={() => setBlurred({ ...blurred, [line.product]: true })}
+                      onFocus={() => setFocused(line.product)}
+                      onChange={(e) => {
+                        setQuantities({ ...quantities, [line.product]: e.target.value });
+                        // Volver a escribir apaga el cartel del campo: la correccion esta en curso.
+                        setBlurred({ ...blurred, [line.product]: false });
+                      }}
+                      onBlur={() => {
+                        setBlurred({ ...blurred, [line.product]: true });
+                        setFocused(null);
+                      }}
                     />
-                    {!line.exact && blurred[line.product] === true && (
+                    {visibleErrors.includes(line.product) && (
                       <span className="text-xs text-red-600" data-testid={`assai-error-${line.product}`}>
                         {t('assai.errorUnits')}
                       </span>
@@ -135,7 +158,7 @@ export function AssaiCalculatorPage() {
             <Button onClick={handleShare} disabled={hasError} data-testid="assai-share">
               {t('assai.share')}
             </Button>
-            {hasError && (
+            {hasError && (hasVisibleError || triedShare) && (
               <span className="text-xs text-red-600" data-testid="assai-blocked">
                 {t('assai.blocked')}
               </span>

@@ -7,6 +7,8 @@ import {
   assaiMessage,
   assaiTotalBoxes,
   boxesFor,
+  assaiHasVisibleError,
+  assaiVisibleErrors,
 } from './assai';
 
 const nhoque = 'Nhoque 1kg';
@@ -75,5 +77,42 @@ describe('assaiMessage', () => {
 
   it('avisa que nao ha pedido em vez de mandar uma mensagem vazia', () => {
     assert.ok(assaiMessage(assaiLines({})).includes('Nenhum produto'));
+  });
+});
+
+describe('cuando se muestra el error de una linea', () => {
+  // El cartel de un campo es una decision sobre el momento y no sobre el numero: la misma linea inexacta
+  // se muestra o no segun donde este el operador. Por eso la regla vive en el modulo puro y la pantalla
+  // solo pregunta, en vez de llevar su propia copia de la condicion.
+  it('no muestra nada mientras el campo esta en foco, aunque la cantidad este mal', () => {
+    const lines = assaiLines({ [nhoque]: '20' });
+    assert.ok(assaiHasError(lines), 'el pedido sigue siendo inexacto');
+    assert.deepStrictEqual(assaiVisibleErrors(lines, { blurred: { [nhoque]: true }, focused: nhoque }), []);
+  });
+
+  it('muestra el error de un campo que ya fue dejado', () => {
+    const lines = assaiLines({ [nhoque]: '20' });
+    assert.deepStrictEqual(assaiVisibleErrors(lines, { blurred: { [nhoque]: true }, focused: null }), [nhoque]);
+  });
+
+  it('no muestra el error de un campo que nunca fue dejado', () => {
+    const lines = assaiLines({ [nhoque]: '20' });
+    assert.deepStrictEqual(assaiVisibleErrors(lines, { blurred: {}, focused: null }), []);
+  });
+
+  it('volver a entrar a editar apaga el cartel viejo', () => {
+    const lines = assaiLines({ [nhoque]: '20' });
+    assert.deepStrictEqual(assaiVisibleErrors(lines, { blurred: { [nhoque]: true }, focused: nhoque }), []);
+  });
+
+  it('un campo vacio no es un error visible aunque se haya dejado', () => {
+    assert.deepStrictEqual(assaiVisibleErrors(assaiLines({}), { blurred: { [nhoque]: true }, focused: null }), []);
+  });
+
+  it('el aviso de abajo sigue a los errores visibles y no al pedido inexacto', () => {
+    const lines = assaiLines({ [nhoque]: '20' });
+    assert.strictEqual(assaiHasVisibleError(lines, { blurred: { [nhoque]: true }, focused: nhoque }), false);
+    assert.strictEqual(assaiHasVisibleError(lines, { blurred: { [nhoque]: true }, focused: null }), true);
+    assert.strictEqual(assaiHasVisibleError(lines, { blurred: {}, focused: null }), false);
   });
 });
