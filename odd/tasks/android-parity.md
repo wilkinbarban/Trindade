@@ -204,3 +204,24 @@ del host.
 **Siguiente (A4c)**: la pantalla Compose —las dos pestañas del catálogo, las tarjetas táctiles con sus
 métricas y su fila de acciones, los totales y los dos botones de exportación al buzón de la planta y a
 WhatsApp— que consume este ViewModel sin computar nada por su cuenta.
+
+## Lección de arnés (A4c) — el host de verificación tiene que estar completo
+
+**El síntoma**: la suite completa en el host reportó **681 pruebas con 7 fallos**. Las siete eran de
+`PasswordPolicyContractTest` (1) y `ContractCoverageTest` (6), y todas decían lo mismo:
+`IllegalStateException: openapi.json is not on the test classpath; the test source set should include it`.
+
+**La causa, y no era el código**: esas dos clases leen el **contrato publicado** desde el classpath de
+pruebas, y el contrato vive en `packages/contracts/openapi.json` — **fuera** de `packages/android/`, que era
+lo único que el `rsync` copiaba al host. El host estaba incompleto, no el árbol roto. La comprobación que lo
+confirma: esas mismas pruebas pasan en el CI, que corre el repositorio entero.
+
+**La regla que queda**: el arnés de verificación copia **todo lo que las pruebas leen**, no solo el paquete
+que se está tocando. En este proyecto eso incluye `packages/contracts/` además de `packages/android/`, y la
+ruta relativa que espera el build es la del repositorio (`../contracts/openapi.json` desde el proyecto de
+Gradle), así que el host tiene que reflejarla (`~/contracts/` cuando el paquete está en
+`~/trindade-android-a1/`).
+
+**Y una advertencia para el próximo veredicto**: un fallo en pruebas ajenas al cambio no se atribuye al
+cambio ni se ignora; se investiga hasta saber de quién es. Acá la causa era del arnés, y eso también hay que
+probarlo antes de decir que el código está bien.
