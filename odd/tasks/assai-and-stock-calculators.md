@@ -67,10 +67,43 @@ en cero, devuelve productos con totales). POST /api/stock/add-entry { date, prod
 POST /api/stock/reset-product { date, product_code } (resetea el producto a 0). GET /api/stock/history
 (fechas con conteos realizados para consulta histórica).»
 
-**Falta el dato**: «Catálogo de 25 productos (15 Terceirizados + 10 Massas) con sus códigos y capacidades
-provistos en el requerimiento.» No están en este mensaje, ni en el repositorio, ni en los documentos del
-checkout principal, ni en la memoria. **No se inventan**: son 25 filas que entrarían a una base de
-producción y a una pantalla que el operador usa para contar mercadería real.
+**Desbloqueado**: el catálogo llegó del usuario y se transcribe acá **literal**, en el documento que es la
+fuente de verdad de la implementación, porque ya se perdió una vez y no puede volver a perderse.
+
+TERCEIRIZADOS (15 productos):
+
+| Código | Nombre | Unidades por caja |
+| --- | --- | --- |
+| 1667 | BATATA EXTRA FINA | 20 |
+| 1567 | BATATA PALHA 400G | 25 |
+| 1566 | BATATA PALHA 80G | 25 |
+| 1461 | BRINQUEDO GELADO | 100 |
+| 787 | CANUDO | 30 |
+| 1438 | NHOQUE 1 kg | 20 |
+| 1436 | NHOQUE 400g | 42 |
+| 1236 | PÃO PICANTE | 10 |
+| 1237 | PÃO TRADICIONAL | 10 |
+| 1595 | PÃO CALABRESA | 10 |
+| 1591 | PIZZA FAMILIA 200g | 20 |
+| 107 | PIZZA KIT 160g | 20 |
+| 1753 | 150g - PIZZA KIT | 20 |
+| 1800 | PIZZA BROTINHO 55G | 50 |
+| 2108 | QUEIJO RALADO | 25 |
+
+MASSAS (10 productos):
+
+| Código | Nombre | Unidades por caja |
+| --- | --- | --- |
+| 1045 | MASSA CASEIRA | 10 |
+| 39 | MASSA DISCO 200G | 10 |
+| 60 | MASSA DISCO 400G | 20 |
+| 84 | MASSA DISCO 500G | 20 |
+| 91 | MASSA LASANHA 500G | 20 |
+| 1192 | MASSA QUADRADA | 15 |
+| 5000 | MASSA ROLO 1KG | 10 |
+| 1047 | MASSA ROLO 2KG | 6 |
+| 22 | MASSA ROLO 500G | 15 |
+| 1616 | MASSA TOKO | 10 |
 
 ### S4 — Calculador de Estoque (frontend)  **[BLOQUEADO: depende de S3]**
 
@@ -98,7 +131,7 @@ L211.»
 | --- | --- | --- | --- | --- |
 | T01 | El enlace del cronograma activo abre el día del lote, o invita a crearlo | S1 | inline | por cerrar |
 | T02 | Calculadora de Assaí: regla pura, página, ruta, tarjeta y navegación | S2 | inline | por cerrar |
-| T03 | Calculador de Estoque: migración v5 + endpoints + página | S3, S4 | inline | **bloqueada** |
+| T03 | Calculador de Estoque: migración v5 + endpoints + página | S3, S4 | inline | por cerrar |
 | T04 | Despliegue web (sin migración: S1 y S2 son de frontend) y asiento L211 | S5 | inline | por cerrar |
 
 Tamaño: **grande** (tres módulos, backend y migración incluidos, varias sesiones, entregables separados).
@@ -115,3 +148,9 @@ ciclo, transcrito en las secciones de arriba.
 **L2** (bloqueo declarado): el catálogo de 25 productos de S3 no llegó con el requerimiento ni existe en el
 repositorio, el checkout principal o la memoria. Se pide al usuario por lo que es: un dato que no se puede
 deducir. Mientras tanto se ejecutan S1 y S2, que están completas.
+
+**L3** (catálogo recibido): el usuario entregó los 25 productos con sus códigos, nombres y unidades por
+caja —15 Terceirizados y 10 Massas— y quedaron transcriptos literalmente en S3. T03 queda **desbloqueada**:
+el catálogo va a código (una constante del backend, como el de Assaí en el frontend) y **no** a la base,
+porque es un dato del producto y no del conteo del día; la tabla `stock_counts` guarda lo que el operador
+cuenta, no el catálogo que lo ordena.
