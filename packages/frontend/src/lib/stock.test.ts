@@ -14,7 +14,7 @@ import { mailtoLink, groupByCategory, saopauloToday, stockEmailBody, stockMessag
 const day = {
   date: '2026-10-15',
   totalBoxes: 7,
-  totalUnits: 250,
+  totalUnits: 162,
   products: [
     { code: '787', name: 'CANUDO', category: 'Terceirizados', unitsPerBox: 30, boxes: 5, units: 150 },
     { code: '1800', name: 'PIZZA BROTINHO 55G', category: 'Terceirizados', unitsPerBox: 50, boxes: 0, units: 0 },
@@ -49,7 +49,7 @@ describe('the message that leaves the plant', () => {
     assert.ok(message.includes('  • MASSA ROLO 2KG (1047) — 12 un'), 'la línea de Massas');
     assert.ok(!message.includes('PIZZA BROTINHO'), 'un producto sin contar no ensucia el mensaje');
     assert.ok(!message.includes('MASSA TOKO'), 'ni el otro');
-    assert.ok(message.includes('7') && message.includes('250'), 'los totales');
+    assert.ok(message.includes('7') && message.includes('162'), 'los totales');
     assert.ok(message.includes('2026-10-15') || message.includes('15/10'), 'la fecha del conteo');
   });
 
@@ -71,10 +71,18 @@ describe('the email that leaves the plant', () => {
     const body = stockEmailBody(day);
     assert.ok(body.includes('787') && body.includes('CANUDO'));
     assert.ok(!body.includes('MASSA TOKO'), 'solo lo contado');
-    assert.ok(body.includes('Categoria | Código | Produto | Unidades'), 'las columnas del correo');
+    assert.ok(body.includes('Categoria') && body.includes('Unidades'), 'las columnas del correo');
+    assert.ok(/^-+\+-+\+-+\+-+$/m.test(body), 'una linea separadora entre la cabecera y las filas');
     assert.ok(!body.includes('Caixas'), 'el correo ya no lleva la columna de bultos');
-    assert.ok(body.includes('CANUDO | 150'), 'la fila del correo lleva las unidades');
-    assert.ok(body.includes('250'), 'el total general al final');
+    // La alineacion es la propiedad que se pide: las barras caen siempre en la misma columna.
+    const lineas = body.split('\n').filter((l) => l.includes('|'));
+    const columnas = lineas.map((l) => l.split('|').map((c) => c.length));
+    assert.ok(new Set(columnas.map((c) => c.length)).size === 1, 'todas las filas tienen la misma cantidad de columnas');
+    assert.strictEqual(new Set(columnas.map((c) => c[0])).size, 1, 'la primera columna mide igual en todas las filas');
+    assert.strictEqual(new Set(columnas.map((c) => c[1])).size, 1, 'la segunda tambien');
+    assert.ok(lineas.some((l) => /\|\s+150\s*$/.test(l)), 'las unidades van alineadas a la derecha');
+    assert.ok(lineas.some((l) => /^Total\b/.test(l) && /\|\s+162\s*$/.test(l)), 'el total cae bajo la columna de unidades');
+    assert.ok(body.includes('162'), 'el total general al final');
     const link = mailtoLink('wilkin.barban@gmail.com', 'Contagem 2026-10-15', body);
     assert.ok(link.startsWith('mailto:wilkin.barban@gmail.com'), 'el destinatario preconfigurado');
     assert.ok(link.includes(encodeURIComponent('Contagem 2026-10-15').slice(0, 6)), 'el asunto viaja codificado');

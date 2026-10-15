@@ -97,12 +97,28 @@ export function stockEmailBody(day: StockDay): string {
     return lines.join('\n');
   }
 
-  lines.push('Categoria | Código | Produto | Unidades');
-  for (const product of countedProducts) {
-    lines.push(`${product.category} | ${product.code} | ${product.name} | ${product.units}`);
-  }
-  lines.push('');
-  lines.push(`Total | | | ${day.totalUnits}`);
+  // The columns are measured from the data rather than fixed, because a product name is as long as it
+  // is and a table that wraps inside a mail client is worse than one that is merely wide. The last
+  // column is padded from the left so the quantities line up under each other, which is the only
+  // column anybody reads down.
+  const headers = ['Categoria', 'Código', 'Produto', 'Unidades'];
+  const rows = countedProducts.map((product) => [product.category, product.code, product.name, String(product.units)]);
+  const totals = ['Total', '', '', String(day.totalUnits)];
+  const widths = headers.map((header, index) =>
+    Math.max(header.length, ...rows.map((row) => row[index].length), totals[index].length)
+  );
+
+  const row = (cells: string[]): string =>
+    cells
+      .map((cell, index) => (index === cells.length - 1 ? cell.padStart(widths[index]) : cell.padEnd(widths[index])))
+      .join(' | ');
+  const separator = widths.map((width) => '-'.repeat(width)).join('-+-');
+
+  lines.push(row(headers));
+  lines.push(separator);
+  for (const line of rows) lines.push(row(line));
+  lines.push(separator);
+  lines.push(row(totals));
   return lines.join('\n');
 }
 
