@@ -158,3 +158,23 @@ pantalla/marca de agua en las pantallas principales (DashboardScreen, LoginScree
 
 **Regla de diseño para Android**: un solo composable de crédito, usado por las tres pantallas, por el
 mismo motivo que en la web: un crédito escrito tres veces se queda viejo en dos.
+
+## Cierre de A4a — la regla de bultos del contador
+
+**Entregado**: `app/src/main/java/com/trindade/app/stock/StockBoxes.kt` (38 líneas: `boxesInvalid` con el
+campo vacío como algo que no es error, `addDisabled` y `visibleBoxErrors`) y
+`app/src/test/java/com/trindade/app/stock/StockBoxesTest.kt` (62 líneas, seis casos).
+
+**Por qué vive aparte**: son las dos decisiones que ocurren **antes** de que nada viaje al servidor —
+si lo tipeado puede ser una cantidad de bultos y si decirlo corresponde en este momento— y por eso no
+pertenecen ni a la pantalla que las dibuja ni al repositorio que las envía. La regla es la misma que
+aplica la web, caso por caso, porque las dos aplicaciones responden al mismo operario.
+
+**Evidencia (host Ubuntu, `:app:testDebugUnitTest`)**: reporte JUnit
+`com.trindade.app.stock.StockBoxesTest: tests=6 failures=0 errors=0 time=0.035s`, con los seis nombres en
+verde. Fase roja escondiendo la regla: `Unresolved reference 'boxesInvalid'` en las líneas 24, 25 y 26 del
+archivo de prueba, leído del registro del host.
+
+**Siguiente (A4b)**: el ViewModel sobre `StockRepository` y la pantalla Compose con las dos pestañas del
+catálogo, las tarjetas táctiles por producto, la acumulación corrida, el reset, los totales, el correo al
+buzón de la planta (`xmitrindade@hotmail.com`) y WhatsApp.
