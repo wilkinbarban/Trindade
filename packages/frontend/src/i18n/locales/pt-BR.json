@@ -23,20 +23,21 @@
     "changePasswordError": "Erro ao alterar a senha. Tente novamente."
   },
   "dashboard": {
-    "title": "Dashboard",
-    "overview": "Visão Geral",
-    "reportsToday": "Relatórios Hoje",
-    "schedulesTomorrow": "Carregamentos Amanhã",
+    "activeSchedule": "Cronograma ativo",
     "activeUsers": "Usuários Ativos",
-    "reportsTotal": "Relatórios Totais",
-    "schedulesTotal": "Histórico de Cargamento Total",
-    "loadingError": "Erro ao carregar dashboard",
+    "createSchedule": "Criar cronograma",
     "deferredNotice": "Novos módulos estarão disponíveis em versões futuras.",
     "higieneCount": "Hig. & Org. -> {{done}} Tarefas",
+    "loadingError": "Erro ao carregar dashboard",
+    "overview": "Visão Geral",
     "recepcionCount": "Recepção -> {{done}} Mercadorias",
-    "activeSchedule": "Cronograma ativo",
-    "viewSchedule": "Ver cronograma",
-    "shareSchedule": "Enviar pelo WhatsApp"
+    "reportsToday": "Relatórios Hoje",
+    "reportsTotal": "Relatórios Totais",
+    "schedulesTomorrow": "Carregamentos Amanhã",
+    "schedulesTotal": "Histórico de Cargamento Total",
+    "shareSchedule": "Enviar pelo WhatsApp",
+    "title": "Dashboard",
+    "viewSchedule": "Ver cronograma"
   },
   "nav": {
     "menu": "Menu",

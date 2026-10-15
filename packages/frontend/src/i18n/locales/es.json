@@ -23,20 +23,21 @@
     "changePasswordError": "Error al cambiar la contraseña. Intente nuevamente."
   },
   "dashboard": {
-    "title": "Panel de Control",
-    "overview": "Vista General",
-    "reportsToday": "Reportes de Hoy",
-    "schedulesTomorrow": "Cargas de Mañana",
+    "activeSchedule": "Cronograma activo",
     "activeUsers": "Usuarios Activos",
-    "reportsTotal": "Relatorios Totales",
-    "schedulesTotal": "Historial de Cargamento Total",
-    "loadingError": "Error al cargar el panel de control",
+    "createSchedule": "Crear cronograma",
     "deferredNotice": "Nuevos módulos estarán disponibles en versiones futuras.",
     "higieneCount": "Hig. y Org. -> {{done}} Tareas",
+    "loadingError": "Error al cargar el panel de control",
+    "overview": "Vista General",
     "recepcionCount": "Recepción -> {{done}} Mercancías",
-    "activeSchedule": "Cronograma activo",
-    "viewSchedule": "Ver cronograma",
-    "shareSchedule": "Enviar por WhatsApp"
+    "reportsToday": "Reportes de Hoy",
+    "reportsTotal": "Relatorios Totales",
+    "schedulesTomorrow": "Cargas de Mañana",
+    "schedulesTotal": "Historial de Cargamento Total",
+    "shareSchedule": "Enviar por WhatsApp",
+    "title": "Panel de Control",
+    "viewSchedule": "Ver cronograma"
   },
   "nav": {
     "menu": "Menú",

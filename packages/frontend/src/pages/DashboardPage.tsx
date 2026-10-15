@@ -3,21 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { shareOrCopy } from '../lib/whatsapp';
+import { activeScheduleLink } from '../lib/active-schedule-link';
 import { Card, CardContent } from '../components/ui/card';
 import { LoadingSpinner } from '../components/ui/loading-spinner';
-
-/** The day in São Paulo, which is the day the schedule screens are about. */
-function saoPauloToday(): string {
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/Sao_Paulo',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
-  const parts = formatter.formatToParts(new Date());
-  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
-  return `${get('year')}-${get('month')}-${get('day')}`;
-}
 
 interface DashboardSummary {
   reportsToday: number;
@@ -92,6 +80,10 @@ export function DashboardPage() {
       setShareNote(t('loading.exportError'));
     }
   }
+
+  // One decision, one place: which day the card opens and what it calls that door. The rule and the
+  // reason it takes the batch date live in the pure module, with its own tests.
+  const scheduleLink = activeScheduleLink(summary);
 
   useEffect(() => {
     let cancelled = false;
@@ -175,16 +167,11 @@ export function DashboardPage() {
               */}
               <div className="flex flex-wrap items-center gap-3 pt-1">
                 <Link
-                  to={
-                    // Today's grid is the screen for today, and the edit screen is the one that takes a day.
-                    !summary?.activeScheduleDate || summary.activeScheduleDate === saoPauloToday()
-                      ? '/loading'
-                      : `/loading/edit?date=${summary.activeScheduleDate}`
-                  }
+                  to={scheduleLink.to}
                   className="text-xs text-blue-600 hover:underline"
                   data-testid="view-active-schedule"
                 >
-                  {t('dashboard.viewSchedule')}
+                  {t(scheduleLink.labelKey)}
                 </Link>
                 <button
                   type="button"
