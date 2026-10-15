@@ -1,5 +1,6 @@
 package com.trindade.app.auth
 
+import com.trindade.app.ui.components.DeveloperCredit
 import androidx.annotation.StringRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
@@ -237,6 +238,7 @@ fun LoginScreen(
                 Text(stringResource(R.string.login_register_link))
             }
         }
+        DeveloperCredit()
     }
 }
 

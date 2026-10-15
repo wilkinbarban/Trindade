@@ -1,5 +1,6 @@
 package com.trindade.app.dashboard
 
+import com.trindade.app.ui.components.DeveloperCredit
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -181,6 +182,8 @@ fun DashboardScreen(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+
+                DeveloperCredit()
             }
         }
     }
