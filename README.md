@@ -158,7 +158,7 @@ El ecosistema **Trindade Massas Operaciones** fue diseñado para unificar la ope
 
 ---
 
-## Aplicación Móvil Android (v0.4.0)
+## Aplicación Móvil Android (v0.5.0)
 
 La app móvil se distribuye directamente a través de GitHub Releases con firma criptográfica oficial en clave RSA 4096 (esquema APK v2).
 
@@ -184,6 +184,22 @@ La app móvil se distribuye directamente a través de GitHub Releases con firma 
 | **Perfil de Cuenta** | Cambio de clave, comprobación de versión instalada y cierre de sesión | Administrador y Trabajador |
 
 ---
+
+## Calculadoras Operacionales (v0.5.0)
+
+Tres herramientas de balcón, en la web y en Android, sobre la misma regla de negocio y el mismo contrato. Cada
+una tiene su regla en un módulo puro con sus pruebas, y las dos plataformas responden lo mismo.
+
+| Herramienta | Ruta (web) | Qué hace |
+| --- | --- | --- |
+| **Calculadora de Assaí** | `/assai-calculator` | Nueve productos; el pedido solo existe en cajas enteras y sale por WhatsApp con una línea por producto y el total |
+| **Calculador de Estoque** | `/stock-calculator` | El catálogo de 25 productos en dos secciones; acumulación corrida de cajas por producto, unidades recalculadas de ellas y totales del día |
+| **Historial de conteo** | `/stock-history` | Los días ya contados, solo con los productos contados, con exportación y control de rol (Trabajador lee, Administrador corrige) |
+
+El **correo del stock** va al buzón de la planta (`xmitrindade@hotmail.com`); la **marca de agua** del autor, al
+pie de las pantallas principales, es otra cosa y usa la dirección del autor.
+
+Documentación detallada: [`docs/calculadoras.md`](docs/calculadoras.md).
 
 ## Guía de Inicio Rápido (Desarrollo Local)
 
@@ -215,7 +231,7 @@ make dev
 
 ---
 
-## Base de Datos y Migraciones (Revisión 4)
+## Base de Datos y Migraciones (Revisión 5)
 
 La base de datos SQLite se controla de manera inmutable mediante `PRAGMA user_version`:
 - **Revisión 1**: Estructura de catálogos y reportes base (14 tablas).
