@@ -280,3 +280,29 @@ told instead of being refused later». Fase roja escondiendo el ViewModel: `Unre
 
 **Siguiente (A5b)**: la pantalla del histórico con el selector de fecha, la lista de solo los productos
 contados y la vista que se apaga para quien no puede corregir.
+
+## Especificación de A6 (directiva del usuario, 2026-10-15)
+
+Cita literal: «para la siguiente unidad (A6), tené en cuenta que la marca de agua DeveloperCredit en Android
+debe ser bien reducida y discreta para pantallas móviles (10.sp, color atenuado con alpha y centrada al
+pie).»
+
+Cómo se implementa: un solo composable de crédito en `com.trindade.app.ui` —mismo criterio que en la web, un
+crédito escrito tres veces se queda viejo en dos—, con los textos «Desenvolvido por Wilkin Barban Rosabal» y
+«E-mail: wilkin.barban@gmail.com» en **10.sp**, color atenuado **con alpha** (y no un gris fijo, que en tema
+oscuro desaparece o grita) y **centrado al pie**, montado en `DashboardScreen`, `LoginScreen` y `Perfil`.
+
+El correo del autor es para el crédito; el buzón de la planta (`xmitrindade@hotmail.com`) es otra cosa y solo
+se usa como destino de los conteos.
+
+## Cierre de A5b — la pantalla del histórico
+
+**Entregado**: `app/src/main/java/com/trindade/app/stock/StockHistoryScreen.kt` (203 líneas): el título, el
+selector de fecha, los atajos de los días ya contados, y una tarjeta por producto **solo de los que tienen
+unidades** (código, nombre, categoría, cajas y unidades), con el vacío dicho cuando el día no tuvo conteo y
+sin ningún control de escritura para quien no puede corregir.
+
+**La decisión de seguridad de esta pantalla**: el rol entra como **parámetro con `null` por defecto**, y
+`null` significa solo lectura. Si nadie le dijo quién está mirando, la pantalla muestra el día y no ofrece
+ninguna corrección: el modo por defecto es el seguro, y A6 lo conecta a la sesión real. El servidor aplica la
+misma frontera con su 403 — esta capa existe para que a nadie se le ofrezca un botón que será rechazado.
