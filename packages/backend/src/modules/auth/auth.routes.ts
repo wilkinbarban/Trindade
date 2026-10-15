@@ -35,7 +35,9 @@ import {
  * cannot be revoked, so the refresh token carries the session and this short lifetime caps
  * how long a leaked access token stays useful.
  */
-const ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
+// Two hours: a count takes as long as the shelf takes, and a token that expires in the middle of one
+// logs an operator out with the boxes half written. The refresh token still bounds the session.
+const ACCESS_TOKEN_TTL_SECONDS = 2 * 60 * 60;
 
 const DEFAULT_REFRESH_TOKEN_TTL_DAYS = 30;
 

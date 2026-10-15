@@ -358,7 +358,7 @@ describe('Auth Routes', () => {
 
       assert.strictEqual(typeof session.refreshToken, 'string');
       assert.ok(session.refreshToken.length >= 32, 'the refresh token is too short to be high entropy');
-      assert.strictEqual(session.expiresIn, 900);
+      assert.strictEqual(session.expiresIn, 7200);
 
       const stored = db
         .prepare('SELECT token_hash FROM auth_sessions WHERE user_id = ?')
@@ -378,7 +378,7 @@ describe('Auth Routes', () => {
       assert.strictEqual(typeof body.token, 'string');
       assert.strictEqual(typeof body.refreshToken, 'string');
       assert.notStrictEqual(body.refreshToken, session.refreshToken, 'the refresh token was not rotated');
-      assert.strictEqual(body.expiresIn, 900);
+      assert.strictEqual(body.expiresIn, 7200);
     });
 
     it('rejects a refresh token that was already rotated away', async () => {
