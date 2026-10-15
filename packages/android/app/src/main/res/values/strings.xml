@@ -446,4 +446,7 @@
     <string name="audit_details_expand">Ver detalhes</string>
     <string name="audit_details_collapse">Ocultar detalhes</string>
     <string name="audit_error_fetch">Erro ao carregar logs de auditoria</string>
+    <string name="nav_assai">Calculadora de Assaí</string>
+    <string name="nav_stock_counter">Calculador de Estoque</string>
+    <string name="nav_stock_history">Histórico de Contagem</string>
 </resources>

@@ -67,6 +67,19 @@ object RolePolicy {
 
         /** `adminGuard`: the audit log, which the SPA reaches from a page of its own. */
         AUDIT,
+
+        /**
+         * Session only: the Assaí order calculator. It computes a purchase order and posts nothing, so
+         * there is no route for a guard to speak about -- what a role may do lives in the counting
+         * endpoints, and this surface only reaches them for the catalogue.
+         */
+        ASSAI_ORDER,
+
+        /** Session only: `GET /api/stock` reads for both roles; the two writes are the administrator's. */
+        STOCK_COUNTER,
+
+        /** Session only: the counted days. Reading is both roles'; correcting on the screen is not. */
+        STOCK_HISTORY,
     }
 
     /**
@@ -83,6 +96,9 @@ object RolePolicy {
         EntryPoint.LOADING,
         EntryPoint.CATALOG_TASKS,
         EntryPoint.CATALOG_DRIVERS,
+        EntryPoint.ASSAI_ORDER,
+        EntryPoint.STOCK_COUNTER,
+        EntryPoint.STOCK_HISTORY,
     )
 
     /**

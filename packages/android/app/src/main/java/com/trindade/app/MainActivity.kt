@@ -61,6 +61,9 @@ import com.trindade.app.reports.ReportGeneratorRoute
 import com.trindade.app.reports.ReportsHistoryRoute
 import com.trindade.app.ui.components.NavigationActionButton
 import com.trindade.app.ui.theme.TrindadeTheme
+import com.trindade.app.assai.AssaiCalculatorScreen
+import com.trindade.app.stock.StockCalculatorScreen
+import com.trindade.app.stock.StockHistoryScreen
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -76,6 +79,9 @@ class MainActivity : ComponentActivity() {
         TASKS(R.string.tasks_title),
         DRIVERS(R.string.drivers_title),
         ADMIN(R.string.admin_panel_title),
+        ASSAI(R.string.nav_assai),
+        STOCK_COUNTER(R.string.nav_stock_counter),
+        STOCK_HISTORY(R.string.nav_stock_history),
     }
 
     companion object {
@@ -92,6 +98,9 @@ class MainActivity : ComponentActivity() {
             RolePolicy.EntryPoint.CATALOG_TASKS to Tab.TASKS,
             RolePolicy.EntryPoint.CATALOG_DRIVERS to Tab.DRIVERS,
             RolePolicy.EntryPoint.CATEGORIES to Tab.ADMIN,
+            RolePolicy.EntryPoint.ASSAI_ORDER to Tab.ASSAI,
+            RolePolicy.EntryPoint.STOCK_COUNTER to Tab.STOCK_COUNTER,
+            RolePolicy.EntryPoint.STOCK_HISTORY to Tab.STOCK_HISTORY,
         )
     }
 
@@ -256,6 +265,14 @@ class MainActivity : ComponentActivity() {
                             drawerState = drawerState,
                         ) {
                             when (tab) {
+                                // Las tres superficies nuevas se dibujan sin argumentos: cada una resuelve su
+                                // ViewModel por Hilt, y la calculadora de Assaí no toca la red en absoluto.
+                                Tab.ASSAI -> AssaiCalculatorScreen()
+                                // El histórico se dibuja en modo lectura: el rol todavía no está cableado acá,
+                                // y el modo por defecto de esa pantalla es el seguro. El servidor aplica la
+                                // misma frontera con su 403, así que la corrección no depende de esta línea.
+                                Tab.STOCK_HISTORY -> StockHistoryScreen()
+                                Tab.STOCK_COUNTER -> StockCalculatorScreen()
                                 Tab.DASHBOARD -> DashboardRoute(
                                     sessionKey = sessionKey,
                                     onOpenReport = { openReportId = it },
