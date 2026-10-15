@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { openDatabase } from './index.js';
 import { migrateLegacyReportTemperatures } from './report-temperatures-migration.js';
-import { SCHEMA_VERSION } from './schema-version.js';
+import { SCHEMA_TABLES, SCHEMA_VERSION } from './schema-version.js';
 
 const schemaPath = join(import.meta.dirname, 'schema.sql');
 const seedPath = join(import.meta.dirname, 'seed.sql');
@@ -32,6 +32,7 @@ describe('Database Initialization', () => {
     const expected = [
       'audit_logs',
       'auth_sessions',
+      'stock_counts',
       'drivers',
       'loading_schedules',
       'report_categories',
@@ -54,7 +55,7 @@ describe('Database Initialization', () => {
       );
     }
 
-    assert.strictEqual(tables.length, expected.length, 'Should have exactly 15 user tables');
+    assert.strictEqual(tables.length, expected.length, 'Should have exactly the expected user tables');
     db.close();
   });
 
@@ -93,7 +94,7 @@ describe('Database Initialization', () => {
     }, 'Running schema.sql twice should not error');
 
     const tables = tableNames(db);
-    assert.strictEqual(tables.length, 15, 'Should still have 15 tables after re-run');
+    assert.strictEqual(tables.length, SCHEMA_TABLES.length, 'Should still have the same tables after re-run');
     db.close();
   });
 

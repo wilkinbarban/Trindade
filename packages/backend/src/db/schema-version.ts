@@ -14,7 +14,7 @@ import type Database from 'better-sqlite3';
  * Databases created before versioning carry `user_version = 0` and are reported as
  * `unversioned`; nothing about them is assumed, and no startup path rewrites them.
  */
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 /**
  * The tables a database created by revision 1 must contain: the baseline the
@@ -42,12 +42,15 @@ export const BASELINE_TABLES = [
 /** Tables introduced by revision 2: refresh-token session persistence. */
 export const REVISION_TWO_TABLES = ['auth_sessions'] as const;
 
+/** Tables introduced by revision 5: the daily count of boxes per product. */
+export const REVISION_FIVE_TABLES = ['stock_counts'] as const;
+
 /**
  * The user tables the approved schema defines. Kept in code because the read-only
  * status report needs an expectation to compare against; the test suite ties this
  * list to the tables `schema.sql` actually creates.
  */
-export const SCHEMA_TABLES: readonly string[] = [...BASELINE_TABLES, ...REVISION_TWO_TABLES].sort();
+export const SCHEMA_TABLES: readonly string[] = [...BASELINE_TABLES, ...REVISION_TWO_TABLES, ...REVISION_FIVE_TABLES].sort();
 
 /**
  * The tables a database stamped at `version` is required to contain.
@@ -62,7 +65,11 @@ export const SCHEMA_TABLES: readonly string[] = [...BASELINE_TABLES, ...REVISION
  * further is known about it.
  */
 export function requiredTablesFor(version: number): readonly string[] {
-  return version >= 2 ? SCHEMA_TABLES : BASELINE_TABLES;
+  if (version >= 5) return SCHEMA_TABLES;
+  // A database stamped below 5 is asked only for what its own revision introduced: asking it for
+  // `stock_counts` would call it incompatible and would refuse the very migration that gives it one.
+  if (version >= 2) return [...BASELINE_TABLES, ...REVISION_TWO_TABLES].sort();
+  return BASELINE_TABLES;
 }
 
 export type SchemaObservation = {

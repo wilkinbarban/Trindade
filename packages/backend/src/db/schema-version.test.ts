@@ -8,6 +8,7 @@ import Database from 'better-sqlite3';
 import { openDatabase } from './index.js';
 import {
   BASELINE_TABLES,
+  REVISION_FIVE_TABLES,
   REVISION_TWO_TABLES,
   SCHEMA_TABLES,
   SCHEMA_VERSION,
@@ -84,7 +85,7 @@ describe('schema revision', () => {
     // The per-revision inventories must add up to the full current inventory.
     assert.deepEqual([...requiredTablesFor(SCHEMA_VERSION)].sort(), [...SCHEMA_TABLES].sort());
     assert.deepEqual([...requiredTablesFor(1)].sort(), [...BASELINE_TABLES].sort());
-    assert.deepEqual([...SCHEMA_TABLES].sort(), [...BASELINE_TABLES, ...REVISION_TWO_TABLES].sort());
+    assert.deepEqual([...SCHEMA_TABLES].sort(), [...BASELINE_TABLES, ...REVISION_TWO_TABLES, ...REVISION_FIVE_TABLES].sort());
   });
 
   it('schema.sql creates exactly the tables the report expects', () => {
@@ -164,15 +165,15 @@ describe('schema revision', () => {
       'database: /tmp/fresh.db',
       'integrity: ok',
       `schema revision: ${SCHEMA_VERSION} (this build supports ${SCHEMA_VERSION})`,
-      'tables: 15 observed, 0 missing, 0 unexpected',
-      `verdict: current — revision ${SCHEMA_VERSION}; 15 tables present`,
+      'tables: 16 observed, 0 missing, 0 unexpected',
+      `verdict: current — revision ${SCHEMA_VERSION}; 16 tables present`,
     ]);
 
     const missing = formatReport(
       '/tmp/broken.db',
       classifySchema(observation({ tables: SCHEMA_TABLES.filter((table) => table !== 'reports') })),
     );
-    assert.equal(missing[3], 'tables: 14 observed, 1 missing, 0 unexpected');
+    assert.equal(missing[3], 'tables: 15 observed, 1 missing, 0 unexpected');
     assert.equal(missing[4], 'missing tables: reports');
     assert.match(missing[5], /^verdict: incompatible — missing tables: reports$/);
   });
