@@ -42,6 +42,45 @@ export function groupByCategory(products: StockProduct[]): StockCategoryGroup[] 
   return groups;
 }
 
+/** Where the operator is, per product: the fields that were left, and the one being edited now. */
+export interface StockFieldState {
+  blurred: Record<string, boolean>;
+  focused: string | null;
+}
+
+/**
+ * True when what was typed cannot become a number of boxes.
+ *
+ * An empty field is not a mistake, it is a field nobody touched yet. The rule is the one the order
+ * calculator follows, and for the same reason: a box holds whole units, so half a box is not a quantity
+ * and neither is zero boxes.
+ */
+export function stockBoxesInvalid(raw: string): boolean {
+  const text = raw.trim();
+  if (text === '') return false;
+  const value = Number(text);
+  return !Number.isInteger(value) || value <= 0;
+}
+
+/** The add button is off when there is nothing to add, or what is there cannot be added. */
+export function stockAddDisabled(raw: string): boolean {
+  return raw.trim() === '' || stockBoxesInvalid(raw);
+}
+
+/**
+ * The products whose error should be shown right now.
+ *
+ * Whether a quantity can be counted is a fact about the number; whether to say so is a fact about the
+ * moment. While the operator is typing, half a number is allowed to be half written, and coming back
+ * into a field has to clear the warning it left behind, or the first keystroke of a correction accuses
+ * the operator of the mistake they are in the middle of fixing.
+ */
+export function stockVisibleErrors(quantities: Record<string, string>, state: StockFieldState): string[] {
+  return Object.keys(quantities)
+    .filter((code) => state.blurred[code] === true && state.focused !== code && stockBoxesInvalid(quantities[code]))
+    .sort();
+}
+
 /** The São Paulo day, as YYYY-MM-DD, whatever the device's clock is set to. */
 export function saopauloToday(now: Date = new Date()): string {
   return new Intl.DateTimeFormat('en-CA', {

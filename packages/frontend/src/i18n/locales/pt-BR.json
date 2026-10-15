@@ -443,6 +443,7 @@
     "historySubtitle": "Dias anteriores, com o que foi contado em cada um.",
     "historyTitle": "Histórico de Contagem",
     "invalidBoxes": "Digite uma quantidade inteira de caixas maior que zero.",
+    "invalidBoxesInline": "Quantidade incorreta de caixas",
     "loadError": "Não foi possível carregar o dia da contagem.",
     "massas": "Massas",
     "message": "Mensagem",

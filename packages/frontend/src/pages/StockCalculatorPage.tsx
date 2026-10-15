@@ -8,6 +8,8 @@ import { Input } from '../components/ui/input';
 import {
   groupByCategory,
   mailtoLink,
+  stockAddDisabled,
+  stockVisibleErrors,
   saopauloToday,
   stockEmailBody,
   stockMessage,
@@ -52,6 +54,9 @@ export function StockCalculatorPage() {
   const [note, setNote] = useState('');
   const [error, setError] = useState('');
   const [tab, setTab] = useState('');
+  // El campo en edicion y los ya dejados: el cartel es una cuestion de momento, no solo del numero.
+  const [focused, setFocused] = useState<string | null>(null);
+  const [blurred, setBlurred] = useState<Record<string, boolean>>({});
 
   const load = useCallback(
     async (target: string) => {
@@ -85,6 +90,8 @@ export function StockCalculatorPage() {
   const message = day === null ? '' : stockMessage(day);
   const emailBody = day === null ? '' : stockEmailBody(day);
   const targetNumber = freeNumber.trim();
+  const visibleErrors = stockVisibleErrors(quantities, { blurred, focused });
+  const boxes = (code: string) => quantities[code] ?? '';
 
   async function sendEntry(product: StockProduct) {
     const raw = (quantities[product.code] ?? '').trim();
@@ -227,14 +234,32 @@ export function StockCalculatorPage() {
                   <div className="flex items-center gap-2">
                     <Input
                       value={quantities[product.code] ?? ''}
-                      onChange={(e) => setQuantities({ ...quantities, [product.code]: e.target.value })}
+                      onFocus={() => setFocused(product.code)}
+                      onChange={(e) => {
+                        setQuantities({ ...quantities, [product.code]: e.target.value });
+                        // Volver a escribir apaga el cartel: la correccion esta en curso.
+                        setBlurred({ ...blurred, [product.code]: false });
+                      }}
+                      onBlur={() => {
+                        setBlurred({ ...blurred, [product.code]: true });
+                        setFocused(null);
+                      }}
                       inputMode="numeric"
                       placeholder="0"
                       aria-label={product.name}
                       className="w-20"
                       data-testid={`stock-mobile-input-${product.code}`}
                     />
-                    <Button onClick={() => sendEntry(product)} disabled={busy} data-testid={`stock-mobile-add-${product.code}`}>
+                    {visibleErrors.includes(product.code) && (
+                      <span className="text-xs text-red-600" data-testid={`stock-mobile-error-${product.code}`}>
+                        {t('stock.invalidBoxesInline')}
+                      </span>
+                    )}
+                    <Button
+                      onClick={() => sendEntry(product)}
+                      disabled={busy || stockAddDisabled(boxes(product.code))}
+                      data-testid={`stock-mobile-add-${product.code}`}
+                    >
                       {t('stock.add')}
                     </Button>
                     <Button
@@ -278,14 +303,32 @@ export function StockCalculatorPage() {
                         <div className="flex items-center gap-2">
                           <Input
                             value={quantities[product.code] ?? ''}
-                            onChange={(e) => setQuantities({ ...quantities, [product.code]: e.target.value })}
+                            onFocus={() => setFocused(product.code)}
+                      onChange={(e) => {
+                        setQuantities({ ...quantities, [product.code]: e.target.value });
+                        // Volver a escribir apaga el cartel: la correccion esta en curso.
+                        setBlurred({ ...blurred, [product.code]: false });
+                      }}
+                      onBlur={() => {
+                        setBlurred({ ...blurred, [product.code]: true });
+                        setFocused(null);
+                      }}
                             inputMode="numeric"
                             placeholder="0"
                             aria-label={product.name}
                             className="w-20"
                             data-testid={`stock-input-${product.code}`}
                           />
-                          <Button onClick={() => sendEntry(product)} disabled={busy} data-testid={`stock-add-${product.code}`}>
+                          {visibleErrors.includes(product.code) && (
+                            <span className="text-xs text-red-600" data-testid={`stock-error-${product.code}`}>
+                              {t('stock.invalidBoxesInline')}
+                            </span>
+                          )}
+                          <Button
+                            onClick={() => sendEntry(product)}
+                            disabled={busy || stockAddDisabled(boxes(product.code))}
+                            data-testid={`stock-add-${product.code}`}
+                          >
                             {t('stock.add')}
                           </Button>
                           <Button

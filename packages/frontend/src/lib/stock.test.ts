@@ -1,6 +1,15 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { mailtoLink, groupByCategory, saopauloToday, stockEmailBody, stockMessage } from './stock';
+import {
+  mailtoLink,
+  groupByCategory,
+  saopauloToday,
+  stockAddDisabled,
+  stockBoxesInvalid,
+  stockEmailBody,
+  stockMessage,
+  stockVisibleErrors,
+} from './stock';
 
 /**
  * The counting export rules, tested where they can be tested: as text.
@@ -87,5 +96,59 @@ describe('the email that leaves the plant', () => {
     assert.ok(link.startsWith('mailto:wilkin.barban@gmail.com'), 'el destinatario preconfigurado');
     assert.ok(link.includes(encodeURIComponent('Contagem 2026-10-15').slice(0, 6)), 'el asunto viaja codificado');
     assert.ok(link.includes('%0A') || link.includes('%20'), 'el cuerpo viaja codificado');
+  });
+});
+
+describe('cuando lo tipeado no puede ser una cantidad de cajas', () => {
+  // Misma regla que en el pedido de Assai y por la misma razon: si una caja tiene bultos enteros, lo que
+  // no es un entero positivo no es una cantidad, y decirlo mientras el operador esta escribiendo es
+  // acusarlo de un numero que todavia no termino.
+  it('un campo vacio no es un error: es un campo que nadie toco', () => {
+    assert.strictEqual(stockBoxesInvalid(''), false);
+    assert.strictEqual(stockBoxesInvalid('   '), false);
+  });
+
+  it('lo que no es un entero positivo, si lo es', () => {
+    assert.strictEqual(stockBoxesInvalid('0'), true);
+    assert.strictEqual(stockBoxesInvalid('-2'), true);
+    assert.strictEqual(stockBoxesInvalid('2.5'), true);
+    assert.strictEqual(stockBoxesInvalid('abc'), true);
+    assert.strictEqual(stockBoxesInvalid('3'), false);
+    assert.strictEqual(stockBoxesInvalid(' 4 '), false);
+  });
+
+  it('el boton de agregar esta apagado sin nada que agregar o con algo que no se puede agregar', () => {
+    assert.strictEqual(stockAddDisabled(''), true);
+    assert.strictEqual(stockAddDisabled('   '), true);
+    assert.strictEqual(stockAddDisabled('0'), true);
+    assert.strictEqual(stockAddDisabled('x'), true);
+    assert.strictEqual(stockAddDisabled('3'), false);
+  });
+});
+
+describe('cuando se muestra el cartel de una caja', () => {
+  it('no muestra nada mientras el campo esta en foco', () => {
+    assert.deepStrictEqual(stockVisibleErrors({ '787': '0' }, { blurred: { '787': true }, focused: '787' }), []);
+  });
+
+  it('lo muestra cuando el campo fue dejado', () => {
+    assert.deepStrictEqual(stockVisibleErrors({ '787': '0' }, { blurred: { '787': true }, focused: null }), ['787']);
+  });
+
+  it('no lo muestra en un campo que nunca fue dejado ni en uno vacio', () => {
+    assert.deepStrictEqual(stockVisibleErrors({ '787': '0' }, { blurred: {}, focused: null }), []);
+    assert.deepStrictEqual(stockVisibleErrors({ '787': '' }, { blurred: { '787': true }, focused: null }), []);
+  });
+
+  it('volver a entrar a corregir apaga el cartel viejo', () => {
+    assert.deepStrictEqual(stockVisibleErrors({ '787': '0' }, { blurred: { '787': true }, focused: '787' }), []);
+  });
+
+  it('nombra solo los productos incorrectos, y en orden', () => {
+    const cantidades = { '787': '0', '1800': '3', '1047': 'abc' };
+    assert.deepStrictEqual(
+      stockVisibleErrors(cantidades, { blurred: { '787': true, '1800': true, '1047': true }, focused: null }),
+      ['1047', '787']
+    );
   });
 });

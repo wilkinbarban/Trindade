@@ -443,6 +443,7 @@
     "historySubtitle": "Días anteriores, con lo contado en cada uno.",
     "historyTitle": "Historial de conteo",
     "invalidBoxes": "Escribí una cantidad entera de cajas mayor que cero.",
+    "invalidBoxesInline": "Cantidad errada de cajas",
     "loadError": "No se pudo cargar el día del conteo.",
     "massas": "Massas",
     "message": "Mensaje",
