@@ -252,3 +252,31 @@ del proyecto siga pasando, y eso es lo que se verificó. No se declara una prueb
 **Siguiente (A5)**: el histórico de conteos en Compose, con selector de fecha, solo los productos contados,
 exportaciones y el control de rol: lectura para Trabajador y escritura para Administrador, que es la misma
 frontera que el servidor aplica con su 403.
+
+## Cierre de A5a — el estado del día pasado y la frontera del rol
+
+**Entregado**: `app/src/main/java/com/trindade/app/stock/StockHistoryViewModel.kt` (158 líneas) y
+`app/src/test/java/com/trindade/app/stock/StockHistoryViewModelTest.kt` (103 líneas, seis casos).
+
+**Dos ViewModels y no uno con una bandera**: el contador responde qué hay en la estantería ahora y el
+histórico qué se contó ese día, que son dos preguntas de dos momentos distintos. Este trae el estado del día
+pasado, sus exportaciones (reutilizando `StockMessages` y el buzón de la planta) y la regla del rol.
+
+**La frontera se aplica en el servidor**, con su 403; la regla de acá existe para que a nadie se le ofrezca
+un botón que va a ser rechazado, porque un operario no debería aprender sobre permisos con un no después de
+intentarlo. `canEdit` compara contra el mismo texto que el servidor chequea.
+
+**Los tests son síncronos a propósito**, y hay una corrección detrás: al escribirlos les había puesto un
+`sleep` para esperar la corrutina, y `viewModelScope` no tiene dispatcher Main en una prueba JUnit, así que
+el caso habría fallado por el motivo equivocado. El rol se decide **antes** de lanzar la corrutina, que es
+exactamente por lo que se puede afirmar sin red; las rutas que sí hablan con el servidor están cubiertas en
+los tests del repositorio (A3).
+
+**Evidencia (host Ubuntu, `:app:testDebugUnitTest`)**: reporte JUnit
+`com.trindade.app.stock.StockHistoryViewModelTest: tests=6 failures=0 errors=0 time=0.298s`, con los seis
+nombres en verde — incluido «who may correct a past day is the same string the server checks» y «a worker is
+told instead of being refused later». Fase roja escondiendo el ViewModel: `Unresolved reference
+'StockHistoryViewModel'` en las líneas 56, 57 y 58 del archivo de prueba, leído del registro del host.
+
+**Siguiente (A5b)**: la pantalla del histórico con el selector de fecha, la lista de solo los productos
+contados y la vista que se apaga para quien no puede corregir.
