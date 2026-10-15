@@ -178,3 +178,29 @@ archivo de prueba, leído del registro del host.
 **Siguiente (A4b)**: el ViewModel sobre `StockRepository` y la pantalla Compose con las dos pestañas del
 catálogo, las tarjetas táctiles por producto, la acumulación corrida, el reset, los totales, el correo al
 buzón de la planta (`xmitrindade@hotmail.com`) y WhatsApp.
+
+## Cierre de A4b — el estado del contador y los textos que salen de la planta
+
+**Entregado**: `app/src/main/java/com/trindade/app/stock/StockMessages.kt` (68 líneas: el mensaje con una
+línea por producto contado y solo unidades, el total al final, y el correo como tabla medida con las
+columnas `Categoria | Código | Produto | Unidades` y el total alineado bajo las unidades, los dos idénticos
+a los de la web) y `app/src/main/java/com/trindade/app/stock/StockViewModel.kt` (155 líneas: `@HiltViewModel`
+con `StockRepository` inyectado, el día leído como San Pablo y no como el dispositivo, las dos secciones del
+catálogo derivadas de lo que respondió el servidor, el estado del momento que consulta la regla pura de A4a,
+los tres resultados de escritura bien separados y el buzón de la planta como destino del correo), más
+`app/src/test/java/com/trindade/app/stock/StockViewModelTest.kt` (108 líneas, cinco casos).
+
+**Dos decisiones fijadas como pruebas y no como comentarios**: el día se lee como lo lee San Pablo —un
+conteo es un documento sobre un día y un teléfono con otra hora no debe rotularlo con la fecha de mañana— y
+**el destino es el buzón de la planta y nunca el del autor**, que es la distinción que decide dónde queda
+archivado un conteo.
+
+**Evidencia (host Ubuntu, `:app:testDebugUnitTest`)**: reporte JUnit
+`com.trindade.app.stock.StockViewModelTest: tests=5 failures=0 errors=0 time=0.262s`, con los cinco nombres
+en verde. Fase roja escondiendo el estado y los textos: `Unresolved reference 'StockViewModel'` en las
+líneas 47 y 58 del archivo de prueba, con los `onFocus` y `onQuantityChange` en cascada, leído del registro
+del host.
+
+**Siguiente (A4c)**: la pantalla Compose —las dos pestañas del catálogo, las tarjetas táctiles con sus
+métricas y su fila de acciones, los totales y los dos botones de exportación al buzón de la planta y a
+WhatsApp— que consume este ViewModel sin computar nada por su cuenta.
