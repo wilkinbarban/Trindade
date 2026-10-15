@@ -343,3 +343,37 @@ errores**, incluidos `StockHistoryViewModelTest: tests=6 failures=0` y el resto 
 **leer el resultado de cada uno** y no el resumen. Tenía los tres pasos y leí el «todo verde» del conjunto;
 el segundo decía `salida=0` y yo escribí lo contrario. Un paso que no falla cuando debía fallar es una
 pregunta, no una confirmación.
+
+## Cierre de A6a — el crédito del autor en tres pantallas
+
+**Entregado**: `app/src/main/java/com/trindade/app/ui/components/DeveloperCredit.kt` (un solo composable, con
+los valores literales de la directiva del usuario: **10.sp**, `MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)`
+—color del tema con alpha, no un gris fijo, porque en tema oscuro un gris fijo desaparece o grita— y
+`TextAlign.Center`, con las dos líneas del crédito), montado al pie de `LoginScreen`, `DashboardScreen` y
+`ProfileScreen` con su import en las tres.
+
+**Incidente, resuelto entre el usuario y el orquestador**: la primera inserción se hizo **por número de
+línea** y en `DashboardScreen` el pie cayó **después del `else` de un `when`**; la suite lo cazó al compilar
+con `ELSE_MISPLACED_IN_WHEN` y el usuario lo corrigió adentro del `Column`. **La lección**: los números de
+línea eran correctos y la **estructura** no; al insertar hay que leer **alrededor** del punto de inserción, no
+solo el final del archivo.
+
+**Observación que queda abierta y que un compilador no puede juzgar**: en `DashboardScreen` el pie quedó con
+más indentación que en las otras dos ✗ —dentro de un bloque anidado, el que cierra en la 187— mientras que en
+`LoginScreen` (241) y `ProfileScreen` (280) quedó hermano dentro del contenedor. Si ese bloque anidado es una
+rama, el crédito se dibujaría solo ahí. **Es la primera cosa a mirar en el emulador** (A7), junto con los
+valores en pantalla real.
+
+**Evidencia (host Ubuntu)**:
+- Las tres pantallas **compilan** y la **suite completa pasa** (job-147, `salida=0`).
+- **El rojo por remoción está probado**: esconder `DeveloperCredit.kt` rompe la compilación con
+  `Unresolved reference 'DeveloperCredit'` en `LoginScreen.kt:3` y `:241` y en `ProfileScreen.kt:3` y `:280`
+  — o sea que las pantallas lo importan de verdad ✓, que es exactamente lo que en A5b **no** ocurría y por eso
+  allí el chequeo no significaba nada.
+- Precisión de método: los `834` del reporte del intento anterior eran de una corrida previa, porque esa
+  suite no llegó a compilar; el número que vale es el del intento corregido.
+
+**Siguiente (A6b)**: los tres accesos a los módulos nuevos (Calculadora de Assaí, contador de stock e
+histórico) como **pestañas**, no como rutas: entradas en `MainActivity.Tab` y en `RolePolicy.EntryPoint`,
+sumadas a `DEFAULT_DESTINATIONS`, con sus ramas en el `when (tab)` de `MainActivity.kt` (línea 258) y sus
+textos en `strings.xml`, porque el enum `Tab` pide `@StringRes`.
