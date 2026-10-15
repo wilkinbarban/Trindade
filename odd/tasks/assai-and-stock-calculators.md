@@ -154,3 +154,16 @@ caja —15 Terceirizados y 10 Massas— y quedaron transcriptos literalmente en 
 el catálogo va a código (una constante del backend, como el de Assaí en el frontend) y **no** a la base,
 porque es un dato del producto y no del conteo del día; la tabla `stock_counts` guarda lo que el operador
 cuenta, no el catálogo que lo ordena.
+
+## L4 — Cierre de T02 y especificación ampliada de T03 (verbatim)
+
+**T02 CERRADA** el 2026-10-14: la regla del pedido (`c112c83`, `src/lib/assai.ts`, 8 pruebas, 48/48) y la pantalla `/assai-calculator` con su ruta, tarjeta, enlace de menú y claves (`724653c`, 288 líneas). CI verde (verify y android) y desplegada en producción sin downtime: el bundle servido contiene «Calculadora de Assaí», «Quantidade incorreta de unidades» y `assai-calculator`. Detalle completo en el ledger, entrada **L212**.
+
+**Pedido literal del usuario para T03** (2026-10-14): «Arrancá de inmediato con T03 (Calculador de Estoque):
+   - Migración schema v5 (tabla stock_counts con count_date, category, product_code, product_name, units_per_box, boxes_total, units_total, entries_log, created_at, updated_at, user_id). Respaldo preventivo de trindade.db antes de aplicar.
+   - Endpoints API (/api/stock GET por fecha, POST add-entry suma acumulativa de contenedores, POST reset-product, GET history).
+   - Frontend en /stock-calculator con selector de fecha, pestañas Terceirizados (15 productos) y Massas (10 productos) con el catálogo suministrado, botones de agregar cajas acumulativo, reset por producto, exportación WhatsApp (estilo tabla con emojis) y exportación por correo a wilkin.barban@gmail.com vía mailto:.
+   - Tarjeta en Dashboard y enlace en navegación.
+3. Mantené TDD estricto, commits <= 400 líneas sin mención a IA, reconstrucción de imágenes y hot-swap en producción sin downtime, asentando L213.»
+
+**Nota de diseño para T03**: `entries_log` guarda el registro de lo agregado (la acumulación corrida es el valor de `boxes_total`, y el log permite auditar cuándo entró cada tanda); el catálogo sigue en código y la fila guarda nombre y unidades por caja del momento del conteo, para que un cambio futuro del catálogo no reescriba un conteo viejo.
