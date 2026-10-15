@@ -193,6 +193,12 @@ export function DashboardPage() {
           icon="🚛"
         />
         <SummaryCard
+          title={t('dashboard.assai')}
+          value={<span className="text-sm text-gray-500">{t('dashboard.assaiHint')}</span>}
+          icon="🧮"
+          to="/assai-calculator"
+        />
+        <SummaryCard
           title={t('dashboard.activeUsers')}
           value={<span className="text-3xl font-bold text-purple-600">{summary?.activeUsers ?? 0}</span>}
           icon="👥"

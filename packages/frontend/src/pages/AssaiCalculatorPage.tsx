@@ -1,0 +1,194 @@
+import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { api } from '../api/client';
+import { Card, CardContent } from '../components/ui/card';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { ASSAI_PRODUCTS, assaiHasError, assaiLines, assaiMessage, assaiTotalBoxes } from '../lib/assai';
+import { shareOrCopy, waMeLink } from '../lib/whatsapp';
+
+/**
+ * The Assaí order calculator.
+ *
+ * The arithmetic lives in `src/lib/assai.ts` with its own tests, because the rule that matters is a
+ * business rule and not a rendering detail: a box holds whole units, so an order only exists in whole
+ * boxes. This screen is the table that collects the quantities, the verdict per product, and the two ways
+ * the order leaves: a private chat to a driver the fleet already has, or any number the operator types.
+ */
+interface DriverRow {
+  id: number;
+  name: string;
+  phone: string | null;
+}
+
+export function AssaiCalculatorPage() {
+  const { t } = useTranslation();
+  const [quantities, setQuantities] = useState<Record<string, string>>({});
+  const [drivers, setDrivers] = useState<DriverRow[]>([]);
+  const [selectedDriverId, setSelectedDriverId] = useState('');
+  const [freeNumber, setFreeNumber] = useState('');
+  const [note, setNote] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .get<{ drivers: DriverRow[] }>('/loading/drivers')
+      .then((data) => {
+        if (cancelled) return;
+        // Only the drivers whose number is known can be reached, which is the same rule the schedule's
+        // one-on-one dispatch follows: an offer that opens an empty chat is not an offer.
+        setDrivers((data.drivers ?? []).filter((d) => (d.phone ?? '').trim() !== ''));
+      })
+      .catch(() => {
+        if (!cancelled) setDrivers([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const lines = useMemo(() => assaiLines(quantities), [quantities]);
+  const hasError = assaiHasError(lines);
+  const totalBoxes = assaiTotalBoxes(lines);
+  const message = assaiMessage(lines);
+
+  const selectedDriver = drivers.find((d) => String(d.id) === selectedDriverId);
+  const targetNumber = (selectedDriver?.phone ?? freeNumber).trim();
+
+  async function handleShare() {
+    setNote('');
+    if (hasError) return;
+
+    if (targetNumber !== '') {
+      const link = waMeLink(targetNumber, message);
+      if (link === null) {
+        setNote(t('assai.shareUnavailable'));
+        return;
+      }
+      window.open(link, '_blank', 'noopener');
+      setNote(t('assai.shareOpened'));
+      return;
+    }
+
+    // With no number chosen the order still leaves: the platform share sheet, whose fallback is the
+    // clipboard, and neither invents a recipient.
+    const outcome = await shareOrCopy(message);
+    if (outcome === 'copied') setNote(t('assai.shareCopied'));
+    else if (outcome === 'failed') setNote(t('assai.shareUnavailable'));
+  }
+
+  return (
+    <div className="p-4 space-y-4" data-testid="assai-calculator">
+      <div>
+        <h1 className="text-xl font-semibold text-gray-800">{t('assai.title')}</h1>
+        <p className="text-sm text-gray-500">{t('assai.subtitle')}</p>
+      </div>
+
+      <Card>
+        <CardContent className="p-3">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b text-left text-xs text-gray-500 uppercase">
+                <th className="py-2 pr-2">{t('assai.product')}</th>
+                <th className="py-2 pr-2">{t('assai.perBox')}</th>
+                <th className="py-2 pr-2">{t('assai.units')}</th>
+                <th className="py-2 pr-2">{t('assai.boxes')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {lines.map((line) => (
+                <tr key={line.product} className="border-b last:border-0">
+                  <td className="py-2 pr-2">{line.product}</td>
+                  <td className="py-2 pr-2 text-gray-500">{line.unitsPerBox}</td>
+                  <td className="py-2 pr-2">
+                    <Input
+                      value={quantities[line.product] ?? ''}
+                      onChange={(e) => setQuantities({ ...quantities, [line.product]: e.target.value })}
+                      inputMode="numeric"
+                      placeholder="0"
+                      aria-label={line.product}
+                      data-testid={`assai-units-${line.product}`}
+                    />
+                    {!line.exact && (
+                      <span className="text-xs text-red-600" data-testid={`assai-error-${line.product}`}>
+                        {t('assai.errorUnits')}
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-2 pr-2" data-testid={`assai-boxes-${line.product}`}>
+                    {line.filled && line.exact ? line.boxes : ''}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <div className="flex items-center justify-between pt-3 border-t mt-2">
+            <span className="text-sm text-gray-500">{t('assai.totalLabel')}</span>
+            <span className="text-lg font-semibold text-green-700" data-testid="assai-total">
+              {totalBoxes} {t('assai.boxesWord')}
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-3 space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-600">{t('assai.driver')}</label>
+            <select
+              value={selectedDriverId}
+              onChange={(e) => setSelectedDriverId(e.target.value)}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-white"
+              data-testid="assai-driver"
+            >
+              <option value="">{t('assai.selectDriver')}</option>
+              {drivers.map((d) => (
+                <option key={d.id} value={String(d.id)}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600">{t('assai.freeNumber')}</label>
+            <Input
+              value={freeNumber}
+              onChange={(e) => setFreeNumber(e.target.value)}
+              placeholder="+55 …"
+              disabled={selectedDriverId !== ''}
+              data-testid="assai-free-number"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600">{t('assai.message')}</label>
+            <pre
+              className="whitespace-pre-wrap text-xs bg-gray-50 border rounded-md p-2 max-h-56 overflow-auto"
+              data-testid="assai-message"
+            >
+              {message}
+            </pre>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Button onClick={handleShare} disabled={hasError} data-testid="assai-share">
+              {t('assai.share')}
+            </Button>
+            {hasError && (
+              <span className="text-xs text-red-600" data-testid="assai-blocked">
+                {t('assai.blocked')}
+              </span>
+            )}
+            {note !== '' && (
+              <span className="text-xs text-gray-500" data-testid="assai-note">
+                {note}
+              </span>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

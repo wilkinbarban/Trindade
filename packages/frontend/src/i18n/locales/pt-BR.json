@@ -25,6 +25,8 @@
   "dashboard": {
     "activeSchedule": "Cronograma ativo",
     "activeUsers": "Usuários Ativos",
+    "assai": "Calculadora de Assaí",
+    "assaiHint": "Calcular pedido de compra",
     "createSchedule": "Criar cronograma",
     "deferredNotice": "Novos módulos estarão disponíveis em versões futuras.",
     "higieneCount": "Hig. & Org. -> {{done}} Tarefas",
@@ -40,18 +42,19 @@
     "viewSchedule": "Ver cronograma"
   },
   "nav": {
+    "adminPanel": "Painel Admin",
+    "administration": "Administração",
+    "assai": "Calculadora de Assaí",
+    "audit": "Auditoria",
+    "dashboard": "Dashboard",
+    "future": "Futuro",
+    "loadingHistory": "Histórico de Carregamento",
+    "loadingSchedule": "Cronograma de Carregamento",
     "menu": "Menu",
     "operations": "Operações",
-    "administration": "Administração",
-    "future": "Futuro",
-    "dashboard": "Dashboard",
-    "reports": "Relatórios",
-    "loadingSchedule": "Cronograma de Carregamento",
-    "whatsappExport": "Exportação WhatsApp",
-    "adminPanel": "Painel Admin",
-    "audit": "Auditoria",
     "reportHistory": "Histórico de Relatórios",
-    "loadingHistory": "Histórico de Carregamento"
+    "reports": "Relatórios",
+    "whatsappExport": "Exportação WhatsApp"
   },
   "ui": {
     "closeSidebar": "Fechar menu lateral",
@@ -392,5 +395,25 @@
     "sessionExpired": "Sessão expirada. Entre novamente para continuar.",
     "unauthorized": "Você precisa entrar para continuar.",
     "requestFailed": "Não foi possível concluir a solicitação. Tente novamente."
+  },
+  "assai": {
+    "blocked": "Corrija as quantidades para poder enviar.",
+    "boxes": "Caixas",
+    "boxesWord": "caixas",
+    "driver": "Motorista",
+    "errorUnits": "Quantidade incorreta de unidades",
+    "freeNumber": "Ou outro número",
+    "message": "Mensagem",
+    "perBox": "Por caixa",
+    "product": "Produto",
+    "selectDriver": "Escolher motorista com telefone",
+    "share": "Enviar por WhatsApp",
+    "shareCopied": "Texto copiado para compartilhar.",
+    "shareOpened": "Abrindo a conversa…",
+    "shareUnavailable": "Este navegador não consegue compartilhar nem copiar.",
+    "subtitle": "Informe as unidades de cada produto: a quantidade tem de fechar caixas inteiras.",
+    "title": "Calculadora de Assaí",
+    "totalLabel": "Total do pedido",
+    "units": "Unidades"
   }
 }

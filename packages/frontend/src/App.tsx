@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AppShell } from './components/layout/AppShell';
 import { LoadingSpinner } from './components/ui/loading-spinner';
+import { AssaiCalculatorPage } from './pages/AssaiCalculatorPage';
 import { LoginPage } from './pages/LoginPage';
 import { SetupPage } from './pages/SetupPage';
 import { api } from './api/client';
@@ -139,6 +140,14 @@ export function App() {
             element={
               <ProtectedRoute>
                 <ReportEditPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/assai-calculator"
+            element={
+              <ProtectedRoute>
+                <AssaiCalculatorPage />
               </ProtectedRoute>
             }
           />
