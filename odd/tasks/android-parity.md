@@ -88,3 +88,29 @@ intacto.
 
 **Siguiente unidad**: A2 — la pantalla Compose de Assaí con su ViewModel y la exportación por WhatsApp,
 consumiendo esta regla y sin repetir una línea de su aritmética.
+
+## Cierre de A2 — la pantalla del pedido de Assaí y su ViewModel
+
+**Entregado**: `app/src/main/java/com/trindade/app/assai/AssaiViewModel.kt` (76 líneas, `@HiltViewModel`
+sin dependencias inyectadas, con `StateFlow` de cantidades, campos dejados, campo en edición, número y
+nota, y los derivados de `AssaiOrder`: líneas, errores visibles, total, mensaje y enlace canónico por
+`waMeLink`), `app/src/main/java/com/trindade/app/assai/AssaiCalculatorScreen.kt` (145 líneas, Compose con
+la lista táctil de los nueve productos, campo numérico, el cartel inline solo tras salir del campo y fuera
+de foco, el total y el botón de compartir apagado si el pedido es inexacto o el número no sirve) y
+`app/src/test/java/com/trindade/app/assai/AssaiViewModelTest.kt` (69 líneas, JUnit 4, cinco casos).
+
+**Evidencia (host Ubuntu, `:app:testDebugUnitTest`)**:
+- Reporte JUnit: `com.trindade.app.assai.AssaiViewModelTest: tests=5 failures=0 errors=0 time=0.054s`, con
+  los cinco nombres en verde.
+- Fase roja, escondiendo la implementación: el build falla, y el registro del host lo reporta así: (el registro no conservó la causa)
+
+**Nota honesta sobre la fase roja**: esta vez el fallo duró un segundo, demasiado poco para una
+compilación de Kotlin, y por eso la causa se registra **como el registro la reporta** y no como se
+esperaba que fuera; la lección de A1 se aplica acá: al motivo de un fallo se lo lee.
+
+**Decisión de diseño**: el ViewModel no recibe nada inyectado a propósito — un pedido no se persiste
+hasta que se envía — y eso es lo que permite probarlo sin dispositivo ni corrutinas. La aritmética sigue
+viviendo solo en `AssaiOrder`: la pantalla dibuja y el ViewModel recuerda dónde está el operador.
+
+**Siguiente unidad**: A3 — el cliente del Stock sobre los tipos ya generados en `packages/android/contract`
+y los tres endpoints (`GET /api/stock`, `POST /api/stock/add-entry`, `POST /api/stock/reset-product`).
