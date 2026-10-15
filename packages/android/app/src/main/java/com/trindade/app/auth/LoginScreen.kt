@@ -237,8 +237,12 @@ fun LoginScreen(
             ) {
                 Text(stringResource(R.string.login_register_link))
             }
+
+            // El crédito va como último hijo del Column y no como hermano suyo: un Box ubica a sus hijos
+            // superpuestos desde arriba, así que fuera del Column aparecía sobre el logo en vez del pie.
+            Spacer(Modifier.height(16.dp))
+            DeveloperCredit()
         }
-        DeveloperCredit()
     }
 }
 

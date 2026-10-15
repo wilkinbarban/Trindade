@@ -183,8 +183,10 @@ fun DashboardScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
-                DeveloperCredit()
             }
+            // El credito es el ultimo hijo del Column scrolleable y no parte de la rama de arriba: como
+            // hijo de un bloque condicional solo se dibujaba en esa rama, y ahi no era el pie de nada.
+            DeveloperCredit()
         }
     }
 }
