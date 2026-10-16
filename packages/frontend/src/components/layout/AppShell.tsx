@@ -28,7 +28,7 @@ function NavItem({ href, icon, label, disabled, excludedActivePrefixes = [] }: N
 
   if (disabled || !href) {
     return (
-      <span className="flex items-center px-3 py-2 text-gray-400 rounded-lg cursor-not-allowed select-none">
+      <span className="flex items-center px-3.5 py-2.5 text-gray-400 rounded-lg cursor-not-allowed select-none">
         <span className="mr-3 h-4 w-4 opacity-50">{icon}</span>
         {label}
       </span>
@@ -38,7 +38,7 @@ function NavItem({ href, icon, label, disabled, excludedActivePrefixes = [] }: N
   return (
     <Link
       to={href}
-      className={`flex items-center px-3 py-2 rounded-lg transition-colors ${
+      className={`flex items-center px-3.5 py-2.5 rounded-lg transition-colors ${
         isActive
           ? 'bg-blue-50 text-blue-700 font-medium'
           : 'text-gray-700 hover:bg-gray-100'
@@ -70,31 +70,31 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-30 w-64 transform bg-white shadow-lg transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 flex flex-col ${
+        className={`fixed inset-y-0 left-0 z-30 w-72 max-w-[85vw] transform bg-white shadow-lg transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 flex flex-col ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200 shrink-0">
-          <h1 className="text-lg font-bold text-gray-800">{t('app.name')}</h1>
+        <div className="flex items-center justify-between gap-2 h-16 px-4 sm:px-5 border-b border-gray-200 shrink-0">
+          <h1 className="text-lg font-bold text-gray-800 truncate min-w-0">{t('app.name')}</h1>
           <Button
             variant="ghost"
             size="icon"
             onClick={closeSidebar}
-            className="lg:hidden"
+            className="lg:hidden shrink-0"
             aria-label={t('ui.closeSidebar')}
           >
             <LucideX className="h-5 w-5" />
           </Button>
         </div>
 
-        <nav className="p-4 space-y-1 overflow-y-auto flex-1" onClick={closeSidebar}>
-          <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+        <nav className="px-4 py-3 space-y-1.5 overflow-y-auto flex-1" onClick={closeSidebar}>
+          <div className="px-3.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
             {t('nav.menu')}
           </div>
 
           <NavItem href="/dashboard" icon={<LayoutDashboard className="h-4 w-4" />} label={t('nav.dashboard')} />
 
-          <div className="px-3 pt-4 pb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+          <div className="px-3.5 pt-4 pb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
             {t('nav.operations')}
           </div>
 
@@ -114,7 +114,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           {/* Admin section — visible to Administrador and limited Trabalhador panel */}
           {(user?.role === 'Administrador' || user?.role === 'Trabalhador') && (
             <>
-              <div className="px-3 pt-4 pb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+              <div className="px-3.5 pt-4 pb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
                 {t('nav.administration')}
               </div>
               <NavItem href="/admin" icon={<ShieldCheck className="h-4 w-4" />} label={t('nav.adminPanel')} />
@@ -124,7 +124,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </>
           )}
 
-          <div className="px-3 pt-4 pb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+          <div className="px-3.5 pt-4 pb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
             {t('nav.future')}
           </div>
 
@@ -133,7 +133,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         {/* User footer */}
         <div className="p-4 border-t border-gray-200 bg-gray-50 shrink-0">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="text-sm font-medium text-gray-700 truncate">
                 {user?.username}
@@ -157,20 +157,20 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Main content area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className="flex items-center h-16 px-4 bg-white border-b border-gray-200 shadow-sm shrink-0">
+        <header className="flex items-center h-16 gap-2 px-4 sm:px-6 bg-white border-b border-gray-200 shadow-sm shrink-0">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setSidebarOpen(true)}
-            className="mr-2 lg:hidden"
+            className="lg:hidden shrink-0"
             aria-label={t('ui.openSidebar')}
           >
             <LucideMenu className="h-6 w-6" />
           </Button>
-          <h2 className="text-xl font-semibold text-gray-800">
+          <h2 className="text-base sm:text-xl font-semibold text-gray-800 truncate min-w-0">
             {t('app.header')}
           </h2>
-          <div className="ml-auto flex items-center gap-1.5" aria-label={t('ui.switchLanguage')}>
+          <div className="ml-auto flex items-center gap-2 shrink-0" aria-label={t('ui.switchLanguage')}>
             <Button
               variant={(i18n.resolvedLanguage || i18n.language || 'pt-BR').startsWith('pt') ? 'default' : 'outline'}
               size="sm"
