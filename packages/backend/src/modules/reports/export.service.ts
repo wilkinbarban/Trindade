@@ -154,10 +154,10 @@ export function generateWhatsAppText(db: Database.Database, reportId: number, pu
             lines.push(`   - ${p}`);
           }
         } else {
-          lines.push(`⬜ ${item.task_name}`);
+          lines.push(`◻️ ${item.task_name}`);
         }
       } else {
-        const icon = item.checked ? '✅' : '⬜';
+        const icon = item.checked ? '✅' : '◻️';
         lines.push(`${icon} ${item.task_name}`);
       }
     }

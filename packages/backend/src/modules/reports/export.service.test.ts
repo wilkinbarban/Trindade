@@ -33,7 +33,7 @@ function setupDb(): { db: Database.Database; reportId: number } {
 
   // Add items (tasks)
   db.prepare(`INSERT INTO report_items (report_id, task_id, checked) VALUES (?, ?, ?)`).run(reportId, 1, 1); // Pátio ✅
-  db.prepare(`INSERT INTO report_items (report_id, task_id, checked) VALUES (?, ?, ?)`).run(reportId, 2, 0); // Câmaras ⬜
+  db.prepare(`INSERT INTO report_items (report_id, task_id, checked) VALUES (?, ?, ?)`).run(reportId, 2, 0); // Câmaras ◻️
   db.prepare(`INSERT INTO report_items (report_id, task_id, checked) VALUES (?, ?, ?)`).run(reportId, 3, 1); // Ferramentas ✅
   db.prepare(`INSERT INTO report_items (report_id, task_id, checked) VALUES (?, ?, ?)`).run(reportId, 4, 1); // Uniforme ✅
 
@@ -135,8 +135,9 @@ describe('Export Service (Generador Inteligente)', () => {
     assert.ok(text.includes(`✅ ${tasks.find((task) => task.id === 1)!.name_pt}`), 'Checked item should have ✅');
     assert.ok(text.includes(`✅ ${tasks.find((task) => task.id === 3)!.name_pt}`), 'Checked item should have ✅');
 
-    // Unchecked items should have ⬜
-    assert.ok(text.includes(`⬜ ${tasks.find((task) => task.id === 2)!.name_pt}`), 'Unchecked item should have ⬜');
+    // Unchecked items carry the emoji-presentation square: the plain one renders as a blank box in
+    // some WhatsApp clients, which is what this test exists to keep from coming back.
+    assert.ok(text.includes(`◻️ ${tasks.find((task) => task.id === 2)!.name_pt}`), 'Unchecked item should have ◻️');
   });
 
   it('temperature section is formatted correctly', () => {
