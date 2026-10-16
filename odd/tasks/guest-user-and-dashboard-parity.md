@@ -47,9 +47,9 @@ convencionales claros y prolijos en main sin trailers de IA ni Co-Authored-By.»
 | T4 | La guarda de mutaciones: **lista de permitidos** (solo auth: login/logout/refresh) y 403 con el mensaje literal para el invitado, como hook **global** —no por ruta— para que un endpoint nuevo no quede sin cubrir | S5 | hecha | `4441b16` (91 líneas, ROJO: la mutación pasaba → VERDE 2/2); backend 490/490/0 |
 | T5 | Invisibilidad: filtro `username != 'invitado'` en **todas** las consultas que listan usuarios (`admin.service.ts` líneas 537, 567 y 645; `reports.lifecycle.service.ts:216`; revisar `auth.service.ts:68`) | S6 | hecha | `6e5c5d7` (con T6, 129 líneas): cinco sitios reales y dos que **no** llevan filtro a propósito |
 | T6 | Inmutabilidad: el invitado no se puede editar, ni cambiar de contraseña, ni borrar por API | S6 | hecha | `6e5c5d7`; ROJO: el Administrador **podía** desactivarlo (200) y borrarlo (200) → VERDE 403 |
-| T7 | Aviso en la web y en Android cuando llega el 403 (o antes de intentar): una superficie clara que diga que hay que registrarse | S5 | web hecha, Android en verificación | `42a0c12` (225 líneas; frontend 79/79 y typecheck limpio) |
+| T7 | Aviso en la web y en Android cuando llega el 403 (o antes de intentar): una superficie clara que diga que hay que registrarse | S5 | hecha | web `42a0c12` (frontend 79/79 y typecheck limpio); Android `997ec60`; el arreglo de rutas del test en el commit siguiente |
 | T8 | Visibilidad del invitado idéntica al Administrador: comprobar `RolePolicy` y los menús de la web | S4 | confirmada | el invitado es `role_id = 1` / `Administrador` con `is_active = 1` (visto en el rojo de T6) |
-| T9 | Suite completa (backend, frontend y Android) en verde y commits convencionales | S7 | pendiente | backend 490/490/0 y frontend 79/79 hechos; falta la corrida de Android con el aviso ya cableado |
+| T9 | Suite completa (backend, frontend y Android) en verde y commits convencionales | S7 | verde | backend 490/490/0 · frontend 79/79 con typecheck limpio · Android 838 pruebas, 0 fallos, 0 errores y **0 omitidas** (job-172) |
 
 ## Log
 
@@ -116,3 +116,14 @@ constante del backend. Dos copias de un texto que tienen que coincidir es exacta
 silencio, y el día que se separen el aviso deja de aparecer sin que nada lo delate. Y cuando una de esas
 pruebas no puede correr —el host de compilación sólo tiene el paquete android, no el monorepo— se reporta
 **omitida** en vez de pasar: una protección que no corre no puede parecer una que sí corre.
+
+L10 (orquestador, T9): **la única omitida era la prueba que más importaba, y así se supo**. La primera corrida
+de Android dio 838 pruebas con 0 fallos y 0 errores, pero con **una omitida**, y esa omitida era justamente la
+comparación entre la cadena del cliente y la del servidor: la protección contra la deriva **no había corrido**
+en el host de compilación. La causa era de una letra: el sync deja el archivo en
+`~/trindade-android-a1/backend/src/guest-user.ts` y desde `app/` eso se alcanza con `../backend` —**un**
+nivel— mientras las rutas candidatas empezaban con `../../backend`, que resuelve a `~/backend`. La lista
+ahora arranca por el camino correcto y suma las del monorepo, así que encuentra el archivo en los dos
+layouts. Lo que vale de esta entrada no es el arreglo sino cómo apareció: **un `skipped` en el reporte hay
+que leerlo**, porque un resumen de «todo verde» lo tapa y la protección desaparece sin que nadie se entere.
+Esa es la misma razón por la que la prueba se declara omitida en lugar de pasar.
