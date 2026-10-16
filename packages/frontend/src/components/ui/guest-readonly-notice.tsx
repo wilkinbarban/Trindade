@@ -71,15 +71,21 @@ export function GuestReadonlyNotice() {
         </h2>
 
         <p id="guest-readonly-message" className="mt-3 w-full rounded-lg bg-gray-50 px-4 py-3 text-sm leading-relaxed text-gray-600">
-          {message}
+          {/* El cuerpo se muestra traducido cuando la interfaz no está en el idioma del servidor: el
+              reconocimiento sigue siendo por el literal (que es lo que la prueba compara entre paquetes),
+              y el literal queda además como respaldo por si el idioma no tiene traducción. Mostrar
+              portugués bajo un título en español era lo que se veía mal. */}
+          {t('guest.readonlyBody', { defaultValue: message })}
         </p>
       </div>
 
-      <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-center">
-        <Button variant="outline" size="sm" onClick={goToLogin}>
+      <div className="mt-6 flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-center">
+        {/* w-full en cada botón: el panel del modal mide lo que mide la pantalla menos su margen, y un
+            hijo con ancho propio puede excederlo. Con w-full no puede, en ninguna pantalla. */}
+        <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={goToLogin}>
           {t('guest.readonlyGoToLogin')}
         </Button>
-        <Button size="sm" onClick={() => setMessage(null)}>
+        <Button size="sm" className="w-full sm:w-auto" onClick={() => setMessage(null)}>
           {t('guest.readonlyDismiss')}
         </Button>
       </div>

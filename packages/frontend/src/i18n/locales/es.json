@@ -469,6 +469,7 @@
   "guest": {
     "readonlyTitle": "Modo Solo Lectura",
     "readonlyDismiss": "Entendido",
-    "readonlyGoToLogin": "Ir al inicio de sesión"
+    "readonlyGoToLogin": "Ir al Login",
+    "readonlyBody": "Es necesario registrar un usuario en la página de inicio de sesión para realizar acciones."
   }
 }
