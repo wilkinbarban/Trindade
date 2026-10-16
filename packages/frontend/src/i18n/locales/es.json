@@ -467,6 +467,8 @@
     "unitsWord": "unidades"
   },
   "guest": {
-    "readonlyTitle": "Ação não permitida"
+    "readonlyTitle": "Modo Solo Lectura",
+    "readonlyDismiss": "Entendido",
+    "readonlyGoToLogin": "Ir al inicio de sesión"
   }
 }

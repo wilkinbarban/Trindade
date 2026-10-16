@@ -57,3 +57,43 @@ test('existe el host que lo muestra, usa el modal del proyecto y está montado',
   const appSource = readFileSync(join(import.meta.dirname, '../App.tsx'), 'utf8');
   assert.match(appSource, /<GuestReadonlyNotice\s*\/>/, 'tiene que estar montado, o nadie lo vería');
 });
+
+// Los tres casos del rediseño, con includes y no con expresiones regulares: lo que se verifica es que
+// ciertas cadenas estén en la fuente, y para eso una comparación de texto alcanza y no se escapa.
+
+const HOST = join(import.meta.dirname, '../components/ui/guest-readonly-notice.tsx');
+
+test('el aviso se ve como el sistema: badge con ícono, mensaje en su contenedor y botones del sistema', () => {
+  const host = readFileSync(HOST, 'utf8');
+
+  // El ícono es un SVG en línea: el proyecto no tiene librería de íconos, y sumar una dependencia por
+  // un candado sería pagar para siempre por un adorno.
+  assert.ok(host.includes('<svg'), 'el badge necesita su ícono');
+  assert.ok(host.includes('rounded-full'), 'el ícono vive en un badge circular');
+  assert.ok(host.includes('amber-'), 'y en el tono cálido que la directiva pide');
+  assert.ok(host.includes('bg-gray-50'), 'el mensaje del servidor necesita su contenedor suave');
+
+  // Los botones son los del sistema, no botones sueltos con clases a mano.
+  assert.ok(host.includes("from './button'"), 'los botones tienen que ser los del sistema');
+  assert.ok(host.includes('guest.readonlyDismiss'), 'el botón principal dice Entendi, traducido');
+  assert.ok(host.includes('guest.readonlyGoToLogin'), 'y el secundario ofrece ir al login, traducido');
+});
+
+test('el secundario lleva al login por el mismo camino que ya usa el cliente', () => {
+  const host = readFileSync(HOST, 'utf8');
+
+  // No una ruta escrita a mano: el helper con el que el cliente resuelve la base de la app.
+  assert.ok(host.includes('appUrl('), 'tiene que resolver la ruta como el resto del cliente');
+  assert.ok(host.includes("'/login'"), 'y llevar al login');
+  assert.ok(host.includes('setMessage(null)'), 'y limpiar el aviso para que no reaparezca al llegar');
+});
+
+test('el contrato del evento sigue intacto: es lo que la directiva manda preservar', () => {
+  const host = readFileSync(HOST, 'utf8');
+  assert.ok(host.includes('GUEST_READONLY_NOTICE_EVENT'), 'el aviso en vivo tiene que seguir escuchándose');
+  assert.ok(host.includes('consumeGuestReadonlyNotice'), 'y el que esperó al montaje, consumirse');
+  assert.ok(host.includes("from './dialog'"), 'y seguir usando el modal accesible del proyecto');
+
+  const appSource = readFileSync(join(import.meta.dirname, '../App.tsx'), 'utf8');
+  assert.ok(appSource.includes('<GuestReadonlyNotice'), 'el host tiene que seguir montado');
+});
