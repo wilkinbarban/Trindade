@@ -3,6 +3,10 @@ package com.trindade.app
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.LaunchedEffect
+import com.trindade.app.network.GuestReadonlyNotice
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.StringRes
@@ -391,6 +395,28 @@ fun MainAppShell(
     drawerState: DrawerState = rememberDrawerState(initialValue = DrawerValue.Closed),
     content: @Composable () -> Unit,
 ) {
+    // El aviso del invitado, en un solo lugar: puede intentar una mutación desde cualquier pantalla,
+    // así que el rechazo no puede depender de que cada pantalla se acuerde de mostrarlo. Se atienden
+    // los dos momentos -- el aviso que llega en vivo y el que esperó a que esto se montara -- porque
+    // un rechazo ocurrido durante el arranque no puede perderse en silencio.
+    var guestReadonlyNotice by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(Unit) {
+        guestReadonlyNotice = GuestReadonlyNotice.takePending()
+        GuestReadonlyNotice.messages.collect { guestReadonlyNotice = it }
+    }
+    guestReadonlyNotice?.let { message ->
+        AlertDialog(
+            onDismissRequest = { guestReadonlyNotice = null },
+            title = { Text(stringResource(R.string.guest_readonly_title)) },
+            text = { Text(message) },
+            confirmButton = {
+                TextButton(onClick = { guestReadonlyNotice = null }) {
+                    Text(stringResource(R.string.guest_readonly_dismiss))
+                }
+            },
+        )
+    }
+
     val visibleTabs = remember(role, destinations) {
         RolePolicy.visibleDestinations(role, destinations)
     }

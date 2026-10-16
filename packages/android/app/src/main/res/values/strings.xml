@@ -452,4 +452,6 @@
     <string name="dashboard_stock_counter">Conte e some as caixas do dia</string>
     <string name="dashboard_stock_history">Os dias já contados, só com o que foi contado</string>
     <string name="dashboard_assai">Monte o pedido de compra em caixas inteiras</string>
+    <string name="guest_readonly_title">Ação não permitida</string>
+    <string name="guest_readonly_dismiss">OK</string>
 </resources>

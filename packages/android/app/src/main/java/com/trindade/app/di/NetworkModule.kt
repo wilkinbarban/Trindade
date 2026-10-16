@@ -6,6 +6,7 @@ import com.trindade.app.network.AdminApi
 import com.trindade.app.network.AuditApi
 import com.trindade.app.network.AuthApi
 import com.trindade.app.network.BigDecimalSerializer
+import com.trindade.app.network.GuestReadonlyInterceptor
 import com.trindade.app.network.LoadingApi
 import com.trindade.app.network.ReportsApi
 import com.trindade.app.network.StockApi
@@ -110,6 +111,9 @@ object NetworkModule {
             // the whole job here is to observe a 401 and send the request again with a fresh token,
             // which is only possible above that layer.
             .addInterceptor(authInterceptor)
+            // Después de auth y no antes: aquel puede renovar el token y reintentar una vez, y
+            // este tiene que ver la respuesta FINAL -- la del reintento incluido.
+            .addInterceptor(GuestReadonlyInterceptor)
             .build()
 
     /**
