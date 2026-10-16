@@ -170,24 +170,6 @@ fun DashboardScreen(
                     )
                 }
 
-                // The three cards the web leaves unlinked, and the reason is the same one there: they
-                // are counts the operator reads and not doors to anywhere.
-                DashboardCard(label = stringResource(R.string.dashboard_active_users), onClick = null) {
-                    SummaryValue(summary.activeUsers)
-                }
-                DashboardCard(label = stringResource(R.string.dashboard_reports_total), onClick = null) {
-                    SummaryValue(summary.reportsTotal)
-                }
-                DashboardCard(label = stringResource(R.string.dashboard_schedules_total), onClick = null) {
-                    SummaryValue(summary.schedulesTotal)
-                }
-
-                Text(
-                    text = stringResource(R.string.dashboard_deferred_notice),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-
                 // La tarjeta lleva a la misma pestaña que su texto nombra: el acceso directo y el menú
                 // dicen lo mismo porque usan la misma cadena.
                 DashboardCard(
@@ -224,6 +206,25 @@ fun DashboardScreen(
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                 }
+
+                // The three cards the web leaves unlinked, and the reason is the same one there: they
+                // are counts the operator reads and not doors to anywhere.
+                DashboardCard(label = stringResource(R.string.dashboard_active_users), onClick = null) {
+                    SummaryValue(summary.activeUsers)
+                }
+                DashboardCard(label = stringResource(R.string.dashboard_reports_total), onClick = null) {
+                    SummaryValue(summary.reportsTotal)
+                }
+                DashboardCard(label = stringResource(R.string.dashboard_schedules_total), onClick = null) {
+                    SummaryValue(summary.schedulesTotal)
+                }
+
+                Text(
+                    text = stringResource(R.string.dashboard_deferred_notice),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
             }
             // El credito es el ultimo hijo del Column scrolleable y no parte de la rama de arriba: como
             // hijo de un bloque condicional solo se dibujaba en esa rama, y ahi no era el pie de nada.
