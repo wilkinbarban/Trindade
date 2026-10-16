@@ -457,4 +457,7 @@
     <string name="guest_readonly_intro">Você está no acesso de convidado: dá para ver tudo, mas não para alterar.</string>
     <string name="guest_readonly_dismiss">Entendi</string>
     <string name="guest_readonly_go_to_login">Ir para Login</string>
+    <string name="dashboard_view_schedule">Ver cronograma</string>
+    <string name="dashboard_create_schedule">Criar cronograma</string>
+    <string name="dashboard_share_schedule">Enviar pelo WhatsApp</string>
 </resources>

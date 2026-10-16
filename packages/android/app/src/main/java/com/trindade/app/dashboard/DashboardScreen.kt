@@ -17,6 +17,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -151,14 +152,19 @@ fun DashboardScreen(
                     }
                 }
 
+                // Las mismas dos cosas que ofrece la tarjeta de la web, y con la misma regla de la web:
+                // el día que abre es el del LOTE, que es el único que nombra filas en la grilla. La fecha
+                // que se muestra arriba es el día de carga y es otro día -- el lote del viernes se carga
+                // el lunes --, así que abrir esa fecha dejaba al operador en una pantalla vacía. Cuando no
+                // hay lote no se finge una puerta: se invita a crear el cronograma de hoy.
+                val activeScheduleBatchDate = summary.activeScheduleBatchDate
+                val canViewActiveSchedule = summary.activeScheduleCount > 0 && activeScheduleBatchDate != null
+                val openActiveSchedule = {
+                    if (canViewActiveSchedule) onOpenLoadingDay(activeScheduleBatchDate!!) else onOpenLoading()
+                }
                 DashboardCard(
                     label = stringResource(R.string.dashboard_active_schedule),
-                    onClick = {
-                        // The grid is today's and only today's, which is the loading screen's own rule,
-                        // shared here rather than copied; any other day is opened as the day it is.
-                        if (summary.activeScheduleDate == saoPauloToday()) onOpenLoading()
-                        else onOpenLoadingDay(summary.activeScheduleDate)
-                    },
+                    onClick = openActiveSchedule,
                 ) {
                     SummaryValue(summary.activeScheduleCount)
                     // The day the count belongs to, under it: a number of carregamentos without its day is
@@ -168,6 +174,14 @@ fun DashboardScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    TextButton(onClick = openActiveSchedule) {
+                        Text(
+                            text = stringResource(
+                                if (canViewActiveSchedule) R.string.dashboard_view_schedule
+                                else R.string.dashboard_create_schedule
+                            ),
+                        )
+                    }
                 }
 
                 // La tarjeta lleva a la misma pestaña que su texto nombra: el acceso directo y el menú
