@@ -231,7 +231,10 @@ export function StockCalculatorPage() {
                       <span className="text-xs text-gray-400"> ({product.unitsPerBox}/cx)</span>
                     </span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  {/* Se envuelve en vez de desbordar: en un celular de 360px el campo, el aviso de
+                      error y los dos botones no entran en una sola línea, y sin wrap el último botón
+                      terminaba salido del margen de la tarjeta. Con wrap, la fila baja entera. */}
+                  <div className="flex flex-wrap items-center gap-2">
                     <Input
                       value={quantities[product.code] ?? ''}
                       onFocus={() => setFocused(product.code)}
@@ -258,6 +261,7 @@ export function StockCalculatorPage() {
                     <Button
                       onClick={() => sendEntry(product)}
                       disabled={busy || stockAddDisabled(boxes(product.code))}
+                      size="sm"
                       data-testid={`stock-mobile-add-${product.code}`}
                     >
                       {t('stock.add')}
@@ -266,6 +270,7 @@ export function StockCalculatorPage() {
                       variant="outline"
                       onClick={() => resetProduct(product)}
                       disabled={busy || product.boxes === 0}
+                      size="sm"
                       data-testid={`stock-mobile-reset-${product.code}`}
                     >
                       {t('stock.reset')}
