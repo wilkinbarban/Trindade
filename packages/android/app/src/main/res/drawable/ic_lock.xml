@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  El candado del aviso del invitado.
+
+  Vector y no un PNG por la misma razón que la versión web lo dibuja en SVG: pesa menos que una imagen
+  y escala sin depender de densidad. El trazo es el mismo que el de la web, con cuerpo relleno y arco
+  trazado, para que el aviso se vea igual en las dos plataformas.
+
+  La tinta la pone Compose con Icon(tint = ...), así que el color de acá es sólo el de partida. Por eso
+  el cuerpo no lleva ojo de cerradura: un agujero necesitaría un segundo color y rompería cualquier
+  tinte que le pongan encima.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- Cuerpo -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M6,10 h12 a2,2 0 0 1 2,2 v6 a2,2 0 0 1 -2,2 h-12 a2,2 0 0 1 -2,-2 v-6 a2,2 0 0 1 2,-2 z" />
+
+    <!-- Arco -->
+    <path
+        android:strokeColor="#FF000000"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M8,10 V7 a4,4 0 0 1 8,0 V10" />
+</vector>

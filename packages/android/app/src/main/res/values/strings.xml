@@ -452,6 +452,9 @@
     <string name="dashboard_stock_counter">Conte e some as caixas do dia</string>
     <string name="dashboard_stock_history">Os dias já contados, só com o que foi contado</string>
     <string name="dashboard_assai">Monte o pedido de compra em caixas inteiras</string>
-    <string name="guest_readonly_title">Ação não permitida</string>
-    <string name="guest_readonly_dismiss">OK</string>
+    <string name="guest_readonly_title">Modo Somente Leitura</string>
+    <!-- O corpo do aviso: o que a sessão de convidado é, em uma linha. -->
+    <string name="guest_readonly_intro">Você está no acesso de convidado: dá para ver tudo, mas não para alterar.</string>
+    <string name="guest_readonly_dismiss">Entendi</string>
+    <string name="guest_readonly_go_to_login">Ir para Login</string>
 </resources>

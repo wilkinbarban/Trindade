@@ -7,6 +7,9 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.LaunchedEffect
 import com.trindade.app.network.GuestReadonlyNotice
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Icon
+import androidx.compose.ui.res.painterResource
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.StringRes
@@ -268,6 +271,7 @@ class MainActivity : ComponentActivity() {
                             currentTab = tab,
                             onSelectTab = { tab = it },
                             onOpenProfile = { profileOpen = true },
+onGoToLogin = { endSession() },
                             destinations = destinations,
                             drawerState = drawerState,
                         ) {
@@ -390,6 +394,9 @@ fun MainAppShell(
     currentTab: MainActivity.Tab,
     onSelectTab: (MainActivity.Tab) -> Unit,
     onOpenProfile: () -> Unit,
+    // El aviso del invitado ofrece ir al login, y el login vive en MainActivity, no acá: el callback
+    // entra por parámetro. Con default para que las pruebas del armazón no tengan que saber de sesiones.
+    onGoToLogin: () -> Unit = {},
     modifier: Modifier = Modifier,
     destinations: List<Pair<RolePolicy.EntryPoint, MainActivity.Tab>> = MainActivity.DEFAULT_DESTINATIONS,
     drawerState: DrawerState = rememberDrawerState(initialValue = DrawerValue.Closed),
@@ -407,11 +414,59 @@ fun MainAppShell(
     guestReadonlyNotice?.let { message ->
         AlertDialog(
             onDismissRequest = { guestReadonlyNotice = null },
-            title = { Text(stringResource(R.string.guest_readonly_title)) },
-            text = { Text(message) },
+            // El candado en el color primario: el aviso se lee de un vistazo, sin depender del texto.
+            icon = {
+                Icon(
+                    // painterResource y no Icons.Filled.Lock: el proyecto no depende de
+                    // material-icons, y sumar una librería entera por un candado sería pagar para
+                    // siempre por un adorno. El vector vive en res/drawable/ic_lock.xml.
+                    painter = painterResource(R.drawable.ic_lock),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(28.dp),
+                )
+            },
+            title = {
+                Text(
+                    text = stringResource(R.string.guest_readonly_title),
+                    style = MaterialTheme.typography.titleLarge,
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = stringResource(R.string.guest_readonly_intro),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    // El mensaje es el del servidor, sin traducir: es el literal de la directiva y una
+                    // sola cadena para los dos lados. Va en su propio contenedor suave, como en la web.
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        shape = MaterialTheme.shapes.medium,
+                    ) {
+                        Text(
+                            text = message,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                        )
+                    }
+                }
+            },
             confirmButton = {
                 TextButton(onClick = { guestReadonlyNotice = null }) {
                     Text(stringResource(R.string.guest_readonly_dismiss))
+                }
+            },
+            // El secundario lleva al login: limpia el aviso antes de salir, si no reaparecería al llegar.
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        guestReadonlyNotice = null
+                        onGoToLogin()
+                    },
+                ) {
+                    Text(stringResource(R.string.guest_readonly_go_to_login))
                 }
             },
         )
