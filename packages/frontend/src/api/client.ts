@@ -1,4 +1,5 @@
 import i18n from '../i18n/config';
+import { GUEST_READONLY_MESSAGE, isGuestMutationRefusal } from '../lib/guest-readonly';
 
 const APP_BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 export const API_BASE = `${APP_BASE}/api`;
@@ -35,6 +36,32 @@ export function consumeSessionExpiredNotice(): boolean {
     return true;
   }
   return false;
+}
+
+const GUEST_READONLY_NOTICE_KEY = 'guest_readonly_notice';
+
+/**
+ * El evento para el caso en que el aviso se marca con la aplicación ya montada: el sessionStorage solo
+ * se lee una vez, al montar el host, y una mutación del invitado ocurre en cualquier pantalla.
+ */
+export const GUEST_READONLY_NOTICE_EVENT = 'guest-readonly-notice';
+
+/**
+ * El invitado intentó una mutación y el backend la rechazó. Se guarda el mensaje -- el del servidor, que
+ * es el literal de la directiva -- para que sobreviva a la navegación, igual que el aviso de sesión
+ * vencida, y se emite el evento para que el host lo muestre en el acto.
+ */
+export function markGuestReadonlyNotice(): void {
+  sessionStorage.setItem(GUEST_READONLY_NOTICE_KEY, GUEST_READONLY_MESSAGE);
+  window.dispatchEvent(new Event(GUEST_READONLY_NOTICE_EVENT));
+}
+
+export function consumeGuestReadonlyNotice(): string | null {
+  const value = sessionStorage.getItem(GUEST_READONLY_NOTICE_KEY);
+  if (value) {
+    sessionStorage.removeItem(GUEST_READONLY_NOTICE_KEY);
+  }
+  return value;
 }
 
 export function clearStoredSession(): void {
@@ -120,11 +147,16 @@ async function request<T>(
   }
 
   if (!response.ok) {
-    throw new ApiClientError(
-      response.status,
-      (data && data.error) || i18n.t('api.requestFailed'),
-      data && data.details
-    );
+    // Las dos claves: la guarda del invitado responde { message } y el resto de la API responde { error }.
+    const message = (data && (data.message || data.error)) || i18n.t('api.requestFailed');
+
+    // El invitado es de solo lectura: se reconoce ESE rechazo -- y solo ese -- para mostrarle el aviso
+    // informativo. Cualquier otro error sigue el camino de siempre.
+    if (isGuestMutationRefusal(response.status, message)) {
+      markGuestReadonlyNotice();
+    }
+
+    throw new ApiClientError(response.status, message, data && data.details);
   }
 
   return data as T;

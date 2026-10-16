@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AppShell } from './components/layout/AppShell';
 import { LoadingSpinner } from './components/ui/loading-spinner';
+import { GuestReadonlyNotice } from './components/ui/guest-readonly-notice';
 import { AssaiCalculatorPage } from './pages/AssaiCalculatorPage';
 import { LoginPage } from './pages/LoginPage';
 import { StockCalculatorPage } from './pages/StockCalculatorPage';
@@ -213,6 +214,7 @@ export function App() {
           />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
+      <GuestReadonlyNotice />
       </BrowserRouter></SetupGate>
     </AuthProvider>
   );

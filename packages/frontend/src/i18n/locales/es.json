@@ -465,5 +465,8 @@
     "unavailable": "Este navegador no puede abrir ni copiar.",
     "units": "Unidades",
     "unitsWord": "unidades"
+  },
+  "guest": {
+    "readonlyTitle": "Ação não permitida"
   }
 }
