@@ -64,6 +64,11 @@ class ReportGeneratorViewModel @Inject constructor(
         val temperatures: Map<Int, List<String>> = emptyMap(),
         /** The names selected per product-check task. */
         val selectedProducts: Map<Int, Set<String>> = emptyMap(),
+        /**
+         * Lo que el operador escribió sobre el turno. La pantalla de edición ya lo tenía; el generador
+         * no, así que al crear un reporte no había dónde escribirlo y el atributo llegaba siempre nulo.
+         */
+        val notes: String = "",
         val submitting: Boolean = false,
         /** The report the server created, which is what the next screen needs. */
         val createdReportId: Int? = null,
@@ -128,6 +133,8 @@ class ReportGeneratorViewModel @Inject constructor(
     /** The way out of a read that could not supply what the form needs. */
     fun retry() = load()
 
+    fun onNotesChange(notes: String) = _state.update { it.copy(notes = notes) }
+
     fun onCheckChange(taskId: Int, checked: Boolean) =
         _state.update { it.copy(checks = it.checks + (taskId to checked)) }
 
@@ -169,6 +176,11 @@ class ReportGeneratorViewModel @Inject constructor(
             val result = repository.create(
                 CreateReportRequest(
                     turno = current.turno?.let(::requestTurno),
+                    // La misma expresión que la web y que la pantalla de edición: `notes.trim() || null`. Una
+                    // nota que sólo tiene espacios va como null y no como cadena vacía, porque para el
+                    // servidor no son lo mismo -- una cadena vacía es una nota cuyo texto está vacío, y null
+                    // es no tener nota --, y guardar "" dejaría el reporte como si se hubiera respondido.
+                    notes = current.notes.trim().ifEmpty { null },
                     items = reportItems(tasksById.values, current.checks, current.selectedProducts)
                         .takeIf { it.isNotEmpty() },
                     temperatures = reportTemperatures(tasksById.values, current.temperatures, String::toReading)
