@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Dialog } from './dialog';
 import { Button } from './button';
+import { useAuth } from '../../contexts/AuthContext';
 import { appUrl, consumeGuestReadonlyNotice, GUEST_READONLY_NOTICE_EVENT } from '../../api/client';
 
 /**
@@ -36,6 +37,7 @@ function LockIcon() {
  */
 export function GuestReadonlyNotice() {
   const { t } = useTranslation();
+  const { logout } = useAuth();
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -50,6 +52,10 @@ export function GuestReadonlyNotice() {
   // El aviso se limpia ANTES de navegar: si quedara marcado, reaparecería apenas se llegara al login.
   const goToLogin = () => {
     setMessage(null);
+    // La sesión se cierra ANTES de navegar. La navegación de abajo es una recarga completa, así que dejarla
+    // para después no la cerraría: llegar al login con el token todavía vivo es lo contrario de lo que este
+    // botón promete, y en una sesión de invitado es la diferencia entre cerrarla y aparentar cerrarla.
+    logout();
     window.location.href = appUrl('/login');
   };
 

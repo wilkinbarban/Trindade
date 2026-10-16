@@ -141,6 +141,9 @@ class MainActivity : ComponentActivity() {
                     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
                     val role = remember(signedIn) { authRepository.sessionRole() }
                     val sessionKey = remember(signedIn) { authRepository.sessionGeneration.toString() }
+                    // Para cerrar la sesión de verdad al salir al login: limpiar sólo el estado de la
+                    // pantalla dejaría el token vivo en el dispositivo.
+                    val sessionScope = rememberCoroutineScope()
 
                     fun endSession() {
                         profileOpen = false
@@ -271,7 +274,13 @@ class MainActivity : ComponentActivity() {
                             currentTab = tab,
                             onSelectTab = { tab = it },
                             onOpenProfile = { profileOpen = true },
-onGoToLogin = { endSession() },
+onGoToLogin = {
+                                // El aviso manda al login y la sesión se cierra de verdad: endSession limpia
+                                // el estado de la pantalla y el repositorio borra el token del dispositivo, que
+                                // es lo que el botón promete.
+                                endSession()
+                                sessionScope.launch { authRepository.logout() }
+                            },
                             destinations = destinations,
                             drawerState = drawerState,
                         ) {

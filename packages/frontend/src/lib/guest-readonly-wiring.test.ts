@@ -86,6 +86,9 @@ test('el secundario lleva al login por el mismo camino que ya usa el cliente', (
   assert.ok(host.includes('appUrl('), 'tiene que resolver la ruta como el resto del cliente');
   assert.ok(host.includes("'/login'"), 'y llevar al login');
   assert.ok(host.includes('setMessage(null)'), 'y limpiar el aviso para que no reaparezca al llegar');
+  // Irse al login sin cerrar la sesión deja el token vivo: el botón promete cerrar, no sólo ir.
+  assert.ok(host.includes('logout()'), 'y cerrar la sesión antes de navegar');
+  assert.ok(host.includes('useAuth'), 'con el logout del contexto de autenticación');
 });
 
 test('el contrato del evento sigue intacto: es lo que la directiva manda preservar', () => {
