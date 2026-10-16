@@ -25,7 +25,9 @@ describe('stage-one installation invariants', () => {
   it('initializes only required references for a fresh installation', () => {
     const databasePath = join(fixtureRoot(), 'fresh.db');
     const db = openDatabase(databasePath);
-    assert.equal(db.prepare('SELECT COUNT(*) FROM users').pluck().get(), 0);
+    // El invitado es el único usuario fijo: la instalación fresca lo trae y no trae ningún otro.
+    assert.equal(db.prepare("SELECT COUNT(*) FROM users WHERE username != 'invitado'").pluck().get(), 0);
+    assert.equal(db.prepare("SELECT COUNT(*) FROM users WHERE username = 'invitado'").pluck().get(), 1);
     assert.ok((db.prepare('SELECT COUNT(*) FROM roles').pluck().get() as number) > 0);
     assert.equal(db.prepare('SELECT COUNT(*) FROM drivers').pluck().get(), 30);
     assert.equal(db.prepare('SELECT COUNT(*) FROM vehicles').pluck().get(), 6);

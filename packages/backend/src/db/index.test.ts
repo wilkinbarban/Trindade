@@ -14,10 +14,12 @@ describe('safe database startup', () => {
   afterEach(() => directories.splice(0).forEach(path => rmSync(path, { recursive: true, force: true })));
   const target = () => { const dir = mkdtempSync(join(tmpdir(), 'trindade-startup-')); directories.push(dir); return join(dir, 'app.db'); };
 
-  it('initializes references without fixed users only for a positively fresh target', () => {
+  it('initializes references and seeds only the guest among the fixed users for a positively fresh target', () => {
     const path = target();
     const db = openDatabase(path);
-    assert.equal(db.prepare('SELECT COUNT(*) FROM users').pluck().get(), 0);
+    // El invitado es el ÚNICO usuario fijo de una instalación fresca: la directiva lo pide así.
+    assert.equal(db.prepare("SELECT COUNT(*) FROM users WHERE username != 'invitado'").pluck().get(), 0);
+    assert.equal(db.prepare("SELECT COUNT(*) FROM users WHERE username = 'invitado'").pluck().get(), 1);
     assert.ok((db.prepare('SELECT COUNT(*) FROM roles').pluck().get() as number) > 0);
     db.close();
   });
@@ -36,6 +38,7 @@ describe('safe database startup', () => {
     const path = target();
     const seed = new Database(path);
     seed.exec(readFileSync(join(import.meta.dirname, 'schema.sql'), 'utf8'));
+    seed.exec(readFileSync(join(import.meta.dirname, 'seed.sql'), 'utf8'));
     stampSchemaVersion(seed);
     seed.close();
 
@@ -48,6 +51,7 @@ describe('safe database startup', () => {
     const path = target();
     const seed = new Database(path);
     seed.exec(readFileSync(join(import.meta.dirname, 'schema.sql'), 'utf8'));
+    seed.exec(readFileSync(join(import.meta.dirname, 'seed.sql'), 'utf8'));
     seed.prepare("INSERT INTO settings VALUES ('preserved','yes',datetime('now'))").run();
     stampSchemaVersion(seed);
     seed.close();
