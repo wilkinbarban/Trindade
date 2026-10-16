@@ -35,6 +35,16 @@ explícitamente al usuario "invitado" para que no pueda ser editado, actualizado
 eliminado vía API.»
 
 S7. «Verificá que todos los tests de Backend, Frontend Web y Android pasen en verde. Realizá commits
+
+S8. **(directiva del 16/10, continuación de este trabajo)** «Mejora visual y de diseño del diálogo
+informativo de usuario invitado (Modo Solo Lectura) en Web y Android»: en web, badge circular con ícono
+de candado «en tono cálido/ámbar/primario», título («Modo Somente Leitura» / «Acesso de Convidado»),
+cuerpo con el mensaje del servidor en un contenedor suave, botón principal «Entendi» y botón o enlace
+secundario («Ir para Login» / «Cadastrar») «que limpie el estado o redirija», **preservando el contrato
+del evento y las pruebas unitarias en verde**; en Android, el `AlertDialog` de Material 3 con el
+parámetro `icon`, tipografía estructurada, `confirmButton` «Entendi» y `dismissButton` «Ir para login»
+«que llame a endSession()», con las cadenas en `strings.xml`; y en la entrega, «Actualizar el APK en la
+release v0.5.0 de GitHub con notas y sha256 actualizados».
 convencionales claros y prolijos en main sin trailers de IA ni Co-Authored-By.»
 
 ## Tasks
@@ -50,6 +60,9 @@ convencionales claros y prolijos en main sin trailers de IA ni Co-Authored-By.»
 | T7 | Aviso en la web y en Android cuando llega el 403 (o antes de intentar): una superficie clara que diga que hay que registrarse | S5 | hecha | web `42a0c12` (frontend 79/79 y typecheck limpio); Android `997ec60`; el arreglo de rutas del test en el commit siguiente |
 | T8 | Visibilidad del invitado idéntica al Administrador: comprobar `RolePolicy` y los menús de la web | S4 | confirmada | el invitado es `role_id = 1` / `Administrador` con `is_active = 1` (visto en el rojo de T6) |
 | T9 | Suite completa (backend, frontend y Android) en verde y commits convencionales | S7 | verde | backend 490/490/0 · frontend 79/79 con typecheck limpio · Android 838 pruebas, 0 fallos, 0 errores y **0 omitidas** (job-172) |
+| T10 | Web: rediseño del aviso con badge, título, contenedor del mensaje y los dos botones, **sin romper el contrato del evento** | S8 | hecha | `5111b79` (104 líneas); suite 82/82 y typecheck limpio, con tres casos nuevos, uno fijando que el contrato sobrevive |
+| T11 | Android: el `AlertDialog` con `icon`, tipografía M3, los dos botones y el `dismissButton` llamando a `endSession()` por callback | S8 | hecha | `5b366a3` (96 líneas); 838 pruebas con 0 fallos, 0 errores y 0 omitidas, con `--rerun-tasks` y la hora del reporte igual a la del host |
+| T12 | Release: APK firmado en `v0.5.0` con notas y `sha256` actualizados | S8 | hecha | workflow `Android release` run 38938465532 (build ✓ publish ✓); tag remoto `e1d5c7e8…`; sha256 `6f152f7099…` verificado por API y por hash local |
 
 ## Log
 
@@ -127,3 +140,34 @@ ahora arranca por el camino correcto y suma las del monorepo, así que encuentra
 layouts. Lo que vale de esta entrada no es el arreglo sino cómo apareció: **un `skipped` en el reporte hay
 que leerlo**, porque un resumen de «todo verde» lo tapa y la protección desaparece sin que nadie se entere.
 Esa es la misma razón por la que la prueba se declara omitida en lugar de pasar.
+
+
+L11 (orquestador, S8/T10-T12): **cuatro corridas para un adorno, y lo que quedó de ellas**. El rediseño en
+sí fue directo: en web, badge circular ámbar con un candado en SVG en línea —el proyecto no tiene librería
+de íconos, y sumar una por un adorno sería pagar para siempre—, el mensaje del servidor en su contenedor y
+dos botones del sistema, porque el proyecto ya tenía `Button` con variantes y el modal accesible; en
+Android, un vector drawable propio (`res/drawable/ic_lock.xml`) porque el proyecto **no** tiene
+`androidx.compose.material:material-icons`, y el `dismissButton` entrando por un callback nuevo de
+`MainAppShell` con default, porque `endSession()` vive en `MainActivity` y el armazón es una función de
+nivel superior. Lo costoso fue **verificar**. (1) La primera corrida dijo `salida=0` en **1 segundo**: todo
+estaba `UP-TO-DATE` y el reporte de pruebas era de **54 minutos antes**, así que no probó nada. (2) La
+segunda, ya forzada con `--rerun-tasks`, falló al compilar por la dependencia inexistente. (3) La tercera
+falló en 981 ms y **el grep de errores volvió vacío** porque filtraba por el error que yo esperaba: el log
+crudo decía «`ic_lock.xml:6:78`: La cadena "--" no está permitida en los comentarios» —el doble guion
+dentro de un comentario XML—. (4) La cuarta fue verde de verdad.
+
+De ahí salieron tres guardianes reutilizables, que valen más que el rediseño: **imprimir la hora del
+reporte** además de los conteos, porque una compilación que falla **deja el reporte anterior en su lugar**
+y los números solos describen una corrida vieja como si fuera nueva; **comparar huellas `sha256`** de los
+archivos en local y en el host antes de correr, para que la corrida sea demostrablemente sobre este árbol;
+y un **pre-vuelo de un segundo** que parsea los XML de `res/` y cruza cada `R.drawable`/`R.string` del
+código con los recursos reales. Y tres reglas de lectura y de ejecución que costaron más que cualquier
+línea de código: **la última vuelta de grep va sin filtro**, porque filtrar por el error esperado es cómo
+se pierde el error real; **un guardián de arnés no se esquiva con otra forma del mismo comando**; y
+**anclar en el prefijo de una línea, nunca en prosa larga**, que es lo que hizo fallar dos ediciones de
+este mismo documento. Sobre la release: el workflow compiló y firmó desde el secreto del repositorio,
+reemplazó el asset con `--clobber` y **no** tocó las notas —solo genera notas al **crear** la release—, así
+que se actualizaron aparte con `gh release edit`; y ahí reapareció la misma familia de error: un reemplazo
+a lo bruto del `sha256` habría cambiado también una frase que describe el **APK anterior**, o sea que el
+documento habría pasado a mentir sobre su propia historia. Se corrigió dejando ese digest histórico
+intacto.
