@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { classifyInstallation } from './install-lifecycle.js';
 import { readSchemaReport, stampSchemaVersion } from './schema-version.js';
+import { ensureGuestUser } from './guest-user-seed.js';
 
 export function openDatabase(databasePath: string): DatabaseType {
   const installation = classifyInstallation(databasePath);
@@ -41,5 +42,8 @@ export function openDatabase(databasePath: string): DatabaseType {
       stampSchemaVersion(db);
     })();
   }
+  // El invitado se asegura en cada arranque, no solo en una base nueva: la que ya está
+  // sirviendo en producción tiene que verlo también.
+  ensureGuestUser(db);
   return db;
 }
