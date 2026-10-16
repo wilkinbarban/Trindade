@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "test": "node --test --import tsx \"src/**/*.test.ts\"",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test:e2e": "env -u NO_COLOR npx playwright test",
