@@ -1,6 +1,5 @@
 package com.trindade.app.dashboard
 
-import com.trindade.app.ui.components.DeveloperCredit
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -186,7 +185,6 @@ fun DashboardScreen(
             }
             // El credito es el ultimo hijo del Column scrolleable y no parte de la rama de arriba: como
             // hijo de un bloque condicional solo se dibujaba en esa rama, y ahi no era el pie de nada.
-            DeveloperCredit()
         }
     }
 }

@@ -1,6 +1,5 @@
 package com.trindade.app.auth
 
-import com.trindade.app.ui.components.DeveloperCredit
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -277,7 +276,6 @@ fun ProfileScreen(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        DeveloperCredit()
     }
 }
 

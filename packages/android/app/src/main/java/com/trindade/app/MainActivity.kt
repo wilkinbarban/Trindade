@@ -21,6 +21,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationDrawerItem
@@ -64,6 +66,7 @@ import com.trindade.app.ui.theme.TrindadeTheme
 import com.trindade.app.assai.AssaiCalculatorScreen
 import com.trindade.app.stock.StockCalculatorScreen
 import com.trindade.app.stock.StockHistoryScreen
+import com.trindade.app.ui.components.DeveloperCredit
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -428,6 +431,10 @@ fun MainAppShell(
                                     .defaultMinSize(minHeight = 48.dp),
                             )
                         }
+                        Spacer(Modifier.height(16.dp))
+                        // El credito va al pie del cajon desplegable: ahi no estorba a ninguna pantalla y no hay
+                        // tres copias que puedan quedar viejas por separado.
+                        DeveloperCredit()
                     }
                 }
             }
