@@ -127,9 +127,11 @@ export function generateWhatsAppText(db: Database.Database, reportId: number, pu
   const printedTempLocations = new Set<string>();
 
   for (const cat of activeCategories) {
-    lines.push(`━━━━━━━━━━━━━━`);
-    lines.push(`📋 *${cat.name_pt.toUpperCase()}*`);
-    lines.push('');
+    // Lo que esta categoría tiene para contar, sin escribir todavía: el encabezado sale sólo si hay algo
+    // debajo. Antes se escribía siempre, y como el reporte guarda una fila por tarea -- marcada o no -- el
+    // mensaje terminaba mostrando todas las categorías con sus tareas sin hacer, que es lo contrario de lo
+    // que el operador quiere mandarle al grupo.
+    const categoryLines: string[] = [];
 
     // --- Checks ---
     const items = db
@@ -146,19 +148,19 @@ export function generateWhatsAppText(db: Database.Database, reportId: number, pu
       .all(cat.id, reportId) as (ExportItemRow & { task_type: string; selected_products?: string })[];
 
     for (const item of items) {
+      // Sólo entra lo que el operador marcó o seleccionó: el mensaje dice lo que se hizo. Una tarea sin
+      // marcar no es trabajo hecho, y listarla convierte el mensaje en el inventario de lo pendiente, que
+      // es lo que hacía que el texto no coincidiera con el reporte.
       if (item.task_type === 'check_assai' || item.task_type === 'check_normal') {
         const selected = parseSelectedProducts(item.selected_products) ?? [];
-        if (selected && selected.length > 0) {
-          lines.push(`✅ ${item.task_name}:`);
+        if (selected.length > 0) {
+          categoryLines.push(`✅ ${item.task_name}:`);
           for (const p of selected) {
-            lines.push(`   - ${p}`);
+            categoryLines.push(`   - ${p}`);
           }
-        } else {
-          lines.push(`◻️ ${item.task_name}`);
         }
-      } else {
-        const icon = item.checked ? '✅' : '◻️';
-        lines.push(`${icon} ${item.task_name}`);
+      } else if (item.checked) {
+        categoryLines.push(`✅ ${item.task_name}`);
       }
     }
 
@@ -176,11 +178,18 @@ export function generateWhatsAppText(db: Database.Database, reportId: number, pu
       .all(cat.id, reportId) as ExportTemperatureRow[];
 
     for (const [location, readings] of groupTemperatures(temps)) {
-      lines.push(formatTemperature(location, readings.map((temp) => temp.value)));
+      categoryLines.push(formatTemperature(location, readings.map((temp) => temp.value)));
       printedTempLocations.add(location);
     }
 
-    lines.push('');
+    // El cierre de la categoría: encabezado, contenido y la línea en blanco, sólo si hubo contenido.
+    if (categoryLines.length > 0) {
+      lines.push(`━━━━━━━━━━━━━━`);
+      lines.push(`📋 *${cat.name_pt.toUpperCase()}*`);
+      lines.push('');
+      lines.push(...categoryLines);
+      lines.push('');
+    }
   }
 
   // Check for any temperatures in the database that were not printed

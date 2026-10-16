@@ -110,8 +110,9 @@ describe('Export Service (Generador Inteligente)', () => {
       'Should include Temperaturas category'
     );
 
-    // Task names should use name_pt
-    const ptTerms = (db.prepare('SELECT name_pt FROM report_tasks WHERE id IN (1, 2, 3, 4) ORDER BY id').all() as { name_pt: string }[]).map((row) => row.name_pt);
+    // Task names should use name_pt, and the sample is the tasks the export carries: the unmarked one is
+    // not in the message, so requiring its name would have been asserting the defect.
+    const ptTerms = (db.prepare('SELECT name_pt FROM report_tasks WHERE id IN (1, 3, 4) ORDER BY id').all() as { name_pt: string }[]).map((row) => row.name_pt);
 
     for (const term of ptTerms) {
       assert.ok(
@@ -135,9 +136,10 @@ describe('Export Service (Generador Inteligente)', () => {
     assert.ok(text.includes(`✅ ${tasks.find((task) => task.id === 1)!.name_pt}`), 'Checked item should have ✅');
     assert.ok(text.includes(`✅ ${tasks.find((task) => task.id === 3)!.name_pt}`), 'Checked item should have ✅');
 
-    // Unchecked items carry the emoji-presentation square: the plain one renders as a blank box in
-    // some WhatsApp clients, which is what this test exists to keep from coming back.
-    assert.ok(text.includes(`◻️ ${tasks.find((task) => task.id === 2)!.name_pt}`), 'Unchecked item should have ◻️');
+    // An item nobody marked is not work that was done, so it is not in the message: the text says what
+    // the operator did, and a list of everything that was not done is noise in the group's chat -- and
+    // the reason the counts in the message did not match the report.
+    assert.ok(!text.includes(tasks.find((task) => task.id === 2)!.name_pt), 'Unchecked item must not be exported');
   });
 
   it('temperature section is formatted correctly', () => {
@@ -250,7 +252,7 @@ describe('Export Service (Generador Inteligente)', () => {
     }
 
     // Should contain Portuguese terms
-    const ptTerms = (db.prepare('SELECT name_pt FROM report_tasks WHERE id IN (1, 2, 3) ORDER BY id').all() as { name_pt: string }[]).map((row) => row.name_pt);
+    const ptTerms = (db.prepare('SELECT name_pt FROM report_tasks WHERE id IN (1, 3) ORDER BY id').all() as { name_pt: string }[]).map((row) => row.name_pt);
 
     for (const term of ptTerms) {
       assert.ok(
