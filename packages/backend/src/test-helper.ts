@@ -17,6 +17,7 @@ import { adminRoutes } from './modules/admin/admin.routes.js';
 import { auditRoutes } from './modules/audit/audit.routes.js';
 import { getPhotoByPublicToken } from './modules/reports/reports.lifecycle.service.js';
 import { REFERENCE_DATASET, verifyReferencePrerequisites } from './db/reference-data.js';
+import { ensureGuestUser } from './db/guest-user-seed.js';
 
 /**
  * Build a Fastify instance backed by an in-memory SQLite database
@@ -70,6 +71,10 @@ export async function buildTestApp(options: Pick<AuthRoutesOptions, 'authAdmissi
   db.exec(readFileSync(schemaPath, 'utf-8'));
   db.exec(readFileSync(seedPath, 'utf-8'));
   verifyReferencePrerequisites(db);
+
+  // El invitado entra por la MISMA semilla que usa el arranque de producción: si no,
+  // el mundo de las pruebas tendría un invitado que producción no tiene (o al revés).
+  ensureGuestUser(db);
   db.exec(`
     INSERT OR IGNORE INTO drivers (id, name, driver_type) VALUES (4, 'André', 'fletero');
     INSERT OR IGNORE INTO drivers (id, name, driver_type) VALUES (9005, 'Fixture Casa', 'casa');

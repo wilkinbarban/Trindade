@@ -1,6 +1,15 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import jwt from 'jsonwebtoken';
 
+/** El invitado es de solo lectura y este es el mensaje que la directiva fija para él. */
+/** El nombre del invitado, para que una sola cadena lo defina en todo el backend. */
+export const GUEST_USERNAME = 'invitado';
+
+export const GUEST_MUTATION_MESSAGE = '\u00c9 necess\u00e1rio cadastrar um usu\u00e1rio na p\u00e1gina de login para realizar a\u00e7\u00f5es';
+
+/** Los métodos que no cambian nada: el invitado puede usarlos con la visibilidad del Administrador. */
+const READ_ONLY_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
 // --------------- Type Declarations ---------------
 
 /**
@@ -75,6 +84,18 @@ export function createAuthenticate(jwtSecret: string) {
 
       request.user = { sub: decoded.sub, username: user.username, role: user.role,
         security_version: user.security_version };
+
+      // La guarda del invitado: es una lista de permitos —solo las rutas de autenticación— para que
+      // un endpoint nuevo quede protegido por omisión en vez de por acordarse de decorarlo. Vive acá
+      // porque este es el punto por el que pasa toda ruta protegida, y del lado del servidor: el
+      // cliente no es la frontera.
+      if (
+        user.username === GUEST_USERNAME &&
+        !READ_ONLY_METHODS.has(request.method) &&
+        !request.url.startsWith('/api/auth/')
+      ) {
+        return reply.code(403).send({ message: GUEST_MUTATION_MESSAGE });
+      }
     } catch {
       return reply.status(401).send({ error: 'Invalid or expired token' });
     }
