@@ -288,6 +288,11 @@ class MainActivity : ComponentActivity() {
                                         loadingDayFromHistory = false
                                         tab = Tab.LOADING
                                     },
+                                    // Las tres calculadoras ya son pestañas: el acceso directo solo cambia de
+                                    // pestaña, igual que el menú.
+                                    onOpenStock = { tab = Tab.STOCK_COUNTER },
+                                    onOpenStockHistory = { tab = Tab.STOCK_HISTORY },
+                                    onOpenAssai = { tab = Tab.ASSAI },
                                 )
                                 Tab.REPORTS -> ReportGeneratorRoute(
                                     onCreated = { openReportId = it },

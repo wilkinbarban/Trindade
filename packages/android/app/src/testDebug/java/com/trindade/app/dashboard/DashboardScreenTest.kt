@@ -88,6 +88,9 @@ class DashboardScreenTest {
                     onOpenReports = onOpenReports,
                     onOpenLoading = onOpenLoading,
                     onOpenLoadingDay = onOpenLoadingDay,
+                    onOpenStock = {},
+                    onOpenStockHistory = {},
+                    onOpenAssai = {},
                 )
             }
         }
@@ -277,6 +280,9 @@ class DashboardScreenTest {
                         onOpenReports = {},
                         onOpenLoading = {},
                         onOpenLoadingDay = {},
+                        onOpenStock = {},
+                        onOpenStockHistory = {},
+                        onOpenAssai = {},
                     )
                 }
             }

@@ -66,7 +66,13 @@ fun DashboardScreen(
     onOpenReports: () -> Unit,
     onOpenLoading: () -> Unit,
     onOpenLoadingDay: (String) -> Unit,
+    // Los tres accesos directos a las calculadoras: las pestañas ya existen, así que la tarjeta
+    // solo tiene que llevar a ellas.
+    onOpenStock: () -> Unit,
+    onOpenStockHistory: () -> Unit,
+    onOpenAssai: () -> Unit,
     modifier: Modifier = Modifier,
+    // Los tres accesos directos: la pantalla los ofrece y la ruta los entrega.
 ) {
     when {
         state.loading -> Box(
@@ -182,6 +188,42 @@ fun DashboardScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
+                // La tarjeta lleva a la misma pestaña que su texto nombra: el acceso directo y el menú
+                // dicen lo mismo porque usan la misma cadena.
+                DashboardCard(
+                    label = stringResource(R.string.nav_stock_counter),
+                    onClick = onOpenStock,
+                ) {
+                    Text(
+                        text = stringResource(R.string.dashboard_stock_counter),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+                // La tarjeta lleva a la misma pestaña que su texto nombra: el acceso directo y el menú
+                // dicen lo mismo porque usan la misma cadena.
+                DashboardCard(
+                    label = stringResource(R.string.nav_stock_history),
+                    onClick = onOpenStockHistory,
+                ) {
+                    Text(
+                        text = stringResource(R.string.dashboard_stock_history),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+                // La tarjeta lleva a la misma pestaña que su texto nombra: el acceso directo y el menú
+                // dicen lo mismo porque usan la misma cadena.
+                DashboardCard(
+                    label = stringResource(R.string.nav_assai),
+                    onClick = onOpenAssai,
+                ) {
+                    Text(
+                        text = stringResource(R.string.dashboard_assai),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
             }
             // El credito es el ultimo hijo del Column scrolleable y no parte de la rama de arriba: como
             // hijo de un bloque condicional solo se dibujaba en esa rama, y ahi no era el pie de nada.
@@ -210,6 +252,10 @@ fun DashboardRoute(
     onOpenReports: () -> Unit,
     onOpenLoading: () -> Unit,
     onOpenLoadingDay: (String) -> Unit,
+    // Los tres accesos directos: la pantalla los ofrece y la ruta los entrega.
+    onOpenStock: () -> Unit,
+    onOpenStockHistory: () -> Unit,
+    onOpenAssai: () -> Unit,
     viewModel: DashboardViewModel = hiltViewModel(key = sessionKey),
 ) {
     val state by viewModel.state.collectAsState()
@@ -223,6 +269,9 @@ fun DashboardRoute(
         onOpenReports = onOpenReports,
         onOpenLoading = onOpenLoading,
         onOpenLoadingDay = onOpenLoadingDay,
+        onOpenStock = onOpenStock,
+        onOpenStockHistory = onOpenStockHistory,
+        onOpenAssai = onOpenAssai,
     )
 }
 
