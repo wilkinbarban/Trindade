@@ -43,10 +43,14 @@ class GuestReadonlyTest {
 
     @Test
     fun `la cadena de acá y la del backend son la misma`() {
+        // El primero es el del sync al host de compilación -- que copia el archivo a
+        // ~/trindade-android-a1/backend/src/ -- y desde app/ eso está UN nivel arriba, no dos. Los
+        // otros cubren el monorepo, donde el archivo vive en packages/backend/src.
         val candidates = listOf(
+            "../backend/src/guest-user.ts",
+            "../../packages/backend/src/guest-user.ts",
+            "../../../packages/backend/src/guest-user.ts",
             "../../backend/src/guest-user.ts",
-            "../../../backend/src/guest-user.ts",
-            "../../../../packages/backend/src/guest-user.ts",
         )
         val source = candidates.map(::File).firstOrNull { it.isFile }?.readText()
 
