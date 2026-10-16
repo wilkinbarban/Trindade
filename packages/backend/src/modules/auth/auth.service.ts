@@ -1,6 +1,7 @@
 import type Database from 'better-sqlite3';
 import { log as auditLog } from '../audit/audit.service.js';
 import { normalizeUsername } from './auth.rate-limiter.js';
+import { GUEST_USERNAME } from '../../guest-user.js';
 
 export interface RegisterWorkerParams {
   username: string;
@@ -23,7 +24,9 @@ export type RegisterWorkerResult =
  * so that initial administrator setup cannot be preempted.
  */
 export function isBootstrapRequired(db: Database.Database): boolean {
-  return (db.prepare('SELECT COUNT(*) FROM users').pluck().get() as number) === 0;
+  // El invitado no cuenta como usuario del sistema: si contara, la instalación parecería
+  // inicializada y el registro del primer Administrador quedaría trabado.
+  return (db.prepare('SELECT COUNT(*) FROM users WHERE username != ?').pluck().get(GUEST_USERNAME) as number) === 0;
 }
 
 /**

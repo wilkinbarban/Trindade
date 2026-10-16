@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { getSaoPauloDateString } from '../../utils/date.js';
 import { activeScheduleBatchDate, activeScheduleDate } from './active-schedule.js';
+import { GUEST_USERNAME } from '../../guest-user.js';
 
 interface CountRow {
   count: number;
@@ -61,9 +62,9 @@ export async function dashboardRoutes(fastify: FastifyInstance) {
         .prepare(
           `SELECT COUNT(*) AS count
            FROM users
-           WHERE is_active = 1`
+           WHERE is_active = 1 AND username != ?`
         )
-        .get() as CountRow;
+        .get(GUEST_USERNAME) as CountRow;
 
       const reportsTotal = db
         .prepare(

@@ -18,6 +18,7 @@ import { auditRoutes } from './modules/audit/audit.routes.js';
 import { getPhotoByPublicToken } from './modules/reports/reports.lifecycle.service.js';
 import { REFERENCE_DATASET, verifyReferencePrerequisites } from './db/reference-data.js';
 import { ensureGuestUser } from './db/guest-user-seed.js';
+import { GUEST_USERNAME } from './guest-user.js';
 
 /**
  * Build a Fastify instance backed by an in-memory SQLite database
@@ -72,9 +73,6 @@ export async function buildTestApp(options: Pick<AuthRoutesOptions, 'authAdmissi
   db.exec(readFileSync(seedPath, 'utf-8'));
   verifyReferencePrerequisites(db);
 
-  // El invitado entra por la MISMA semilla que usa el arranque de producción: si no,
-  // el mundo de las pruebas tendría un invitado que producción no tiene (o al revés).
-  ensureGuestUser(db);
   db.exec(`
     INSERT OR IGNORE INTO drivers (id, name, driver_type) VALUES (4, 'André', 'fletero');
     INSERT OR IGNORE INTO drivers (id, name, driver_type) VALUES (9005, 'Fixture Casa', 'casa');
@@ -99,6 +97,11 @@ export async function buildTestApp(options: Pick<AuthRoutesOptions, 'authAdmissi
     );
     identity.id = Number(result.lastInsertRowid);
   }
+
+  // El invitado entra DESPUÉS de los fixtures, no antes: sembrado sobre la tabla vacía se
+  // quedaba con el id 1, que los fixtures dan por sentado, y la regla «solo el creador edita»
+  // compara por user_id. Entra por la MISMA semilla que el arranque de producción.
+  ensureGuestUser(db);
 
   const app = Fastify({ logger: false });
 
@@ -130,8 +133,8 @@ export async function buildTestApp(options: Pick<AuthRoutesOptions, 'authAdmissi
 // Authenticated user options for history filters
 app.get('/api/users/options', { preHandler: [app.authenticate] }, async (_request, reply) => {
   const users = app.db
-    .prepare('SELECT id, display_name FROM users WHERE is_active = 1 ORDER BY display_name ASC')
-    .all();
+    .prepare('SELECT id, display_name FROM users WHERE is_active = 1 AND username != ? ORDER BY display_name ASC')
+    .all(GUEST_USERNAME);
   return reply.send({ users });
 });
 

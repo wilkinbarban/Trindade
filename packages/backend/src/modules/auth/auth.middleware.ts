@@ -1,11 +1,9 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import jwt from 'jsonwebtoken';
+import { GUEST_MUTATION_MESSAGE, GUEST_USERNAME } from '../../guest-user.js';
 
 /** El invitado es de solo lectura y este es el mensaje que la directiva fija para él. */
-/** El nombre del invitado, para que una sola cadena lo defina en todo el backend. */
-export const GUEST_USERNAME = 'invitado';
 
-export const GUEST_MUTATION_MESSAGE = '\u00c9 necess\u00e1rio cadastrar um usu\u00e1rio na p\u00e1gina de login para realizar a\u00e7\u00f5es';
 
 /** Los métodos que no cambian nada: el invitado puede usarlos con la visibilidad del Administrador. */
 const READ_ONLY_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);

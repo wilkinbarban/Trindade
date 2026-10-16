@@ -4,6 +4,7 @@ import { randomBytes } from 'node:crypto';
 import { join } from 'node:path';
 import type { HistoryQuery, HistoryPagination, ReportListItem, ReportPhoto } from './reports.schema.js';
 import { projectHistoryPermissions, type HistoryActor, parseSqliteDate } from '../history-permissions.js';
+import { GUEST_USERNAME } from '../../guest-user.js';
 
 interface ReportRow {
   id: number;
@@ -213,7 +214,9 @@ export function deleteReportTransactionally(db: Database.Database, reportId: num
 }
 
 export function listUserOptions(db: Database.Database) {
-  return db.prepare(`SELECT id, display_name FROM users WHERE is_active = 1 ORDER BY display_name ASC`).all() as { id: number; display_name: string }[];
+  // El invitado no es una persona del sistema: no se ofrece como opción de filtro.
+  return db.prepare(`SELECT id, display_name FROM users WHERE is_active = 1 AND username != ? ORDER BY display_name ASC`)
+    .all(GUEST_USERNAME) as { id: number; display_name: string }[];
 }
 export function listReportHistory(db: Database.Database, query: HistoryQuery, actor: HistoryActor): { items: ReportListItem[]; pagination: HistoryPagination } {
   const where: string[] = [];

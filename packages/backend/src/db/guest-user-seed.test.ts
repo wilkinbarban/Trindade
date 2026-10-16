@@ -14,7 +14,7 @@ import { openDatabase } from './index.js';
  * en seed.sql —donde solo lo vería una base recién creada.
  */
 
-const GUEST_USERNAME = 'invitado';
+import { GUEST_USERNAME } from '../guest-user.js';
 
 let root = '';
 afterEach(() => {

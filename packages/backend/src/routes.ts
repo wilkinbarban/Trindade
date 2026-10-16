@@ -11,6 +11,7 @@ import { loadingRoutes } from './modules/loading/loading.routes.js';
 import { adminRoutes } from './modules/admin/admin.routes.js';
 import { auditRoutes } from './modules/audit/audit.routes.js';
 import { stockRoutes } from './modules/stock/stock.routes.js';
+import { GUEST_USERNAME } from './guest-user.js';
 
 export interface ApiRouteOptions {
   jwtSecret: string;
@@ -83,8 +84,10 @@ export async function registerApiRoutes(
   // The user list the history filters offer.
   fastify.get('/api/users/options', { preHandler: [fastify.authenticate] }, async (_request, reply) => {
     const users = fastify.db
-      .prepare('SELECT id, display_name FROM users WHERE is_active = 1 ORDER BY display_name ASC')
-      .all();
+      .prepare('SELECT id, display_name FROM users WHERE is_active = 1 AND username != ? ORDER BY display_name ASC')
+      .all(GUEST_USERNAME);
+    // El invitado no se ofrece como opción: no es una persona del sistema y su fila no es un dato de
+    // negocio, es infraestructura de la directiva.
     return reply.send({ users });
   });
 

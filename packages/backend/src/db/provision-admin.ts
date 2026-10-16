@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { setupSchema } from '../modules/auth/auth.schema.js';
 import { readSchemaReport } from './schema-version.js';
+import { GUEST_USERNAME } from '../guest-user.js';
 
 const MAX_PASSWORD_BYTES = 4096;
 
@@ -54,7 +55,7 @@ export function checkProvisioningDatabase(path: string): void {
   const db = new Database(path, { readonly: true, fileMustExist: true });
   try {
     if (readSchemaReport(db).verdict !== 'current') throw new Error('Database schema is not current');
-    if ((db.prepare('SELECT COUNT(*) FROM users').pluck().get() as number) !== 0)
+    if ((db.prepare('SELECT COUNT(*) FROM users WHERE username != ?').pluck().get(GUEST_USERNAME) as number) !== 0)
       throw new Error('Administrator provisioning requires an empty users table');
   } finally {
     db.close();
@@ -70,7 +71,7 @@ export async function provisionAdministrator(path: string, username: string, dis
   try {
     const create = db.transaction(() => {
       if (readSchemaReport(db).verdict !== 'current') throw new Error('Database schema is not current');
-      if ((db.prepare('SELECT COUNT(*) FROM users').pluck().get() as number) !== 0)
+      if ((db.prepare('SELECT COUNT(*) FROM users WHERE username != ?').pluck().get(GUEST_USERNAME) as number) !== 0)
         throw new Error('Administrator provisioning requires an empty users table');
       const role = db.prepare("SELECT id FROM roles WHERE name = 'Administrador'").get() as { id: number } | undefined;
       if (!role) throw new Error('Administrator role is missing');

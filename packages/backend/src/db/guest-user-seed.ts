@@ -12,8 +12,7 @@ import type { Database } from 'better-sqlite3';
  * revela nada nuevo y evita pagar bcrypt en cada arranque.
  */
 
-export const GUEST_USERNAME = 'invitado';
-export const GUEST_DISPLAY_NAME = 'Invitado';
+import { GUEST_USERNAME, GUEST_DISPLAY_NAME } from '../guest-user.js';
 
 /** bcrypt.hashSync('invitado', 10), calculado con el mismo bcrypt que verifica el login. */
 const GUEST_PASSWORD_HASH = '$2a$10$WC0aN.PIZqOJkJoGb/51NO8gZYjXh16hGVwLqWyn7lCeRaLWyYqty';

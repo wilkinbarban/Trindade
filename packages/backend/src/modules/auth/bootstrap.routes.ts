@@ -1,7 +1,9 @@
 import type { FastifyInstance } from 'fastify';
+import { GUEST_USERNAME } from '../../guest-user.js';
 
 function setupRequired(fastify: FastifyInstance): boolean {
-  return (fastify.db.prepare('SELECT COUNT(*) FROM users').pluck().get() as number) === 0;
+  // El invitado no cuenta: si contara, el sistema diría que ya está inicializado.
+  return (fastify.db.prepare('SELECT COUNT(*) FROM users WHERE username != ?').pluck().get(GUEST_USERNAME) as number) === 0;
 }
 
 export async function bootstrapRoutes(fastify: FastifyInstance) {

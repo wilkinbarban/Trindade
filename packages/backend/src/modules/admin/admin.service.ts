@@ -20,6 +20,7 @@ import type {
 import bcrypt from 'bcryptjs';
 import { translateText } from '../../utils/translator.js';
 import { revokeUserSessions } from '../auth/auth.sessions.service.js';
+import { GUEST_IMMUTABLE_MESSAGE, GUEST_USERNAME } from '../../guest-user.js';
 
 async function translateOrCopy(text: string, fromLang: 'es' | 'pt'): Promise<string> {
   const cleaned = text.trim();
@@ -536,9 +537,10 @@ export function listUsers(db: Database.Database): UserRow[] {
       `SELECT u.id, u.username, u.display_name, u.role_id, r.name AS role_name, u.is_active, u.created_at
        FROM users u
        JOIN roles r ON u.role_id = r.id
+       WHERE u.username != ?
        ORDER BY u.display_name ASC`
     )
-    .all() as UserRow[];
+    .all(GUEST_USERNAME) as UserRow[];
 }
 
 export function createUser(
@@ -591,6 +593,11 @@ export function updateUser(
           .prepare('SELECT * FROM users WHERE id = ?')
           .get(id) as UserRow | undefined;
         if (!existing) return null;
+        // El invitado no se edita ni se desactiva: si se lo desactivara, la cuenta de solo lectura que
+        // la directiva pide dejaría de poder entrar, y su fila la administra la semilla, no un panel.
+        if (existing.username === GUEST_USERNAME) {
+          throw Object.assign(new Error(GUEST_IMMUTABLE_MESSAGE), { statusCode: 403 });
+        }
 
         // "Effective" means the request would change how the account authenticates or what it may
         // do. A display-name edit, or a value identical to the one already stored, leaves the
@@ -663,9 +670,14 @@ export function updateUser(
 
 export function deleteUser(db: Database.Database, id: number): boolean {
   const existing = db
-    .prepare('SELECT id FROM users WHERE id = ?')
-    .get(id);
+    .prepare('SELECT id, username FROM users WHERE id = ?')
+    .get(id) as { id: number; username: string } | undefined;
   if (!existing) return false;
+  // El invitado no se borra: borrarlo haría desaparecer la cuenta de solo lectura y volvería a
+  // aparecer en el siguiente arranque, que es peor que rechazarlo.
+  if (existing.username === GUEST_USERNAME) {
+    throw Object.assign(new Error(GUEST_IMMUTABLE_MESSAGE), { statusCode: 403 });
+  }
 
   try {
     const deleteTransaction = db.transaction((userId: number) => {
