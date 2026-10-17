@@ -852,6 +852,62 @@ class LoadingScreenTest {
         assertEquals(listOf(7), opened)
     }
 
+    /**
+     * The overlap the operator saw: two fleteros in one day drew one button on top of the other.
+     *
+     * The names come from the roster rather than from a fixed list, so a column of buttons borrowed each
+     * line from the one above it as soon as a second driver had a number. What the assertion reads is the
+     * placement itself -- the second button starts either after the first one ends on the same line, or below
+     * it -- because presence alone would pass for a screen that drew both in the same place, which is exactly
+     * the layout that was reported.
+     */
+    @Test
+    fun `two fleteros with numbers get their own space in the dialog`() {
+        val ana = DriversResponseDriversInner(
+            id = 7, name = "Ana", licensePlate = null, phone = "+55 (11) 98888-7777",
+            driverType = DriversResponseDriversInner.DriverType.fletero,
+        )
+        val beto = DriversResponseDriversInner(
+            id = 8, name = "Beto", licensePlate = null, phone = "+55 (11) 97777-6666",
+            driverType = DriversResponseDriversInner.DriverType.fletero,
+        )
+
+        composeRule.setContent {
+            TrindadeTheme {
+                LoadingScreen(
+                    state = state().copy(
+                        exportText = "CRONOGRAMA DE CARREGAMENTO",
+                        schedules = listOf(FakeLoadingApi.entry(7, "04:00"), FakeLoadingApi.entry(8, "05:00")),
+                        drivers = listOf(ana, beto),
+                    ),
+                    onBack = {},
+                    onOpenHistory = {},
+                    onStartAdding = {},
+                    onCancelAdding = {},
+                    onDriverSelected = {},
+                    onVehicleSelected = {},
+                    onConfirmAdd = {},
+                    onDelete = {},
+                    onEditEntry = { _, _ -> },
+                    onLoadExport = {},
+                    onShareText = {},
+                    onSharePdf = {},
+                    onOpenWhatsApp = {},
+                )
+            }
+        }
+
+        val first = composeRule.onNodeWithText("Ana").performScrollTo().getUnclippedBoundsInRoot()
+        val second = composeRule.onNodeWithText("Beto").performScrollTo().getUnclippedBoundsInRoot()
+
+        val gapOnOneLine = second.left >= first.right
+        val lineOfItsOwn = second.top >= first.bottom
+        assertTrue(
+            "Ana [$first] and Beto [$second] overlap: neither a gap on one line nor a line of their own",
+            gapOnOneLine || lineOfItsOwn,
+        )
+    }
+
     @Test
     fun `offers export actions when export text is available`() {
         val sampleText = "CRONOGRAMA DE CARREGAMENTO - 15/01/2025"
