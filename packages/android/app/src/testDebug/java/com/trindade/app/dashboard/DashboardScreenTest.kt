@@ -182,7 +182,7 @@ class DashboardScreenTest {
      * day itself decides -- the day being loaded that is today's own belongs to the grid that is today's.
      */
     @Test
-    fun `the loads card opens the day the operation is on`() {
+    fun `the schedules card opens the batch's day, which is the one the grid has rows for`() {
         var openedToday = 0
         val openedDays = mutableListOf<String>()
         render(
@@ -194,12 +194,15 @@ class DashboardScreenTest {
         card(copy(R.string.dashboard_active_schedule)).performClick()
         composeRule.waitForIdle()
 
+        // El día que abre es el del LOTE y no el de carga: son días distintos -- el lote del viernes se
+        // carga el lunes -- y el segundo lleva a una grilla sin filas, que es el defecto que la web ya
+        // había cerrado y que esta tarjeta todavía tenía.
         assertEquals(0, openedToday)
-        assertEquals(listOf(FakeSystemApi.ACTIVE_SCHEDULE_DATE), openedDays)
+        assertEquals(listOf(FakeSystemApi.ACTIVE_SCHEDULE_BATCH_DATE), openedDays)
     }
 
     @Test
-    fun `a day being loaded that is today opens today's grid`() {
+    fun `the day being loaded does not decide the door: the batch date does`() {
         var openedToday = 0
         val openedDays = mutableListOf<String>()
         val today = saoPauloToday()
@@ -212,6 +215,25 @@ class DashboardScreenTest {
         card(copy(R.string.dashboard_active_schedule)).performClick()
         composeRule.waitForIdle()
 
+        // Que la fecha de arriba sea hoy no cambia nada: lo que decide es la fecha del lote.
+        assertEquals(0, openedToday)
+        assertEquals(listOf(FakeSystemApi.ACTIVE_SCHEDULE_BATCH_DATE), openedDays)
+    }
+
+    @Test
+    fun `without a batch there is no day to open, so the card invites creating the schedule`() {
+        var openedToday = 0
+        val openedDays = mutableListOf<String>()
+        render(
+            state = state(FakeSystemApi.summary().copy(activeScheduleBatchDate = null)),
+            onOpenLoading = { openedToday++ },
+            onOpenLoadingDay = { openedDays += it },
+        )
+
+        card(copy(R.string.dashboard_active_schedule)).performClick()
+        composeRule.waitForIdle()
+
+        // Sin lote no se finge una puerta a un día que no tiene filas: se ofrece crear el de hoy.
         assertEquals(1, openedToday)
         assertEquals(emptyList<String>(), openedDays)
     }
