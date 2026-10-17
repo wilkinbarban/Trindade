@@ -202,7 +202,7 @@ class DashboardScreenTest {
     }
 
     @Test
-    fun `the day being loaded does not decide the door: the batch date does`() {
+    fun `the day being loaded does not decide which door the card opens, the batch date does`() {
         var openedToday = 0
         val openedDays = mutableListOf<String>()
         val today = saoPauloToday()
