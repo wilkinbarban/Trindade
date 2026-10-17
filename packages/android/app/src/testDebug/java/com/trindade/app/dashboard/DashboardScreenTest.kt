@@ -91,6 +91,7 @@ class DashboardScreenTest {
                     onOpenStock = {},
                     onOpenStockHistory = {},
                     onOpenAssai = {},
+                    onShareActiveSchedule = {},
                 )
             }
         }
@@ -305,6 +306,7 @@ class DashboardScreenTest {
                         onOpenStock = {},
                         onOpenStockHistory = {},
                         onOpenAssai = {},
+                        onShareActiveSchedule = {},
                     )
                 }
             }
