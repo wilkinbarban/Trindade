@@ -1,5 +1,7 @@
 package com.trindade.app.reports
 
+import com.trindade.app.contract.models.CategoriesResponseCategoriesInner
+import com.trindade.app.contract.models.ReportCategoryTasksInner
 import com.trindade.app.contract.models.ReportResponse
 import com.trindade.app.reports.FakeReportsApi.Companion.CHECK_TASK_ID
 import com.trindade.app.reports.FakeReportsApi.Companion.PRODUCT_TASK_ID
@@ -52,6 +54,18 @@ class ReportGeneratorViewModelTest {
 
     private fun viewModel(api: FakeReportsApi = this.api) = ReportGeneratorViewModel(ReportsRepository(api))
 
+    /**
+     * Every reading the fake's temperature task declares, filled with a number.
+     *
+     * The form withholds the save until it owes nothing -- the tests further down are about that rule -- so
+     * a test about what a submission carries has to fill the whole set first: what it asserts is the body,
+     * and the body only exists once the readings do.
+     */
+    private fun fillTemperatures(model: ReportGeneratorViewModel, value: String = "-18") {
+        model.onTemperatureChange(TEMPERATURE_TASK_ID, index = 0, value = value)
+        model.onTemperatureChange(TEMPERATURE_TASK_ID, index = 1, value = value)
+    }
+
     @Test
     fun `loads the categories, the offers and the shift together`() {
         val model = viewModel()
@@ -91,33 +105,46 @@ class ReportGeneratorViewModelTest {
     fun `sends a reading typed with a comma as a decimal, located at the task's own name`() {
         val model = viewModel()
         model.onTemperatureChange(TEMPERATURE_TASK_ID, index = 0, value = "4,5")
+        // The task declares two readings and the form owes both, so the second one is filled too: there is
+        // no body to read until the set is complete, and this test is about what the body carries.
+        model.onTemperatureChange(TEMPERATURE_TASK_ID, index = 1, value = "-18")
         model.submit()
 
-        val reading = api.createdBody!!.temperatures!!.single()
+        val readings = api.createdBody!!.temperatures!!
+        val first = readings.single { it.readingIndex == 1 }
         // A Brazilian operator types 4,5 and toDoubleOrNull on that string returns null, so the
         // reading would be dropped and the server would blame a missing temperature.
-        assertEquals(BigDecimal("4.5"), reading.value)
+        assertEquals(BigDecimal("4.5"), first.value)
         // The location is the task's name, not a free-text field this client invents.
-        assertEquals(TEMPERATURE_TASK_NAME, reading.location)
+        assertEquals(TEMPERATURE_TASK_NAME, first.location)
         // One-based, because the server accepts 1 to 3.
-        assertEquals(1, reading.readingIndex)
+        assertEquals(1, first.readingIndex)
+        // And the second declared reading goes out beside it, at its own index.
+        assertEquals(BigDecimal("-18"), readings.single { it.readingIndex == 2 }.value)
     }
 
     @Test
     fun `drops an empty reading rather than sending a zero`() {
-        val model = viewModel()
-        model.onTemperatureChange(TEMPERATURE_TASK_ID, index = 0, value = "4,5")
-        model.onTemperatureChange(TEMPERATURE_TASK_ID, index = 1, value = "   ")
-        model.submit()
+        // Asked of the body builder directly, because a blank reading no longer reaches `submit()`: the form
+        // withholds the save until every declared reading parses, so a test is the only caller that can hand
+        // this function a blank. The rule still matters on the wire -- sending zero for a blank field would
+        // store a temperature nobody measured -- and leaving the reading out is what lets the server say
+        // which one is actually missing.
+        val readings = reportTemperatures(
+            FakeReportsApi.defaultCategories().flatMap { it.tasks },
+            mapOf(TEMPERATURE_TASK_ID to listOf("4,5", "   ")),
+            String::toReading,
+        )
 
-        // Sending zero for a blank field would store a temperature nobody measured. Leaving it out lets
-        // the server say what is actually missing.
-        assertEquals(1, api.createdBody!!.temperatures!!.size)
+        assertEquals(1, readings.size)
+        assertEquals(BigDecimal("4.5"), readings.single().value)
+        assertEquals(1, readings.single().readingIndex)
     }
 
     @Test
     fun `sends checks and selected products, and no temperature task as an item`() {
         val model = viewModel()
+        fillTemperatures(model)
         model.onCheckChange(CHECK_TASK_ID, checked = true)
         model.onProductToggle(PRODUCT_TASK_ID, FakeReportsApi.defaultOffers().assai.first().value, selected = true)
         model.submit()
@@ -136,6 +163,7 @@ class ReportGeneratorViewModelTest {
     @Test
     fun `reports the id the server created`() {
         val model = viewModel()
+        fillTemperatures(model)
         model.submit()
 
         assertEquals(42, model.state.value.createdReportId)
@@ -146,6 +174,7 @@ class ReportGeneratorViewModelTest {
     fun `says a report already exists when the server answers 409, instead of a generic failure`() {
         val api = FakeReportsApi(createResponse = Response.error(409, EMPTY_BODY))
         val model = viewModel(api)
+        fillTemperatures(model)
         model.submit()
 
         assertNull(model.state.value.createdReportId)
@@ -211,6 +240,9 @@ class ReportGeneratorViewModelTest {
 
         assertEquals(ReportGeneratorViewModel.Stage.READY, model.state.value.stage)
         assertEquals(emptyList<ReportGeneratorViewModel.Prerequisite>(), model.state.value.missing)
+        // Ready is about the read; "can be sent" is about the answers too, so the readings the form owes are
+        // filled before the flag is read. The tests below pin the other direction of the same flag.
+        fillTemperatures(model)
         assertEquals(true, model.state.value.canSubmit)
     }
 
@@ -220,6 +252,7 @@ class ReportGeneratorViewModelTest {
         val model = viewModel(api)
         model.onCheckChange(CHECK_TASK_ID, true)
         model.onTemperatureChange(TEMPERATURE_TASK_ID, 0, "12")
+        model.onTemperatureChange(TEMPERATURE_TASK_ID, 1, "-18")
 
         // The next read fails whole, and what the operator typed is not the read's business.
         api.categories = null
@@ -227,7 +260,7 @@ class ReportGeneratorViewModelTest {
         assertEquals(ReportGeneratorViewModel.Stage.FAILED, model.state.value.stage)
         assertEquals(listOf(ReportGeneratorViewModel.Prerequisite.CATEGORIES), model.state.value.missing)
         assertEquals(true, model.state.value.checks[CHECK_TASK_ID])
-        assertEquals("12", model.state.value.temperatures[TEMPERATURE_TASK_ID]?.first())
+        assertEquals(listOf("12", "-18"), model.state.value.temperatures[TEMPERATURE_TASK_ID])
 
         // And the retry that succeeds leaves them where they were, including for the task the recovered read
         // lists again: the seed fills what has no answer and never replaces one.
@@ -235,8 +268,176 @@ class ReportGeneratorViewModelTest {
         model.load()
         assertEquals(ReportGeneratorViewModel.Stage.READY, model.state.value.stage)
         assertEquals(true, model.state.value.checks[CHECK_TASK_ID])
-        assertEquals("12", model.state.value.temperatures[TEMPERATURE_TASK_ID]?.first())
+        assertEquals(listOf("12", "-18"), model.state.value.temperatures[TEMPERATURE_TASK_ID])
+        // The state the form is read from is the state the fields draw, so the readings surviving the read is
+        // what "a scroll does not lose the operator's work" means: nothing about the answers lives in the
+        // composition.
+        assertEquals(true, model.state.value.canSubmit)
     }
+
+    // ---- The readings the form owes before it may send anything ----
+
+    /**
+     * The rule this group exists for: a form that owes a reading is not one to send.
+     *
+     * The failure it closes is the one the operator lived through. The save was drawn live, the body left
+     * with the blank readings dropped, and the server answered 400 "Falta colocar as temperaturas no
+     * relatório." about a form the operator had no way to know was incomplete -- the sentence names the
+     * temperature as a whole, and the fields it is about look like every other empty field on the screen.
+     * Withholding the save and naming the slots is what turns that round trip into something the operator
+     * can act on before pressing anything.
+     */
+    @Test
+    fun `a fresh form owes both readings its temperature task declares, and sends nothing`() {
+        val model = viewModel()
+
+        assertEquals(
+            setOf(TemperatureSlot(TEMPERATURE_TASK_ID, 0), TemperatureSlot(TEMPERATURE_TASK_ID, 1)),
+            model.state.value.missingReadings,
+        )
+        assertEquals(false, model.state.value.canSubmit)
+
+        // The write is not attempted at all: no body, and no request the server would refuse.
+        model.submit()
+        assertNull(api.createdBody)
+    }
+
+    @Test
+    fun `typing one of the two readings leaves only the other one owed`() {
+        val model = viewModel()
+        model.onTemperatureChange(TEMPERATURE_TASK_ID, index = 0, value = "4,5")
+
+        assertEquals(setOf(TemperatureSlot(TEMPERATURE_TASK_ID, 1)), model.state.value.missingReadings)
+        assertEquals(false, model.state.value.canSubmit)
+    }
+
+    @Test
+    fun `a reading that is not a number is owed like a blank one`() {
+        val model = viewModel()
+        model.onTemperatureChange(TEMPERATURE_TASK_ID, index = 0, value = "abc")
+        model.onTemperatureChange(TEMPERATURE_TASK_ID, index = 1, value = "-18")
+
+        assertEquals(setOf(TemperatureSlot(TEMPERATURE_TASK_ID, 0)), model.state.value.missingReadings)
+        assertEquals(false, model.state.value.canSubmit)
+    }
+
+    @Test
+    fun `filling the whole set is what lets the form send`() {
+        val model = viewModel()
+        fillTemperatures(model)
+
+        assertEquals(emptySet<TemperatureSlot>(), model.state.value.missingReadings)
+        assertEquals(true, model.state.value.canSubmit)
+    }
+
+    @Test
+    fun `a negative reading typed with a comma reaches the body as a negative decimal`() {
+        val model = viewModel()
+        model.onTemperatureChange(TEMPERATURE_TASK_ID, 0, "-2,4")
+        model.onTemperatureChange(TEMPERATURE_TASK_ID, 1, "-18")
+        model.submit()
+
+        // A cold chamber is read below zero. The parser both surfaces share carries the sign the way it carries
+        // the comma, so `-2,4` is the reading −2,4 and not one the form would call missing.
+        assertEquals(BigDecimal("-2.4"), api.createdBody!!.temperatures!!.single { it.readingIndex == 1 }.value)
+    }
+
+    // ---- What a refusal says (S6) ----
+
+    /**
+     * The misreporting this group closes: every 400 used to be answered with "fill in the temperatures".
+     *
+     * The payload has more than one way to be refused -- a report already filed for the shift and day, a
+     * constraint the transaction refused, a reading set the server counted as incomplete -- and the server
+     * resolves its codes into the operator's own language before answering, so the sentence to say is the one
+     * that arrived with the refusal rather than this client's guess at it.
+     */
+    @Test
+    fun `a 400 shows the sentence the server sent instead of guessing at temperatures`() {
+        val duplicate = "Já existe um relatório para este turno hoje."
+        val api = FakeReportsApi(createResponse = Response.error(400, jsonBody(duplicate)))
+        val model = viewModel(api)
+        fillTemperatures(model)
+        model.submit()
+
+        assertEquals(duplicate, model.state.value.message)
+    }
+
+    @Test
+    fun `a 400 with no body at all is still reported as an incomplete report`() {
+        // The fallback for a refusal that arrived with nothing to read. The one part of the body this client
+        // builds and checks is the reading set, so that is the only thing it can still name on its own.
+        val api = FakeReportsApi(createResponse = Response.error(400, EMPTY_BODY))
+        val model = viewModel(api)
+        fillTemperatures(model)
+        model.submit()
+
+        assertEquals(true, model.state.value.message!!.contains("incompleto", ignoreCase = true))
+    }
+
+    /**
+     * The production shape, counted in readings and not in tasks.
+     *
+     * Task 5 declares two readings and tasks 40, 41 and 42 declare one each, which is the set the server's
+     * `validateTemperatures` builds and the reason the operator's 400 arrived: a client that counted tasks
+     * instead of slots would call a three-filled-task form complete and leave two readings behind. The
+     * fixture is the catalogue's own shape rather than the single task the rest of this file uses.
+     */
+    @Test
+    fun `the production catalog owes five readings across its four temperature tasks`() {
+        val api = FakeReportsApi().apply { categories = productionTemperatureCategories() }
+        val model = viewModel(api)
+
+        assertEquals(
+            setOf(5 to 0, 5 to 1, 40 to 0, 41 to 0, 42 to 0),
+            model.state.value.missingReadings.map { it.taskId to it.index }.toSet(),
+        )
+        assertEquals(5, model.state.value.temperatures.values.sumOf { it.size })
+        assertEquals(false, model.state.value.canSubmit)
+
+        listOf(5 to 0, 5 to 1, 40 to 0, 41 to 0, 42 to 0).forEach { (taskId, index) ->
+            model.onTemperatureChange(taskId, index, "-18")
+        }
+
+        assertEquals(true, model.state.value.canSubmit)
+    }
+
+    /** The catalogue's temperature category: the four tasks and the five readings the server validates. */
+    private fun productionTemperatureCategories() = listOf(
+        CategoriesResponseCategoriesInner(
+            id = 2,
+            parentCategoryId = null,
+            namePt = "Temperaturas",
+            nameEs = "Temperaturas",
+            sortOrder = 2,
+            categoryType = CategoriesResponseCategoriesInner.CategoryType.entries.first(),
+            tasks = listOf(
+                productionTask(id = 5, name = "Câmara Principal", readings = 2),
+                productionTask(id = 40, name = "Câmara Nhoque", readings = 1),
+                productionTask(id = 41, name = "Câmara Fria 1", readings = 1),
+                productionTask(id = 42, name = "Câmara Fria 2", readings = 1),
+            ),
+        ),
+    )
+
+    private fun productionTask(id: Int, name: String, readings: Int) = ReportCategoryTasksInner(
+        id = id,
+        categoryId = 2,
+        namePt = name,
+        nameEs = name,
+        taskType = ReportCategoryTasksInner.TaskType.temperature,
+        temperatureReadings = readings,
+    )
 }
 
 private val EMPTY_BODY: okhttp3.ResponseBody = "{}".toResponseBody("application/json".toMediaType())
+
+/**
+ * The envelope a refusal arrives in, with the same sentence in `error` and `message` as the server sends it.
+ *
+ * Both fields, because the contract reserves `message` for a localised business sentence while the routes that
+ * set it fill `error` with the same text; a client that read only one of them would pass here and fail against
+ * a route that used the other.
+ */
+private fun jsonBody(sentence: String): okhttp3.ResponseBody =
+    """{"error":"$sentence","message":"$sentence"}""".toResponseBody("application/json".toMediaType())

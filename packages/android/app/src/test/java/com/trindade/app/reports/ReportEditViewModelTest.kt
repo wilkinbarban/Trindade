@@ -23,6 +23,7 @@ import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 import retrofit2.Response
@@ -106,7 +107,7 @@ class ReportEditViewModelTest {
         canEdit: Boolean? = true,
         readOnly: Boolean? = false,
         items: List<ReportDetailItemsInner> = emptyList(),
-        temperatures: List<ReportDetailTemperaturesInner> = emptyList(),
+        temperatures: List<ReportDetailTemperaturesInner> = completeReadings(),
     ) = FakeReportsApi.createdReport(id = id).copy(
         notes = notes,
         canEdit = canEdit,
@@ -139,6 +140,19 @@ class ReportEditViewModelTest {
             readingIndex = readingIndex,
             value = BigDecimal(value),
         )
+
+    /**
+     * The two readings the fixture's temperature task declares, both filled.
+     *
+     * A stored report the server accepted carries every reading of every active temperature task -- the PATCH
+     * validates the same set the create does -- so this is the shape of a report that can be edited and
+     * saved. It is the default below so that the tests about a submission stay about what the submission
+     * carries, instead of each of them having to repair a fixture the app would have withheld the save from.
+     */
+    private fun completeReadings() = listOf(
+        temperature(TEMPERATURE_TASK_NAME, readingIndex = 1, value = "4.5"),
+        temperature(TEMPERATURE_TASK_NAME, readingIndex = 2, value = "-18.0"),
+    )
 
     // ---- The tests ----
 
@@ -178,8 +192,72 @@ class ReportEditViewModelTest {
         // The second reading the task declares is a slot the report has no value for, and it lands as
         // the form's own blank rather than as a shorter list.
         assertEquals(listOf("4.5", ""), state.temperatures[TEMPERATURE_TASK_ID])
+        // The second slot is what the form owes, and the rule the edit surface shares with the generator
+        // names it: the report cannot be saved until it is filled.
+        assertEquals(setOf(TemperatureSlot(TEMPERATURE_TASK_ID, 1)), state.missingReadings)
         assertEquals("Faltou o lacre", state.notes)
         assertEquals(FakeReportsApi.DEFAULT_TURNO, state.turno)
+    }
+
+    /**
+     * The rule the edit surface borrowed from the generator: a form that owes a reading has no body to send.
+     *
+     * It matters on this route for a reason of its own. The update replaces the whole reading set rather than
+     * merging into it, and the server validates that set with the same function the create route calls, so a
+     * PATCH carrying a partial set is refused exactly as a POST is -- and a PATCH carrying none is not the
+     * operator's fix either, because the reading that was left out is the reading the server keeps. Withholding
+     * the save and naming the slot is what makes the report's own readings the thing to repair.
+     */
+    @Test
+    fun `the save is withheld while the report owes a reading, and names which one`() {
+        val recording = fake(
+            report = storedReport(
+                temperatures = listOf(temperature(TEMPERATURE_TASK_NAME, readingIndex = 1, value = "4.5")),
+            ),
+        )
+        val model = viewModel(recording)
+        model.load(REPORT_ID)
+
+        assertEquals(setOf(TemperatureSlot(TEMPERATURE_TASK_ID, 1)), model.state.value.missingReadings)
+        assertEquals(false, model.state.value.canSubmit)
+
+        // No request at all: the body the server would refuse is never built.
+        model.submit()
+        assertNull(recording.updatedBody)
+        assertEquals(false, model.state.value.submitting)
+
+        // Filling the slot is the whole of what the form was waiting for, and the save is offered again.
+        model.onTemperatureChange(TEMPERATURE_TASK_ID, index = 1, value = "-18")
+        assertEquals(emptySet<TemperatureSlot>(), model.state.value.missingReadings)
+        assertEquals(true, model.state.value.canSubmit)
+    }
+
+    @Test
+    fun `a report that arrived with every reading filled owes nothing and can be saved`() {
+        val model = viewModel(fake())
+        model.load(REPORT_ID)
+
+        assertEquals(emptySet<TemperatureSlot>(), model.state.value.missingReadings)
+        assertEquals(true, model.state.value.canSubmit)
+    }
+
+    /**
+     * The sentence a refusal carried is the sentence the operator reads.
+     *
+     * This route refuses the same payload the create route does and for the same reasons, and the server
+     * resolves its codes into the operator's language before answering -- `reportAlreadyExists` leaves as
+     * "Já existe um relatório para este turno hoje." -- so the form's own reading of the status code is only
+     * what is left when the refusal arrived with nothing to read.
+     */
+    @Test
+    fun `a refused update shows the sentence the server sent with the refusal`() {
+        val duplicate = "Já existe um relatório para este turno hoje."
+        val model = viewModel(fake(updateResponse = Response.error(400, jsonBody(duplicate))))
+        model.load(REPORT_ID)
+        model.submit()
+
+        assertEquals(duplicate, model.state.value.message)
+        assertEquals(false, model.state.value.saved)
     }
 
     /**
@@ -246,7 +324,6 @@ class ReportEditViewModelTest {
                     item(taskId = CHECK_TASK_ID, checked = true),
                     item(taskId = PRODUCT_TASK_ID, checked = false, selectedProducts = listOf(PRODUCTS.first())),
                 ),
-                temperatures = listOf(temperature(TEMPERATURE_TASK_NAME, readingIndex = 1, value = "4.5")),
             ),
         )
         val model = viewModel(recording)
@@ -276,14 +353,16 @@ class ReportEditViewModelTest {
         // rule and the generator's.
         assertEquals(null, items.firstOrNull { it.taskId == TEMPERATURE_TASK_ID })
 
-        // The comma reaches the server as a decimal through the parser both surfaces share, and the
-        // second slot -- still blank -- is dropped rather than sent as a zero, so the index that remains
-        // is the one that has a reading.
+        // The comma reaches the server as a decimal through the parser both surfaces share. Both declared
+        // readings go out, including the one this test never touched: the update replaces the whole set rather
+        // than the single reading that changed, and a body that dropped the untouched one would be an update
+        // the server refuses for a reading the operator never cleared.
         val readings = body.temperatures!!
-        assertEquals(1, readings.size)
-        assertEquals(TEMPERATURE_TASK_NAME, readings.single().location)
-        assertEquals(BigDecimal("5.0"), readings.single().value)
-        assertEquals(1, readings.single().readingIndex)
+        assertEquals(2, readings.size)
+        val retyped = readings.single { it.readingIndex == 1 }
+        assertEquals(TEMPERATURE_TASK_NAME, retyped.location)
+        assertEquals(BigDecimal("5.0"), retyped.value)
+        assertEquals(BigDecimal("-18.0"), readings.single { it.readingIndex == 2 }.value)
 
         assertEquals(true, model.state.value.saved)
     }
@@ -557,3 +636,13 @@ private class RecordingReportsApi(
 }
 
 private val EMPTY_BODY: okhttp3.ResponseBody = "{}".toResponseBody("application/json".toMediaType())
+
+/**
+ * The envelope a refusal arrives in, with the same sentence in `error` and `message` as the server sends it.
+ *
+ * Both fields, because the contract reserves `message` for a localised business sentence while the routes that
+ * set it fill `error` with the same text; a client that read only one of them would pass here and fail against
+ * a route that used the other.
+ */
+private fun jsonBody(sentence: String): okhttp3.ResponseBody =
+    """{"error":"$sentence","message":"$sentence"}""".toResponseBody("application/json".toMediaType())
