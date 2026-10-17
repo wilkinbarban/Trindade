@@ -377,4 +377,28 @@ class ReportGeneratorScreenTest {
         displayed(copy(R.string.report_missing_offers))
         composeRule.onNodeWithText(copy(R.string.report_submit)).assertIsNotEnabled()
     }
+
+    @Test
+    fun `the screen draws the notes field and displays the initial value`() {
+        composeRule.setContent {
+            TrindadeTheme {
+                ReportGeneratorScreen(
+                    state = state(listOf(category(id = 8, namePt = "Higiene"))).copy(
+                        notes = "Observação do turno",
+                    ),
+                    onCheckChange = { _, _ -> },
+                    onProductToggle = { _, _, _ -> },
+                    onTemperatureChange = { _, _, _ -> },
+                    onNotesChange = {},
+                    onSubmit = {},
+                    onOpenHistory = {},
+                    onRetry = {},
+                )
+            }
+        }
+
+        displayed(copy(R.string.report_notes))
+        composeRule.onNodeWithText("Observação do turno").performScrollTo().assertIsDisplayed()
+    }
 }
+

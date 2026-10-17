@@ -103,20 +103,6 @@ fun ReportGeneratorScreen(
         // Shown once the server has answered with an id, because that id is the one thing the next
         // screen needs and a form that just stops being submittable would look like a failure.
         state.createdReportId?.let { id ->
-            // El campo de observaciones, con el mismo aspecto que en la pantalla de edición: es donde el
-            // operador cuenta en prosa qué pasó en el turno, y varias líneas porque una sola escondería todo
-            // menos la primera frase mientras escribe.
-            item {
-                OutlinedTextField(
-                    value = state.notes,
-                    onValueChange = onNotesChange,
-                    label = { Text(stringResource(R.string.report_notes)) },
-                    minLines = 3,
-                    enabled = !state.submitting,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-            
             item {
                 Text(
                     text = stringResource(R.string.report_created, id),
@@ -150,6 +136,17 @@ fun ReportGeneratorScreen(
                         onCheckChange = onCheckChange,
                         onProductToggle = onProductToggle,
                         onTemperatureChange = onTemperatureChange,
+                    )
+                }
+
+                item {
+                    OutlinedTextField(
+                        value = state.notes,
+                        onValueChange = onNotesChange,
+                        label = { Text(stringResource(R.string.report_notes)) },
+                        minLines = 3,
+                        enabled = !state.submitting,
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                     )
                 }
 
