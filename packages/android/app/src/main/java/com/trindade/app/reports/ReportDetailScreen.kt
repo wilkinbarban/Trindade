@@ -219,6 +219,11 @@ fun ReportDetailScreen(
 
         state.exportText?.let { text ->
             item {
+                // Un Column explícito: dentro de `item`, el contenido se compone en el ámbito del item de
+                // la lista, y varios hijos ahí no se apilan solos. Sin esto, el orden y la separación de
+                // los tres elementos dependen de cómo la lista mida varios hijos, que no es algo que esta
+                // pantalla deba dar por sentado.
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(text = text, style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(8.dp))
                 AdminPrimaryButton(
@@ -233,6 +238,7 @@ fun ReportDetailScreen(
                     text = stringResource(R.string.export_share_text),
                     modifier = Modifier.fillMaxWidth(),
                 )
+                }
             }
         }
     }
