@@ -159,11 +159,21 @@ fun LoadingScreen(
                             text = stringResource(R.string.export_send_to_fletero),
                             style = MaterialTheme.typography.labelLarge,
                         )
-                        fleteros.forEach { driver ->
-                            NavigationActionButton(
-                                onClick = { onOpenWhatsApp(driver) },
-                                text = driver.name,
-                            )
+                        // One row per name was a column of buttons that overlapped: the names come from the
+                        // roster rather than from a fixed list, so the line each one took was borrowed from
+                        // the one above it and two fleteros in a day could not be told apart or pressed.
+                        // `FlowRow` is what fits them: as many as fit on a line, wrapped, with the same gap
+                        // between neighbours on a line as between the lines themselves.
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            fleteros.forEach { driver ->
+                                NavigationActionButton(
+                                    onClick = { onOpenWhatsApp(driver) },
+                                    text = driver.name,
+                                )
+                            }
                         }
                     }
                 }
