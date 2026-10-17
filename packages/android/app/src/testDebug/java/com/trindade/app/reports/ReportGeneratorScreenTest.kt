@@ -1,14 +1,21 @@
 package com.trindade.app.reports
 
 import android.content.Context
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
@@ -95,14 +102,26 @@ class ReportGeneratorScreenTest {
         tasks = tasks,
     )
 
-    /** One task of the contract. `temperatureReadings` is 0 for the three types that have no readings. */
-    private fun task(id: Int, categoryId: Int, namePt: String) = ReportCategoryTasksInner(
+    /**
+     * One task of the contract.
+     *
+     * The type and the reading count default to a check task with no readings, which is the shape every
+     * fixture in this file but the temperature ones uses -- the three types that have no readings all draw
+     * as a check, and the temperature fixtures say both of their own.
+     */
+    private fun task(
+        id: Int,
+        categoryId: Int,
+        namePt: String,
+        taskType: ReportCategoryTasksInner.TaskType = ReportCategoryTasksInner.TaskType.check,
+        temperatureReadings: Int = 0,
+    ) = ReportCategoryTasksInner(
         id = id,
         categoryId = categoryId,
         namePt = namePt,
         nameEs = namePt,
-        taskType = ReportCategoryTasksInner.TaskType.check,
-        temperatureReadings = 0,
+        taskType = taskType,
+        temperatureReadings = temperatureReadings,
     )
 
     /**
@@ -399,6 +418,189 @@ class ReportGeneratorScreenTest {
 
         displayed(copy(R.string.report_notes))
         composeRule.onNodeWithText("Observação do turno").performScrollTo().assertIsDisplayed()
+    }
+
+    // ---- The readings the form owes (S2/S3) ----
+
+    /** The catalogue's own temperature task: the first of the four, and the one that declares two readings. */
+    private fun coldTask() = task(
+        id = 5,
+        categoryId = 2,
+        namePt = "Câmara Principal",
+        taskType = ReportCategoryTasksInner.TaskType.temperature,
+        temperatureReadings = 2,
+    )
+
+    /** The screen's settled state with one temperature task in it and the readings it is handed. */
+    private fun temperatureState(readings: List<String>) = state(
+        listOf(category(id = 2, namePt = "Temperaturas", tasks = listOf(coldTask()))),
+    ).copy(temperatures = mapOf(5 to readings))
+
+    /**
+     * The rule the absence of which the operator lived through: a form that owes a reading says so, and the
+     * save it cannot honour is not drawn as a live action.
+     *
+     * The sentence is the server's own, from the same resource the web draws (`reports.temperaturesRequired`),
+     * and where it sits is the point: above the action, so the reason for a withheld button is read where the
+     * operator is looking for it.
+     */
+    @Test
+    fun `a form that owes a reading says which temperature is missing and withholds the save`() {
+        render(temperatureState(listOf("", "")))
+
+        displayed(copy(R.string.report_temperatures_required))
+        composeRule.onNodeWithText(copy(R.string.report_submit)).performScrollTo().assertIsNotEnabled()
+    }
+
+    @Test
+    fun `a form with every reading filled says nothing and offers the save`() {
+        var submitted = 0
+        composeRule.setContent {
+            TrindadeTheme {
+                ReportGeneratorScreen(
+                    state = temperatureState(listOf("4,5", "-18")),
+                    onCheckChange = { _, _ -> },
+                    onProductToggle = { _, _, _ -> },
+                    onTemperatureChange = { _, _, _ -> },
+                    onNotesChange = {},
+                    onSubmit = { submitted++ },
+                    onOpenHistory = {},
+                    onRetry = {},
+                )
+            }
+        }
+
+        // The sentence is not drawn, because there is nothing for it to be about, and the save it was
+        // withholding is live again.
+        composeRule.onNodeWithText(copy(R.string.report_temperatures_required)).assertDoesNotExist()
+        composeRule.onNodeWithText(copy(R.string.report_submit))
+            .performScrollTo()
+            .assertIsEnabled()
+            .performClick()
+
+        assertEquals(1, submitted)
+    }
+
+    /**
+     * S3, at the seam the screen can be asked about it: a reading the operator typed is drawn again when the
+     * list comes back to it, because the text is the state's and never the field's.
+     *
+     * The fixture is several windows tall on purpose, so the scroll below really moves: the last category is
+     * what the list draws at the end, several screens away from the temperature the operator filled in, and
+     * the way back re-draws that field from the form. What is asserted is the three steps -- the reading on
+     * screen, the list away from it (the last category drawn, which is what proves the move), and the reading
+     * on screen again -- and what is deliberately not asserted is that the list *disposed* the item: whether a
+     * node survives out of the viewport is the list's decision and not the operator's problem, while the claim
+     * that matters is that no copy of the text lives in the composition. `TemperatureBlock` holds none -- it
+     * reads `readings` from the form and writes back through `onChange` -- which is the same seam the app has:
+     * there the state is the view model's, and the view model outlives this composition.
+     */
+    @Test
+    fun `a reading typed into the form comes back after the field scrolls away`() {
+        val tall = listOf(category(id = 2, namePt = "Temperaturas", tasks = listOf(coldTask()))) +
+            (1..20).map { index ->
+                category(
+                    id = 100 + index,
+                    namePt = "Higiene $index",
+                    // Four checks each, because the point of the fixture is its height: a category of one row is
+                    // about forty dp, and twenty of those barely outrun the window -- the list scrolls a couple
+                    // of hundred pixels and the category under test is still composed just above the viewport.
+                    // At four rows each the content is several windows long, which is what makes the scroll
+                    // below dispose it for real.
+                    tasks = (1..4).map { row ->
+                        task(
+                            id = 200 + index * 10 + row,
+                            categoryId = 100 + index,
+                            namePt = "Tarefa $index.$row",
+                        )
+                    },
+                )
+            }
+        // The state the screen draws is the tall one: the fixture is what puts the temperature category far
+        // enough for the scroll below to take it out of the composition, and a state built from the small
+        // fixture instead would leave that scroll with nothing to move.
+        val liveState = mutableStateOf(state(tall).copy(temperatures = mapOf(5 to listOf("", ""))))
+
+        composeRule.setContent {
+            TrindadeTheme {
+                ReportGeneratorScreen(
+                    state = liveState.value,
+                    onCheckChange = { _, _ -> },
+                    onProductToggle = { _, _, _ -> },
+                    onTemperatureChange = { taskId, index, value ->
+                        val readings = liveState.value.temperatures[taskId].orEmpty().toMutableList()
+                        readings[index] = value
+                        liveState.value = liveState.value.copy(
+                            temperatures = liveState.value.temperatures + (taskId to readings),
+                        )
+                    },
+                    onNotesChange = {},
+                    onSubmit = {},
+                    onOpenHistory = {},
+                    onRetry = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Leitura 1").performScrollTo().performTextInput("4,5")
+        composeRule.onNodeWithText("4,5").assertIsDisplayed()
+
+        // The list's own items: the history action is index 0, the categories run 1..size, and the last of
+        // them is where the scroll below goes.
+        val list = composeRule.onAllNodes(hasScrollAction()).onFirst()
+        list.performScrollToIndex(tall.size)
+
+        // Away: the last category is drawn now and the reading is a long way above it, so what is on screen
+        // is not the field. The last category is asserted rather than the field's absence: the move is the
+        // fact, and a node the list kept around out of the viewport says nothing about where the operator is.
+        composeRule.onNodeWithText("Tarefa 20.4").assertIsDisplayed()
+
+        // And back, with the reading the operator typed still in it.
+        list.performScrollToIndex(1)
+        composeRule.onNodeWithText("4,5").assertIsDisplayed()
+    }
+
+    /**
+     * The sign action, and why the field needs one: `KeyboardType.Decimal` is Android's unsigned decimal
+     * input type, so the numeric keypad an operator gets has no minus key while a cold chamber is read below
+     * zero.
+     *
+     * Both directions are asserted because the action is a toggle rather than a one-way switch: a mis-tap on
+     * a reading has to be undoable from the same place it happened, and a control that only ever prepended a
+     * sign would leave the operator deleting the character by hand.
+     */
+    @Test
+    fun `the sign action makes a reading negative, and takes it back`() {
+        val liveState = mutableStateOf(temperatureState(listOf("4,5", "")))
+
+        composeRule.setContent {
+            TrindadeTheme {
+                ReportGeneratorScreen(
+                    state = liveState.value,
+                    onCheckChange = { _, _ -> },
+                    onProductToggle = { _, _, _ -> },
+                    onTemperatureChange = { taskId, index, value ->
+                        val readings = liveState.value.temperatures[taskId].orEmpty().toMutableList()
+                        readings[index] = value
+                        liveState.value = liveState.value.copy(
+                            temperatures = liveState.value.temperatures + (taskId to readings),
+                        )
+                    },
+                    onNotesChange = {},
+                    onSubmit = {},
+                    onOpenHistory = {},
+                    onRetry = {},
+                )
+            }
+        }
+
+        composeRule.onAllNodesWithText("±").onFirst().performScrollTo().performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("-4,5").assertIsDisplayed()
+
+        composeRule.onAllNodesWithText("±").onFirst().performScrollTo().performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("4,5").assertIsDisplayed()
     }
 }
 

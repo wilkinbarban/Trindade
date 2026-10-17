@@ -171,7 +171,9 @@ class ReportEditScreenTest {
         report: ReportResponseReport = editableReport,
         notes: String = NOTES,
         checks: Map<Int, Boolean> = mapOf(CHECK_TASK_ID to true),
-        temperatures: Map<Int, List<String>> = mapOf(TEMPERATURE_TASK_ID to listOf("4.5", "")),
+        // Both readings the fixture's task declares, filled: a stored report the server accepted carries
+        // every reading, and the save is withheld until the form owes none (see the tests below).
+        temperatures: Map<Int, List<String>> = mapOf(TEMPERATURE_TASK_ID to listOf("4.5", "-18")),
         message: String? = null,
     ) = ReportEditViewModel.UiState(
         loading = false,
@@ -286,7 +288,10 @@ class ReportEditScreenTest {
      */
     @Test
     fun `a read-only report disables its controls and draws no save action at all`() {
-        render(state(report = readOnlyReport))
+        // The readings are handed in half filled, which is what makes the second assertion of this test
+        // worth something: the sentence about a reading the report owes is drawn only where there is a save
+        // for it to explain, and a read-only report has none.
+        render(state(report = readOnlyReport, temperatures = mapOf(TEMPERATURE_TASK_ID to listOf("4.5", ""))))
 
         // The form's own controls: the check box and the two temperature fields the fixture owes. The
         // box is found by its row (see `checkBox`), and each field by the label it draws.
@@ -301,6 +306,23 @@ class ReportEditScreenTest {
         composeRule.onNodeWithText(NOTES).performScrollTo().assertIsNotEnabled()
 
         composeRule.onNodeWithText(copy(R.string.report_update)).assertDoesNotExist()
+        composeRule.onNodeWithText(copy(R.string.report_temperatures_required)).assertDoesNotExist()
+    }
+
+    /**
+     * The rule the edit surface borrowed from the generator, as the screen draws it: a report owing a reading
+     * says so, and the save it cannot honour is drawn disabled rather than as a live action.
+     *
+     * The sentence is the server's own -- the same resource the generator draws and the same text the web
+     * shows before sending -- and it sits above the action, because that is where the operator looks for the
+     * reason a button will not press.
+     */
+    @Test
+    fun `a report that owes a reading says so and withholds the save`() {
+        render(state(temperatures = mapOf(TEMPERATURE_TASK_ID to listOf("4.5", ""))))
+
+        displayed(copy(R.string.report_temperatures_required))
+        composeRule.onNodeWithText(copy(R.string.report_update)).performScrollTo().assertIsNotEnabled()
     }
 
     /**
