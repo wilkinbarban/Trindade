@@ -37,7 +37,6 @@ fun DriversScreen(
     onBack: () -> Unit,
     onRefresh: () -> Unit,
     onNameChange: (String) -> Unit,
-    onLicensePlateChange: (String) -> Unit,
     onPhoneChange: (String) -> Unit,
     onDriverTypeChange: (String) -> Unit,
     onSave: () -> Unit,
@@ -89,13 +88,6 @@ fun DriversScreen(
                 enabled = !state.saving,
                 modifier = Modifier.fillMaxWidth(),
             )
-            OutlinedTextField(
-                value = state.licensePlate,
-                onValueChange = onLicensePlateChange,
-                label = { Text("Placa") },
-                enabled = !state.saving,
-                modifier = Modifier.fillMaxWidth(),
-            )
             // The number is optional, so an empty field saves a driver the same way the form always has.
             OutlinedTextField(
                 value = state.phone,
@@ -140,7 +132,6 @@ fun DriversScreen(
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(driver.name, style = MaterialTheme.typography.titleMedium)
-                    Text(driver.licensePlate.orEmpty())
                     // The number the fleet keeps, blank when nobody typed one: the list exists to show
                     // who can be reached on WhatsApp, and an empty line is that answer.
                     Text(driver.phone.orEmpty())
@@ -182,7 +173,6 @@ fun DriversRoute(
         onBack = onBack,
         onRefresh = viewModel::load,
         onNameChange = viewModel::onNameChange,
-        onLicensePlateChange = viewModel::onLicensePlateChange,
         onPhoneChange = viewModel::onPhoneChange,
         onDriverTypeChange = viewModel::onDriverTypeChange,
         onSave = viewModel::save,

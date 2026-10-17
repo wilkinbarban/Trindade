@@ -44,7 +44,7 @@ class DriversScreenTest {
     ) = DriversViewModel.UiState(
         loading = loading, saving = saving, drivers = drivers, role = role,
         currentUserId = 7, editingId = editingId, name = "Motorista",
-        licensePlate = "ABC1", phone = "+55 11 98888-7777", driverType = DriversViewModel.FLETERO,
+        phone = "+55 11 98888-7777", driverType = DriversViewModel.FLETERO,
         error = error,
     )
 
@@ -53,7 +53,6 @@ class DriversScreenTest {
         onEdit: (AdminDriverResponseDriver) -> Unit = {},
         onToggle: (AdminDriverResponseDriver) -> Unit = {},
         onNameChange: (String) -> Unit = {},
-        onLicensePlateChange: (String) -> Unit = {},
         onPhoneChange: (String) -> Unit = {},
         onDriverTypeChange: (String) -> Unit = {},
         onSave: () -> Unit = {},
@@ -64,7 +63,7 @@ class DriversScreenTest {
         TrindadeTheme {
             DriversScreen(
                 state = state, onBack = onBack, onRefresh = onRefresh,
-                onNameChange = onNameChange, onLicensePlateChange = onLicensePlateChange,
+                onNameChange = onNameChange,
                 onPhoneChange = onPhoneChange,
                 onDriverTypeChange = onDriverTypeChange, onSave = onSave, onCancel = onCancel,
                 onEdit = onEdit, onToggle = onToggle,
@@ -77,7 +76,8 @@ class DriversScreenTest {
         render(state(), onToggle = { toggled++ })
 
         composeRule.onNodeWithText("Motorista 1").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText("ABC1").performScrollTo().assertIsDisplayed()
+        // The fixture carries a plate and the card does not draw it: that field belongs to vehicles.
+        composeRule.onNodeWithText("ABC1").assertDoesNotExist()
         composeRule.onAllNodesWithText("Fletero").assertCountEquals(2)
         composeRule.onNodeWithText("Desativar").performScrollTo().performClick()
         assertEquals(1, toggled)
@@ -101,10 +101,9 @@ class DriversScreenTest {
 
         composeRule.onNodeWithText("+55 (11) 98888-7777").performScrollTo().assertIsDisplayed()
 
-        // The second card renders its own lines and no number: the plate it does have is there, which is
-        // what says the card was drawn rather than skipped.
+        // The second card renders its own lines, no number and no plate: the name says it was drawn.
         composeRule.onNodeWithText("Motorista 2").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText("ABC2").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("ABC2").assertDoesNotExist()
         composeRule.onAllNodesWithText("+55", substring = true).assertCountEquals(1)
     }
 
@@ -114,7 +113,8 @@ class DriversScreenTest {
 
         composeRule.onNodeWithText("Novo motorista").performClick()
         composeRule.onNodeWithText("Nome").assertIsDisplayed()
-        composeRule.onNodeWithText("Placa").assertIsDisplayed()
+        // The web form has no plate for a driver, so this one does not offer it either.
+        composeRule.onNodeWithText("Placa").assertDoesNotExist()
         // The number is optional: the field is there, and it starts from what the driver already has.
         composeRule.onNodeWithText("Telefone (WhatsApp)").assertIsDisplayed()
         composeRule.onNodeWithText("+55 11 98888-7777").assertIsDisplayed()

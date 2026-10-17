@@ -61,11 +61,9 @@ class DriversViewModelTest {
         assertEquals(0, api.creates)
 
         model.onNameChange(" Ana ")
-        model.onLicensePlateChange(" ")
         model.onDriverTypeChange("casa")
         model.save()
         assertEquals("Ana", api.lastCreate?.name)
-        assertNull(api.lastCreate?.licensePlate)
         assertEquals(CreateAdminDriverRequest.DriverType.fletero, api.lastCreate?.driverType)
     }
 
@@ -98,43 +96,25 @@ class DriversViewModelTest {
 
         model.edit(driver(8, 42, "casa"))
         model.onNameChange("Updated")
-        model.onLicensePlateChange("ABC")
         model.save()
         assertEquals("Updated", api.lastUpdate?.name)
-        assertEquals("ABC", api.lastUpdate?.licensePlate)
         model.toggle(driver(8, 42, "casa", active = 1))
         assertEquals(UpdateAdminDriverRequest.IsActive._0, api.lastUpdate?.isActive)
     }
 
-    @Test fun `clearing driver license plate on edit sends empty string not missing or null`() {
-        val api = DriverApi()
+    @Test fun `a saved driver never carries a plate, because the driver form does not own that field`() {
+        val api = DriverApi(rows = listOf(driver(8, 42, licensePlate = "ABC1234")))
         val model = viewModel(api, role = "Administrador")
         model.load()
-        model.edit(driver(8, 42, "casa"))
-        model.onLicensePlateChange("   ")
+        model.edit(model.state.value.drivers[0])
+        model.onNameChange("Updated")
         model.save()
-        assertEquals("Driver8", api.lastUpdate?.name)
-        assertEquals("", api.lastUpdate?.licensePlate)
+        assertEquals("Updated", api.lastUpdate?.name)
 
-        // Worker editing owned fletero driver can also clear license plate to empty string
-        val workerApi = DriverApi(rows = listOf(driver(10, 42, "fletero")))
-        val workerModel = viewModel(workerApi, role = "Trabalhador")
-        workerModel.load()
-        workerModel.edit(workerModel.state.value.drivers[0])
-        workerModel.onLicensePlateChange("")
-        workerModel.save()
-        assertEquals("Driver10", workerApi.lastUpdate?.name)
-        assertEquals("", workerApi.lastUpdate?.licensePlate)
-
-        // Creating driver with blank license plate continues to send null
-        val createApi = DriverApi()
-        val createModel = viewModel(createApi, role = "Administrador")
-        createModel.load()
-        createModel.onNameChange("New Driver")
-        createModel.onLicensePlateChange("   ")
-        createModel.save()
-        assertEquals("New Driver", createApi.lastCreate?.name)
-        assertNull(createApi.lastCreate?.licensePlate)
+        // The plate belongs to vehicles; a key left out is the endpoint's "leave the stored plate alone".
+        val body = api.lastUpdateBody
+        assertNotNull(body)
+        assertFalse("The driver form must not send a plate", body!!.containsKey("license_plate"))
     }
 
     @Test fun `editing a driver carries their number into the form and typing keeps only number characters`() {
@@ -296,10 +276,16 @@ class DriversViewModelTest {
         DriversRepository(api), AuthRepository(DriverProfileApi(role), DriverStore(), Json),
     )
 
-    private fun driver(id: Int, owner: Int, type: String = "fletero", active: Int = 1, phone: String? = null) =
-        AdminDriverResponseDriver(id, "Driver$id", null, phone,
-            if (type == "casa") AdminDriverResponseDriver.DriverType.casa else AdminDriverResponseDriver.DriverType.fletero,
-            active, owner, "now")
+    private fun driver(
+        id: Int,
+        owner: Int,
+        type: String = "fletero",
+        active: Int = 1,
+        phone: String? = null,
+        licensePlate: String? = null,
+    ) = AdminDriverResponseDriver(id, "Driver$id", licensePlate, phone,
+        if (type == "casa") AdminDriverResponseDriver.DriverType.casa else AdminDriverResponseDriver.DriverType.fletero,
+        active, owner, "now")
 }
 
 private class DriverApi(var rows: List<AdminDriverResponseDriver> = emptyList()) : AdminApi {
@@ -333,7 +319,6 @@ private class DriverApi(var rows: List<AdminDriverResponseDriver> = emptyList())
         lastUpdateBody = body
         lastUpdate = UpdateAdminDriverRequest(
             name = body["name"]?.jsonPrimitive?.content,
-            licensePlate = body["license_plate"]?.jsonPrimitive?.content,
             phone = body["phone"]?.let { if (it is JsonNull) null else it.jsonPrimitive.content },
             driverType = body["driver_type"]?.jsonPrimitive?.content?.let(UpdateAdminDriverRequest.DriverType::valueOf),
             isActive = body["is_active"]?.jsonPrimitive?.content?.let {
