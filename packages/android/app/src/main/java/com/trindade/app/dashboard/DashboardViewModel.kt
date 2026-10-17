@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.trindade.app.contract.models.DashboardSummary
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import com.trindade.app.export.NoOpShareManager
+import com.trindade.app.export.ShareManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -33,7 +35,11 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
     private val repository: DashboardRepository,
+    private val shareManager: ShareManager,
 ) : ViewModel() {
+
+    /** Para las pruebas: sin compartidor, como hace LoadingViewModel con su propio NoOp. */
+    internal constructor(repository: DashboardRepository) : this(repository, NoOpShareManager)
 
     /**
      * Loading, or the answer once it arrived. A state that is not loading and carries no summary is the
@@ -84,6 +90,21 @@ class DashboardViewModel @Inject constructor(
         reading = viewModelScope.launch {
             val summary = repository.summary()
             _state.update { it.copy(loading = false, summary = summary) }
+        }
+    }
+
+    /**
+     * Comparte el cronograma activo por WhatsApp.
+     *
+     * La fecha que se manda es la del LOTE y no la de carga: es el día que el texto del servidor nombra, y
+     * pedir el otro devolvería el texto de un día sin cargas. Sin lote no hay nada que compartir y la
+     * acción no hace nada, que es lo mismo que el botón deshabilitado de la web.
+     */
+    fun shareActiveSchedule() {
+        val batchDate = _state.value.summary?.activeScheduleBatchDate ?: return
+        viewModelScope.launch {
+            val text = repository.scheduleText(batchDate) ?: return@launch
+            shareManager.shareText(text)
         }
     }
 }

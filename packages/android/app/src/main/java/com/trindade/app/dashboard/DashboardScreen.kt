@@ -72,6 +72,7 @@ fun DashboardScreen(
     onOpenStock: () -> Unit,
     onOpenStockHistory: () -> Unit,
     onOpenAssai: () -> Unit,
+    onShareActiveSchedule: () -> Unit,
     modifier: Modifier = Modifier,
     // Los tres accesos directos: la pantalla los ofrece y la ruta los entrega.
 ) {
@@ -182,6 +183,15 @@ fun DashboardScreen(
                             ),
                         )
                     }
+                    // La otra mitad de la paridad: la web ofrece mandar el cronograma por WhatsApp desde esta
+                    // misma tarjeta. Sin fecha de lote no hay texto que mandar, así que el botón se apaga en
+                    // vez de abrir un compartidor vacío.
+                    TextButton(
+                        onClick = onShareActiveSchedule,
+                        enabled = activeScheduleBatchDate != null,
+                    ) {
+                        Text(text = stringResource(R.string.dashboard_share_schedule))
+                    }
                 }
 
                 // La tarjeta lleva a la misma pestaña que su texto nombra: el acceso directo y el menú
@@ -287,6 +297,7 @@ fun DashboardRoute(
         onOpenStock = onOpenStock,
         onOpenStockHistory = onOpenStockHistory,
         onOpenAssai = onOpenAssai,
+        onShareActiveSchedule = viewModel::shareActiveSchedule,
     )
 }
 

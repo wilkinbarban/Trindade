@@ -1,5 +1,6 @@
 package com.trindade.app.dashboard
 
+import com.trindade.app.loading.FakeLoadingApi
 import com.trindade.app.contract.models.DashboardSummary
 import com.trindade.app.contract.models.HealthResponse
 import com.trindade.app.contract.models.UserOptionsResponse
@@ -51,7 +52,7 @@ class DashboardViewModelTest {
         val summary = FakeSystemApi.summary()
         val api = FakeSystemApi(summaryToReturn = Response.success(summary))
 
-        val model = DashboardViewModel(DashboardRepository(api))
+        val model = DashboardViewModel(DashboardRepository(api, FakeLoadingApi()))
 
         // Nothing reads on the view model's own construction any more: the screen's arrival is what does,
         // so a test that wants the read has to ask for it the way the screen does.
@@ -66,7 +67,7 @@ class DashboardViewModelTest {
 
     @Test
     fun `a read that never arrived is a failure, and it is not a summary of zeroes`() {
-        val model = DashboardViewModel(DashboardRepository(FakeSystemApi(summaryToReturn = null)))
+        val model = DashboardViewModel(DashboardRepository(FakeSystemApi(summaryToReturn = null), FakeLoadingApi()))
 
         model.refresh()
 
@@ -90,7 +91,7 @@ class DashboardViewModelTest {
         val stale = FakeSystemApi.summary(latestReportId = 1)
         val fresh = FakeSystemApi.summary(latestReportId = 2)
         val api = SlowFirstReadThenAnswers(stale = stale, fresh = fresh)
-        val model = DashboardViewModel(DashboardRepository(api))
+        val model = DashboardViewModel(DashboardRepository(api, FakeLoadingApi()))
 
         // The first read, started and held: it is the older of the two and it has not answered yet.
         model.refresh()
