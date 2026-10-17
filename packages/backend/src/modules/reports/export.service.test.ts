@@ -280,14 +280,37 @@ describe('Export Service (Generador Inteligente)', () => {
     assert.ok(text.includes('━━━━━━━━━━━━━━'));
     assert.ok(!text.includes('━━━━━━━━━━━━━━━━'));
 
-    // Verify warnings
-    assert.ok(text.includes('📝 *Observações:*'));
-    assert.ok(text.includes('A Câmara Principal tem uma temperatura de 5°C, recomenda-se limpar os ares-condicionados.'));
-    assert.ok(text.includes('A Câmara de Resfriamento tem uma temperatura de 9°C, recomenda-se revisar os ares-condicionados, os produtos podem estragar.'));
+    // 5 y 9 grados están por debajo de 10, así que no llevan advertencia: la banda de limpieza empieza en
+    // 10 y la crítica en más de 15. Antes estas dos temperaturas avisaban, con umbrales más bajos.
+    assert.ok(!text.includes('recomenda-se'), 'Below 10 degrees there is nothing to warn about');
 
     // Now test with user notes combined
     db.prepare(`UPDATE reports SET notes = 'Usuário anotou algo.' WHERE id = 200`).run();
     const textWithNotes = generateWhatsAppText(db, 200)!;
-    assert.ok(textWithNotes.includes('Usuário anotou algo.\n\nA Câmara Principal tem uma temperatura de 5°C, recomenda-se limpar os ares-condicionados.\nA Câmara de Resfriamento tem uma temperatura de 9°C, recomenda-se revisar os ares-condicionados, os produtos podem estragar.'));
+    assert.ok(textWithNotes.includes('Usuário anotou algo.'));
+    assert.ok(!textWithNotes.includes('recomenda-se'), 'The note is written and nothing is warned about');
+
+    // --- La banda de la regla nueva, con sus dos bordes ---
+    // Más de 15 avisa por riesgo de producto; 15 exacto ya es sólo limpieza, y 10 exacto también.
+    const subir = (location: string, value: number) =>
+      db.prepare('UPDATE report_temperatures SET value = ? WHERE report_id = 200 AND location = ?').run(value, location);
+    subir('Câmara Principal', 16);
+    subir('Câmara de Resfriamento', 12);
+    const caliente = generateWhatsAppText(db, 200)!;
+    assert.ok(
+      caliente.includes('A Câmara Principal tem uma temperatura de 16°C, recomenda-se revisar os ares-condicionados, os produtos podem estragar.'),
+      'Above 15 warns about the product',
+    );
+    assert.ok(
+      caliente.includes('A Câmara de Resfriamento tem uma temperatura de 12°C, recomenda-se limpar os ares-condicionados.'),
+      'Between 10 and 15 asks for cleaning',
+    );
+
+    subir('Câmara Principal', 15);
+    subir('Câmara de Resfriamento', 10);
+    const bordes = generateWhatsAppText(db, 200)!;
+    assert.ok(!bordes.includes('os produtos podem estragar'), '15 is not above 15');
+    assert.ok(bordes.includes('A Câmara Principal tem uma temperatura de 15°C, recomenda-se limpar os ares-condicionados.'));
+    assert.ok(bordes.includes('A Câmara de Resfriamento tem uma temperatura de 10°C, recomenda-se limpar os ares-condicionados.'));
   });
 });

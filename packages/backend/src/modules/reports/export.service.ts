@@ -218,9 +218,12 @@ export function generateWhatsAppText(db: Database.Database, reportId: number, pu
   const warnings: string[] = [];
   for (const t of allTemps) {
     if (/c[âáa]mara|fr[ií]a/i.test(t.location)) {
-      if (t.value > 8) {
+      // Las bandas del operador: por encima de 15 hay riesgo de producto, de 10 a 15 alcanza con limpiar los
+      // aires, y por debajo de 10 no hay nada que avisar. El 15 exacto ya es limpieza, porque la banda
+      // crítica empieza en "más de 15".
+      if (t.value > 15) {
         warnings.push(`A ${t.location} tem uma temperatura de ${t.value}°C, recomenda-se revisar os ares-condicionados, os produtos podem estragar.`);
-      } else if (t.value > 4) {
+      } else if (t.value >= 10) {
         warnings.push(`A ${t.location} tem uma temperatura de ${t.value}°C, recomenda-se limpar os ares-condicionados.`);
       }
     }
