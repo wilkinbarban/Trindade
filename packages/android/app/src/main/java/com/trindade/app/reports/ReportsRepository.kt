@@ -11,6 +11,8 @@ import com.trindade.app.network.ReportsApi
 import com.trindade.app.network.runCatchingCancellable
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -189,22 +191,65 @@ class ReportsRepository @Inject constructor(
         val response = runCatchingCancellable { call() }.getOrNull() ?: return ReportWriteResult.Unreachable
         val report = response.body()?.report
         if (response.isSuccessful && report != null) return ReportWriteResult.Saved(report)
-        return ReportWriteResult.Refused(response.code())
+        return ReportWriteResult.Refused(response.code(), refusalSentence(response))
     }
+
+    /**
+     * The sentence a refusal carried, or null when the body said nothing this client can repeat.
+     *
+     * Nothing is translated here, and that is the point of reading the body at all. The server resolves its
+     * own codes into the operator's language before answering -- `reportAlreadyExists` leaves as "Já existe
+     * um relatório para este turno hoje.", in `error` and in `message`, in Spanish when the request asks for
+     * it -- so a client that mapped the status code to a sentence of its own would be guessing at a fact the
+     * answer already carried. The guessing has a cost that was paid: every 400 used to be reported to the
+     * operator as "fill in the temperatures", including the one that said a report for that shift had
+     * already been filed.
+     *
+     * `message` wins over `error` where both are present, because the contract reserves `message` for the
+     * localised business sentence; the two carry the same text on the routes that set it, and the field that
+     * means "say this to the operator" is the one to read.
+     */
+    private fun refusalSentence(response: retrofit2.Response<*>): String? =
+        runCatching { response.errorBody()?.string() }.getOrNull()
+            ?.takeIf { it.isNotBlank() }
+            ?.let { body -> runCatching { refusalJson.decodeFromString<RefusalEnvelope>(body) }.getOrNull() }
+            ?.let { envelope ->
+                envelope.message?.takeIf { it.isNotBlank() } ?: envelope.error?.takeIf { it.isNotBlank() }
+            }
 }
 
 /**
  * What a write produced.
  *
- * [Refused] carries the status because the two refusals a caller must tell apart arrive as different
- * codes: 403 is the edit window, 400 is the payload. A single "failed" would leave the form unable to
- * say which, and it would say "try again" for a report that can never be edited again.
+ * [Refused] carries the status and the sentence the server sent with it, because a refusal is an answer and
+ * not a failure: 403 is the edit window, 400 is the payload, and the payload has more than one way to be
+ * wrong -- a duplicate report for the day and shift, a reading set the server counted as incomplete, a
+ * constraint the transaction refused. A single "failed" would leave the form unable to say which, and a
+ * status on its own left it guessing: every 400 was reported as a missing temperature, including the ones
+ * that had nothing to do with temperatures. [serverMessage] is null when the body carried no sentence, which
+ * is the one case where the caller's own reading of the code is all there is.
  */
 sealed interface ReportWriteResult {
     data class Saved(val report: ReportResponseReport) : ReportWriteResult
-    data class Refused(val statusCode: Int) : ReportWriteResult
+    data class Refused(val statusCode: Int, val serverMessage: String? = null) : ReportWriteResult
     data object Unreachable : ReportWriteResult
 }
+
+/**
+ * The two string fields of a refusal's envelope that a screen can say out loud.
+ *
+ * A model of that subset rather than the contract's own `ErrorEnvelope`, deliberately: that one types
+ * `details` as `Any?` contextually, and this app has no serializer for `Any`, so decoding the validation
+ * failure whose `details` is actually populated -- the refusal a person is most likely to meet -- would
+ * throw and cost the sentence the operator needs. The schema's own comment settles the direction: `details`
+ * is diagnostic text for a human and "never as something to parse against". `ignoreUnknownKeys` is what
+ * keeps the rest of the envelope, `details` included, harmless here.
+ */
+@Serializable
+internal data class RefusalEnvelope(val error: String? = null, val message: String? = null)
+
+/** The decoder for [RefusalEnvelope]: no options matter to two optional strings, and none are shared. */
+private val refusalJson = Json { ignoreUnknownKeys = true }
 
 /**
  * What a lifecycle call produced: a deactivation or a deletion.

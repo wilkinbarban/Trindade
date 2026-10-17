@@ -114,8 +114,15 @@ fun ReportGeneratorScreen(
 
         // Built once, outside `items`, because the form state is one value for the whole list: building
         // it inside the item lambda would rebuild it for every category and hand each root a different
-        // object for the same answers.
-        val form = ReportFormState(state.checks, state.temperatures, state.selectedProducts, state.offers)
+        // object for the same answers. The missing readings travel with it, so the temperature block
+        // marks the very fields the sentence above the save is about.
+        val form = ReportFormState(
+            checks = state.checks,
+            temperatures = state.temperatures,
+            selectedProducts = state.selectedProducts,
+            offers = state.offers,
+            missingReadings = state.missingReadings,
+        )
 
         when (state.stage) {
             ReportGeneratorViewModel.Stage.LOADING -> item {
@@ -128,7 +135,13 @@ fun ReportGeneratorScreen(
             ReportGeneratorViewModel.Stage.READY,
             ReportGeneratorViewModel.Stage.INCOMPLETE,
             -> {
-                items(state.categories.filter { it.parentCategoryId == null }) { category ->
+                // Keyed by the category's own id, so the item's identity survives a reload: an unkeyed
+                // list is indexed by position, and a read that served the same categories in another
+                // order would move a category's drawn subtree to whichever slot it now sits in, taking
+                // the field the operator was typing in with it. With the key, Compose moves the item
+                // rather than reusing the slot, which is what keeps a half-filled form in place while
+                // the operator reads it.
+                items(state.categories.filter { it.parentCategoryId == null }, key = { it.id }) { category ->
                     CategoryForm(
                         category = category,
                         children = state.categories.filter { it.parentCategoryId == category.id },
@@ -148,6 +161,22 @@ fun ReportGeneratorScreen(
                         enabled = !state.submitting,
                         modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                     )
+                }
+
+                // The reason the save below is withheld, said where the operator is looking for the
+                // action: without it a form that owes a reading is a form whose button does nothing, and
+                // the sentence the server would answer 400 with only ever arrives for a body the client
+                // no longer has any reason to send. The fields themselves carry the same information one
+                // reading at a time (see `TemperatureBlock`), which is what makes the sentence actionable
+                // on a form taller than the screen.
+                if (form.missingReadings.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = stringResource(R.string.report_temperatures_required),
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
                 }
 
                 item {

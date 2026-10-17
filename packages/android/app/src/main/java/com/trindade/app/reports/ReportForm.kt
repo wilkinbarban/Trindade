@@ -11,6 +11,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -38,7 +39,25 @@ data class ReportFormState(
     val selectedProducts: Map<Int, Set<String>> = emptyMap(),
     /** The product lists the server offered, or null while they have not arrived. */
     val offers: ProductsResponse? = null,
-)
+    /**
+     * The readings the form still owes, as the two screens computed them.
+     *
+     * It travels in the form rather than being derived here because the rule is
+     * `missingTemperatureReadings`'s, in `ReportPayload.kt`, and the form's job is to draw it: the screens
+     * hand this the same set they withheld the save from, so the field an operator sees in red and the
+     * sentence the screen shows under it can never be about two different readings.
+     */
+    val missingReadings: Set<TemperatureSlot> = emptySet(),
+) {
+    /**
+     * The slots of one task's readings that are still owed, which is what its fields are marked from.
+     *
+     * By task because the block draws one task: a set of global slots handed to every block would make
+     * each one filter the whole form's list, and the answer it needs is a handful of indices.
+     */
+    fun missingIndices(taskId: Int): Set<Int> =
+        missingReadings.filterTo(mutableSetOf()) { it.taskId == taskId }.mapTo(mutableSetOf()) { it.index }
+}
 
 /**
  * One category of the form: its tasks, and its children's, nested.
@@ -95,6 +114,7 @@ fun CategoryForm(
                     TemperatureBlock(
                         task = task,
                         readings = form.temperatures[task.id].orEmpty(),
+                        missing = form.missingIndices(task.id),
                         readOnly = readOnly,
                         onChange = { index, value -> onTemperatureChange(task.id, index, value) },
                     )
@@ -193,11 +213,26 @@ private fun ProductCheckBlock(
  * The number of fields comes from the task, not from what has been typed: an export refuses a report
  * missing a reading, so the form has to show how many it owes from the start rather than growing as
  * the operator fills it in.
+ *
+ * [missing] marks the fields the form still owes, and it is what makes the block the place the sentence
+ * above the save points to: on a form taller than the screen, "Falta colocar as temperaturas" without a
+ * mark on the readings is a sentence about a field somewhere, and the operator has to hunt for it. The
+ * mark is drawn only for an editable form -- a report the server called read-only owes nothing to
+ * whoever is reading it, and red fields there would read as something to fix on a form with nothing to
+ * press.
+ *
+ * Each field carries a `±` action, and its reason is Android's own: `KeyboardType.Decimal` is the unsigned
+ * decimal input type, so the numeric keypad an operator gets has no minus key while a cold chamber is read
+ * below zero. The action makes the sign reachable on any keyboard, including the numeric layouts with no
+ * symbol page, and it writes back through the same `onChange` the field does -- so the reading stays in the
+ * state the screens hoist rather than in the control, which is what keeps it from being lost when the list
+ * recycles.
  */
 @Composable
 private fun TemperatureBlock(
     task: ReportCategoryTasksInner,
     readings: List<String>,
+    missing: Set<Int> = emptySet(),
     readOnly: Boolean = false,
     onChange: (Int, String) -> Unit,
 ) {
@@ -214,10 +249,27 @@ private fun TemperatureBlock(
                 },
                 label = { Text("Leitura ${index + 1}") },
                 singleLine = true,
+                isError = !readOnly && index in missing,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 enabled = !readOnly,
+                trailingIcon = {
+                    IconButton(onClick = { onChange(index, toggledSign(value)) }, enabled = !readOnly) {
+                        Text(text = "±", style = MaterialTheme.typography.titleMedium)
+                    }
+                },
                 modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
             )
         }
     }
 }
+
+/**
+ * The same reading with its sign flipped, which is what a field's `±` action writes back.
+ *
+ * String arithmetic rather than a round trip through the parser, so it works on a half-typed field: an
+ * operator who typed `2,` and then remembers the chamber was cold gets `-2,` and keeps the separator they
+ * had already pressed, where parsing and re-rendering would have rewritten the number without it. An empty
+ * field becomes a lone `-`, which is the sign the next digit lands behind.
+ */
+private fun toggledSign(value: String): String =
+    if (value.startsWith("-")) value.removePrefix("-") else "-$value"

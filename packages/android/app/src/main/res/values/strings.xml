@@ -66,6 +66,14 @@
     <string name="report_missing_categories">As tarefas do relatório não chegaram. Verifique a conexão e tente de novo.</string>
     <string name="report_missing_offers">As listas de produtos não chegaram: as tarefas de produto não podem ser respondidas.</string>
     <string name="report_retry">Tentar de novo</string>
+    <!--
+      What the form says while it still owes a temperature reading, and the reason the save is withheld:
+      the same sentence the server answers 400 with and the one the web shows before sending
+      (`reports.temperaturesRequired` in the frontend's catalogue, character for character), because one
+      missing reading is one fact and describing it differently on each client would be two answers to the
+      same refusal.
+    -->
+    <string name="report_temperatures_required">Falta colocar as temperaturas no relatório.</string>
     <!-- The edit surface, the web's own `ReportEditPage`. Each is that page's own `pt-BR` text for the
          same control, out of the locale's `reports` block:
            - `editTitle` is "Editar", and it is one string here because the web uses the one key for

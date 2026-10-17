@@ -74,8 +74,29 @@ class ReportEditViewModel @Inject constructor(
         val ready: Boolean
             get() = !loading && report != null && categories.isNotEmpty() && offers != null && turno != null
 
-        /** Submitting is offered only for a report the server called editable, and only once. */
-        val canSubmit: Boolean get() = ready && !readOnly && !submitting && !saved
+        /**
+         * The readings the form still owes, one slot per declared reading it has no number for.
+         *
+         * The same question the generator asks of its own state, and the same answer: the rule is
+         * [missingTemperatureReadings]'s, next to the body both surfaces submit through, and what is here
+         * is only the two collections it is asked with. A report that arrives complete leaves this empty,
+         * which is the state a stored report is normally in -- the server validated it when it was
+         * written -- and a report that does not is a report this screen must not send back, because the
+         * update replaces the whole reading set rather than merging into it.
+         */
+        val missingReadings: Set<TemperatureSlot>
+            get() = missingTemperatureReadings(categories.flatMap { it.tasks }, temperatures, String::toReading)
+
+        /**
+         * Submitting is offered only for a report the server called editable, only once, and only when
+         * there is a whole body to send.
+         *
+         * The last of those is [missingReadings] empty: the PATCH validates the same reading set the create
+         * does (`validateTemperatures`, called from the update route as well), so a form owing a reading has
+         * nothing the server will take. The screen says which readings those are rather than leaving the
+         * withheld save unexplained.
+         */
+        val canSubmit: Boolean get() = ready && !readOnly && !submitting && !saved && missingReadings.isEmpty()
     }
 
     private val _state = MutableStateFlow(UiState())
@@ -205,8 +226,12 @@ class ReportEditViewModel @Inject constructor(
      * sends no field at all, which the server leaves alone, rather than an empty array, which it would
      * read as "delete them".
      *
-     * Whether the readings are complete is the server's call here as much as in the generator: it
-     * answers 400 and names what is missing.
+     * Whether the readings are complete is decided before this function runs, by [UiState.canSubmit] and
+     * through [missingTemperatureReadings]: the update route validates the same reading set the create
+     * route does, so a form owing one has nothing to send, and the sentence about it belongs to the screen
+     * rather than to a 400 that comes back after a request nobody could have answered. The rule is the
+     * payload's own and not a second copy of it here, which is what keeps the client's idea of a complete
+     * report and the body it builds from being two different things.
      *
      * **The write is not cancelled when the operator leaves the screen.** A load started afterwards takes
      * a new [newestLoad] token, and that is the whole of what happens to a save already in the air: the
@@ -252,11 +277,14 @@ class ReportEditViewModel @Inject constructor(
                 // halves of that rule do not agree with each other here. Blanking every reading leaves
                 // this array empty, so the field is omitted and the server keeps the stored readings;
                 // blanking one reading leaves the rest in the array, so the field is sent and the
-                // cleared one is deleted. Clearing everything is therefore not something this form can
-                // express, and it cannot be: a reading has no representation on the wire as blank (the
-                // schema requires a value), so "no readings" and "the operator left this alone" are
-                // one body. Fixing it is a decision about the wire -- an explicit null, or a replace
-                // semantics the server states -- and it is recorded here rather than invented here.
+                // cleared one is deleted. It is unreachable from this screen since `canSubmit` began
+                // requiring every declared reading -- the all-blank form is never sent, so the omission
+                // above never happens -- and it is kept recorded rather than repaired because the payload
+                // is shared with callers that could still reach it, and because fixing it is a decision
+                // about the wire -- an explicit null, or a replace semantics the server states -- rather
+                // than one to invent here. A reading has no representation on the wire as blank (the
+                // schema requires a value), so "no readings" and "the operator left this alone" are one
+                // body.
                 temperatures = reportTemperatures(tasksById.values, current.temperatures, String::toReading)
                     .takeIf { it.isNotEmpty() },
             )
@@ -275,7 +303,7 @@ class ReportEditViewModel @Inject constructor(
                     // nothing left for this state to hold.
                     is ReportWriteResult.Saved -> previous.copy(submitting = false, saved = true)
                     is ReportWriteResult.Refused ->
-                        previous.copy(submitting = false, message = refusalMessage(result.statusCode))
+                        previous.copy(submitting = false, message = refusalMessage(result.statusCode, result.serverMessage))
                     ReportWriteResult.Unreachable -> previous.copy(submitting = false, message = UNREACHABLE)
                 }
             }
@@ -349,31 +377,37 @@ class ReportEditViewModel @Inject constructor(
         UpdateReportRequest.Turno.entries.firstOrNull { it.value == selected }
 
     /**
-     * What to say about a refusal, by the status code the server answered with.
+     * What to say about a refusal, by the status code and the sentence the server sent with it.
      *
-     * 409 and 400 are the generator's own sentences, code for code, because the two routes refuse the
-     * same body: 409 is the shift and date the create route guards, and 400 is the payload -- a reading
-     * set that is not complete, or a constraint the transaction refused.
+     * 403 is checked first and deliberately, because it is the one refusal whose body is a code rather than a
+     * sentence: on this route it is exactly the edit-window refusal, and the app's own words are the ones that
+     * say what no retry can change. The generator's generic sentence -- "try again" -- would send the operator
+     * round a loop with no exit.
      *
-     * 403 is not, and it is the one code whose meaning is not the same on the two routes. On this one it
-     * is exactly the edit-window refusal: `reports.command.service.ts` refuses a PATCH the permissions do
-     * not allow, and a report outside the window is the only way this operator's own report can be
-     * refused for a reason no retry will change. The generator's generic sentence -- "try again" -- would
-     * send the operator round a loop with no exit, so the sentence here is the detail screen's own, which
-     * already says what that code means and is the same answer about the same report.
-     *
-     * Everything else is the generic sentence rather than a guess at a cause this client cannot see.
+     * Every other refusal shows the server's sentence when it carried one, and that is the fix of a real
+     * misreporting: a 400 on this route is the payload, which has more than one way to be wrong, and the form
+     * used to answer all of them with "fill in the temperatures" -- including the duplicate report and the
+     * constraint the transaction refused. The codes below are only the fallback for a refusal that arrived
+     * with no body to read.
      */
-    private fun refusalMessage(statusCode: Int): String = when (statusCode) {
-        409 -> "Já existe um relatório para esse turno nesta data."
-        400 -> "Relatório incompleto. Preencha todas as temperaturas e tente de novo."
-        403 -> OUTSIDE_EDIT_WINDOW
+    private fun refusalMessage(statusCode: Int, serverMessage: String?): String = when {
+        statusCode == 403 -> OUTSIDE_EDIT_WINDOW
+        !serverMessage.isNullOrBlank() -> serverMessage
+        // The wording is the server's own -- and the web's -- for the case where it arrived with no body.
+        statusCode == 409 -> ALREADY_EXISTS
+        statusCode == 400 -> INCOMPLETE
         else -> GENERIC
     }
 
     private companion object {
         const val NOT_FOUND = "Relatório não encontrado."
         const val UNREACHABLE = "Sem conexão com o servidor. Verifique a rede e tente de novo."
+
+        /** The duplicate refusal, in the server's and the web's own words. */
+        const val ALREADY_EXISTS = "Já existe um relatório para esse turno hoje."
+
+        /** The fallback for a 400 that arrived with no sentence at all. */
+        const val INCOMPLETE = "Relatório incompleto. Preencha todas as temperaturas e tente de novo."
 
         /**
          * The refusal the detail screen already owns, reused rather than written again.

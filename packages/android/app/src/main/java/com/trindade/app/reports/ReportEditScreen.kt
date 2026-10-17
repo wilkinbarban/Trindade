@@ -61,8 +61,15 @@ fun ReportEditScreen(
 ) {
     // Built once, outside the category loop, for the reason the generator's own copy gives: the form
     // state is one value for the whole screen, and building it per category would hand each root a
-    // different object for the same answers.
-    val form = ReportFormState(state.checks, state.temperatures, state.selectedProducts, state.offers)
+    // different object for the same answers. The missing readings travel with it, so the temperature
+    // block marks the fields the sentence below the form is about.
+    val form = ReportFormState(
+        checks = state.checks,
+        temperatures = state.temperatures,
+        selectedProducts = state.selectedProducts,
+        offers = state.offers,
+        missingReadings = state.missingReadings,
+    )
 
     Column(
         modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -142,6 +149,18 @@ fun ReportEditScreen(
         // (`readOnly` reaches every input there too): a live field would collect an edit this screen has
         // no action to send.
         if (!state.readOnly) {
+            // The reason the save below is withheld, said only where there is a save to explain: a
+            // read-only report owes nobody a reading, and a sentence about one would be advice with no
+            // action behind it. It is the same sentence, from the same resource, that the generator
+            // draws in the same place.
+            if (state.missingReadings.isNotEmpty()) {
+                Text(
+                    text = stringResource(R.string.report_temperatures_required),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+
             AdminPrimaryButton(
                 onClick = onSubmit,
                 text = stringResource(R.string.report_update),

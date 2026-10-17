@@ -86,7 +86,27 @@ class ReportGeneratorViewModel @Inject constructor(
 
         val ready: Boolean get() = stage == Stage.READY && categories.isNotEmpty()
 
-        val canSubmit: Boolean get() = ready && !submitting && createdReportId == null
+        /**
+         * The readings the form still owes, one slot per declared reading it has no number for.
+         *
+         * Empty is the whole of "complete", and it is the same answer the form marks its fields from: the
+         * screen draws a red field for every slot below and withholds the save, so the operator reads what
+         * is missing instead of meeting the server's refusal. The rule itself is
+         * [missingTemperatureReadings]'s, beside the body builders both surfaces submit through -- what is
+         * here is only the question, asked of this state's own categories and answers.
+         */
+        val missingReadings: Set<TemperatureSlot>
+            get() = missingTemperatureReadings(categories.flatMap { it.tasks }, temperatures, String::toReading)
+
+        /**
+         * Whether the report may be sent, which now includes whether it can be built at all.
+         *
+         * The server refuses a body that does not carry every reading the active temperature tasks
+         * declare, so a form with one blank reading has nothing to send: [missingReadings] empty is the
+         * other half of this flag, and the screen's message is what turns a withheld save into a sentence
+         * the operator can act on rather than a dead button.
+         */
+        val canSubmit: Boolean get() = ready && !submitting && createdReportId == null && missingReadings.isEmpty()
     }
 
     private val _state = MutableStateFlow(UiState())
@@ -161,9 +181,12 @@ class ReportGeneratorViewModel @Inject constructor(
      * turn a filled form into the wire shape have one home and not two. What stays here is what the two
      * surfaces do not share: the refusal sentences of this route and the id of the report it produced.
      *
-     * Whether the readings are complete is left to the server. It answers 400 naming the missing
-     * temperatures, and duplicating that rule here would give the client a second place to be wrong
-     * about what a complete report is.
+     * Whether the readings are complete is decided before this function runs, by [UiState.canSubmit] and
+     * through [missingTemperatureReadings]: the server refuses a body that does not carry every declared
+     * reading, so the form cannot send one, and the sentence the operator reads about it is the screen's
+     * rather than a 400 that came back after a request nobody could have answered. The rule is the
+     * payload's own and not a second copy of it here, which is what keeps the client's idea of a complete
+     * report and the body it builds from being two different things.
      */
     fun submit() {
         val current = state.value
@@ -191,7 +214,8 @@ class ReportGeneratorViewModel @Inject constructor(
             _state.update { previous ->
                 when (result) {
                     is ReportWriteResult.Saved -> previous.copy(submitting = false, createdReportId = result.report.id)
-                    is ReportWriteResult.Refused -> previous.copy(submitting = false, message = refusalMessage(result.statusCode))
+                    is ReportWriteResult.Refused ->
+                        previous.copy(submitting = false, message = refusalMessage(result.statusCode, result.serverMessage))
                     ReportWriteResult.Unreachable -> previous.copy(submitting = false, message = UNREACHABLE)
                 }
             }
@@ -207,12 +231,26 @@ class ReportGeneratorViewModel @Inject constructor(
     private fun requestTurno(detected: String): CreateReportRequest.Turno? =
         CreateReportRequest.Turno.entries.firstOrNull { it.value == detected }
 
-    private fun refusalMessage(statusCode: Int): String = when (statusCode) {
-        // A report for that shift and date already exists; the server refuses a second one.
-        409 -> "Já existe um relatório para esse turno nesta data."
-        // The body failed validation, which for temperatures means a reading is missing.
-        400 -> "Relatório incompleto. Preencha todas as temperaturas e tente de novo."
-        else -> "Não foi possível salvar o relatório. Tente de novo."
+    /**
+     * What to say about a refusal: the server's own sentence when it sent one, and only otherwise this
+     * client's reading of the status code.
+     *
+     * The order is the fix of a real misreporting. A 400 on this route is the payload being refused, and the
+     * payload has more than one way to be refused -- a report already filed for that shift and day, a reading
+     * set the server counted as incomplete, a constraint the transaction refused -- while this form used to
+     * answer all of them with "fill in the temperatures", which it had itself checked before sending. The
+     * server resolves its codes into the operator's language before answering, so a body with a sentence is
+     * the truth and the reading below is only what is left when no sentence arrived.
+     */
+    private fun refusalMessage(statusCode: Int, serverMessage: String?): String = when {
+        !serverMessage.isNullOrBlank() -> serverMessage
+        // A report for that shift and day already exists; the server refuses a second one. The wording is the
+        // server's own -- and the web's -- for the case where the refusal arrived with no body to read.
+        statusCode == 409 -> ALREADY_EXISTS
+        // The body failed validation and said nothing about it, which leaves the one part of the payload this
+        // client builds and checks: a reading set it would not have sent without every reading.
+        statusCode == 400 -> INCOMPLETE
+        else -> GENERIC
     }
 
     /**
@@ -228,5 +266,13 @@ class ReportGeneratorViewModel @Inject constructor(
 
     private companion object {
         const val UNREACHABLE = "Sem conexão com o servidor. Verifique a rede e tente de novo."
+
+        /** The duplicate refusal, in the server's and the web's own words. */
+        const val ALREADY_EXISTS = "Já existe um relatório para esse turno hoje."
+
+        /** The fallback for a 400 that arrived with no sentence at all. */
+        const val INCOMPLETE = "Relatório incompleto. Preencha todas as temperaturas e tente de novo."
+
+        const val GENERIC = "Não foi possível salvar o relatório. Tente de novo."
     }
 }
