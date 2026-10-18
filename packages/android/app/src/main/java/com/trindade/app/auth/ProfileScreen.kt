@@ -6,6 +6,8 @@ import android.content.Intent
 import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -13,8 +15,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -24,15 +29,19 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.trindade.app.update.DownloadState
+import java.io.File
 import com.trindade.app.BuildConfig
 import com.trindade.app.R
 import com.trindade.app.ui.components.AdminDestructiveButton
@@ -64,6 +73,9 @@ fun ProfileScreen(
     onChangePassword: () -> Unit,
     onSignOut: () -> Unit,
     onBackToLogin: () -> Unit,
+    onCheckForUpdates: () -> Unit = {},
+    onStartDownload: (String) -> Unit = {},
+    onInstallApk: (File) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -228,33 +240,120 @@ fun ProfileScreen(
         // round trip to GitHub and say nothing anyone needs: this line only matters once there is a
         // sentence to read.
         when (val update = state.update) {
-            ProfileViewModel.UpdateStatus.Checking -> Unit
+            ProfileViewModel.UpdateStatus.Checking -> {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(vertical = 4.dp),
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                    Text(
+                        text = "Verificando atualizações…",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
 
-            ProfileViewModel.UpdateStatus.UpToDate -> UpdateNotice(
-                text = stringResource(R.string.profile_update_up_to_date),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            ProfileViewModel.UpdateStatus.UpToDate -> {
+                UpdateNotice(
+                    text = stringResource(R.string.profile_update_up_to_date),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedButton(
+                    onClick = onCheckForUpdates,
+                    modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp),
+                ) {
+                    Text("Verificar atualizações")
+                }
+            }
 
-            is ProfileViewModel.UpdateStatus.Available -> UpdateNotice(
-                text = stringResource(R.string.profile_update_available, update.version),
-                color = MaterialTheme.colorScheme.primary,
-            )
+            is ProfileViewModel.UpdateStatus.Available -> {
+                val updateNoticeText = if (update.isPatch) {
+                    "Nova correção disponível para v${update.version}"
+                } else {
+                    stringResource(R.string.profile_update_available, update.version)
+                }
+                UpdateNotice(
+                    text = updateNoticeText,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
 
-            ProfileViewModel.UpdateStatus.CouldNotCheck -> UpdateNotice(
-                text = stringResource(R.string.profile_update_unavailable),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            ProfileViewModel.UpdateStatus.CouldNotCheck -> {
+                UpdateNotice(
+                    text = stringResource(R.string.profile_update_unavailable),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedButton(
+                    onClick = onCheckForUpdates,
+                    modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp),
+                ) {
+                    Text("Verificar atualizações")
+                }
+            }
         }
 
-        // The action, under the value it is about: the operator reads the version, decides it is old, and
-        // this is the tap that takes them to where the new one is published. If both were not where a
-        // failed profile load still leaves them, the two halves of that one decision would be split apart
-        // on exactly the screen where the operator is looking for either.
-        AdminPrimaryButton(
-            onClick = { browserUnavailable = !openReleasesPage(context, releasesUrl) },
-            text = stringResource(R.string.profile_download_update),
-            modifier = Modifier.fillMaxWidth(),
-        )
+        when (val dl = state.downloadState) {
+            is DownloadState.Downloading -> {
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text("Baixando atualização…", style = MaterialTheme.typography.bodyMedium)
+                            Text("${dl.percent}%", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                        }
+                        LinearProgressIndicator(
+                            progress = { dl.progressFraction },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Text(
+                            text = String.format("%.1f MB / %.1f MB", dl.bytesDownloadedMb, dl.totalBytesMb),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+
+            is DownloadState.Completed -> {
+                AdminPrimaryButton(
+                    onClick = { onInstallApk(dl.file) },
+                    text = "Atualizar Agora",
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+
+            else -> {
+                if (dl is DownloadState.Error) {
+                    Text(
+                        text = "Erro no download: ${dl.message}",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+
+                AdminPrimaryButton(
+                    onClick = {
+                        val availableUrl = (state.update as? ProfileViewModel.UpdateStatus.Available)?.downloadUrl
+                        if (!availableUrl.isNullOrBlank()) {
+                            onStartDownload(availableUrl)
+                        } else {
+                            browserUnavailable = !openReleasesPage(context, releasesUrl)
+                        }
+                    },
+                    text = stringResource(R.string.profile_download_update),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
 
         // The answer to a tap that found nothing able to open the address, drawn under the button that was
         // tapped rather than in the message line at the top: this is not a statement about the session, and
@@ -408,5 +507,8 @@ fun ProfileRoute(
         onChangePassword = viewModel::changePassword,
         onSignOut = viewModel::signOut,
         onBackToLogin = onSignedOut,
+        onCheckForUpdates = viewModel::checkForUpdates,
+        onStartDownload = viewModel::startDownload,
+        onInstallApk = viewModel::installApk,
     )
 }

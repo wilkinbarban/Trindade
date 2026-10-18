@@ -17,8 +17,11 @@ import com.trindade.app.contract.models.SuccessResponse
 import com.trindade.app.contract.models.UpdateProfileRequest
 import com.trindade.app.network.AuthApi
 import com.trindade.app.update.Clock
+import com.trindade.app.update.GitHubAsset
 import com.trindade.app.update.GitHubRelease
 import com.trindade.app.update.GitHubReleaseApi
+import com.trindade.app.update.UpdateDetector
+import com.trindade.app.update.UpdateType
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
@@ -30,6 +33,7 @@ import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import retrofit2.Response
@@ -892,6 +896,33 @@ class ProfileViewModelTest {
 
         assertEquals(1, releases.releaseCalls)
         assertEquals(ProfileViewModel.UpdateStatus.UpToDate, model.state.value.update)
+    }
+
+    @Test
+    fun `checkForUpdates manually triggers check and updates state`() {
+        val releases = StubGitHubReleaseApi()
+        val model = profileViewModel(releases = releases)
+        model.open()
+
+        model.checkForUpdates()
+        assertTrue(model.state.value.update is ProfileViewModel.UpdateStatus.Available)
+    }
+
+    @Test
+    fun `detects patch update on same release tag when remote asset is newer than build time`() {
+        val buildTime = java.time.Instant.parse("2026-10-18T10:00:00Z").toEpochMilli()
+        val asset = GitHubAsset(
+            name = "trindade-0.5.0.apk",
+            browserDownloadUrl = "https://example.com/trindade-0.5.0.apk",
+            updatedAt = "2026-10-18T12:00:00Z",
+            size = 10528616L,
+        )
+        val release = GitHubRelease(
+            tagName = "v0.5.0",
+            assets = listOf(asset),
+        )
+        val availability = UpdateDetector.checkUpdate(release, "0.5.0", buildTime)
+        assertEquals(UpdateType.SAME_RELEASE_PATCH, availability.type)
     }
 }
 

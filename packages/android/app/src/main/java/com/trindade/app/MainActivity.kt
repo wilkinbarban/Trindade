@@ -119,6 +119,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var authRepository: AuthRepository
 
+    @Inject
+    lateinit var updateRepository: com.trindade.app.update.UpdateRepository
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -126,6 +129,7 @@ class MainActivity : ComponentActivity() {
             TrindadeTheme {
                 AppRoot {
                     var signedIn by remember { mutableStateOf(authRepository.hasSession()) }
+                    var updateAvailable by remember { mutableStateOf(false) }
                     var openReportId by remember { mutableStateOf<Int?>(null) }
                     var registerOpen by remember { mutableStateOf(false) }
                     var editingReportId by remember { mutableStateOf<Int?>(null) }
@@ -141,6 +145,20 @@ class MainActivity : ComponentActivity() {
                     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
                     val role = remember(signedIn) { authRepository.sessionRole() }
                     val sessionKey = remember(signedIn) { authRepository.sessionGeneration.toString() }
+
+                    LaunchedEffect(signedIn) {
+                        if (signedIn) {
+                            val release = updateRepository.latestRelease()
+                            if (release != null) {
+                                val availability = com.trindade.app.update.UpdateDetector.checkUpdate(
+                                    release = release,
+                                    currentVersionName = com.trindade.app.BuildConfig.APP_VERSION_NAME,
+                                    currentBuildTimeMillis = com.trindade.app.BuildConfig.BUILD_TIME,
+                                )
+                                updateAvailable = availability.isUpdateAvailable
+                            }
+                        }
+                    }
                     // Para cerrar la sesión de verdad al salir al login: limpiar sólo el estado de la
                     // pantalla dejaría el token vivo en el dispositivo.
                     val sessionScope = rememberCoroutineScope()
@@ -274,13 +292,14 @@ class MainActivity : ComponentActivity() {
                             currentTab = tab,
                             onSelectTab = { tab = it },
                             onOpenProfile = { profileOpen = true },
-onGoToLogin = {
+                            onGoToLogin = {
                                 // El aviso manda al login y la sesión se cierra de verdad: endSession limpia
                                 // el estado de la pantalla y el repositorio borra el token del dispositivo, que
                                 // es lo que el botón promete.
                                 endSession()
                                 sessionScope.launch { authRepository.logout() }
                             },
+                            updateAvailable = updateAvailable,
                             destinations = destinations,
                             drawerState = drawerState,
                         ) {
@@ -405,6 +424,7 @@ fun MainAppShell(
     // El aviso del invitado ofrece ir al login, y el login vive en MainActivity, no acá: el callback
     // entra por parámetro. Con default para que las pruebas del armazón no tengan que saber de sesiones.
     onGoToLogin: () -> Unit = {},
+    updateAvailable: Boolean = false,
     modifier: Modifier = Modifier,
     destinations: List<Pair<RolePolicy.EntryPoint, MainActivity.Tab>> = MainActivity.DEFAULT_DESTINATIONS,
     drawerState: DrawerState = rememberDrawerState(initialValue = DrawerValue.Closed),
@@ -566,7 +586,7 @@ fun MainAppShell(
                         )
                         NavigationActionButton(
                             onClick = onOpenProfile,
-                            text = stringResource(R.string.profile_title),
+                            text = if (updateAvailable) "${stringResource(R.string.profile_title)} •" else stringResource(R.string.profile_title),
                         )
                     }
 

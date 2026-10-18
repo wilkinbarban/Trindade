@@ -143,4 +143,71 @@ class ProfileScreenTest {
         buttonNode.performClick()
         assertEquals(1, backToLogin)
     }
+
+    @Test
+    fun `downloading state displays progress bar and percentage`() {
+        val state = ProfileViewModel.UiState(
+            update = ProfileViewModel.UpdateStatus.Available("0.6.0"),
+            downloadState = com.trindade.app.update.DownloadState.Downloading(
+                bytesDownloaded = 5 * 1024 * 1024L,
+                totalBytes = 10 * 1024 * 1024L,
+                percent = 50,
+            ),
+        )
+
+        composeRule.setContent {
+            TrindadeTheme {
+                ProfileScreen(
+                    state = state,
+                    appVersion = "0.5.0",
+                    releasesUrl = "https://example.com",
+                    onBack = {},
+                    onDisplayNameChange = {},
+                    onSave = {},
+                    onCurrentPasswordChange = {},
+                    onNewPasswordChange = {},
+                    onChangePassword = {},
+                    onSignOut = {},
+                    onBackToLogin = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Baixando atualização…").assertIsDisplayed()
+        composeRule.onNodeWithText("50%").assertIsDisplayed()
+    }
+
+    @Test
+    fun `completed download state displays Atualizar Agora button and invokes install callback`() {
+        var installed = 0
+        val testFile = java.io.File(context.cacheDir, "test.apk")
+        val state = ProfileViewModel.UiState(
+            update = ProfileViewModel.UpdateStatus.Available("0.6.0"),
+            downloadState = com.trindade.app.update.DownloadState.Completed(testFile),
+        )
+
+        composeRule.setContent {
+            TrindadeTheme {
+                ProfileScreen(
+                    state = state,
+                    appVersion = "0.5.0",
+                    releasesUrl = "https://example.com",
+                    onBack = {},
+                    onDisplayNameChange = {},
+                    onSave = {},
+                    onCurrentPasswordChange = {},
+                    onNewPasswordChange = {},
+                    onChangePassword = {},
+                    onSignOut = {},
+                    onBackToLogin = {},
+                    onInstallApk = { installed++ },
+                )
+            }
+        }
+
+        val button = composeRule.onNodeWithText("Atualizar Agora")
+        button.assertIsDisplayed()
+        button.performClick()
+        assertEquals(1, installed)
+    }
 }

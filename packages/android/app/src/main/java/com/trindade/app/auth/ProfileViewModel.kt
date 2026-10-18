@@ -5,10 +5,16 @@ import androidx.lifecycle.viewModelScope
 import com.trindade.app.BuildConfig
 import com.trindade.app.contract.models.ProfileResponseUser
 import com.trindade.app.network.runCatchingCancellable
+import com.trindade.app.update.ApkInstaller
 import com.trindade.app.update.Clock
+import com.trindade.app.update.DownloadState
 import com.trindade.app.update.GitHubReleaseApi
 import com.trindade.app.update.ReleaseVersion
+import com.trindade.app.update.UpdateDetector
+import com.trindade.app.update.UpdateDownloader
+import com.trindade.app.update.UpdateType
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.io.File
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -42,6 +48,8 @@ class ProfileViewModel @Inject constructor(
     private val repository: AuthRepository,
     private val releases: GitHubReleaseApi,
     private val clock: Clock,
+    private val downloader: UpdateDownloader? = null,
+    private val installer: ApkInstaller? = null,
 ) : ViewModel() {
 
     data class UiState(
@@ -79,6 +87,7 @@ class ProfileViewModel @Inject constructor(
          * allowed to raise its voice.
          */
         val update: UpdateStatus = UpdateStatus.Checking,
+        val downloadState: DownloadState = DownloadState.Idle,
     ) {
         /**
          * Whether there is a save worth sending.
@@ -150,7 +159,12 @@ class ProfileViewModel @Inject constructor(
          * Carries the number because the sentence it feeds names it, and because the operator's next act
          * is to compare it with the version line directly above.
          */
-        data class Available(val version: String) : UpdateStatus
+        data class Available(
+            val version: String,
+            val downloadUrl: String? = null,
+            val assetSize: Long = 0L,
+            val isPatch: Boolean = false,
+        ) : UpdateStatus
 
         /**
          * The check produced no answer, from either end.
@@ -396,11 +410,49 @@ class ProfileViewModel @Inject constructor(
             ?.body()
             ?: return UpdateStatus.CouldNotCheck
 
-        return when (val comparison = ReleaseVersion.compare(release.tagName, BuildConfig.APP_VERSION_NAME)) {
-            is ReleaseVersion.Comparison.Newer -> UpdateStatus.Available(comparison.version)
-            ReleaseVersion.Comparison.UpToDate -> UpdateStatus.UpToDate
-            ReleaseVersion.Comparison.Undetermined -> UpdateStatus.CouldNotCheck
+        val availability = UpdateDetector.checkUpdate(
+            release = release,
+            currentVersionName = BuildConfig.APP_VERSION_NAME,
+            currentBuildTimeMillis = BuildConfig.BUILD_TIME,
+        )
+
+        return when (availability.type) {
+            UpdateType.NEW_RELEASE -> UpdateStatus.Available(
+                version = release.tagName.removePrefix("v"),
+                downloadUrl = availability.apkAsset?.browserDownloadUrl,
+                assetSize = availability.apkAsset?.size ?: 0L,
+                isPatch = false,
+            )
+            UpdateType.SAME_RELEASE_PATCH -> UpdateStatus.Available(
+                version = release.tagName.removePrefix("v"),
+                downloadUrl = availability.apkAsset?.browserDownloadUrl,
+                assetSize = availability.apkAsset?.size ?: 0L,
+                isPatch = true,
+            )
+            UpdateType.NONE -> UpdateStatus.UpToDate
+            UpdateType.UNDETERMINED -> UpdateStatus.CouldNotCheck
         }
+    }
+
+    fun checkForUpdates() {
+        _state.update { it.copy(update = UpdateStatus.Checking) }
+        viewModelScope.launch {
+            val update = refreshUpdateCheck()
+            _state.update { it.copy(update = update) }
+        }
+    }
+
+    fun startDownload(downloadUrl: String) {
+        val dl = downloader ?: return
+        viewModelScope.launch {
+            dl.downloadApk(downloadUrl).collect { downloadState ->
+                _state.update { it.copy(downloadState = downloadState) }
+            }
+        }
+    }
+
+    fun installApk(file: File) {
+        installer?.installApk(file)
     }
 
     // Typing clears the previous line, the way the login form does: a refusal that stays on screen
