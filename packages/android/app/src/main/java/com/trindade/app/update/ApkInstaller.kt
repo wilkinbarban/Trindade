@@ -43,7 +43,11 @@ class ApkInstaller @Inject constructor(
         }
 
         if (!permissionManager.canRequestPackageInstalls()) {
-            return InstallResult.PermissionRequired(permissionManager.createManageUnknownAppSourcesIntent())
+            val manageIntent = permissionManager.createManageUnknownAppSourcesIntent().apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            runCatching { context.startActivity(manageIntent) }
+            return InstallResult.PermissionRequired(manageIntent)
         }
 
         return try {
