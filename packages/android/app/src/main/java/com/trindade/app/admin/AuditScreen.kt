@@ -413,14 +413,17 @@ fun AuditScreen(
     }
 }
 
-internal fun formatAuditTimestamp(iso: String): String {
+internal fun formatAuditTimestamp(
+    iso: String,
+    zoneId: ZoneId = ZoneId.systemDefault(),
+): String {
     if (iso.isBlank()) return "—"
     return runCatching {
         val normalized = iso.trim().replace(' ', 'T')
         val formattedIso = if (normalized.endsWith("Z") || normalized.contains('+')) normalized else normalized + "Z"
         val instant = Instant.parse(formattedIso)
         val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")
-            .withZone(ZoneId.of("UTC"))
+            .withZone(zoneId)
         formatter.format(instant)
     }.getOrElse { iso }
 }

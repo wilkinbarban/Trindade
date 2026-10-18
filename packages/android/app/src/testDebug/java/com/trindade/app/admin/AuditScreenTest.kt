@@ -539,4 +539,23 @@ class AuditScreenTest {
 
         composeRule.onNodeWithText("User ID must be a positive integer.").assertIsDisplayed()
     }
+
+    @Test
+    fun `formatAuditTimestamp formats in local system timezone instead of forcing UTC`() {
+        val originalTz = java.util.TimeZone.getDefault()
+        try {
+            java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("America/Sao_Paulo"))
+            val formatted = formatAuditTimestamp("2026-09-28T12:00:00Z")
+            assertEquals("28/09/2026 09:00:00", formatted)
+        } finally {
+            java.util.TimeZone.setDefault(originalTz)
+        }
+    }
+
+    @Test
+    fun `formatAuditTimestamp accepts custom zoneId`() {
+        val iso = "2026-09-28T12:00:00Z"
+        val formatted = formatAuditTimestamp(iso, java.time.ZoneId.of("America/Sao_Paulo"))
+        assertEquals("28/09/2026 09:00:00", formatted)
+    }
 }
