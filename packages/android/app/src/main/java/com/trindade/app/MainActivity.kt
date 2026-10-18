@@ -288,10 +288,9 @@ onGoToLogin = {
                                 // Las tres superficies nuevas se dibujan sin argumentos: cada una resuelve su
                                 // ViewModel por Hilt, y la calculadora de Assaí no toca la red en absoluto.
                                 Tab.ASSAI -> AssaiCalculatorScreen()
-                                // El histórico se dibuja en modo lectura: el rol todavía no está cableado acá,
-                                // y el modo por defecto de esa pantalla es el seguro. El servidor aplica la
-                                // misma frontera con su 403, así que la corrección no depende de esta línea.
-                                Tab.STOCK_HISTORY -> StockHistoryScreen()
+                                // El histórico propaga el rol resuelto de sesión para que el
+                                // Administrador pueda realizar correcciones sobre días anteriores.
+                                Tab.STOCK_HISTORY -> StockHistoryScreen(role = role)
                                 Tab.STOCK_COUNTER -> StockCalculatorScreen()
                                 Tab.DASHBOARD -> DashboardRoute(
                                     sessionKey = sessionKey,

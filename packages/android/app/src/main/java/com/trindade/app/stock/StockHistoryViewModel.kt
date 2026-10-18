@@ -2,6 +2,7 @@ package com.trindade.app.stock
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.trindade.app.auth.AuthRepository
 import com.trindade.app.contract.models.StockDay
 import com.trindade.app.contract.models.StockDayProductsInner
 import com.trindade.app.contract.models.StockHistoryDaysInner
@@ -24,7 +25,10 @@ import kotlinx.coroutines.launch
  * offered a button that will be refused -- not so the boundary can live here.
  */
 @HiltViewModel
-class StockHistoryViewModel @Inject constructor(private val repository: StockRepository) : ViewModel() {
+class StockHistoryViewModel @Inject constructor(
+    private val repository: StockRepository,
+    private val authRepository: AuthRepository? = null,
+) : ViewModel() {
 
     companion object {
         const val EDIT_ROLE = "Administrador"
@@ -100,6 +104,9 @@ class StockHistoryViewModel @Inject constructor(private val repository: StockRep
     }
 
     fun load() {
+        if (state.value.role == null) {
+            authRepository?.sessionRole()?.let { onRoleKnown(it) }
+        }
         viewModelScope.launch {
             _state.value = _state.value.copy(loading = true, failed = false)
             val days = repository.history() ?: emptyList()

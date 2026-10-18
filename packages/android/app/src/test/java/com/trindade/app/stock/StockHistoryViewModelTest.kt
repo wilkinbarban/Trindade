@@ -1,6 +1,9 @@
 package com.trindade.app.stock
 
-import com.trindade.app.contract.models.StockDayProductsInner
+import com.trindade.app.auth.AuthRepository
+import com.trindade.app.auth.TokenStore
+import com.trindade.app.contract.models.*
+import com.trindade.app.network.AuthApi
 import com.trindade.app.network.StockApi
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
@@ -11,6 +14,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 
@@ -28,6 +32,7 @@ import retrofit2.converter.kotlinx.serialization.asConverterFactory
 class StockHistoryViewModelTest {
 
     private lateinit var server: MockWebServer
+    private lateinit var retrofit: Retrofit
     private lateinit var viewModel: StockHistoryViewModel
 
     private val canudo = StockDayProductsInner(
@@ -39,7 +44,7 @@ class StockHistoryViewModelTest {
         server = MockWebServer()
         server.start()
         val json = Json { ignoreUnknownKeys = true; explicitNulls = false }
-        val retrofit = Retrofit.Builder()
+        retrofit = Retrofit.Builder()
             .baseUrl(server.url("/"))
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
@@ -75,6 +80,36 @@ class StockHistoryViewModelTest {
     fun `an administrator is the one the screen offers the correction to`() {
         viewModel.onRoleKnown("Administrador")
         assertTrue(viewModel.canEdit())
+    }
+
+    @Test
+    fun `load automatically resolves administrator role from auth repository when role is not set`() {
+        val authRepo = AuthRepository(
+            object : AuthApi {
+                override suspend fun profile(): Response<ProfileResponse> = error("unused")
+                override suspend fun login(body: LoginRequest): Response<LoginResponse> = error("unused")
+                override suspend fun refresh(body: RefreshRequest): Response<RefreshResponse> = error("unused")
+                override suspend fun logout(body: LogoutRequest): Response<SuccessResponse> = error("unused")
+                override suspend fun me(): Response<ProfileResponse> = error("unused")
+                override suspend fun updateProfile(body: UpdateProfileRequest): Response<ProfileResponse> = error("unused")
+                override suspend fun changePassword(body: ChangePasswordRequest): Response<SuccessResponse> = error("unused")
+                override suspend fun setupStatus(): Response<SetupStatusResponse> = error("unused")
+                override suspend fun register(body: RegisterRequest): Response<RegisterResponse> = error("unused")
+            },
+            object : TokenStore {
+                override fun accessToken(): String? = "token"
+                override fun refreshToken(): String? = "refresh"
+                override fun role(): String? = "Administrador"
+                override fun save(accessToken: String, refreshToken: String) = Unit
+                override fun saveRole(role: String) = Unit
+                override fun clear() = Unit
+            },
+            Json,
+        )
+        val vm = StockHistoryViewModel(StockRepository(retrofit.create(StockApi::class.java)), authRepo)
+        assertFalse(vm.canEdit())
+        vm.load()
+        assertTrue(vm.canEdit())
     }
 
     @Test

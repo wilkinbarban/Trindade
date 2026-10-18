@@ -51,7 +51,7 @@ fun StockHistoryScreen(
     val visibleErrors = viewModel.visibleErrors()
     val canEdit = viewModel.canEdit()
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(role) {
         viewModel.onRoleKnown(role)
         viewModel.load()
     }
