@@ -368,12 +368,16 @@ class LoadingViewModel @Inject constructor(
     }
 
     /** Quick-add for a driver who is not in the list yet. Always a `fletero`, per the contract. */
-    fun quickAddDriver(name: String, licensePlate: String?) {
+    fun quickAddDriver(name: String, licensePlate: String?, phone: String? = null) {
         if (name.isBlank() || state.value.busy) return
         _state.update { it.copy(busy = true, message = null) }
 
         viewModelScope.launch {
-            val driver = repository.createDriver(name.trim(), licensePlate?.trim()?.takeIf { it.isNotEmpty() })
+            val driver = repository.createDriver(
+                name = name.trim(),
+                licensePlate = licensePlate?.trim()?.takeIf { it.isNotEmpty() },
+                phone = phone?.trim()?.takeIf { it.isNotEmpty() },
+            )
             _state.update {
                 it.copy(
                     busy = false,

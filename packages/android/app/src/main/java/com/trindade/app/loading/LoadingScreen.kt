@@ -12,16 +12,22 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -33,6 +39,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.trindade.app.R
 import com.trindade.app.contract.models.DriversResponseDriversInner
 import com.trindade.app.contract.models.SchedulesResponseSchedulesInner
+import com.trindade.app.ui.cleanPhone
+import com.trindade.app.ui.filterPhoneInput
 import com.trindade.app.ui.components.AdminDestructiveButton
 import com.trindade.app.ui.components.AdminPrimaryButton
 import com.trindade.app.ui.components.AdminSecondaryButton
@@ -71,6 +79,7 @@ fun LoadingScreen(
     onSharePdf: () -> Unit = {},
     onOpenWhatsApp: (DriversResponseDriversInner) -> Unit = {},
     onCopyExport: (String) -> Unit = {},
+    onQuickAdd: (String, String?, String?) -> Unit = { _, _, _ -> },
 ) {
     val clipboard = LocalClipboardManager.current
 
@@ -214,6 +223,7 @@ fun LoadingScreen(
                 onConfirmAdd = onConfirmAdd,
                 onDelete = onDelete,
                 onEditEntry = onEditEntry,
+                onQuickAdd = onQuickAdd,
             )
         }
     }
@@ -233,6 +243,7 @@ private fun SlotBlock(
     onConfirmAdd: () -> Unit,
     onDelete: (Int) -> Unit,
     onEditEntry: (Int, String) -> Unit,
+    onQuickAdd: (String, String?, String?) -> Unit = { _, _, _ -> },
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         FlowRow(
@@ -298,6 +309,7 @@ private fun SlotBlock(
                 onVehicleSelected = onVehicleSelected,
                 onConfirm = onConfirmAdd,
                 onCancel = onCancelAdding,
+                onQuickAdd = onQuickAdd,
             )
         } else {
             // Offered even when the window is exceeded. The limit is a display, and withholding this
@@ -322,7 +334,13 @@ private fun AddEntryForm(
     onVehicleSelected: (Int) -> Unit,
     onConfirm: () -> Unit,
     onCancel: () -> Unit,
+    onQuickAdd: (String, String?, String?) -> Unit = { _, _, _ -> },
 ) {
+    var showQuickAdd by remember { mutableStateOf(false) }
+    var quickName by remember { mutableStateOf("") }
+    var quickPlate by remember { mutableStateOf("") }
+    var quickPhone by remember { mutableStateOf("") }
+
     Column(modifier = Modifier.fillMaxWidth().padding(start = 8.dp)) {
         Text(text = stringResource(R.string.loading_pick_driver), style = MaterialTheme.typography.labelLarge)
 
@@ -347,6 +365,77 @@ private fun AddEntryForm(
                     onClick = null,
                 )
                 Text(text = driver.name, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+
+        if (!showQuickAdd) {
+            Button(
+                onClick = { showQuickAdd = true },
+                modifier = Modifier.padding(vertical = 4.dp),
+            ) {
+                Text("Novo fletero")
+            }
+        } else {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 6.dp),
+            ) {
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text("Novo fletero", style = MaterialTheme.typography.titleSmall)
+                    OutlinedTextField(
+                        value = quickName,
+                        onValueChange = { quickName = it },
+                        label = { Text("Nome") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                    )
+                    OutlinedTextField(
+                        value = quickPlate,
+                        onValueChange = { quickPlate = it },
+                        label = { Text("Placa") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                    )
+                    OutlinedTextField(
+                        value = quickPhone,
+                        onValueChange = { quickPhone = filterPhoneInput(it) },
+                        label = { Text(stringResource(R.string.drivers_phone)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        AdminPrimaryButton(
+                            onClick = {
+                                if (quickName.isNotBlank()) {
+                                    onQuickAdd(
+                                        quickName.trim(),
+                                        quickPlate.trim().ifBlank { null },
+                                        cleanPhone(quickPhone).ifBlank { null },
+                                    )
+                                    showQuickAdd = false
+                                    quickName = ""
+                                    quickPlate = ""
+                                    quickPhone = ""
+                                }
+                            },
+                            text = "Salvar fletero",
+                            enabled = quickName.isNotBlank() && !state.busy,
+                        )
+                        AdminSecondaryButton(
+                            onClick = {
+                                showQuickAdd = false
+                                quickName = ""
+                                quickPlate = ""
+                                quickPhone = ""
+                            },
+                            text = stringResource(R.string.loading_cancel),
+                        )
+                    }
+                }
             }
         }
 
@@ -477,5 +566,6 @@ fun LoadingRoute(
         onShareText = viewModel::shareText,
         onSharePdf = viewModel::sharePdf,
         onOpenWhatsApp = viewModel::openWhatsAppFor,
+        onQuickAdd = viewModel::quickAddDriver,
     )
 }

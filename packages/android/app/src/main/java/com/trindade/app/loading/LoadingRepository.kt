@@ -136,8 +136,10 @@ class LoadingRepository @Inject constructor(
             ?.text
 
     /** Quick-add, which always makes a `fletero`: company drivers come from the admin surface. */
-    suspend fun createDriver(name: String, licensePlate: String?): DriversResponseDriversInner? =
-        runCatchingCancellable { api.createDriver(CreateDriverRequest(name = name, licensePlate = licensePlate)) }.getOrNull()
+    suspend fun createDriver(name: String, licensePlate: String?, phone: String? = null): DriversResponseDriversInner? =
+        runCatchingCancellable {
+            api.createDriver(CreateDriverRequest(name = name, licensePlate = licensePlate, phone = phone))
+        }.getOrNull()
             ?.takeIf { it.isSuccessful }
             ?.body()
             ?.driver

@@ -27,6 +27,7 @@ import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
@@ -1056,6 +1057,40 @@ class LoadingScreenTest {
         assertWithinViewport(sharePdfNode)
         val sharePdfBounds = sharePdfNode.getUnclippedBoundsInRoot()
         assertTrue("Share PDF button height >= 48dp at 2x", sharePdfBounds.bottom - sharePdfBounds.top >= 48.dp)
+    }
+
+    @Test
+    fun `quick add fletero button opens form and submits name, plate, and phone`() {
+        var quickAdded: Triple<String, String?, String?>? = null
+        composeRule.setContent {
+            TrindadeTheme {
+                LoadingScreen(
+                    state = addingState(),
+                    onBack = {},
+                    onOpenHistory = {},
+                    onStartAdding = {},
+                    onCancelAdding = {},
+                    onDriverSelected = {},
+                    onVehicleSelected = {},
+                    onConfirmAdd = {},
+                    onDelete = {},
+                    onEditEntry = { _, _ -> },
+                    onLoadExport = {},
+                    onQuickAdd = { name, plate, phone -> quickAdded = Triple(name, plate, phone) },
+                )
+            }
+        }
+
+        val openBtn = composeRule.onNodeWithText("Novo fletero").performScrollTo()
+        openBtn.assertIsDisplayed()
+        openBtn.performClick()
+
+        composeRule.onNodeWithText("Nome").performScrollTo().performTextInput("Novo Fletero")
+        composeRule.onNodeWithText("Placa").performScrollTo().performTextInput("ABC-1234")
+        composeRule.onNodeWithText(copy(R.string.drivers_phone)).performScrollTo().performTextInput("+55 (11) 98888-7777")
+
+        composeRule.onNodeWithText("Salvar fletero").performScrollTo().performClick()
+        assertEquals(Triple("Novo Fletero", "ABC-1234", "+55 (11) 98888-7777"), quickAdded)
     }
 
     private companion object {

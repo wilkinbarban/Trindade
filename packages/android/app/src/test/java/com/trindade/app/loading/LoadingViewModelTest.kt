@@ -276,6 +276,18 @@ class LoadingViewModelTest {
     }
 
     @Test
+    fun `quickAddDriver passes phone and plate and selects the newly added driver`() {
+        val model = viewModel(FakeLoadingApi())
+        model.startAdding("04:00")
+        model.quickAddDriver("Novo", "ABC1234", "+55 (11) 98888-7777")
+
+        assertEquals("Novo", model.state.value.selectedDriver?.name)
+        assertEquals("ABC1234", model.state.value.selectedDriver?.licensePlate)
+        assertEquals("+55 (11) 98888-7777", model.state.value.selectedDriver?.phone)
+        assertEquals(3, model.state.value.drivers.size)
+    }
+
+    @Test
     fun `a superseded load neither overwrites the newer day nor reports success`() = runTest {
         // Three reads are held: construction, the stale arrival whose completion the route may await,
         // and the newer day that supersedes it. The newer one succeeds first. The stale request then
