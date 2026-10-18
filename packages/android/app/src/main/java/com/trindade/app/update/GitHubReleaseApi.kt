@@ -47,20 +47,3 @@ interface GitHubReleaseApi {
     @GET("repos/wilkinbarban/Trindade/releases/latest")
     suspend fun latestRelease(): Response<GitHubRelease>
 }
-
-/**
- * GitHub's release payload, cut down to the one field this app reads.
- *
- * `tag_name` and nothing else. `name`, `body`, `assets` and `published_at` are all in the response and
- * none of them is used, so none of them is declared: a field with no reader is a field somebody has to
- * keep correct for nothing, and this response is the one place where mirroring the remote schema would
- * be someone else's work to maintain.
- *
- * Non-null, and deliberately without a default: a payload that arrives without this field is a payload
- * this client cannot read, and letting the decode fail turns that into the same "could not check" an
- * unreachable GitHub produces. The failure is caught where the call is made, never here.
- */
-@Serializable
-data class GitHubRelease(
-    @SerialName("tag_name") val tagName: String,
-)
