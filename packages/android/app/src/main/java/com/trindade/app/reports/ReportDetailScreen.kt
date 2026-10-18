@@ -273,7 +273,10 @@ fun ReportDetailRoute(
     // would show the report as it was before the save, which is the one thing that must not happen after
     // a write this app itself sent. See [ReportDetailViewModel.load] for why the read is forced here and
     // why the early return it overrides exists at all.
-    androidx.compose.runtime.LaunchedEffect(reportId) { viewModel.load(reportId, force = true) }
+    androidx.compose.runtime.LaunchedEffect(reportId) {
+        viewModel.load(reportId, force = true)
+        viewModel.loadExport()
+    }
 
     ReportDetailScreen(
         state = state,

@@ -73,6 +73,7 @@ class ReportGeneratorViewModel @Inject constructor(
         /** The report the server created, which is what the next screen needs. */
         val createdReportId: Int? = null,
         val message: String? = null,
+        val showValidation: Boolean = false,
     ) {
         val stage: Stage
             get() = when {
@@ -164,6 +165,20 @@ class ReportGeneratorViewModel @Inject constructor(
 
     fun selectTurno(turno: CreateReportRequest.Turno) = selectTurno(turno.value)
 
+    fun onReportCreatedHandled() {
+        _state.update { current ->
+            current.copy(
+                createdReportId = null,
+                notes = "",
+                checks = emptyMap(),
+                temperatures = initialReadings(current.categories),
+                selectedProducts = emptyMap(),
+                showValidation = false,
+                message = null,
+            )
+        }
+    }
+
     fun onNotesChange(notes: String) = _state.update { it.copy(notes = notes) }
 
     fun onCheckChange(taskId: Int, checked: Boolean) =
@@ -201,7 +216,11 @@ class ReportGeneratorViewModel @Inject constructor(
      */
     fun submit() {
         val current = state.value
-        if (!current.canSubmit) return
+        if (!current.ready || current.submitting) return
+        if (current.missingReadings.isNotEmpty()) {
+            _state.update { it.copy(showValidation = true) }
+            return
+        }
         _state.update { it.copy(submitting = true, message = null) }
 
         viewModelScope.launch {

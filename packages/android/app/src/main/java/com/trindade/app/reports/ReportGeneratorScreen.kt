@@ -234,7 +234,7 @@ fun ReportGeneratorScreen(
                 // no longer has any reason to send. The fields themselves carry the same information one
                 // reading at a time (see `TemperatureBlock`), which is what makes the sentence actionable
                 // on a form taller than the screen.
-                if (form.missingReadings.isNotEmpty()) {
+                if (state.showValidation && form.missingReadings.isNotEmpty()) {
                     item {
                         Text(
                             text = stringResource(R.string.report_temperatures_required),
@@ -248,7 +248,7 @@ fun ReportGeneratorScreen(
                     AdminPrimaryButton(
                         onClick = onSubmit,
                         text = stringResource(R.string.report_submit),
-                        enabled = state.canSubmit,
+                        enabled = state.ready && !state.submitting && state.createdReportId == null,
                         loading = state.submitting,
                         modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                     )
@@ -280,7 +280,10 @@ fun ReportGeneratorRoute(
     // Fired once per id rather than on every recomposition, so navigating away and back does not
     // re-enter the detail screen from a result that was already acted on.
     androidx.compose.runtime.LaunchedEffect(state.createdReportId) {
-        state.createdReportId?.let(onCreated)
+        state.createdReportId?.let { id ->
+            viewModel.onReportCreatedHandled()
+            onCreated(id)
+        }
     }
 
     ReportGeneratorScreen(

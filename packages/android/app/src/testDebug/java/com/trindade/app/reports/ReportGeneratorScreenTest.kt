@@ -445,11 +445,17 @@ class ReportGeneratorScreenTest {
      * operator is looking for it.
      */
     @Test
-    fun `a form that owes a reading says which temperature is missing and withholds the save`() {
+    fun `a form that owes a reading does not show temperature warning prematurely on clean open`() {
         render(temperatureState(listOf("", "")))
 
+        composeRule.onNodeWithText(copy(R.string.report_temperatures_required)).assertDoesNotExist()
+    }
+
+    @Test
+    fun `a form that owes a reading shows temperature warning when validation is triggered`() {
+        render(temperatureState(listOf("", "")).copy(showValidation = true))
+
         displayed(copy(R.string.report_temperatures_required))
-        composeRule.onNodeWithText(copy(R.string.report_submit)).performScrollTo().assertIsNotEnabled()
     }
 
     @Test

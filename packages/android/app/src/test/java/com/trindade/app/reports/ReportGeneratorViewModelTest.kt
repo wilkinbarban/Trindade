@@ -21,6 +21,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import retrofit2.Response
@@ -66,6 +67,31 @@ class ReportGeneratorViewModelTest {
     private fun fillTemperatures(model: ReportGeneratorViewModel, value: String = "-18") {
         model.onTemperatureChange(TEMPERATURE_TASK_ID, index = 0, value = value)
         model.onTemperatureChange(TEMPERATURE_TASK_ID, index = 1, value = value)
+    }
+
+    @Test
+    fun `submit with missing temperatures triggers validation without sending body`() {
+        val model = viewModel()
+        assertFalse(model.state.value.showValidation)
+
+        model.submit()
+
+        assertTrue(model.state.value.showValidation)
+        assertNull(api.createdBody)
+    }
+
+    @Test
+    fun `onReportCreatedHandled clears createdReportId, form inputs, and validation`() {
+        val model = viewModel()
+        fillTemperatures(model)
+        model.onNotesChange("Note to clear")
+        model.submit()
+        assertEquals(42, model.state.value.createdReportId)
+
+        model.onReportCreatedHandled()
+        assertNull(model.state.value.createdReportId)
+        assertEquals("", model.state.value.notes)
+        assertFalse(model.state.value.showValidation)
     }
 
     @Test
