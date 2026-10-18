@@ -54,8 +54,8 @@ val declaredVersionCode = declaredVersionCodeText?.toIntOrNull()
 
 // Computed once, and used for both defaultConfig and the BuildConfig fields below. Two computations of
 // the same value is how "installed 0.3.0, displays 0.2.0" happens.
-val effectiveVersionName = declaredVersionName ?: "0.1.0"
-val effectiveVersionCode = declaredVersionCode ?: 1
+val effectiveVersionName = declaredVersionName ?: "0.5.0"
+val effectiveVersionCode = declaredVersionCode ?: 501
 
 // Where this app is published, so the Perfil screen can offer the way to the download without an address
 // typed into its source.
