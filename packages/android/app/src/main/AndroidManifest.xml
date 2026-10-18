@@ -22,6 +22,14 @@
             </intent-filter>
         </activity>
 
+        <receiver
+            android:name=".update.UpdateReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
         <!-- The camera app writes the capture into this app's cache, and it can only do that
              through a content URI this app grants it. Without the provider the capture fails
              before the camera opens. -->
