@@ -88,24 +88,19 @@ fun LoadingScreen(
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         item {
-            NavigationActionButton(onClick = onBack, text = stringResource(R.string.report_back))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                NavigationActionButton(onClick = onBack, text = stringResource(R.string.report_back))
+                NavigationActionButton(onClick = onOpenHistory, text = stringResource(R.string.report_history))
+            }
         }
 
         item {
-            Column {
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text(text = stringResource(R.string.loading_title), style = MaterialTheme.typography.titleLarge)
-                    // The history lives on this screen's header rather than in a third tab, and that is
-                    // the deliberate part of the placement: the history lists the batches this grid
-                    // produces, so the way to them is an action on the surface that makes them. The tab
-                    // row stays the app's two jobs, the same choice the report history made on the
-                    // generator.
-                    NavigationActionButton(onClick = onOpenHistory, text = stringResource(R.string.report_history))
-                }
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(text = stringResource(R.string.loading_title), style = MaterialTheme.typography.titleLarge)
                 Text(text = state.date, style = MaterialTheme.typography.bodyMedium)
                 OutlinedButton(
                     onClick = onLoadExport,
@@ -344,7 +339,16 @@ private fun AddEntryForm(
     Column(modifier = Modifier.fillMaxWidth().padding(start = 8.dp)) {
         Text(text = stringResource(R.string.loading_pick_driver), style = MaterialTheme.typography.labelLarge)
 
-        state.drivers.forEach { driver ->
+        if (state.availableDrivers.isEmpty()) {
+            Text(
+                text = "Nenhum motorista disponível.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(vertical = 4.dp),
+            )
+        }
+
+        state.availableDrivers.forEach { driver ->
             // The whole row is the control and the radio beside the name is the picture of the choice,
             // which is the shape the edit surface gives its slots and for the same reason: the name is what
             // the operator aims at, and a circle handed its own click is a second, smaller target for one

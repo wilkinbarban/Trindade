@@ -73,6 +73,14 @@ class LoadingViewModel @Inject constructor(
         fun entriesIn(slot: String): List<SchedulesResponseSchedulesInner> =
             schedules.filter { it.timeSlot == slot }
 
+        /** Driver IDs already assigned to any slot for this date. */
+        val assignedDriverIds: Set<Int>
+            get() = schedules.mapNotNull { it.driverId }.toSet()
+
+        /** Drivers who have not been assigned to any slot for this date yet. */
+        val availableDrivers: List<DriversResponseDriversInner>
+            get() = drivers.filter { it.id !in assignedDriverIds }
+
         /** What the counter shows. A display: see [FleteroQuota] for why it may not refuse anything. */
         fun fleteroCountIn(slot: String): Int = FleteroQuota.countInWindow(schedules, slot)
 
@@ -368,7 +376,8 @@ class LoadingViewModel @Inject constructor(
     }
 
     /** Quick-add for a driver who is not in the list yet. Always a `fletero`, per the contract. */
-    fun quickAddDriver(name: String, licensePlate: String?, phone: String? = null) {
+    fun quickAddDriver(name: String, licensePlate: String?, phone: String? = null, assignToSlot: Boolean = true) {
+        val slot = state.value.addingToSlot
         if (name.isBlank() || state.value.busy) return
         _state.update { it.copy(busy = true, message = null) }
 
@@ -378,13 +387,59 @@ class LoadingViewModel @Inject constructor(
                 licensePlate = licensePlate?.trim()?.takeIf { it.isNotEmpty() },
                 phone = phone?.trim()?.takeIf { it.isNotEmpty() },
             )
-            _state.update {
-                it.copy(
-                    busy = false,
-                    drivers = if (driver != null) it.drivers + driver else it.drivers,
-                    selectedDriverId = driver?.id ?: it.selectedDriverId,
-                    message = if (driver == null) UNREACHABLE else null,
+            if (driver == null) {
+                _state.update { it.copy(busy = false, message = UNREACHABLE) }
+                return@launch
+            }
+
+            if (assignToSlot && slot != null) {
+                val request = CreateScheduleRequest(
+                    scheduleDate = state.value.date,
+                    timeSlot = slot,
+                    driverType = CreateScheduleRequest.DriverType.fletero,
+                    driverId = driver.id,
+                    vehicleId = null,
                 )
+                when (val result = repository.createSchedule(request)) {
+                    is ScheduleWriteResult.Saved -> {
+                        _state.update {
+                            it.copy(
+                                busy = false,
+                                addingToSlot = null,
+                                selectedDriverId = null,
+                                selectedVehicleId = null,
+                                drivers = it.drivers + driver,
+                            )
+                        }
+                        load()
+                    }
+                    is ScheduleWriteResult.Refused ->
+                        _state.update {
+                            it.copy(
+                                busy = false,
+                                addingToSlot = null,
+                                drivers = it.drivers + driver,
+                                message = refusalMessage(result.statusCode),
+                            )
+                        }
+                    ScheduleWriteResult.Unreachable ->
+                        _state.update {
+                            it.copy(
+                                busy = false,
+                                addingToSlot = null,
+                                drivers = it.drivers + driver,
+                                message = UNREACHABLE,
+                            )
+                        }
+                }
+            } else {
+                _state.update {
+                    it.copy(
+                        busy = false,
+                        drivers = it.drivers + driver,
+                        selectedDriverId = driver.id,
+                    )
+                }
             }
         }
     }

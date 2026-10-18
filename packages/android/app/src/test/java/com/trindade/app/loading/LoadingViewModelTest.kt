@@ -267,7 +267,7 @@ class LoadingViewModelTest {
     fun `offers the newly quick-added driver and selects it`() {
         val model = viewModel(FakeLoadingApi())
         model.startAdding("04:00")
-        model.quickAddDriver("Novo", "QQQ1111")
+        model.quickAddDriver("Novo", "QQQ1111", assignToSlot = false)
 
         // Selected, because the operator added it in order to use it; leaving them to find it in the
         // list again would be the kind of small friction that makes a form feel broken.
@@ -276,10 +276,33 @@ class LoadingViewModelTest {
     }
 
     @Test
+    fun `availableDrivers excludes drivers already assigned to any slot for that date`() {
+        val api = FakeLoadingApi(
+            schedulesToReturn = listOf(FakeLoadingApi.entry(id = 1, slot = "04:00").copy(driverId = FakeLoadingApi.FLETERO_DRIVER_ID)),
+        )
+        val model = viewModel(api)
+        assertTrue(model.state.value.assignedDriverIds.contains(FakeLoadingApi.FLETERO_DRIVER_ID))
+        assertFalse(model.state.value.availableDrivers.any { it.id == FakeLoadingApi.FLETERO_DRIVER_ID })
+        assertTrue(model.state.value.availableDrivers.any { it.id == FakeLoadingApi.CASA_DRIVER_ID })
+    }
+
+    @Test
+    fun `quickAddDriver assigns created fletero to slot and closes add form`() {
+        val model = viewModel(FakeLoadingApi())
+        model.startAdding("04:00")
+        assertEquals("04:00", model.state.value.addingToSlot)
+
+        model.quickAddDriver("Novo Fletero", "ABC-1234", "+55 (11) 98888-7777")
+
+        assertNull(model.state.value.addingToSlot)
+        assertNull(model.state.value.selectedDriverId)
+    }
+
+    @Test
     fun `quickAddDriver passes phone and plate and selects the newly added driver`() {
         val model = viewModel(FakeLoadingApi())
         model.startAdding("04:00")
-        model.quickAddDriver("Novo", "ABC1234", "+55 (11) 98888-7777")
+        model.quickAddDriver("Novo", "ABC1234", "+55 (11) 98888-7777", assignToSlot = false)
 
         assertEquals("Novo", model.state.value.selectedDriver?.name)
         assertEquals("ABC1234", model.state.value.selectedDriver?.licensePlate)

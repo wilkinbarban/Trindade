@@ -1093,6 +1093,36 @@ class LoadingScreenTest {
         assertEquals(Triple("Novo Fletero", "ABC-1234", "+55 (11) 98888-7777"), quickAdded)
     }
 
+    @Test
+    fun `already assigned driver for the day is excluded from driver selection in add form`() {
+        val assignedDriver = FakeLoadingApi.defaultDrivers().first { it.id == FakeLoadingApi.FLETERO_DRIVER_ID }
+        val stateWithAssigned = addingState().copy(
+            schedules = listOf(FakeLoadingApi.entry(id = 1, slot = "06:00").copy(driverId = assignedDriver.id)),
+        )
+        composeRule.setContent {
+            TrindadeTheme {
+                LoadingScreen(
+                    state = stateWithAssigned,
+                    onBack = {},
+                    onOpenHistory = {},
+                    onStartAdding = {},
+                    onCancelAdding = {},
+                    onDriverSelected = {},
+                    onVehicleSelected = {},
+                    onConfirmAdd = {},
+                    onDelete = {},
+                    onEditEntry = { _, _ -> },
+                    onLoadExport = {},
+                )
+            }
+        }
+
+        // The casa driver is not assigned, so it is displayed
+        composeRule.onNodeWithText("Carlos").performScrollTo().assertIsDisplayed()
+        // The fletero driver is assigned to 06:00, so it is excluded from the available drivers list
+        composeRule.onNodeWithText("Fletero").assertDoesNotExist()
+    }
+
     private companion object {
         /** Four rows of one day, each with its own id so no two identities read alike. */
         const val CLOSED_WINDOW_ID = 31
