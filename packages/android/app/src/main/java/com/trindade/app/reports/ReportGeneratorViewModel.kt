@@ -153,6 +153,17 @@ class ReportGeneratorViewModel @Inject constructor(
     /** The way out of a read that could not supply what the form needs. */
     fun retry() = load()
 
+    fun selectTurno(turno: String) {
+        _state.update { current ->
+            current.copy(
+                turno = turno,
+                missing = current.missing - Prerequisite.SHIFT,
+            )
+        }
+    }
+
+    fun selectTurno(turno: CreateReportRequest.Turno) = selectTurno(turno.value)
+
     fun onNotesChange(notes: String) = _state.update { it.copy(notes = notes) }
 
     fun onCheckChange(taskId: Int, checked: Boolean) =

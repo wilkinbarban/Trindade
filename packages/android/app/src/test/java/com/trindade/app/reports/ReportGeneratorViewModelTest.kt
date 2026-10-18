@@ -1,6 +1,7 @@
 package com.trindade.app.reports
 
 import com.trindade.app.contract.models.CategoriesResponseCategoriesInner
+import com.trindade.app.contract.models.CreateReportRequest
 import com.trindade.app.contract.models.ReportCategoryTasksInner
 import com.trindade.app.contract.models.ReportResponse
 import com.trindade.app.reports.FakeReportsApi.Companion.CHECK_TASK_ID
@@ -17,6 +18,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Before
@@ -64,6 +66,30 @@ class ReportGeneratorViewModelTest {
     private fun fillTemperatures(model: ReportGeneratorViewModel, value: String = "-18") {
         model.onTemperatureChange(TEMPERATURE_TASK_ID, index = 0, value = value)
         model.onTemperatureChange(TEMPERATURE_TASK_ID, index = 1, value = value)
+    }
+
+    @Test
+    fun `selectTurno manually overrides detected shift and clears missing prerequisite`() {
+        val model = viewModel(FakeReportsApi(turnoValue = null))
+        assertEquals(listOf(ReportGeneratorViewModel.Prerequisite.SHIFT), model.state.value.missing)
+        assertNull(model.state.value.turno)
+
+        model.selectTurno("noite")
+        assertEquals("noite", model.state.value.turno)
+        assertFalse(model.state.value.missing.contains(ReportGeneratorViewModel.Prerequisite.SHIFT))
+
+        model.selectTurno("tarde")
+        assertEquals("tarde", model.state.value.turno)
+    }
+
+    @Test
+    fun `submitting uses the manually selected shift instead of the initially detected one`() {
+        val model = viewModel()
+        fillTemperatures(model)
+        model.selectTurno("noite")
+        model.submit()
+
+        assertEquals(CreateReportRequest.Turno.noite, api.createdBody!!.turno)
     }
 
     @Test

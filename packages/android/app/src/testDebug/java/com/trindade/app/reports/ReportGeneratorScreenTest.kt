@@ -602,5 +602,32 @@ class ReportGeneratorScreenTest {
         composeRule.waitForIdle()
         composeRule.onNodeWithText("4,5").assertIsDisplayed()
     }
+
+    @Test
+    fun `the screen renders shift selector and allows selecting shift`() {
+        var selectedTurno = ""
+        composeRule.setContent {
+            TrindadeTheme {
+                ReportGeneratorScreen(
+                    state = state(listOf(category(id = 8, namePt = "Higiene"))),
+                    onCheckChange = { _, _ -> },
+                    onProductToggle = { _, _, _ -> },
+                    onTemperatureChange = { _, _, _ -> },
+                    onNotesChange = {},
+                    onSubmit = {},
+                    onOpenHistory = {},
+                    onRetry = {},
+                    onTurnoChange = { selectedTurno = it },
+                )
+            }
+        }
+
+        displayed("Turno")
+        displayed("🌅 Tarde")
+        displayed("🌙 Noite")
+
+        composeRule.onNodeWithText("🌙 Noite").performClick()
+        assertEquals("noite", selectedTurno)
+    }
 }
 
