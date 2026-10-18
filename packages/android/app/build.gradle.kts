@@ -277,6 +277,7 @@ android {
         // this project owns, and so nothing here collides with what AGP writes into the same class.
         buildConfigField("String", "APP_VERSION_NAME", "\"$effectiveVersionName\"")
         buildConfigField("int", "APP_VERSION_CODE", effectiveVersionCode.toString())
+        buildConfigField("long", "BUILD_TIME", "${System.currentTimeMillis()}L")
 
         // Where the APK is published, for the action on the Perfil screen that opens it. A build
         // declaration rather than a string resource because it is a deployment fact and not UI copy: the
