@@ -141,7 +141,7 @@ class DriversViewModel @Inject constructor(
     private suspend fun finishWrite(result: DriverWriteResult) {
         when (result) {
             is DriverWriteResult.Saved -> {
-                _state.update { it.copy(saving = false, editingId = null, name = "", driverType = FLETERO) }
+                _state.update { it.copy(saving = false, editingId = null, name = "", phone = "", driverType = FLETERO) }
                 load()
             }
             is DriverWriteResult.Refused -> _state.update {

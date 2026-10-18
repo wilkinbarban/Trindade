@@ -117,6 +117,20 @@ class DriversViewModelTest {
         assertFalse("The driver form must not send a plate", body!!.containsKey("license_plate"))
     }
 
+    @Test fun `saving a driver clears the phone from form state so the next driver does not inherit it`() {
+        val api = DriverApi()
+        val model = viewModel(api, role = "Administrador")
+        model.load()
+        model.onNameChange("Driver With Phone")
+        model.onPhoneChange("+55 (11) 98888-7777")
+        api.writeResult = DriverWriteResult.Saved(driver(9, 42, phone = "+55 (11) 98888-7777"))
+        model.save()
+
+        assertEquals("", model.state.value.phone)
+        assertEquals("", model.state.value.name)
+        assertNull(model.state.value.editingId)
+    }
+
     @Test fun `editing a driver carries their number into the form and typing keeps only number characters`() {
         val api = DriverApi(rows = listOf(driver(8, 42, phone = "+55 (11) 98888-7777")))
         val model = viewModel(api, role = "Administrador")

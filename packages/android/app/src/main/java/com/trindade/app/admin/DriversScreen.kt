@@ -46,6 +46,13 @@ fun DriversScreen(
     modifier: Modifier = Modifier,
 ) {
     var showForm by remember { mutableStateOf(false) }
+    var wasSaving by remember { mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(state.saving) {
+        if (wasSaving && !state.saving && state.error == null) {
+            showForm = false
+        }
+        wasSaving = state.saving
+    }
     val canCreate = state.role == DriversViewModel.ADMIN || state.role == DriversViewModel.WORKER
 
     Column(
