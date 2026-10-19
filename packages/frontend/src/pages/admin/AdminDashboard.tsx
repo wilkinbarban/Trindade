@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
-import { api } from '../../api/client';
+import { api, ApiClientError } from '../../api/client';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -447,7 +447,7 @@ export function AdminDashboard() {
       if (err && err.status === 400) {
         setError(t('admin.deleteConstraintError'));
       } else {
-        setError(err instanceof Error ? err.message : t('ui.error'));
+        setError(t('ui.error'));
       }
     } finally {
       setDeleteConfirmOpen(false);
@@ -470,19 +470,33 @@ export function AdminDashboard() {
 
   async function handleCreateCategory(e: FormEvent) {
     e.preventDefault();
+    const namePt = catNamePt.trim();
+    const nameEs = catNameEs.trim();
+    if (editingId) {
+      if (!namePt && !nameEs) {
+        setError(t('api.invalidInput'));
+        return;
+      }
+    } else if (isSpanish ? !nameEs : !namePt) {
+      setError(t('api.invalidInput'));
+      return;
+    }
     setFormLoading(true);
+    setError('');
+    setSuccess('');
     try {
+      const sortOrder = parseInt(catSortOrder, 10);
       const payload: any = {
         category_type: catType,
-        sort_order: parseInt(catSortOrder) || 0,
+        sort_order: isNaN(sortOrder) ? 0 : sortOrder,
       };
       if (editingId) {
-        payload.name_pt = catNamePt;
-        payload.name_es = catNameEs;
+        payload.name_pt = namePt;
+        payload.name_es = nameEs;
       } else if (isSpanish) {
-        payload.name_es = catNameEs;
+        payload.name_es = nameEs;
       } else {
-        payload.name_pt = catNamePt;
+        payload.name_pt = namePt;
       }
 
       if (editingId) {
@@ -492,7 +506,7 @@ export function AdminDashboard() {
       }
       reloadData();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('admin.saveCategoryError'));
+      setError(err instanceof ApiClientError ? err.message : t('admin.saveCategoryError'));
     } finally {
       setFormLoading(false);
     }
@@ -500,25 +514,42 @@ export function AdminDashboard() {
 
   async function handleCreateTask(e: FormEvent) {
     e.preventDefault();
+    const catId = parseInt(taskCatId, 10);
+    if (!taskCatId || isNaN(catId) || catId <= 0) {
+      setError(t('api.invalidInput'));
+      return;
+    }
+    const namePt = taskNamePt.trim();
+    const nameEs = taskNameEs.trim();
+    if (editingId) {
+      if (!namePt && !nameEs) {
+        setError(t('api.invalidInput'));
+        return;
+      }
+    } else if (isSpanish ? !nameEs : !namePt) {
+      setError(t('api.invalidInput'));
+      return;
+    }
     setFormLoading(true);
     setError('');
     setSuccess('');
     try {
       const payload: any = {
-        category_id: parseInt(taskCatId),
+        category_id: catId,
       };
-      const category = categories.find((item) => item.id === parseInt(taskCatId));
+      const category = categories.find((item) => item.id === catId);
       if (category?.category_type === 'temperature') {
-        payload.temperature_readings = parseInt(taskTemperatureReadings);
+        const readings = parseInt(taskTemperatureReadings, 10);
+        payload.temperature_readings = isNaN(readings) || readings < 1 ? 1 : readings;
       }
       const isEditing = Boolean(editingId);
       if (editingId) {
-        payload.name_pt = taskNamePt;
-        payload.name_es = taskNameEs;
+        payload.name_pt = namePt;
+        payload.name_es = nameEs;
       } else if (isSpanish) {
-        payload.name_es = taskNameEs;
+        payload.name_es = nameEs;
       } else {
-        payload.name_pt = taskNamePt;
+        payload.name_pt = namePt;
       }
 
       if (editingId) {
@@ -529,7 +560,7 @@ export function AdminDashboard() {
       setSuccess(t(isEditing ? 'admin.taskUpdateSuccess' : 'admin.taskCreateSuccess'));
       reloadData();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('admin.saveTaskError'));
+      setError(err instanceof ApiClientError ? err.message : t('admin.saveTaskError'));
     } finally {
       setFormLoading(false);
     }
@@ -537,6 +568,11 @@ export function AdminDashboard() {
 
   async function handleCreateDriver(e: FormEvent) {
     e.preventDefault();
+    const trimmedName = driverName.trim();
+    if (!trimmedName) {
+      setError(t('api.invalidInput'));
+      return;
+    }
     setFormLoading(true);
     setError('');
     setSuccess('');
@@ -544,7 +580,7 @@ export function AdminDashboard() {
       const isEditing = Boolean(editingId);
       if (editingId) {
         await api.patch(`/admin/drivers/${editingId}`, {
-          name: driverName,
+          name: trimmedName,
           // An emptied field on an edit removes the number, which is why it is null here and undefined on
           // a create: the endpoint treats null as "remove it" and an omitted key as "leave it alone".
           phone: cleanPhone(driverPhone) || null,
@@ -552,7 +588,7 @@ export function AdminDashboard() {
         });
       } else {
         await api.post('/admin/drivers', {
-          name: driverName,
+          name: trimmedName,
           phone: cleanPhone(driverPhone) || undefined,
           driver_type: isWorker ? 'fletero' : driverType,
         });
@@ -560,7 +596,7 @@ export function AdminDashboard() {
       setSuccess(t(isEditing ? 'admin.driverUpdateSuccess' : 'admin.driverCreateSuccess'));
       reloadData();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('admin.saveDriverError'));
+      setError(err instanceof ApiClientError ? err.message : t('admin.saveDriverError'));
     } finally {
       setFormLoading(false);
     }
@@ -568,22 +604,30 @@ export function AdminDashboard() {
 
   async function handleCreateVehicle(e: FormEvent) {
     e.preventDefault();
+    const trimmedDesc = vehDesc.trim();
+    const trimmedPlate = vehPlate.trim();
+    if (!trimmedPlate) {
+      setError(t('api.invalidInput'));
+      return;
+    }
     setFormLoading(true);
+    setError('');
+    setSuccess('');
     try {
       if (editingId) {
         await api.patch(`/admin/vehicles/${editingId}`, {
-          description: vehDesc,
-          license_plate: vehPlate,
+          description: trimmedDesc,
+          license_plate: trimmedPlate,
         });
       } else {
         await api.post('/admin/vehicles', {
-          description: vehDesc,
-          license_plate: vehPlate,
+          description: trimmedDesc,
+          license_plate: trimmedPlate,
         });
       }
       reloadData();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('admin.saveVehicleError'));
+      setError(err instanceof ApiClientError ? err.message : t('admin.saveVehicleError'));
     } finally {
       setFormLoading(false);
     }
@@ -591,35 +635,64 @@ export function AdminDashboard() {
 
   async function handleCreateWorker(e: FormEvent) {
     e.preventDefault();
+    const trimmedUsername = workerUsername.trim();
+    const trimmedDisplayName = workerDisplayName.trim();
+    if (!editingId && (!trimmedUsername || !trimmedDisplayName || !workerPassword)) {
+      setError(t('api.invalidInput'));
+      return;
+    }
+    if (editingId && !trimmedDisplayName) {
+      setError(t('api.invalidInput'));
+      return;
+    }
     setFormLoading(true);
     setError('');
     setSuccess('');
     try {
       if (editingId) {
         const payload: any = {
-          display_name: workerDisplayName,
+          display_name: trimmedDisplayName,
         };
 
         if (!isEditingOwnUser) {
-          payload.username = workerUsername;
-          payload.role_id = parseInt(workerRoleId, 10);
-          payload.is_active = parseInt(workerIsActive, 10);
+          payload.username = trimmedUsername;
+          const roleId = parseInt(workerRoleId, 10);
+          payload.role_id = isNaN(roleId) ? 2 : roleId;
+          const isActive = parseInt(workerIsActive, 10);
+          payload.is_active = isNaN(isActive) ? 1 : isActive;
         }
         if (workerPassword) {
           payload.password = workerPassword;
         }
         await api.patch(`/admin/users/${editingId}`, payload);
       } else {
+        const roleId = parseInt(workerRoleId, 10);
         await api.post('/admin/users', {
-          username: workerUsername,
-          display_name: workerDisplayName,
+          username: trimmedUsername,
+          display_name: trimmedDisplayName,
           password: workerPassword,
-          role_id: parseInt(workerRoleId, 10),
+          role_id: isNaN(roleId) ? 2 : roleId,
         });
       }
       reloadData();
     } catch (err: any) {
-      setError(err instanceof Error ? err.message : t('admin.saveWorkerError'));
+      if (err instanceof ApiClientError) {
+        if (
+          err.message.includes('UNIQUE') ||
+          err.message.includes('userAlreadyExists') ||
+          err.message.includes('já está em uso') ||
+          err.message.includes('ya está en uso') ||
+          err.status === 409
+        ) {
+          setError(t('admin.workers.userAlreadyExists'));
+        } else if (err.status === 400) {
+          setError(t('api.invalidInput'));
+        } else {
+          setError(err.message || t('admin.saveWorkerError'));
+        }
+      } else {
+        setError(t('admin.saveWorkerError'));
+      }
     } finally {
       setFormLoading(false);
     }
