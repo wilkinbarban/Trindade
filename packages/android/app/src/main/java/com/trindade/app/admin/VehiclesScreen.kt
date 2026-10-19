@@ -76,7 +76,6 @@ fun VehiclesScreen(
         }
 
         state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        state.refusedStatus?.let { Text("Status: $it", color = MaterialTheme.colorScheme.error) }
 
         if (state.isAdmin) {
             AdminPrimaryButton(

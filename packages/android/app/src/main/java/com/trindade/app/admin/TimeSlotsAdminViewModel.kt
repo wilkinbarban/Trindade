@@ -241,7 +241,7 @@ class TimeSlotsAdminViewModel @Inject constructor(
                         _uiState.update {
                             it.copy(
                                 form = form.copy(saving = false),
-                                message = "Não foi possível salvar os horários (${result.statusCode}).",
+                                message = "Não foi possível salvar os horários.",
                                 isError = true,
                             )
                         }
@@ -352,7 +352,7 @@ class TimeSlotsAdminViewModel @Inject constructor(
                             it.copy(
                                 deleting = false,
                                 deleteConfirmSlot = null,
-                                message = "Não foi possível remover o horário (${result.statusCode}).",
+                                message = "Não foi possível remover o horário.",
                                 isError = true,
                             )
                         }

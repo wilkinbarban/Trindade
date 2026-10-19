@@ -287,7 +287,7 @@ class CategoriesScreenTest {
 
         composeRule.onNodeWithText("Carregando", substring = true).assertIsDisplayed()
         composeRule.onNodeWithText(CategoriesViewModel.REFUSED).assertIsDisplayed()
-        composeRule.onNodeWithText("Status: 400").assertIsDisplayed()
+        composeRule.onNodeWithText("Status: 400").assertDoesNotExist()
         composeRule.onNodeWithText("Salvando…").assertIsDisplayed().assertIsNotEnabled()
         composeRule.onNodeWithText("Atualizar").assertIsNotEnabled()
     }
