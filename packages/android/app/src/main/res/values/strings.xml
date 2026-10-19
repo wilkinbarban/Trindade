@@ -410,7 +410,7 @@
     <string name="users_display_name_value">Nome: %1$s</string>
     <string name="users_password">Senha</string>
     <string name="users_password_placeholder_edit">Deixe em branco para manter</string>
-    <string name="users_password_helper">Mínimo 4 caracteres</string>
+    <string name="users_password_helper">Mínimo 15 caracteres visíveis</string>
     <string name="users_role">Função</string>
     <string name="users_role_value">Função: %1$s</string>
     <string name="users_role_admin">Administrador</string>
@@ -468,4 +468,36 @@
     <string name="dashboard_view_schedule">Ver cronograma</string>
     <string name="dashboard_create_schedule">Criar cronograma</string>
     <string name="dashboard_share_schedule">Enviar pelo WhatsApp</string>
+
+    <!-- Admin validation & error messages -->
+    <string name="categories_error_name">Informe o nome da categoria em português ou espanhol.</string>
+    <string name="categories_error_type">Selecione um tipo de categoria válido.</string>
+    <string name="categories_error_sort_order">A ordem de exibição deve ser um número inteiro não negativo.</string>
+    <string name="categories_error_refused">O servidor recusou esta operação de categoria.</string>
+
+    <string name="tasks_error_category">Selecione uma categoria válida.</string>
+    <string name="tasks_error_name">Informe o nome em português ou espanhol.</string>
+    <string name="tasks_error_readings">Tarefas de temperatura requerem de 1 a 3 medições.</string>
+    <string name="tasks_error_refused">O servidor recusou esta operação de tarefa.</string>
+
+    <string name="drivers_error_name">Informe o nome do motorista.</string>
+    <string name="drivers_error_type">Selecione um tipo de motorista válido.</string>
+    <string name="drivers_error_refused">O servidor recusou esta operação de motorista.</string>
+
+    <string name="vehicles_error_description">Informe a descrição do veículo.</string>
+    <string name="vehicles_error_license_plate">Informe a placa do veículo.</string>
+    <string name="vehicles_error_refused">O servidor recusou esta operação de veículo.</string>
+
+    <string name="time_slots_error_at_least_one">Pelo menos um horário é obrigatório.</string>
+    <string name="time_slots_error_refused">O servidor recusou esta operação de horário.</string>
+
+    <string name="users_error_username">Informe o nome de usuário.</string>
+    <string name="users_error_display_name">Informe o nome de exibição.</string>
+    <string name="users_error_password">Informe a senha.</string>
+    <string name="users_error_password_too_short">A senha deve ter pelo menos 15 caracteres visíveis.</string>
+    <string name="users_error_password_too_many_bytes">A senha não deve ultrapassar 72 bytes.</string>
+    <string name="users_error_refused">O servidor recusou esta operação de usuário.</string>
+
+    <string name="audit_error_invalid_user_id">O ID do usuário deve ser um número inteiro positivo.</string>
+    <string name="admin_error_unreachable">Sem conexão com o servidor. Verifique a rede e tente de novo.</string>
 </resources>

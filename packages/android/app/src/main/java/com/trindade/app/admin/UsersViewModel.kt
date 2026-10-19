@@ -324,13 +324,13 @@ class UsersViewModel @Inject constructor(
         const val WORKER = "Trabalhador"
         const val DEFAULT_ROLE_ID = 2
         const val MIN_PASSWORD_LENGTH = PasswordPolicy.MIN_GRAPHEMES
-        const val USERNAME = "Enter a username."
-        const val DISPLAY_NAME = "Enter a display name."
-        const val PASSWORD = "Enter a password."
-        const val PASSWORD_TOO_SHORT = "Password must be at least 15 visible characters long."
-        const val PASSWORD_TOO_MANY_BYTES = "Password must not exceed 72 bytes."
+        const val USERNAME = "Informe o nome de usuário."
+        const val DISPLAY_NAME = "Informe o nome de exibição."
+        const val PASSWORD = "Informe a senha."
+        const val PASSWORD_TOO_SHORT = "A senha deve ter pelo menos 15 caracteres visíveis."
+        const val PASSWORD_TOO_MANY_BYTES = "A senha não deve ultrapassar 72 bytes."
         const val PASSWORD_WARNING = "Recomendamos uma senha de pelo menos 15 caracteres com letras maiúsculas e números"
-        const val REFUSED = "The server refused this user operation."
-        const val UNREACHABLE = "Could not reach the server. Try again."
+        const val REFUSED = "O servidor recusou esta operação de usuário."
+        const val UNREACHABLE = "Sem conexão com o servidor. Verifique a rede e tente de novo."
     }
 }

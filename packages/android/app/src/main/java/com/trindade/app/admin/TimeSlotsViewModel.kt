@@ -139,10 +139,10 @@ class TimeSlotsViewModel @Inject constructor(
     companion object {
         const val ADMIN = "Administrador"
         const val WORKER = "Trabalhador"
-        const val AT_LEAST_ONE_SLOT = "At least one time slot is required."
+        const val AT_LEAST_ONE_SLOT = "Pelo menos um horário é obrigatório."
         const val LAST_SLOT_REMOVAL = AT_LEAST_ONE_SLOT
         const val CANNOT_REMOVE_LAST = AT_LEAST_ONE_SLOT
-        const val REFUSED = "The server refused this time-slot operation."
-        const val UNREACHABLE = "Could not reach the server. Try again."
+        const val REFUSED = "O servidor recusou esta operação de horário."
+        const val UNREACHABLE = "Sem conexão com o servidor. Verifique a rede e tente de novo."
     }
 }

@@ -203,9 +203,9 @@ class VehiclesViewModel @Inject constructor(
     companion object {
         const val ADMIN = "Administrador"
         const val WORKER = "Trabalhador"
-        const val DESCRIPTION = "Enter a vehicle description."
-        const val LICENSE_PLATE = "Enter a license plate."
-        const val REFUSED = "The server refused this vehicle operation."
-        const val UNREACHABLE = "Could not reach the server. Try again."
+        const val DESCRIPTION = "Informe a descrição do veículo."
+        const val LICENSE_PLATE = "Informe a placa do veículo."
+        const val REFUSED = "O servidor recusou esta operação de veículo."
+        const val UNREACHABLE = "Sem conexão com o servidor. Verifique a rede e tente de novo."
     }
 }

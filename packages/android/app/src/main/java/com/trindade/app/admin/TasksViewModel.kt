@@ -206,10 +206,10 @@ class TasksViewModel @Inject constructor(
         const val WORKER = "Trabalhador"
         const val MIN_READINGS = 1
         const val MAX_READINGS = 3
-        const val CATEGORY = "Select a valid category."
-        const val NAME = "Enter a name in Portuguese or Spanish."
-        const val TEMPERATURE_READINGS = "Temperature tasks require 1 to 3 readings."
-        const val REFUSED = "The server refused this task operation."
-        const val UNREACHABLE = "Could not reach the server. Try again."
+        const val CATEGORY = "Selecione uma categoria válida."
+        const val NAME = "Informe o nome em português ou espanhol."
+        const val TEMPERATURE_READINGS = "Tarefas de temperatura requerem de 1 a 3 medições."
+        const val REFUSED = "O servidor recusou esta operação de tarefa."
+        const val UNREACHABLE = "Sem conexão com o servidor. Verifique a rede e tente de novo."
     }
 }

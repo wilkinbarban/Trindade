@@ -100,7 +100,7 @@ fun StockCalculatorScreen(viewModel: StockViewModel = hiltViewModel()) {
                         Text(product.code, style = MaterialTheme.typography.bodySmall)
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        Text("Cajas: ${product.boxes}", style = MaterialTheme.typography.bodyMedium)
+                        Text("Caixas: ${product.boxes}", style = MaterialTheme.typography.bodyMedium)
                         Text(
                             "Unidades: ${product.units}  (${product.unitsPerBox}/cx)",
                             style = MaterialTheme.typography.bodyMedium,

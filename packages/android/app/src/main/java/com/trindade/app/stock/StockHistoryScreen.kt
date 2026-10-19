@@ -110,7 +110,7 @@ fun StockHistoryScreen(
                     }
                     Text(product.category, style = MaterialTheme.typography.bodySmall)
                     Text(
-                        "Cajas: ${product.boxes}   Unidades: ${product.units}",
+                        "Caixas: ${product.boxes}   Unidades: ${product.units}",
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     if (canEdit) {

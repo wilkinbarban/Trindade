@@ -159,9 +159,9 @@ class DriversViewModel @Inject constructor(
         const val WORKER = "Trabalhador"
         const val CASA = "casa"
         const val FLETERO = "fletero"
-        const val NAME = "Enter a driver name."
-        const val DRIVER_TYPE = "Select a valid driver type."
-        const val REFUSED = "The server refused this driver operation."
-        const val UNREACHABLE = "Could not reach the server. Try again."
+        const val NAME = "Informe o nome do motorista."
+        const val DRIVER_TYPE = "Selecione um tipo de motorista válido."
+        const val REFUSED = "O servidor recusou esta operação de motorista."
+        const val UNREACHABLE = "Sem conexão com o servidor. Verifique a rede e tente de novo."
     }
 }

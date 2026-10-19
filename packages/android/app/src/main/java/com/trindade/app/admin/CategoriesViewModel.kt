@@ -263,10 +263,10 @@ class CategoriesViewModel @Inject constructor(
         const val TEMPERATURE = "temperature"
         const val CHECK_ASSAI = "check_assai"
         const val CHECK_NORMAL = "check_normal"
-        const val NAME = "Enter a category name in Portuguese or Spanish."
-        const val CATEGORY_TYPE = "Select a valid category type."
-        const val SORT_ORDER = "Sort order must be a non-negative integer."
-        const val REFUSED = "The server refused this category operation."
-        const val UNREACHABLE = "Could not reach the server. Try again."
+        const val NAME = "Informe o nome da categoria em português ou espanhol."
+        const val CATEGORY_TYPE = "Selecione um tipo de categoria válido."
+        const val SORT_ORDER = "A ordem de exibição deve ser um número inteiro não negativo."
+        const val REFUSED = "O servidor recusou esta operação de categoria."
+        const val UNREACHABLE = "Sem conexão com o servidor. Verifique a rede e tente de novo."
     }
 }

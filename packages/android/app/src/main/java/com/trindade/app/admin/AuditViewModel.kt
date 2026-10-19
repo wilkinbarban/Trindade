@@ -220,7 +220,7 @@ class AuditViewModel @Inject constructor(
 
     companion object {
         const val ADMIN = "Administrador"
-        const val UNREACHABLE = "Could not reach the server. Try again."
-        const val INVALID_USER_ID = "User ID must be a positive integer."
+        const val UNREACHABLE = "Sem conexão com o servidor. Verifique a rede e tente de novo."
+        const val INVALID_USER_ID = "O ID do usuário deve ser um número inteiro positivo."
     }
 }
