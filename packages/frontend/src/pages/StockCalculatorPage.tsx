@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
+import { useAuth } from '../contexts/AuthContext';
 import { Link } from 'react-router-dom';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -45,6 +46,7 @@ interface HistoryDay {
 
 export function StockCalculatorPage() {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [date, setDate] = useState(saopauloToday());
   const [day, setDay] = useState<StockDay | null>(null);
   const [history, setHistory] = useState<HistoryDay[]>([]);
@@ -57,6 +59,8 @@ export function StockCalculatorPage() {
   // El campo en edicion y los ya dejados: el cartel es una cuestion de momento, no solo del numero.
   const [focused, setFocused] = useState<string | null>(null);
   const [blurred, setBlurred] = useState<Record<string, boolean>>({});
+
+  const canEdit = user?.role === 'Administrador';
 
   const load = useCallback(
     async (target: string) => {
@@ -94,6 +98,10 @@ export function StockCalculatorPage() {
   const boxes = (code: string) => quantities[code] ?? '';
 
   async function sendEntry(product: StockProduct) {
+    if (!canEdit) {
+      setNote(t('stock.adminOnly'));
+      return;
+    }
     const raw = (quantities[product.code] ?? '').trim();
     const boxes = Number(raw);
     if (raw === '' || !Number.isInteger(boxes) || boxes <= 0) {
@@ -107,22 +115,34 @@ export function StockCalculatorPage() {
       setQuantities({ ...quantities, [product.code]: '' });
       await load(date);
       setNote(t('stock.saved'));
-    } catch {
-      setNote(t('stock.saveError'));
+    } catch (err: any) {
+      if (err?.status === 403) {
+        setNote(t('stock.adminOnly'));
+      } else {
+        setNote(t('stock.saveError'));
+      }
     } finally {
       setBusy(false);
     }
   }
 
   async function resetProduct(product: StockProduct) {
+    if (!canEdit) {
+      setNote(t('stock.adminOnly'));
+      return;
+    }
     setBusy(true);
     setNote('');
     try {
       await api.post<StockProduct>('/stock/reset-product', { date, product_code: product.code });
       await load(date);
       setNote(t('stock.resetDone'));
-    } catch {
-      setNote(t('stock.saveError'));
+    } catch (err: any) {
+      if (err?.status === 403) {
+        setNote(t('stock.adminOnly'));
+      } else {
+        setNote(t('stock.saveError'));
+      }
     } finally {
       setBusy(false);
     }
@@ -166,7 +186,7 @@ export function StockCalculatorPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold text-gray-800">{t('stock.title')}</h1>
-          <p className="text-sm text-gray-500">{t('stock.subtitle')}</p>
+          <p className="text-sm text-gray-500">{canEdit ? t('stock.subtitle') : t('stock.readOnly')}</p>
         </div>
         <Link to="/stock-history">
           <Button variant="outline" data-testid="stock-open-history">
@@ -237,6 +257,7 @@ export function StockCalculatorPage() {
                   <div className="flex flex-wrap items-center gap-2">
                     <Input
                       value={quantities[product.code] ?? ''}
+                      disabled={!canEdit}
                       onFocus={() => setFocused(product.code)}
                       onChange={(e) => {
                         setQuantities({ ...quantities, [product.code]: e.target.value });
@@ -260,7 +281,7 @@ export function StockCalculatorPage() {
                     )}
                     <Button
                       onClick={() => sendEntry(product)}
-                      disabled={busy || stockAddDisabled(boxes(product.code))}
+                      disabled={!canEdit || busy || stockAddDisabled(boxes(product.code))}
                       size="sm"
                       data-testid={`stock-mobile-add-${product.code}`}
                     >
@@ -269,7 +290,7 @@ export function StockCalculatorPage() {
                     <Button
                       variant="outline"
                       onClick={() => resetProduct(product)}
-                      disabled={busy || product.boxes === 0}
+                      disabled={!canEdit || busy || product.boxes === 0}
                       size="sm"
                       data-testid={`stock-mobile-reset-${product.code}`}
                     >
@@ -308,6 +329,7 @@ export function StockCalculatorPage() {
                         <div className="flex items-center gap-2">
                           <Input
                             value={quantities[product.code] ?? ''}
+                            disabled={!canEdit}
                             onFocus={() => setFocused(product.code)}
                       onChange={(e) => {
                         setQuantities({ ...quantities, [product.code]: e.target.value });
@@ -331,7 +353,7 @@ export function StockCalculatorPage() {
                           )}
                           <Button
                             onClick={() => sendEntry(product)}
-                            disabled={busy || stockAddDisabled(boxes(product.code))}
+                            disabled={!canEdit || busy || stockAddDisabled(boxes(product.code))}
                             data-testid={`stock-add-${product.code}`}
                           >
                             {t('stock.add')}
@@ -339,7 +361,7 @@ export function StockCalculatorPage() {
                           <Button
                             variant="outline"
                             onClick={() => resetProduct(product)}
-                            disabled={busy || product.boxes === 0}
+                            disabled={!canEdit || busy || product.boxes === 0}
                             data-testid={`stock-reset-${product.code}`}
                           >
                             {t('stock.reset')}
