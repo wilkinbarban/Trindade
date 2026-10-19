@@ -37,7 +37,13 @@ export function LoginPage() {
       await login(username, password);
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setError(err.message);
+        if (err.status === 401 || err.message === 'Invalid credentials' || err.message === 'auth.invalidCredentials') {
+          setError(t('auth.invalidCredentials'));
+        } else if (err.status === 0) {
+          setError(t('api.networkError'));
+        } else {
+          setError(err.message || t('auth.error'));
+        }
       } else {
         setError(t('auth.error'));
       }
