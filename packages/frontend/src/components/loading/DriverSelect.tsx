@@ -59,11 +59,29 @@ export function DriverSelect({
       });
       onAssigned();
     } catch (err) {
-      setError(
-        err instanceof ApiClientError
-          ? (err.message === 'scheduleAlreadyExists' ? t('loading.scheduleAlreadyExists') : err.message)
-          : t('loading.saveError')
-      );
+      if (err instanceof ApiClientError) {
+        if (err.message === 'scheduleAlreadyExists') {
+          setError(t('loading.scheduleAlreadyExists'));
+        } else if (err.status === 409) {
+          if (
+            err.message.toLowerCase().includes('veículo') ||
+            err.message.toLowerCase().includes('veiculo') ||
+            err.message.toLowerCase().includes('vehículo') ||
+            err.message.toLowerCase().includes('vehiculo') ||
+            err.message.toLowerCase().includes('vehicle')
+          ) {
+            setError(t('loading.vehicleAlreadyScheduled'));
+          } else {
+            setError(t('loading.driverAlreadyScheduled'));
+          }
+        } else if (err.status === 0) {
+          setError(t('api.networkError'));
+        } else {
+          setError(err.message || t('loading.saveError'));
+        }
+      } else {
+        setError(t('loading.saveError'));
+      }
     } finally {
       setAssigning(false);
     }
