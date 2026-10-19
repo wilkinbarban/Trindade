@@ -310,7 +310,7 @@ class MainActivity : ComponentActivity() {
                                 // El histórico propaga el rol resuelto de sesión para que el
                                 // Administrador pueda realizar correcciones sobre días anteriores.
                                 Tab.STOCK_HISTORY -> StockHistoryScreen(role = role)
-                                Tab.STOCK_COUNTER -> StockCalculatorScreen()
+                                Tab.STOCK_COUNTER -> StockCalculatorScreen(role = role)
                                 Tab.DASHBOARD -> DashboardRoute(
                                     sessionKey = sessionKey,
                                     onOpenReport = { openReportId = it },

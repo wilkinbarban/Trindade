@@ -105,4 +105,24 @@ class StockViewModelTest {
         viewModel.onNumberChange("(11) 99999-8888")
         assertTrue(viewModel.whatsappLink() != null)
     }
+
+    @Test
+    fun `only administrator can edit stock counts`() {
+        assertTrue(StockViewModel.canEdit("Administrador"))
+        assertTrue(!StockViewModel.canEdit("Trabalhador"))
+        assertTrue(!StockViewModel.canEdit(null))
+
+        viewModel.onRoleKnown("Trabalhador")
+        assertEquals(false, viewModel.canEdit())
+
+        viewModel.onQuantityChange("787", "5")
+        viewModel.addEntry(canudo)
+        assertEquals("Apenas administradores podem atualizar o estoque.", viewModel.state.value.note)
+
+        viewModel.resetProduct(canudo)
+        assertEquals("Apenas administradores podem atualizar o estoque.", viewModel.state.value.note)
+
+        viewModel.onRoleKnown("Administrador")
+        assertEquals(true, viewModel.canEdit())
+    }
 }

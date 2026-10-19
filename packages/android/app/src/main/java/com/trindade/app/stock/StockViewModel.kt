@@ -32,6 +32,9 @@ class StockViewModel @Inject constructor(private val repository: StockRepository
     /** The mailbox the plant reads the counts in. Never the author's address. */
     companion object {
         const val EMAIL_TO = "xmitrindade@hotmail.com"
+        const val EDIT_ROLE = "Administrador"
+
+        fun canEdit(role: String?): Boolean = role == EDIT_ROLE
 
         fun saopauloToday(): String {
             val format = SimpleDateFormat("yyyy-MM-dd", Locale.US)
@@ -43,6 +46,7 @@ class StockViewModel @Inject constructor(private val repository: StockRepository
     data class UiState(
         val date: String = saopauloToday(),
         val day: StockDay? = null,
+        val role: String? = null,
         val tab: String? = null,
         val quantities: Map<String, String> = emptyMap(),
         val blurred: Set<String> = emptySet(),
@@ -55,6 +59,12 @@ class StockViewModel @Inject constructor(private val repository: StockRepository
 
     private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state.asStateFlow()
+
+    fun canEdit(): Boolean = canEdit(state.value.role)
+
+    fun onRoleKnown(role: String?) {
+        _state.value = _state.value.copy(role = role)
+    }
 
     /** The catalogue of the day, split into the two sections the counter shows, in the order it arrived. */
     fun groups(): Map<String, List<StockDayProductsInner>> =
@@ -121,6 +131,10 @@ class StockViewModel @Inject constructor(private val repository: StockRepository
     }
 
     fun addEntry(product: StockDayProductsInner) {
+        if (!canEdit()) {
+            onNote("Apenas administradores podem atualizar o estoque.")
+            return
+        }
         val raw = _state.value.quantities[product.code] ?: ""
         if (addDisabled(raw)) {
             onNote("Digite uma quantidade inteira de caixas maior que zero.")
@@ -141,6 +155,10 @@ class StockViewModel @Inject constructor(private val repository: StockRepository
     }
 
     fun resetProduct(product: StockDayProductsInner) {
+        if (!canEdit()) {
+            onNote("Apenas administradores podem atualizar o estoque.")
+            return
+        }
         viewModelScope.launch {
             when (repository.resetProduct(_state.value.date, product.code)) {
                 is StockRepository.WriteResult.Saved -> {

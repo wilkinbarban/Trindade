@@ -40,16 +40,21 @@ import androidx.hilt.navigation.compose.hiltViewModel
  * phone and a table of five columns is a table nobody can read there.
  */
 @Composable
-fun StockCalculatorScreen(viewModel: StockViewModel = hiltViewModel()) {
+fun StockCalculatorScreen(
+    role: String? = null,
+    viewModel: StockViewModel = hiltViewModel(),
+) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     val groups = viewModel.groups()
     val visibleErrors = viewModel.visibleErrors()
+    val canEdit = viewModel.canEdit()
     // La pestaña que se está mostrando, y sus productos: la primera si todavía no se eligió ninguna,
     // porque el servidor ya dijo cuál viene primero en el catálogo.
     val shown = state.tab ?: groups.keys.firstOrNull()
     val active = shown?.let { groups[it] } ?: groups.values.firstOrNull()
 
+    LaunchedEffect(role) { viewModel.onRoleKnown(role) }
     LaunchedEffect(Unit) { viewModel.load() }
 
     Column(
@@ -61,7 +66,8 @@ fun StockCalculatorScreen(viewModel: StockViewModel = hiltViewModel()) {
     ) {
         Text("Calculador de Estoque", style = MaterialTheme.typography.titleLarge)
         Text(
-            "Conte as caixas: o sistema acumula e calcula as unidades.",
+            if (canEdit) "Conte as caixas: o sistema acumula e calcula as unidades."
+            else "Modo de leitura: apenas administradores podem atualizar o estoque.",
             style = MaterialTheme.typography.bodySmall,
         )
 
@@ -121,6 +127,7 @@ fun StockCalculatorScreen(viewModel: StockViewModel = hiltViewModel()) {
                             value = state.quantities[product.code] ?: "",
                             onValueChange = { viewModel.onQuantityChange(product.code, it) },
                             singleLine = true,
+                            enabled = canEdit,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             modifier = Modifier
                                 .width(110.dp)
@@ -131,11 +138,14 @@ fun StockCalculatorScreen(viewModel: StockViewModel = hiltViewModel()) {
                         )
                         Button(
                             onClick = { viewModel.addEntry(product) },
-                            enabled = !addDisabled(state.quantities[product.code] ?: ""),
+                            enabled = canEdit && !addDisabled(state.quantities[product.code] ?: ""),
                         ) {
                             Text("Adicionar")
                         }
-                        Button(onClick = { viewModel.resetProduct(product) }) {
+                        Button(
+                            onClick = { viewModel.resetProduct(product) },
+                            enabled = canEdit,
+                        ) {
                             Text("Resetar")
                         }
                     }
