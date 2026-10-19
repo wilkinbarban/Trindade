@@ -1,5 +1,6 @@
 import i18n from '../i18n/config';
 import { GUEST_READONLY_MESSAGE, isGuestMutationRefusal } from '../lib/guest-readonly';
+import { resolveApiErrorKey, isNetworkError } from '../lib/api-error-normalizer';
 
 const APP_BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 export const API_BASE = `${APP_BASE}/api`;
@@ -126,10 +127,18 @@ async function request<T>(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(apiUrl(path), {
-    ...options,
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(apiUrl(path), {
+      ...options,
+      headers,
+    });
+  } catch (err) {
+    if (isNetworkError(err)) {
+      throw new ApiClientError(0, i18n.t('api.networkError'));
+    }
+    throw err;
+  }
 
   let data: any = null;
   const contentType = response.headers.get('content-type');
@@ -143,16 +152,22 @@ async function request<T>(
       throw new ApiClientError(401, i18n.t('api.sessionExpired'));
     }
 
-    throw new ApiClientError(401, (data && data.error) || i18n.t('api.unauthorized'), data && data.details);
+    const rawError = (data && (data.error || data.message)) || '';
+    const mappedKey = resolveApiErrorKey(401, rawError);
+    const message = mappedKey ? i18n.t(mappedKey) : (rawError || i18n.t('api.unauthorized'));
+
+    throw new ApiClientError(401, message, data && data.details);
   }
 
   if (!response.ok) {
     // Las dos claves: la guarda del invitado responde { message } y el resto de la API responde { error }.
-    const message = (data && (data.message || data.error)) || i18n.t('api.requestFailed');
+    const rawError = (data && (data.message || data.error)) || '';
+    const mappedKey = resolveApiErrorKey(response.status, rawError);
+    const message = mappedKey ? i18n.t(mappedKey) : (rawError || i18n.t('api.requestFailed'));
 
     // El invitado es de solo lectura: se reconoce ESE rechazo -- y solo ese -- para mostrarle el aviso
     // informativo. Cualquier otro error sigue el camino de siempre.
-    if (isGuestMutationRefusal(response.status, message)) {
+    if (isGuestMutationRefusal(response.status, rawError || message)) {
       markGuestReadonlyNotice();
     }
 
@@ -208,11 +223,19 @@ export const api = {
     }
     // Do NOT set Content-Type — browser adds multipart boundary
 
-    const response = await fetch(apiUrl(path), {
-      method: 'POST',
-      headers,
-      body: formData,
-    });
+    let response: Response;
+    try {
+      response = await fetch(apiUrl(path), {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+    } catch (err) {
+      if (isNetworkError(err)) {
+        throw new ApiClientError(0, i18n.t('api.networkError'));
+      }
+      throw err;
+    }
 
     let data: any = null;
     const contentType = response.headers.get('content-type');
@@ -226,13 +249,21 @@ export const api = {
         throw new ApiClientError(401, i18n.t('api.sessionExpired'));
       }
 
-      throw new ApiClientError(401, (data && data.error) || i18n.t('api.unauthorized'), data && data.details);
+      const rawError = (data && (data.error || data.message)) || '';
+      const mappedKey = resolveApiErrorKey(401, rawError);
+      const message = mappedKey ? i18n.t(mappedKey) : (rawError || i18n.t('api.unauthorized'));
+
+      throw new ApiClientError(401, message, data && data.details);
     }
 
     if (!response.ok) {
+      const rawError = (data && (data.message || data.error)) || '';
+      const mappedKey = resolveApiErrorKey(response.status, rawError);
+      const message = mappedKey ? i18n.t(mappedKey) : (rawError || i18n.t('api.uploadFailed'));
+
       throw new ApiClientError(
         response.status,
-        (data && data.error) || i18n.t('api.uploadFailed'),
+        message,
         data && data.details
       );
     }
