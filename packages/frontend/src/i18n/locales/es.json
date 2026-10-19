@@ -20,7 +20,10 @@
     "currentPassword": "Contraseña Actual",
     "newPassword": "Nueva Contraseña",
     "changePasswordSuccess": "Contraseña cambiada con éxito",
-    "changePasswordError": "Error al cambiar la contraseña. Intente nuevamente."
+    "changePasswordError": "Error al cambiar la contraseña. Intente nuevamente.",
+    "invalidCredentials": "Usuario o contraseña incorrectos.",
+    "invalidCurrentPassword": "Contraseña actual incorrecta.",
+    "passwordChangedRelogin": "La contraseña o la cuenta ha cambiado; inicie sesión nuevamente."
   },
   "dashboard": {
     "activeSchedule": "Cronograma activo",
@@ -74,7 +77,8 @@
     "deletePermanently": "Eliminar permanentemente",
     "switchLanguage": "Cambiar idioma",
     "back": "Volver",
-    "share": "Compartir"
+    "share": "Compartir",
+    "error": "Ocurrió un error inesperado."
   },
   "reports": {
     "newReport": "Nuevo Reporte",
@@ -183,7 +187,9 @@
     "historyDesc": "Todos los cargamentos, con filtros y acciones permitidas por el servidor.",
     "sendToFletero": "Enviar directo al fletero",
     "shareCopied": "Texto copiado para compartir.",
-    "shareUnavailable": "Este navegador no puede compartir ni copiar."
+    "shareUnavailable": "Este navegador no puede compartir ni copiar.",
+    "driverAlreadyScheduled": "Conductor ya programado en este lote de carga.",
+    "vehicleAlreadyScheduled": "Vehículo ya programado en esta fecha."
   },
   "admin": {
     "title": "Administración",
@@ -297,11 +303,12 @@
       "form": {
         "username": "Nombre de Usuario",
         "displayName": "Nombre para Mostrar",
-        "password": "Contraseña (mínimo 4 caracteres)",
+        "password": "Contraseña (mínimo 15 caracteres visibles)",
         "role": "Rol",
         "roleAdmin": "Administrador",
         "roleWorker": "Trabajador"
-      }
+      },
+      "userAlreadyExists": "Este nombre de usuario ya está en uso."
     },
     "limitedTitle": "Panel del Trabajador",
     "readOnly": "Solo lectura",
@@ -400,7 +407,10 @@
     "uploadFailed": "No se pudo enviar el archivo. Intentá de nuevo.",
     "sessionExpired": "La sesión expiró. Volvé a entrar para continuar.",
     "unauthorized": "Necesitás iniciar sesión para continuar.",
-    "requestFailed": "No se pudo completar la solicitud. Intentá de nuevo."
+    "requestFailed": "No se pudo completar la solicitud. Intentá de nuevo.",
+    "networkError": "No se pudo conectar al servidor. Verifique su conexión.",
+    "forbidden": "No tienes permiso para realizar esta acción.",
+    "invalidInput": "Verifique los datos ingresados e intente nuevamente."
   },
   "assai": {
     "blocked": "Corregí las cantidades para poder enviar.",
@@ -464,12 +474,16 @@
     "total": "Total del día",
     "unavailable": "Este navegador no puede abrir ni copiar.",
     "units": "Unidades",
-    "unitsWord": "unidades"
+    "unitsWord": "unidades",
+    "adminOnly": "Acción reservada para Administradores."
   },
   "guest": {
     "readonlyTitle": "Modo Solo Lectura",
     "readonlyDismiss": "Entendido",
     "readonlyGoToLogin": "Ir al Login",
     "readonlyBody": "Es necesario registrar un usuario en la página de inicio de sesión para realizar acciones."
+  },
+  "admin.workers": {
+    "userAlreadyExists": "Este nombre de usuario ya está en uso."
   }
 }
