@@ -427,6 +427,16 @@ class ReportGeneratorViewModelTest {
         assertEquals(true, model.state.value.message!!.contains("incompleto", ignoreCase = true))
     }
 
+    @Test
+    fun `a 400 with Invalid input from schema validator is reported as incomplete rather than raw English`() {
+        val api = FakeReportsApi(createResponse = Response.error(400, jsonBody("Invalid input")))
+        val model = viewModel(api)
+        fillTemperatures(model)
+        model.submit()
+
+        assertEquals(true, model.state.value.message!!.contains("incompleto", ignoreCase = true))
+    }
+
     /**
      * The production shape, counted in readings and not in tasks.
      *

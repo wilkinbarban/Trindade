@@ -530,11 +530,9 @@ class ProfileViewModel @Inject constructor(
                 }
 
                 is PasswordChangeResult.Rejected -> _state.update {
-                    // The server's own sentence, and nothing of this app's on top of it. A wrong current
-                    // password answers `{ error: 'Invalid current password' }` and that sentence is the
-                    // whole of what the operator has to act on. Both fields are kept: the one that was
-                    // refused is theirs to correct.
-                    it.copy(changing = false, message = result.message)
+                    // The server's own sentence, normalized to localized copy if technical.
+                    val message = AuthRepository.normalizeServerAuthError(result.message) ?: result.message
+                    it.copy(changing = false, message = message)
                 }
 
                 PasswordChangeResult.Unreachable -> _state.update {

@@ -159,7 +159,9 @@ class AuthRepository @Inject constructor(
             return LoginResult.Success
         }
 
-        return LoginResult.Rejected(message = response.errorMessage() ?: GENERIC_REJECTION)
+        val rawMessage = response.errorMessage()
+        val normalized = normalizeServerAuthError(rawMessage)
+        return LoginResult.Rejected(message = normalized ?: GENERIC_REJECTION)
     }
 
     /**
@@ -305,7 +307,8 @@ class AuthRepository @Inject constructor(
 
         if (response.isSuccessful) return PasswordChangeResult.Changed
 
-        return PasswordChangeResult.Rejected(response.errorMessage() ?: fallbackRefusal(response.code()))
+        val raw = response.errorMessage() ?: fallbackRefusal(response.code())
+        return PasswordChangeResult.Rejected(normalizeServerAuthError(raw) ?: raw)
     }
 
     /**
@@ -316,7 +319,7 @@ class AuthRepository @Inject constructor(
      * for it would be inventing one.
      */
     private fun fallbackRefusal(statusCode: Int): String = when (statusCode) {
-        400 -> CHECK_CURRENT_PASSWORD
+        400 -> "A senha atual está incorreta."
         else -> GENERIC
     }
 
@@ -453,19 +456,44 @@ class AuthRepository @Inject constructor(
         return envelope.message?.takeIf { it.isNotBlank() } ?: envelope.error.takeIf { it.isNotBlank() }
     }
 
-    private companion object {
-        const val GENERIC_REJECTION = "Não foi possível entrar. Verifique os dados e tente de novo."
-        const val GENERIC = "Não foi possível concluir. Tente de novo."
-        const val CHECK_CURRENT_PASSWORD = "Confira a senha atual e tente de novo."
+    companion object {
+        fun normalizeServerAuthError(raw: String?): String? {
+            if (raw == null) return null
+            val trimmed = raw.trim()
+            return when {
+                trimmed.equals("Invalid current password", ignoreCase = true) ->
+                    "A senha atual está incorreta."
+                trimmed.equals("Password or account changed; sign in again", ignoreCase = true) ->
+                    "Senha ou conta alterada; faça login novamente."
+                trimmed.equals("Invalid credentials", ignoreCase = true) ->
+                    "Usuário ou senha inválidos."
+                trimmed.equals("Invalid input", ignoreCase = true) ->
+                    "Dados inválidos. Verifique as informações e tente novamente."
+                trimmed.equals("Insufficient permissions", ignoreCase = true) ->
+                    "Acesso restrito a administradores."
+                trimmed.equals("User not found", ignoreCase = true) ->
+                    "Usuário não encontrado."
+                trimmed.equals("Session expired", ignoreCase = true) ->
+                    "Sessão expirada. Faça login novamente."
+                trimmed.contains("UNIQUE constraint failed", ignoreCase = true) ||
+                    trimmed.contains("already exists", ignoreCase = true) ->
+                    "Este nome de usuário já está em uso."
+                else -> raw
+            }
+        }
+
+        private const val GENERIC_REJECTION = "Não foi possível entrar. Verifique os dados e tente de novo."
+        private const val GENERIC = "Não foi possível concluir. Tente de novo."
+        private const val CHECK_CURRENT_PASSWORD = "Confira a senha atual e tente de novo."
 
         /**
          * The schema validator's default refusal for a payload it could not read: English, and it names no
          * field, so it is the one refusal this client does not repeat. Matched literally rather than by
          * pattern, because the whole claim is that this exact untranslatable sentence is the one replaced.
          */
-        const val BACKEND_INVALID_INPUT = "Invalid input"
+        private const val BACKEND_INVALID_INPUT = "Invalid input"
 
-        const val REGISTER_SUCCESS_DEFAULT =
+        private const val REGISTER_SUCCESS_DEFAULT =
             "Solicitação de cadastro recebida. Se o acesso for aprovado pelo administrador, a conta será ativada. Entre em contato com a administração se não conseguir acessar."
     }
 }

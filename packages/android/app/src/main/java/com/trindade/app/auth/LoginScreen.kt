@@ -184,10 +184,10 @@ fun LoginScreen(
                 Spacer(Modifier.height(12.dp))
                 Text(
                     text = when (message) {
-                        is LoginMessage.FromServer -> if (message.text == "Invalid credentials") {
-                            stringResource(R.string.login_invalid_credentials)
-                        } else {
-                            message.text
+                        is LoginMessage.FromServer -> when {
+                            message.text == "Invalid credentials" || message.text == "Usuário ou senha inválidos." ->
+                                stringResource(R.string.login_invalid_credentials)
+                            else -> AuthRepository.normalizeServerAuthError(message.text) ?: message.text
                         }
                         else -> stringResource(appSentenceOf(message))
                     },

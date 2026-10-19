@@ -255,9 +255,9 @@ class ProfileViewModelTest {
         model.onNewPasswordChange("novasenha123456")
         model.changePassword()
 
-        // Asserted against a sentence that is neither this app's fallback nor its generic one: if the
-        // envelope failed to decode, this reads the fallback and fails loudly rather than measuring it.
-        assertEquals("Invalid current password", model.state.value.message)
+        // Asserted against a normalized localized sentence: if the raw envelope carries
+        // "Invalid current password", the user sees the clear Portuguese sentence.
+        assertEquals("A senha atual está incorreta.", model.state.value.message)
         assertEquals(false, model.state.value.signedOut)
         // The refused password is still there, because it is theirs to correct.
         assertEquals("errada", model.state.value.currentPassword)

@@ -104,10 +104,10 @@ class LoginViewModelTest {
         model.onPasswordChange("segredo")
         model.submit()
 
-        // Asserted as an equality against a different sentence than the fallback: if the envelope
+        // Asserted as an equality against a normalized localized sentence: if the envelope
         // failed to decode, this reads GENERIC_REJECTION and the test fails loudly rather than
         // measuring the fallback and calling it the behaviour.
-        assertEquals(LoginMessage.FromServer("Invalid credentials"), model.state.value.message)
+        assertEquals(LoginMessage.FromServer("Usuário ou senha inválidos."), model.state.value.message)
         assertEquals(false, model.state.value.signedIn)
     }
 

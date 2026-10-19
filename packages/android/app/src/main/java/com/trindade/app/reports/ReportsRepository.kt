@@ -214,7 +214,12 @@ class ReportsRepository @Inject constructor(
             ?.takeIf { it.isNotBlank() }
             ?.let { body -> runCatching { refusalJson.decodeFromString<RefusalEnvelope>(body) }.getOrNull() }
             ?.let { envelope ->
-                envelope.message?.takeIf { it.isNotBlank() } ?: envelope.error?.takeIf { it.isNotBlank() }
+                val raw = envelope.message?.takeIf { it.isNotBlank() } ?: envelope.error?.takeIf { it.isNotBlank() }
+                if (raw != null && raw.equals("Invalid input", ignoreCase = true)) {
+                    null
+                } else {
+                    raw
+                }
             }
 }
 
