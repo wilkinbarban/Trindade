@@ -14,6 +14,17 @@ Calcula um pedido de compra. A regra, em `packages/frontend/src/lib/assai.ts` (w
 - O aviso por produto aparece **depois de o operador sair do campo** e apaga-se ao reentrar para corrigir:
   enquanto se digita, uma quantidade está a ser escrita.
 - A exportação sai com uma linha por produto e o total, sem a quantidade por caixa.
+- **Seleção de dia da semana**: permite associar o pedido opcionalmente a *Terça-feira*, *Quinta-feira*,
+  *Sexta-feira* ou *Sábado*, refletindo no cabeçalho `🛒 Pedido Assaí <Dia>`.
+
+## Módulo de Compartilhamento (Compartilhar App)
+
+Permite enviar os links oficiais de acesso ao Trindade Massas via WhatsApp e copiar para a área de transferência:
+- **Plataformas**: Android (APK direto), iPhone / Web (navegador) e Ambos.
+- **Credenciais oficiais (Administrador)**: listagem de usuários do sistema, preenchimento de usuário e senha
+  inicial editável (padrão `123456789`). Operadores não-administradores não visualizam nem anexam credenciais.
+- **Entrada telefônica padronizada**: máscara progressiva `(11) 9XXXX-XXXX` com normalização internacional automática
+  com prefixo `55` para abertura da API do WhatsApp (`wa.me` / `api.whatsapp.com`).
 
 ## Calculador de Estoque
 
