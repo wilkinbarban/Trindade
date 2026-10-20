@@ -108,6 +108,15 @@ import {
 } from '../modules/stock/stock.schema.js';
 import { LatestReleaseResponseSchema } from '../modules/app/app.schema.js';
 import {
+  MassaIndividualLaunchSchema,
+  MassaProductTotalSchema,
+  MassasLaunchCreateBodySchema,
+  MassasLaunchCreateResponseSchema,
+  MassasLaunchDayViewSchema,
+  MassasLaunchDeleteResponseSchema,
+  MassasLaunchUpdateBodySchema,
+} from '../modules/massas/massas.schema.js';
+import {
   HealthResponseSchema,
   PaginationSchema,
   SuccessResponseSchema,
@@ -295,6 +304,13 @@ registerComponent(registry, 'StockHistory', StockHistorySchema);
   registerComponent(registry, 'HealthResponse', HealthResponseSchema);
   registerComponent(registry, 'UserOptionsResponse', UserOptionsResponseSchema);
   registerComponent(registry, 'LatestReleaseResponse', LatestReleaseResponseSchema);
+  registerComponent(registry, 'MassaProductTotal', MassaProductTotalSchema);
+  registerComponent(registry, 'MassaIndividualLaunch', MassaIndividualLaunchSchema);
+  registerComponent(registry, 'MassasLaunchDayView', MassasLaunchDayViewSchema);
+  registerComponent(registry, 'MassasLaunchCreateRequest', MassasLaunchCreateBodySchema);
+  registerComponent(registry, 'MassasLaunchCreateResponse', MassasLaunchCreateResponseSchema);
+  registerComponent(registry, 'MassasLaunchUpdateRequest', MassasLaunchUpdateBodySchema);
+  registerComponent(registry, 'MassasLaunchDeleteResponse', MassasLaunchDeleteResponseSchema);
 
   // Response envelopes. These existed as schemas and were used in the paths below, but were never
   // registered, so every one of them was expanded inline and a generated client got an unnamed
@@ -1428,6 +1444,70 @@ registerComponent(registry, 'StockHistory', StockHistorySchema);
     responses: {
       200: jsonResponse('The counted days', StockHistorySchema),
       401: UNAUTHORIZED,
+    },
+  });
+
+  const MASSA_LAUNCH_ID_PARAMS = z.object({ id: z.string() });
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/massas-launch',
+    summary: 'Read a day of massas launch',
+    description: 'Answers 10 massas products with collective totals and individual user launches for the day.',
+    tags: ['massas'],
+    responses: {
+      200: jsonResponse('The day view with collective totals and individual launches', MassasLaunchDayViewSchema),
+      401: UNAUTHORIZED,
+    },
+  });
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/massas-launch',
+    summary: 'Register massas launches for the authenticated user',
+    tags: ['massas'],
+    request: jsonRequest(MassasLaunchCreateBodySchema),
+    responses: {
+      201: jsonResponse('The created launches', MassasLaunchCreateResponseSchema),
+      400: INVALID_INPUT,
+      401: UNAUTHORIZED,
+    },
+  });
+
+  registry.registerPath({
+    method: 'put',
+    path: '/api/massas-launch/{id}',
+    summary: 'Update boxes of a massas launch',
+    description: 'Validates that the authenticated user owns the launch; answers 403 if it belongs to another user.',
+    tags: ['massas'],
+    request: {
+      params: MASSA_LAUNCH_ID_PARAMS,
+      ...jsonRequest(MassasLaunchUpdateBodySchema),
+    },
+    responses: {
+      200: jsonResponse('The updated launch', MassaIndividualLaunchSchema),
+      400: INVALID_INPUT,
+      401: UNAUTHORIZED,
+      403: errorResponse('The launch belongs to another user'),
+      404: errorResponse('The launch does not exist'),
+    },
+  });
+
+  registry.registerPath({
+    method: 'delete',
+    path: '/api/massas-launch/{id}',
+    summary: 'Delete a massas launch',
+    description: 'Validates that the authenticated user owns the launch; answers 403 if it belongs to another user.',
+    tags: ['massas'],
+    request: {
+      params: MASSA_LAUNCH_ID_PARAMS,
+    },
+    responses: {
+      200: jsonResponse('Deletion confirmation', MassasLaunchDeleteResponseSchema),
+      400: INVALID_INPUT,
+      401: UNAUTHORIZED,
+      403: errorResponse('The launch belongs to another user'),
+      404: errorResponse('The launch does not exist'),
     },
   });
 

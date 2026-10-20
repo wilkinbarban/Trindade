@@ -50,6 +50,8 @@ const EXPECTED_PATHS = [
   '/api/loading/schedules/{id}/deactivate',
   '/api/loading/time-slots',
   '/api/loading/vehicles',
+  '/api/massas-launch',
+  '/api/massas-launch/{id}',
   '/api/reports',
   '/api/reports/categories',
   '/api/reports/history',
