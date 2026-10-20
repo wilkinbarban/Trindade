@@ -193,6 +193,12 @@ export function DashboardPage() {
           icon="🚛"
         />
         <SummaryCard
+          title={t('dashboard.massasLaunch')}
+          value={<span className="text-sm text-gray-500">{t('dashboard.massasLaunchHint')}</span>}
+          icon="🍝"
+          to="/massas-launch"
+        />
+        <SummaryCard
           title={t('dashboard.stock')}
           value={<span className="text-sm text-gray-500">{t('dashboard.stockHint')}</span>}
           icon="📦"

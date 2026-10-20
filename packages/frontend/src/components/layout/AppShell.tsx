@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { DeveloperCredit } from '../ui/DeveloperCredit';
 import { useTranslation } from 'react-i18next';
-import { LucideMenu, LucideX, LayoutDashboard, ClipboardList, Truck, MessageCircle, Clock, ShieldCheck, History, Share2 } from 'lucide-react';
+import { LucideMenu, LucideX, LayoutDashboard, ClipboardList, Truck, MessageCircle, Clock, ShieldCheck, History, Share2, Layers } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../ui/button';
 
@@ -105,6 +105,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             label={t('nav.loadingSchedule')}
             excludedActivePrefixes={['/loading/reports-history', '/loading/history']}
           />
+          <NavItem href="/massas-launch" icon={<Layers className="h-4 w-4" />} label={t('nav.massasLaunch')} />
           <NavItem href="/assai-calculator" icon={<ClipboardList className="h-4 w-4" />} label={t('nav.assai')} />
           <NavItem href="/stock-calculator" icon={<ClipboardList className="h-4 w-4" />} label={t('nav.stock')} />
           <NavItem href="/stock-history" icon={<ClipboardList className="h-4 w-4" />} label={t('nav.stockHistory')} />
