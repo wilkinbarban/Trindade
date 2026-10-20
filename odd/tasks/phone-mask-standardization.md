@@ -24,7 +24,7 @@ S3. «Tests & Calidad:
 | ID | Tarea | Specs | Estado | Evidencia |
 | --- | --- | --- | --- | --- |
 | T1 | Centralizar formatPhoneMask y toWhatsAppNumber en lib/phone.ts con reexport en lib/share-app.ts y tests unitarios | S1, S3 | hecha | `abfb4cf` (91 líneas); retrocompatibilidad total, 22 tests unitarios verdes |
-| T2 | Aplicar máscara, atributos tel y toWhatsAppNumber en AssaiCalculatorPage, StockCalculatorPage y StockHistoryPage | S2, S3 | pendiente | - |
+| T2 | Aplicar máscara, atributos tel y toWhatsAppNumber en AssaiCalculatorPage, StockCalculatorPage y StockHistoryPage | S2, S3 | hecha | `d0d0514` (33 líneas); inputs con type/inputMode/autoComplete="tel", placeholder="(11) 9XXXX-XXXX", formatPhoneMask en vivo y toWhatsAppNumber |
 | T3 | Verificación completa (typecheck, tests), git push y despliegue del servicio web en Docker con comprobación curl | S3 | pendiente | - |
 
 ## Log
