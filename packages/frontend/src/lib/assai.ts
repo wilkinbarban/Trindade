@@ -116,21 +116,35 @@ export function assaiTotalBoxes(lines: readonly AssaiLine[]): number {
     .reduce((total, line) => total + line.boxes, 0);
 }
 
+/** Valid weekdays for Assaí order reporting */
+export const ASSAI_WEEKDAYS = [
+  'Terça-feira',
+  'Quinta-feira',
+  'Sexta-feira',
+  'Sábado',
+] as const;
+
+export type AssaiWeekday = (typeof ASSAI_WEEKDAYS)[number];
+
 /**
  * The message that goes out, which is the order and nothing else: one line per product being ordered, with
  * its boxes and its units, and the total at the end. A product nobody is ordering is not named -- a list of
  * zeros is not an order, and the driver reading it would have to work out which lines matter.
+ *
+ * When an optional weekday is specified, it is attached to the header (e.g. "🛒 Pedido Assaí Sexta-feira").
  */
-export function assaiMessage(lines: readonly AssaiLine[]): string {
+export function assaiMessage(lines: readonly AssaiLine[], day?: string | null): string {
   const ordered = lines.filter((line) => line.filled && line.exact);
+  const trimmedDay = day?.trim();
+  const header = trimmedDay ? `🛒 Pedido Assaí ${trimmedDay}` : '🛒 Pedido Assaí';
 
   if (ordered.length === 0) {
-    return '🛒 Pedido Assaí\nNenhum produto com quantidade informada.';
+    return `${header}\nNenhum produto com quantidade informada.`;
   }
 
   const rows = ordered.map((line) => `${line.product}: ${line.boxes} caixas`);
   return [
-    '🛒 Pedido Assaí',
+    header,
     '',
     ...rows,
     '',

@@ -78,6 +78,26 @@ describe('assaiMessage', () => {
   it('avisa que nao ha pedido em vez de mandar uma mensagem vazia', () => {
     assert.ok(assaiMessage(assaiLines({})).includes('Nenhum produto'));
   });
+
+  it('inclui o dia da semana no cabecalho quando informado', () => {
+    const comDia = assaiMessage(assaiLines({ [nhoque]: '30' }), 'Sexta-feira');
+    assert.ok(comDia.startsWith('🛒 Pedido Assaí Sexta-feira\n'));
+    assert.ok(comDia.includes('Nhoque 1kg: 2 caixas'));
+
+    const vazioComDia = assaiMessage(assaiLines({}), 'Quinta-feira');
+    assert.equal(vazioComDia, '🛒 Pedido Assaí Quinta-feira\nNenhum produto com quantidade informada.');
+  });
+
+  it('mantem o cabecalho padrao quando o dia e omitido, nulo ou espaco em branco', () => {
+    const semDia = assaiMessage(assaiLines({ [nhoque]: '30' }));
+    assert.ok(semDia.startsWith('🛒 Pedido Assaí\n'));
+
+    const comNulo = assaiMessage(assaiLines({ [nhoque]: '30' }), null);
+    assert.ok(comNulo.startsWith('🛒 Pedido Assaí\n'));
+
+    const comBranco = assaiMessage(assaiLines({ [nhoque]: '30' }), '   ');
+    assert.ok(comBranco.startsWith('🛒 Pedido Assaí\n'));
+  });
 });
 
 describe('cuando se muestra el error de una linea', () => {
