@@ -54,4 +54,47 @@ class PhoneInputTest {
         assertEquals("1198888", filterPhoneInput("11abc98888"))
         assertEquals("11", filterPhoneInput("📞11"))
     }
+
+    @Test
+    fun `formatPhoneMask formats 11 digits into standard Brazilian mask`() {
+        assertEquals("(11) 98888-7777", formatPhoneMask("11988887777"))
+    }
+
+    @Test
+    fun `formatPhoneMask formats progressively as digits are typed`() {
+        assertEquals("(1", formatPhoneMask("1"))
+        assertEquals("(11) ", formatPhoneMask("11"))
+        assertEquals("(11) 9", formatPhoneMask("119"))
+        assertEquals("(11) 9888", formatPhoneMask("119888"))
+        assertEquals("(11) 98888", formatPhoneMask("1198888"))
+        assertEquals("(11) 98888-7777", formatPhoneMask("11988887777"))
+    }
+
+    @Test
+    fun `formatPhoneMask handles 55 country prefix and limits to 11 digits`() {
+        assertEquals("(11) 98888-7777", formatPhoneMask("+55 (11) 98888-7777"))
+        assertEquals("(11) 98888-7777", formatPhoneMask("5511988887777999"))
+        assertEquals("", formatPhoneMask(""))
+        assertEquals("", formatPhoneMask("abc"))
+    }
+
+    @Test
+    fun `toWhatsAppNumber prepends 55 to 10 or 11 digit numbers without it`() {
+        assertEquals("5511988887777", toWhatsAppNumber("(11) 98888-7777"))
+        assertEquals("551133334444", toWhatsAppNumber("(11) 3333-4444"))
+        assertEquals("5511988887777", toWhatsAppNumber("11988887777"))
+    }
+
+    @Test
+    fun `toWhatsAppNumber preserves 55 if already present`() {
+        assertEquals("5511988887777", toWhatsAppNumber("+55 11 98888-7777"))
+        assertEquals("5511988887777", toWhatsAppNumber("5511988887777"))
+    }
+
+    @Test
+    fun `toWhatsAppNumber returns empty if no digits found`() {
+        assertEquals("", toWhatsAppNumber(""))
+        assertEquals("", toWhatsAppNumber("   "))
+        assertEquals("", toWhatsAppNumber("abc"))
+    }
 }

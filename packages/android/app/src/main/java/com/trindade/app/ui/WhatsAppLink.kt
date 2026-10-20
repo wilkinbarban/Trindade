@@ -28,7 +28,7 @@ fun waMeNumber(phone: String): String = phone.filter { it in '0'..'9' }
  * the offer only when this answers with a link.
  */
 fun waMeLink(phone: String, text: String): String? {
-    val number = waMeNumber(phone)
+    val number = toWhatsAppNumber(phone)
     if (number.isEmpty()) return null
     // URLEncoder writes a space as `+`, which is a form-encoding convention; a URL wants `%20`, and the
     // export text carries line breaks, emoji and colons that each have to arrive as the operator saw them.

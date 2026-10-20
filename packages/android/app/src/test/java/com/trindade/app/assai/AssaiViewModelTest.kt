@@ -80,6 +80,6 @@ class AssaiViewModelTest {
 
         vm.onNumberChange("(11) 99999-8888")
         val link = vm.whatsappLink()
-        assertTrue(link != null && link.startsWith("https://api.whatsapp.com/send?phone=11999998888"))
+        assertTrue(link != null && link.startsWith("https://api.whatsapp.com/send?phone=5511999998888"))
     }
 }

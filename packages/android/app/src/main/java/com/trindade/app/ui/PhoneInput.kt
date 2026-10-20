@@ -31,3 +31,35 @@ fun filterPhoneInput(raw: String): String = raw.replace(NOT_A_NUMBER_CHARACTER, 
  * trim, so a pasted number is saved without the padding around it.
  */
 fun cleanPhone(raw: String): String = filterPhoneInput(raw).replace(RUNS_OF_SPACES, " ").trim()
+
+/**
+ * Formats a Brazilian phone number progressively into (XX) 9XXXX-XXXX or (XX) XXXX-XXXX.
+ * Trims extraneous country codes or excessive digits past 11 digits.
+ */
+fun formatPhoneMask(raw: String): String {
+    var digits = raw.filter { it in '0'..'9' }
+    if (digits.startsWith("55") && digits.length > 11) {
+        digits = digits.substring(2)
+    }
+    if (digits.length > 11) {
+        digits = digits.substring(0, 11)
+    }
+
+    if (digits.isEmpty()) return ""
+    if (digits.length <= 2) return "($digits" + if (digits.length == 2) ") " else ""
+    if (digits.length <= 7) return "(${digits.substring(0, 2)}) ${digits.substring(2)}"
+    return "(${digits.substring(0, 2)}) ${digits.substring(2, 7)}-${digits.substring(7)}"
+}
+
+/**
+ * Normalizes a Brazilian phone number to pure digits with international country code (55).
+ * If the number is 10 or 11 digits without 55, prepends 55 for WhatsApp API compatibility.
+ */
+fun toWhatsAppNumber(phone: String): String {
+    val digits = phone.filter { it in '0'..'9' }
+    if (digits.isEmpty()) return ""
+    if ((digits.length == 10 || digits.length == 11) && !digits.startsWith("55")) {
+        return "55$digits"
+    }
+    return digits
+}

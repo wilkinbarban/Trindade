@@ -35,6 +35,11 @@ class WhatsAppLinkTest {
             "https://api.whatsapp.com/send?phone=5511988887777&text=CRONOGRAMA%20da%20segunda",
             waMeLink("5511988887777", "CRONOGRAMA da segunda"),
         )
+        // Brazilian phone without 55 gets 55 prepended automatically
+        assertEquals(
+            "https://api.whatsapp.com/send?phone=5511988887777&text=CRONOGRAMA%20da%20segunda",
+            waMeLink("(11) 98888-7777", "CRONOGRAMA da segunda"),
+        )
         // A space is a `+` in form encoding and a `%20` in a URL, and this is a URL: the export text
         // carries emoji and line breaks, and each has to survive the trip as the operator saw them.
         assertEquals(
