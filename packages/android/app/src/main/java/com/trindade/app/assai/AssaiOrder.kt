@@ -27,6 +27,14 @@ val ASSAI_PRODUCTS: List<AssaiProduct> = listOf(
     AssaiProduct("Rolo 2kg", 10),
 )
 
+/** The allowed weekdays for Assaí order reporting. */
+val ASSAI_WEEKDAYS: List<String> = listOf(
+    "Terça-feira",
+    "Quinta-feira",
+    "Sexta-feira",
+    "Sábado",
+)
+
 /**
  * One line of the order, already judged.
  *
@@ -81,11 +89,13 @@ fun assaiVisibleErrors(lines: List<AssaiLine>, blurred: Set<String>, focused: St
         .map { it.product }
 
 /** The message the order travels with: one line per product, and the total at the end. */
-fun assaiMessage(lines: List<AssaiLine>): String {
+fun assaiMessage(lines: List<AssaiLine>, day: String? = null): String {
+    val trimmedDay = day?.trim().orEmpty()
+    val header = if (trimmedDay.isNotEmpty()) "🛒 Pedido Assaí $trimmedDay" else "🛒 Pedido Assaí"
     val ordered = lines.filter { it.filled && it.exact }
     if (ordered.isEmpty()) {
-        return "🛒 Pedido Assaí\nNenhum produto com quantidade informada."
+        return "$header\nNenhum produto com quantidade informada."
     }
     val rows = ordered.joinToString("\n") { "${it.product}: ${it.boxes} caixas" }
-    return "🛒 Pedido Assaí\n\n$rows\n\nTotal: ${assaiTotalBoxes(lines)} caixas"
+    return "$header\n\n$rows\n\nTotal: ${assaiTotalBoxes(lines)} caixas"
 }

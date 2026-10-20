@@ -13,6 +13,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -95,6 +96,46 @@ fun AssaiCalculatorScreen(viewModel: AssaiViewModel = hiltViewModel()) {
                                 },
                         )
                     }
+                }
+            }
+        }
+
+        Card {
+            Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Dia da semana (opcional)", style = MaterialTheme.typography.bodySmall)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    FilterChip(
+                        selected = state.selectedDay == "Terça-feira",
+                        onClick = { viewModel.onDaySelect("Terça-feira") },
+                        label = { Text("Terça-feira") },
+                        modifier = Modifier.weight(1f),
+                    )
+                    FilterChip(
+                        selected = state.selectedDay == "Quinta-feira",
+                        onClick = { viewModel.onDaySelect("Quinta-feira") },
+                        label = { Text("Quinta-feira") },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    FilterChip(
+                        selected = state.selectedDay == "Sexta-feira",
+                        onClick = { viewModel.onDaySelect("Sexta-feira") },
+                        label = { Text("Sexta-feira") },
+                        modifier = Modifier.weight(1f),
+                    )
+                    FilterChip(
+                        selected = state.selectedDay == "Sábado",
+                        onClick = { viewModel.onDaySelect("Sábado") },
+                        label = { Text("Sábado") },
+                        modifier = Modifier.weight(1f),
+                    )
                 }
             }
         }

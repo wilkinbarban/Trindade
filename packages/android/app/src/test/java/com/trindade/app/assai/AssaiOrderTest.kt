@@ -64,6 +64,27 @@ class AssaiOrderTest {
     }
 
     @Test
+    fun `the message includes weekday when provided`() {
+        val lines = assaiLines(mapOf("Nhoque 1kg" to "30"))
+        val comDia = assaiMessage(lines, "Sexta-feira")
+        assertTrue(comDia.startsWith("🛒 Pedido Assaí Sexta-feira\n"))
+
+        val semDia = assaiMessage(lines, null)
+        assertTrue(semDia.startsWith("🛒 Pedido Assaí\n"))
+
+        val comBranco = assaiMessage(lines, "   ")
+        assertTrue(comBranco.startsWith("🛒 Pedido Assaí\n"))
+
+        val vazioComDia = assaiMessage(assaiLines(emptyMap()), "Quinta-feira")
+        assertEquals("🛒 Pedido Assaí Quinta-feira\nNenhum produto com quantidade informada.", vazioComDia)
+    }
+
+    @Test
+    fun `the allowed weekdays list is strictly defined`() {
+        assertEquals(listOf("Terça-feira", "Quinta-feira", "Sexta-feira", "Sábado"), ASSAI_WEEKDAYS)
+    }
+
+    @Test
     fun `the warning waits for the field to be left and leaves when it is re-entered`() {
         val lines = assaiLines(mapOf("Quadrada" to "20"))
         assertTrue(assaiHasError(lines))

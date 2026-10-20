@@ -23,6 +23,7 @@ class AssaiViewModel @Inject constructor() : ViewModel() {
         val quantities: Map<String, String> = emptyMap(),
         val blurred: Set<String> = emptySet(),
         val focused: String? = null,
+        val selectedDay: String? = null,
         val freeNumber: String = "",
         val note: String = "",
     )
@@ -41,7 +42,7 @@ class AssaiViewModel @Inject constructor() : ViewModel() {
 
     fun hasError(): Boolean = assaiHasError(lines())
 
-    fun message(): String = assaiMessage(lines())
+    fun message(): String = assaiMessage(lines(), state.value.selectedDay)
 
     /**
      * The chat link for the order, or nothing when there is no usable number.
@@ -68,6 +69,12 @@ class AssaiViewModel @Inject constructor() : ViewModel() {
 
     fun onNumberChange(value: String) {
         _state.value = _state.value.copy(freeNumber = value)
+    }
+
+    fun onDaySelect(day: String?) {
+        _state.value = _state.value.copy(
+            selectedDay = if (_state.value.selectedDay == day) null else day
+        )
     }
 
     fun onNote(text: String) {

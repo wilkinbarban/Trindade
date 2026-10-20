@@ -57,6 +57,22 @@ class AssaiViewModelTest {
     }
 
     @Test
+    fun `selecting a day updates the message header and toggling it clears it`() {
+        val vm = AssaiViewModel()
+        vm.onQuantityChange("Nhoque 1kg", "30")
+        assertTrue(vm.message().startsWith("🛒 Pedido Assaí\n"))
+
+        vm.onDaySelect("Sexta-feira")
+        assertEquals("Sexta-feira", vm.state.value.selectedDay)
+        assertTrue(vm.message().startsWith("🛒 Pedido Assaí Sexta-feira\n"))
+
+        // Toggling the same day clears it
+        vm.onDaySelect("Sexta-feira")
+        assertNull(vm.state.value.selectedDay)
+        assertTrue(vm.message().startsWith("🛒 Pedido Assaí\n"))
+    }
+
+    @Test
     fun `the chat link needs a number that can carry one`() {
         val vm = AssaiViewModel()
         vm.onQuantityChange("Nhoque 1kg", "30")
