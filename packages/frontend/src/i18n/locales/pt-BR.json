@@ -84,6 +84,8 @@
     "switchLanguage": "Alterar idioma",
     "back": "Voltar",
     "share": "Compartilhar",
+    "help": "Ajuda",
+    "understand": "Entendido",
     "error": "Ocorreu um erro inesperado."
   },
   "reports": {
@@ -491,6 +493,141 @@
     "backToToday": "Voltar para Hoje",
     "today": "Hoje",
     "pastDaysWithLaunches": "Dias com lançamentos registrados"
+  },
+  "moduleHelp": {
+    "dashboard": {
+      "title": "Painel Principal",
+      "subtitle": "Visão geral das operações da Trindade",
+      "description": "O Painel reúne o estado das operações em tempo real, permitindo navegar rapidamente entre os módulos mais utilizados.",
+      "sections": [
+        {
+          "title": "Resumo do Dia",
+          "description": "Veja o progresso dos relatórios de higiene e recepção do dia, bem como a quantidade de cargas ativas.",
+          "steps": [
+            "Clique nos cartões para abrir diretamente a funcionalidade desejada.",
+            "Utilize os atalhos rápidos para enviar cronogramas por WhatsApp ou consultar históricos."
+          ]
+        }
+      ]
+    },
+    "massasLaunch": {
+      "title": "Lançamento de Massas",
+      "subtitle": "Controle coletivo de produção de massas",
+      "description": "Módulo independente de estoque para registrar a produção diária de massas pelos operadores, somar caixas e unidades coletivas e compartilhar com a equipe.",
+      "sections": [
+        {
+          "title": "1. Digitar Caixas",
+          "description": "Preencha a quantidade de caixas feitas de cada uma das 10 massas. As unidades calculam-se automaticamente.",
+          "steps": [
+            "Informe números inteiros positivos nas caixas.",
+            "Clique em 'Lançar' para salvar os produtos preenchidos."
+          ]
+        },
+        {
+          "title": "2. Resumo Coletivo do Dia",
+          "description": "Acompanhe a soma de todos os lançamentos do dia. Se você fez algum lançamento com erro, pode editá-lo ou excluí-lo na lista de lançamentos individuais."
+        },
+        {
+          "title": "3. Envio por WhatsApp",
+          "description": "Digite o telefone com máscara para disparar ou copie o texto consolidado listando as unidades de cada produto e os operadores participantes."
+        }
+      ]
+    },
+    "massasHistory": {
+      "title": "Histórico de Massas",
+      "subtitle": "Consulta de lançamentos passados",
+      "description": "Consulte a produção de qualquer data anterior, revise as caixas lançadas por cada operador e gere o relatório formatado para WhatsApp.",
+      "sections": [
+        {
+          "title": "Seleção de Data",
+          "description": "Use o seletor de calendário ou toque nos botões rápidos com os dias que possuem produção registrada."
+        }
+      ]
+    },
+    "stock": {
+      "title": "Calculador de Estoque",
+      "subtitle": "Contagem física do galpão",
+      "description": "Registre a contagem diária de massas e salgados estocados para controle e auditoria da fábrica.",
+      "sections": [
+        {
+          "title": "Como Operar",
+          "description": "Insira as caixas contadas para cada produto. Conforme preenchido, os totais em unidades são atualizados na tela."
+        },
+        {
+          "title": "Compartilhamento",
+          "description": "Ao término da contagem, utilize as opções de WhatsApp ou e-mail para enviar o resumo à expedição."
+        }
+      ]
+    },
+    "stockHistory": {
+      "title": "Histórico de Estoque",
+      "subtitle": "Auditoria de contagens anteriores",
+      "description": "Acesse os registros de estoque de dias anteriores para comparar saldos e auditar a produção."
+    },
+    "assai": {
+      "title": "Calculadora Assaí",
+      "subtitle": "Conversão de pedidos em caixas fechadas",
+      "description": "Facilita a conversão das unidades pedidas pelo Assaí Atacadista na quantidade exata de caixas para separação e despacho.",
+      "sections": [
+        {
+          "title": "1. Selecionar o Dia de Entrega",
+          "description": "Escolha o dia da semana da entrega (Terça, Quinta, Sexta ou Sábado) para identificação correta do cabeçalho."
+        },
+        {
+          "title": "2. Preencher Unidades",
+          "description": "Digite as unidades pedidas. O sistema alerta se houver sobras que não completem uma caixa inteira."
+        },
+        {
+          "title": "3. Enviar Mensagem",
+          "description": "Envie o pedido consolidado diretamente para a expedição pelo WhatsApp."
+        }
+      ]
+    },
+    "loading": {
+      "title": "Cronograma de Carregamento",
+      "subtitle": "Programação de saídas dos caminhões",
+      "description": "Planejamento das saídas e carregamento de mercadorias por motorista, veículo e faixa horária.",
+      "sections": [
+        {
+          "title": "Montagem da Grade",
+          "description": "Selecione a data de expedição e vincule cada motorista ao veículo e horário programado."
+        },
+        {
+          "title": "Histórico e WhatsApp",
+          "description": "Consulte cronogramas anteriores e dispare a programação para os motoristas no WhatsApp."
+        }
+      ]
+    },
+    "reports": {
+      "title": "Relatórios Diários de Turno",
+      "subtitle": "Higiene, recebimento e temperaturas",
+      "description": "Documentação formal da rotina da fábrica: checagem de limpeza, inspeção de matérias-primas e registros de temperatura.",
+      "sections": [
+        {
+          "title": "Preenchimento",
+          "description": "Selecione o turno (Manhã/Tarde) e responda aos itens do checklist, anexando fotos quando solicitado."
+        },
+        {
+          "title": "Histórico e Exportação",
+          "description": "Visualize relatórios passados, gere PDFs oficiais ou compartilhe resumos via WhatsApp."
+        }
+      ]
+    },
+    "share": {
+      "title": "Compartilhar Aplicativo",
+      "subtitle": "Distribuição para colaboradores e motoristas",
+      "description": "Facilita o envio dos links oficiais da Trindade por WhatsApp para novos motoristas ou funcionários.",
+      "sections": [
+        {
+          "title": "1. Plataforma",
+          "description": "Selecione se deseja enviar o APK do Android, o link Web/iPhone ou ambos."
+        },
+        {
+          "title": "2. Credenciais (Administrador)",
+          "description": "Administradores podem anexar usuário e senha para que o colaborador já receba os dados de acesso."
+        }
+      ]
+    }
   },
   "stock": {
     "add": "Adicionar",
