@@ -43,7 +43,7 @@ describe('toWhatsAppNumber', () => {
 describe('buildShareMessage', () => {
   const release = {
     version: 'v0.5.0',
-    apkUrl: 'https://github.com/wilkinbarban/Trindade/releases/download/v0.5.0/trindade-0.5.0.apk',
+    apkUrl: 'https://trindademasas.duckdns.org/api/app/download-apk',
     webUrl: 'https://trindademasas.duckdns.org',
   };
 
@@ -56,7 +56,7 @@ describe('buildShareMessage', () => {
 
     assert.ok(msg.includes('Android'));
     assert.ok(msg.includes(release.apkUrl));
-    assert.ok(!msg.includes(release.webUrl));
+    assert.ok(!msg.includes('Acesso Web'));
     assert.ok(!msg.includes('Credenciais'));
   });
 

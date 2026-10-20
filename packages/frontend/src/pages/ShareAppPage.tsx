@@ -11,6 +11,7 @@ import {
   MessageCircle,
   QrCode,
   KeyRound,
+  Download,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
@@ -33,13 +34,14 @@ interface UserOptionItem {
 
 const DEFAULT_RELEASE: ShareReleaseInfo = {
   version: 'v0.5.0',
-  apkUrl: 'https://github.com/wilkinbarban/Trindade/releases/download/v0.5.0/trindade-0.5.0.apk',
+  apkUrl: 'https://trindademasas.duckdns.org/api/app/download-apk',
   webUrl: 'https://trindademasas.duckdns.org',
 };
 
 export function ShareAppPage() {
   const { t, i18n } = useTranslation();
   const { user: currentUser } = useAuth();
+  const isAdmin = currentUser?.role === 'Administrador';
 
   const userSelectId = useId();
   const usernameInputId = useId();
@@ -53,10 +55,11 @@ export function ShareAppPage() {
   const [selectedUserId, setSelectedUserId] = useState<string>('');
   const [displayName, setDisplayName] = useState<string>('');
   const [username, setUsername] = useState<string>('');
-  const [password, setPassword] = useState<string>('123456789');
   const [includeCredentials, setIncludeCredentials] = useState<boolean>(true);
   const [phone, setPhone] = useState<string>('');
   const [copied, setCopied] = useState<boolean>(false);
+  const [sharingApk, setSharingApk] = useState<boolean>(false);
+  const [downloadedNotice, setDownloadedNotice] = useState<boolean>(false);
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
 
   useEffect(() => {
@@ -77,14 +80,13 @@ export function ShareAppPage() {
 
   useEffect(() => {
     let active = true;
+    if (!isAdmin) return;
     const fetchUsers = async () => {
       try {
-        if (currentUser?.role === 'Administrador') {
-          const res = await api.get<{ users: UserOptionItem[] }>('/admin/users');
-          if (active && Array.isArray(res?.users)) {
-            setUsers(res.users);
-            return;
-          }
+        const res = await api.get<{ users: UserOptionItem[] }>('/admin/users');
+        if (active && Array.isArray(res?.users)) {
+          setUsers(res.users);
+          return;
         }
       } catch {}
       try {
@@ -96,7 +98,7 @@ export function ShareAppPage() {
     };
     void fetchUsers();
     return () => { active = false; };
-  }, [currentUser]);
+  }, [isAdmin]);
 
   const handleSelectUser = (idStr: string) => {
     setSelectedUserId(idStr);
@@ -118,9 +120,14 @@ export function ShareAppPage() {
   const message = useMemo(() => buildShareMessage({
     platform,
     release,
-    credentials: { enabled: includeCredentials, displayName, username, password },
+    credentials: isAdmin && includeCredentials ? {
+      enabled: true,
+      displayName,
+      username,
+      password: '123456789',
+    } : { enabled: false },
     locale: currentLocale,
-  }), [platform, release, includeCredentials, displayName, username, password, currentLocale]);
+  }), [platform, release, isAdmin, includeCredentials, displayName, username, currentLocale]);
 
   const rawDialDigits = toWhatsAppNumber(phone);
   const waLink = useMemo(() => rawDialDigits ? waMeLink(rawDialDigits, message) : null, [rawDialDigits, message]);
@@ -139,6 +146,48 @@ export function ShareAppPage() {
     if (outcome === 'copied' || outcome === 'shared') {
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
+    }
+  };
+
+  const handleShareApk = async () => {
+    setSharingApk(true);
+    setDownloadedNotice(false);
+    try {
+      const res = await fetch('/api/app/download-apk');
+      if (!res.ok) throw new Error('Download failed');
+      const blob = await res.blob();
+      const apkFile = new File([blob], 'trindade.apk', {
+        type: 'application/vnd.android.package-archive',
+      });
+
+      const canShareFiles =
+        typeof navigator !== 'undefined' &&
+        typeof navigator.canShare === 'function' &&
+        navigator.canShare({ files: [apkFile] });
+
+      if (canShareFiles && typeof navigator.share === 'function') {
+        await navigator.share({
+          files: [apkFile],
+          text: message,
+          title: 'Trindade APK',
+        });
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'trindade.apk';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        setDownloadedNotice(true);
+      }
+    } catch (err) {
+      if ((err as Error)?.name !== 'AbortError') {
+        await handleCopy();
+      }
+    } finally {
+      setSharingApk(false);
     }
   };
 
@@ -161,6 +210,7 @@ export function ShareAppPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-7 space-y-6">
+          {/* 1. Platform */}
           <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 shadow-sm space-y-3">
             <label className="text-sm font-semibold text-gray-800 block">
               {t('share.platformLabel', '1. Plataforma de Acesso')}
@@ -199,6 +249,7 @@ export function ShareAppPage() {
             </div>
           </div>
 
+          {/* 2. Phone */}
           <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 shadow-sm space-y-3">
             <label htmlFor={phoneInputId} className="text-sm font-semibold text-gray-800 block">
               {t('share.phoneLabel', '2. Telefone WhatsApp do Destinatário')}
@@ -216,90 +267,94 @@ export function ShareAppPage() {
             </p>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 shadow-sm space-y-4">
-            <div className="flex items-center justify-between">
-              <label htmlFor={credToggleId} className="text-sm font-semibold text-gray-800 flex items-center gap-2 cursor-pointer">
-                <KeyRound className="h-4 w-4 text-amber-600" />
-                {t('share.includeCredentials', '3. Incluir Credenciais no Mensagem')}
-              </label>
-              <input
-                id={credToggleId}
-                type="checkbox"
-                checked={includeCredentials}
-                onChange={(e) => setIncludeCredentials(e.target.checked)}
-                className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-              />
-            </div>
-
-            {includeCredentials && (
-              <div className="space-y-4 pt-2 border-t border-gray-100">
-                <div>
-                  <label htmlFor={userSelectId} className="text-xs font-medium text-gray-600 block mb-1">
-                    {t('share.selectUser', 'Selecionar Usuário Cadastrado')}
-                  </label>
-                  <select
-                    id={userSelectId}
-                    value={selectedUserId}
-                    onChange={(e) => handleSelectUser(e.target.value)}
-                    className="w-full h-11 px-3 rounded-lg border border-gray-300 bg-white text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">{t('share.customOrNewUser', '-- Digitar manualmente ou escolher --')}</option>
-                    {users.map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.display_name} {u.username ? `(@${u.username})` : ''}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-medium text-gray-600 block mb-1">
-                      {t('share.displayName', 'Nome de Exibição')}
-                    </label>
-                    <Input
-                      type="text"
-                      placeholder="Ex: Carlos Oliveira"
-                      value={displayName}
-                      onChange={(e) => setDisplayName(e.target.value)}
-                      className="h-10 text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor={usernameInputId} className="text-xs font-medium text-gray-600 block mb-1">
-                      {t('share.username', 'Usuário de Login')}
-                    </label>
-                    <Input
-                      id={usernameInputId}
-                      type="text"
-                      placeholder="Ex: carlos.oliveira"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      className="h-10 text-sm"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label htmlFor={passwordInputId} className="text-xs font-medium text-gray-600 block mb-1">
-                    {t('share.password', 'Senha Temporária')}
-                  </label>
-                  <Input
-                    id={passwordInputId}
-                    type="text"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="h-10 text-sm font-mono"
-                  />
-                  <p className="text-[11px] text-gray-400 mt-1">
-                    {t('share.passwordHint', 'Pre-carregada por padrão como 123456789. Pode ser alterada livremente.')}
-                  </p>
-                </div>
+          {/* 3. Credentials (ADMIN ONLY, ReadOnly) */}
+          {isAdmin && (
+            <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 shadow-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <label htmlFor={credToggleId} className="text-sm font-semibold text-gray-800 flex items-center gap-2 cursor-pointer">
+                  <KeyRound className="h-4 w-4 text-amber-600" />
+                  {t('share.includeCredentials', '3. Incluir Credenciais na Mensagem')}
+                </label>
+                <input
+                  id={credToggleId}
+                  type="checkbox"
+                  checked={includeCredentials}
+                  onChange={(e) => setIncludeCredentials(e.target.checked)}
+                  className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                />
               </div>
-            )}
-          </div>
+
+              {includeCredentials && (
+                <div className="space-y-4 pt-2 border-t border-gray-100">
+                  <div>
+                    <label htmlFor={userSelectId} className="text-xs font-medium text-gray-600 block mb-1">
+                      {t('share.selectUser', 'Selecionar Usuário Cadastrado')}
+                    </label>
+                    <select
+                      id={userSelectId}
+                      value={selectedUserId}
+                      onChange={(e) => handleSelectUser(e.target.value)}
+                      className="w-full h-11 px-3 rounded-lg border border-gray-300 bg-white text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">{t('share.customOrNewUser', '-- Escolher da lista --')}</option>
+                      {users.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.display_name} {u.username ? `(@${u.username})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-medium text-gray-600 block mb-1">
+                        {t('share.displayName', 'Nome de Exibição')}
+                      </label>
+                      <Input
+                        type="text"
+                        readOnly
+                        value={displayName}
+                        placeholder="--"
+                        className="h-10 text-sm bg-gray-50 text-gray-700 cursor-not-allowed border-gray-200"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor={usernameInputId} className="text-xs font-medium text-gray-600 block mb-1">
+                        {t('share.username', 'Usuário de Login')}
+                      </label>
+                      <Input
+                        id={usernameInputId}
+                        type="text"
+                        readOnly
+                        value={username}
+                        placeholder="--"
+                        className="h-10 text-sm bg-gray-50 text-gray-700 cursor-not-allowed border-gray-200"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor={passwordInputId} className="text-xs font-medium text-gray-600 block mb-1">
+                      {t('share.password', 'Senha Temporária')}
+                    </label>
+                    <Input
+                      id={passwordInputId}
+                      type="text"
+                      readOnly
+                      value="123456789"
+                      className="h-10 text-sm font-mono bg-gray-50 text-gray-700 cursor-not-allowed border-gray-200"
+                    />
+                    <p className="text-[11px] text-gray-400 mt-1">
+                      {t('share.readOnlyAdminHint', 'Dados em modo somente leitura para administradores.')}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
+        {/* Live Preview & Actions */}
         <div className="lg:col-span-5 space-y-6">
           <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 shadow-sm space-y-3">
             <div className="flex items-center justify-between">
@@ -317,24 +372,69 @@ export function ShareAppPage() {
             </div>
 
             <div className="space-y-2 pt-2">
+              {downloadedNotice && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900 space-y-2">
+                  <div className="font-semibold flex items-center gap-1.5 text-amber-800">
+                    <Check className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <span>{t('share.apkDownloadedTitle', 'APK baixado com sucesso!')}</span>
+                  </div>
+                  <p className="text-[11px] leading-relaxed text-amber-800">
+                    {t('share.apkDownloadedDesc', 'O arquivo trindade.apk foi salvo no seu aparelho. Abra o WhatsApp e anexe o arquivo na conversa.')}
+                  </p>
+                  {waLink && (
+                    <a
+                      href={waLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded text-xs transition-colors"
+                    >
+                      <MessageCircle className="h-3.5 w-3.5" />
+                      {t('share.openWaAttach', 'Abrir WhatsApp e Anexar')}
+                    </a>
+                  )}
+                </div>
+              )}
+
+              {platform !== 'ios' && (
+                <Button
+                  type="button"
+                  disabled={sharingApk}
+                  onClick={handleShareApk}
+                  className="w-full min-h-[48px] bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm flex items-center justify-center gap-2 shadow-sm"
+                >
+                  {sharingApk ? (
+                    <span>{t('share.preparingApk', 'Preparando arquivo APK...')}</span>
+                  ) : (
+                    <>
+                      <Download className="h-5 w-5" />
+                      <span>{t('share.sendApkFile', 'Compartilhar Arquivo APK')}</span>
+                    </>
+                  )}
+                </Button>
+              )}
+
               {waLink ? (
                 <a
                   href={waLink}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full min-h-[48px] inline-flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm rounded-lg transition-colors shadow-sm"
+                  className={`w-full min-h-[44px] inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-colors ${
+                    platform === 'ios'
+                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm'
+                      : 'border border-emerald-600 text-emerald-700 hover:bg-emerald-50'
+                  }`}
                 >
-                  <MessageCircle className="h-5 w-5" />
-                  {t('share.sendWhatsApp', 'Abrir Chat no WhatsApp')}
+                  <MessageCircle className="h-4 w-4" />
+                  {t('share.openTextChat', 'Abrir Chat no WhatsApp')}
                 </a>
               ) : (
                 <Button
                   disabled
                   variant="outline"
-                  className="w-full min-h-[48px] border-emerald-200 text-emerald-800 bg-emerald-50/40 opacity-70"
+                  className="w-full min-h-[44px] border-gray-200 text-gray-400 bg-gray-50 opacity-70"
                 >
-                  <MessageCircle className="h-5 w-5 mr-1" />
-                  {t('share.enterPhoneToSend', 'Informe o celular para enviar')}
+                  <MessageCircle className="h-4 w-4 mr-1" />
+                  {t('share.enterPhoneToSend', 'Informe o celular para abrir chat')}
                 </Button>
               )}
 
@@ -342,16 +442,16 @@ export function ShareAppPage() {
                 type="button"
                 onClick={handleCopy}
                 variant="outline"
-                className="w-full min-h-[48px] text-gray-700 border-gray-300 hover:bg-gray-50 flex items-center justify-center gap-2"
+                className="w-full min-h-[44px] text-gray-700 border-gray-300 hover:bg-gray-50 flex items-center justify-center gap-2"
               >
                 {copied ? (
                   <>
-                    <Check className="h-5 w-5 text-emerald-600" />
+                    <Check className="h-4 w-4 text-emerald-600" />
                     <span className="text-emerald-700 font-semibold">{t('share.copied', 'Copiado para a Área de Transferência!')}</span>
                   </>
                 ) : (
                   <>
-                    <Copy className="h-5 w-5 text-gray-500" />
+                    <Copy className="h-4 w-4 text-gray-500" />
                     <span>{t('share.copyMessage', 'Copiar Mensagem')}</span>
                   </>
                 )}
