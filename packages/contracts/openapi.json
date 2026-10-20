@@ -1275,6 +1275,43 @@
         ],
         "additionalProperties": false
       },
+      "LatestReleaseResponse": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string"
+          },
+          "apkUrl": {
+            "type": "string"
+          },
+          "apkName": {
+            "type": "string"
+          },
+          "apkSize": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "publishedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "webUrl": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "apkUrl",
+          "apkName",
+          "apkSize",
+          "publishedAt",
+          "webUrl"
+        ]
+      },
       "SchedulesResponse": {
         "type": "object",
         "properties": {
@@ -7726,6 +7763,27 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/app/latest-release": {
+      "get": {
+        "summary": "Get the latest GitHub release information and APK download link",
+        "description": "Queries GitHub releases with 15-minute in-memory caching and fallback resilience.",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "Latest release information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LatestReleaseResponse"
                 }
               }
             }

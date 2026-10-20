@@ -11,6 +11,7 @@ import { loadingRoutes } from './modules/loading/loading.routes.js';
 import { adminRoutes } from './modules/admin/admin.routes.js';
 import { auditRoutes } from './modules/audit/audit.routes.js';
 import { stockRoutes } from './modules/stock/stock.routes.js';
+import { appRoutes } from './modules/app/app.routes.js';
 import { GUEST_USERNAME } from './guest-user.js';
 
 export interface ApiRouteOptions {
@@ -56,6 +57,7 @@ export async function registerApiRoutes(
   await fastify.register(loadingRoutes, { prefix: '/api/loading' });
   await fastify.register(adminRoutes, { prefix: '/api/admin' });
   await fastify.register(auditRoutes, { prefix: '/api/admin' });
+  await fastify.register(appRoutes, { prefix: '/api/app' });
 
   // The short public photo link, which is what WhatsApp exports point at. It needs no
   // authentication because the token is the credential.

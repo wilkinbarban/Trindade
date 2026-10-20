@@ -106,6 +106,7 @@ import {
   StockProductSchema,
   StockResetBodySchema,
 } from '../modules/stock/stock.schema.js';
+import { LatestReleaseResponseSchema } from '../modules/app/app.schema.js';
 import {
   HealthResponseSchema,
   PaginationSchema,
@@ -286,6 +287,7 @@ registerComponent(registry, 'StockHistoryDay', StockHistoryDaySchema);
 registerComponent(registry, 'StockHistory', StockHistorySchema);
   registerComponent(registry, 'HealthResponse', HealthResponseSchema);
   registerComponent(registry, 'UserOptionsResponse', UserOptionsResponseSchema);
+  registerComponent(registry, 'LatestReleaseResponse', LatestReleaseResponseSchema);
 
   // Response envelopes. These existed as schemas and were used in the paths below, but were never
   // registered, so every one of them was expanded inline and a generated client got an unnamed
@@ -1457,6 +1459,18 @@ registerComponent(registry, 'StockHistory', StockHistorySchema);
     responses: {
       200: jsonResponse('Active users, ordered by display name', UserOptionsResponseSchema),
       401: UNAUTHORIZED,
+    },
+  });
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/app/latest-release',
+    summary: 'Get the latest GitHub release information and APK download link',
+    description:
+      'Queries GitHub releases with 15-minute in-memory caching and fallback resilience.',
+    tags: ['system'],
+    responses: {
+      200: jsonResponse('Latest release information', LatestReleaseResponseSchema),
     },
   });
 

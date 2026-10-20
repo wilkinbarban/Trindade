@@ -15,6 +15,7 @@ import { reportsRoutes } from './modules/reports/reports.routes.js';
 import { loadingRoutes } from './modules/loading/loading.routes.js';
 import { adminRoutes } from './modules/admin/admin.routes.js';
 import { auditRoutes } from './modules/audit/audit.routes.js';
+import { appRoutes } from './modules/app/app.routes.js';
 import { getPhotoByPublicToken } from './modules/reports/reports.lifecycle.service.js';
 import { REFERENCE_DATASET, verifyReferencePrerequisites } from './db/reference-data.js';
 import { ensureGuestUser } from './db/guest-user-seed.js';
@@ -128,6 +129,7 @@ export async function buildTestApp(options: Pick<AuthRoutesOptions, 'authAdmissi
   await app.register(loadingRoutes, { prefix: '/api/loading' });
   await app.register(adminRoutes, { prefix: '/api/admin' });
   await app.register(auditRoutes, { prefix: '/api/admin' });
+  await app.register(appRoutes, { prefix: '/api/app' });
 
 
 // Authenticated user options for history filters
