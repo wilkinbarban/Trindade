@@ -288,3 +288,67 @@ export function deleteMassaLaunch(
 
   db.prepare('DELETE FROM massa_launches WHERE id = ?').run(params.id);
 }
+
+export interface MassaHistoryDay {
+  date: string;
+  productsCount: number;
+  totalBoxes: number;
+  totalUnits: number;
+  operatorsCount: number;
+}
+
+export function massasLaunchHistory(db: Database.Database): MassaHistoryDay[] {
+  const rows = db
+    .prepare(
+      `SELECT 
+        launch_date,
+        product_code,
+        boxes,
+        user_id
+      FROM massa_launches
+      ORDER BY launch_date DESC, id ASC`,
+    )
+    .all() as Array<{ launch_date: string; product_code: string; boxes: number; user_id: number }>;
+
+  const byDate = new Map<
+    string,
+    {
+      products: Set<string>;
+      boxes: number;
+      units: number;
+      operators: Set<number>;
+    }
+  >();
+
+  for (const row of rows) {
+    let day = byDate.get(row.launch_date);
+    if (!day) {
+      day = {
+        products: new Set<string>(),
+        boxes: 0,
+        units: 0,
+        operators: new Set<number>(),
+      };
+      byDate.set(row.launch_date, day);
+    }
+    day.products.add(row.product_code);
+    day.boxes += row.boxes;
+    const product = findMassaProduct(row.product_code);
+    day.units += row.boxes * (product?.unitsPerBox ?? 0);
+    day.operators.add(row.user_id);
+  }
+
+  const result: MassaHistoryDay[] = [];
+  for (const [date, data] of byDate.entries()) {
+    result.push({
+      date,
+      productsCount: data.products.size,
+      totalBoxes: data.boxes,
+      totalUnits: data.units,
+      operatorsCount: data.operators.size,
+    });
+  }
+
+  return result;
+}
+

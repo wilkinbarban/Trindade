@@ -72,3 +72,20 @@ export const MassasLaunchDeleteResponseSchema = z
     ok: z.literal(true),
   })
   .strict();
+
+export const MassaHistoryDaySchema = z
+  .object({
+    date: z.string(),
+    productsCount: z.number().int(),
+    totalBoxes: z.number().int(),
+    totalUnits: z.number().int(),
+    operatorsCount: z.number().int(),
+  })
+  .strict();
+
+export const MassasHistoryResponseSchema = z
+  .object({
+    days: z.array(MassaHistoryDaySchema),
+  })
+  .strict();
+

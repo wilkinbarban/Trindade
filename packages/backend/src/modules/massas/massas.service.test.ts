@@ -8,6 +8,7 @@ import {
   createMassaLaunches,
   deleteMassaLaunch,
   massasLaunchDayView,
+  massasLaunchHistory,
   updateMassaLaunch,
 } from './massas.service.js';
 
@@ -187,4 +188,52 @@ describe('massas launch service', () => {
     assert.equal(view.launches.length, 0);
     assert.equal(view.totalBoxes, 0);
   });
+
+  it('aggregates history by date with product count, boxes, units, and operators count', () => {
+    // Empty history
+    assert.deepEqual(massasLaunchHistory(db), []);
+
+    // Date 1: 2026-10-19
+    // Alice launches 1045 (10 un/cx) 2 boxes (20 units)
+    createMassaLaunches(db, {
+      date: '2026-10-19',
+      userId: userAliceId,
+      items: [{ product_code: '1045', boxes: 2 }],
+    });
+
+    // Date 2: 2026-10-20
+    // Alice launches 1045 (10 un/cx) 3 boxes (30 units) and 84 (20 un/cx) 2 boxes (40 units)
+    createMassaLaunches(db, {
+      date: '2026-10-20',
+      userId: userAliceId,
+      items: [
+        { product_code: '1045', boxes: 3 },
+        { product_code: '84', boxes: 2 },
+      ],
+    });
+    // Bob launches 84 (20 un/cx) 1 box (20 units)
+    createMassaLaunches(db, {
+      date: '2026-10-20',
+      userId: userBobId,
+      items: [{ product_code: '84', boxes: 1 }],
+    });
+
+    const history = massasLaunchHistory(db);
+    assert.equal(history.length, 2);
+
+    // Ordered DESC: 2026-10-20 first
+    assert.equal(history[0].date, '2026-10-20');
+    assert.equal(history[0].productsCount, 2); // 1045 and 84
+    assert.equal(history[0].totalBoxes, 6); // 3 + 2 + 1
+    assert.equal(history[0].totalUnits, 90); // 30 + 40 + 20
+    assert.equal(history[0].operatorsCount, 2); // Alice and Bob
+
+    // 2026-10-19 second
+    assert.equal(history[1].date, '2026-10-19');
+    assert.equal(history[1].productsCount, 1);
+    assert.equal(history[1].totalBoxes, 2);
+    assert.equal(history[1].totalUnits, 20);
+    assert.equal(history[1].operatorsCount, 1);
+  });
 });
+

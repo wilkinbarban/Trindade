@@ -110,6 +110,8 @@ import { LatestReleaseResponseSchema } from '../modules/app/app.schema.js';
 import {
   MassaIndividualLaunchSchema,
   MassaProductTotalSchema,
+  MassaHistoryDaySchema,
+  MassasHistoryResponseSchema,
   MassasLaunchCreateBodySchema,
   MassasLaunchCreateResponseSchema,
   MassasLaunchDayViewSchema,
@@ -311,6 +313,8 @@ registerComponent(registry, 'StockHistory', StockHistorySchema);
   registerComponent(registry, 'MassasLaunchCreateResponse', MassasLaunchCreateResponseSchema);
   registerComponent(registry, 'MassasLaunchUpdateRequest', MassasLaunchUpdateBodySchema);
   registerComponent(registry, 'MassasLaunchDeleteResponse', MassasLaunchDeleteResponseSchema);
+  registerComponent(registry, 'MassaHistoryDay', MassaHistoryDaySchema);
+  registerComponent(registry, 'MassasHistoryResponse', MassasHistoryResponseSchema);
 
   // Response envelopes. These existed as schemas and were used in the paths below, but were never
   // registered, so every one of them was expanded inline and a generated client got an unnamed
@@ -1457,6 +1461,18 @@ registerComponent(registry, 'StockHistory', StockHistorySchema);
     tags: ['massas'],
     responses: {
       200: jsonResponse('The day view with collective totals and individual launches', MassasLaunchDayViewSchema),
+      401: UNAUTHORIZED,
+    },
+  });
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/massas-launch/history',
+    summary: 'List history of days with massas launches',
+    description: 'Returns days that had massas launches grouped by date with product count, boxes, units, and operators count.',
+    tags: ['massas'],
+    responses: {
+      200: jsonResponse('The list of days with massas launches', MassasHistoryResponseSchema),
       401: UNAUTHORIZED,
     },
   });

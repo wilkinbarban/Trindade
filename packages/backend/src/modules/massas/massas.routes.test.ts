@@ -216,4 +216,38 @@ describe('massas routes', () => {
     });
     assert.equal(resDel.statusCode, 404);
   });
+
+  it('GET /history requires auth and returns days array with counts', async () => {
+    // 401 without token
+    const unauthRes = await app.inject({
+      method: 'GET',
+      url: '/api/massas-launch/history',
+    });
+    assert.equal(unauthRes.statusCode, 401);
+
+    // Create a launch on a specific date
+    await app.inject({
+      method: 'POST',
+      url: '/api/massas-launch',
+      headers: { authorization: `Bearer ${tokenAlice}` },
+      payload: { date: '2026-10-18', product_code: '1045', boxes: 3 },
+    });
+
+    // 200 with auth
+    const authRes = await app.inject({
+      method: 'GET',
+      url: '/api/massas-launch/history',
+      headers: { authorization: `Bearer ${tokenBob}` },
+    });
+    assert.equal(authRes.statusCode, 200);
+    const body = JSON.parse(authRes.body);
+    assert.ok(Array.isArray(body.days));
+    const day18 = body.days.find((d: { date: string }) => d.date === '2026-10-18');
+    assert.ok(day18);
+    assert.equal(day18.productsCount, 1);
+    assert.equal(day18.totalBoxes, 3);
+    assert.equal(day18.totalUnits, 30);
+    assert.equal(day18.operatorsCount, 1);
+  });
 });
+

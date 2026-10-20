@@ -5,6 +5,7 @@ import {
   createMassaLaunches,
   deleteMassaLaunch,
   massasLaunchDayView,
+  massasLaunchHistory,
   updateMassaLaunch,
 } from './massas.service.js';
 import {
@@ -28,6 +29,10 @@ export async function massasRoutes(fastify: FastifyInstance) {
     }
     const targetDate = parsed.data.date ?? getSaoPauloDateString();
     return reply.send(massasLaunchDayView(fastify.db, targetDate));
+  });
+
+  fastify.get('/history', { preHandler: [fastify.authenticate] }, async (_request: FastifyRequest, reply: FastifyReply) => {
+    return reply.send({ days: massasLaunchHistory(fastify.db) });
   });
 
   fastify.post('/', { preHandler: [fastify.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {

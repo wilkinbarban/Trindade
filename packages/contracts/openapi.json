@@ -1631,6 +1631,74 @@
         ],
         "additionalProperties": false
       },
+      "MassaHistoryDay": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "productsCount": {
+            "type": "integer"
+          },
+          "totalBoxes": {
+            "type": "integer"
+          },
+          "totalUnits": {
+            "type": "integer"
+          },
+          "operatorsCount": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "date",
+          "productsCount",
+          "totalBoxes",
+          "totalUnits",
+          "operatorsCount"
+        ],
+        "additionalProperties": false
+      },
+      "MassasHistoryResponse": {
+        "type": "object",
+        "properties": {
+          "days": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "date": {
+                  "type": "string"
+                },
+                "productsCount": {
+                  "type": "integer"
+                },
+                "totalBoxes": {
+                  "type": "integer"
+                },
+                "totalUnits": {
+                  "type": "integer"
+                },
+                "operatorsCount": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "date",
+                "productsCount",
+                "totalBoxes",
+                "totalUnits",
+                "operatorsCount"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "days"
+        ],
+        "additionalProperties": false
+      },
       "SchedulesResponse": {
         "type": "object",
         "properties": {
@@ -8068,6 +8136,37 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/massas-launch/history": {
+      "get": {
+        "summary": "List history of days with massas launches",
+        "description": "Returns days that had massas launches grouped by date with product count, boxes, units, and operators count.",
+        "tags": [
+          "massas"
+        ],
+        "responses": {
+          "200": {
+            "description": "The list of days with massas launches",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MassasHistoryResponse"
                 }
               }
             }
