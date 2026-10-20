@@ -7,6 +7,7 @@ import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
 import { LoadingSpinner } from '../components/ui/loading-spinner';
 import { ConfirmDialog } from '../components/ui/confirm-dialog';
+import { ModuleHelpModal } from '../components/ui/ModuleHelpModal';
 import { historyActionErrorMessageKey, historyAffordances } from '../lib/history-permissions';
 
 interface UserOption { id: number; display_name: string }
@@ -98,7 +99,15 @@ export function ReportHistoryPage() {
     <div className="max-w-2xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-xl font-bold text-gray-800 mb-1">{t('reports.historyTitle')}</h2>
+          <div className="flex items-center gap-2 mb-1">
+            <h2 className="text-xl font-bold text-gray-800">{t('reports.historyTitle')}</h2>
+            <ModuleHelpModal
+              title={t('moduleHelp.reports.title')}
+              subtitle={t('moduleHelp.reports.subtitle')}
+              description={t('moduleHelp.reports.description')}
+              sections={t('moduleHelp.reports.sections', { returnObjects: true }) as any}
+            />
+          </div>
           <p className="text-sm text-gray-500">{t('reports.historyDesc')}</p>
         </div>
         <Link to="/reports" data-testid="history-new-report-btn"><Button variant="outline" size="sm">{t('reports.newReport')}</Button></Link>

@@ -7,6 +7,7 @@ import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
 import { LoadingSpinner } from '../components/ui/loading-spinner';
 import { ConfirmDialog } from '../components/ui/confirm-dialog';
+import { ModuleHelpModal } from '../components/ui/ModuleHelpModal';
 import { historyActionErrorMessageKey, historyAffordances } from '../lib/history-permissions';
 
 interface UserOption { id: number; display_name: string }
@@ -98,7 +99,15 @@ export function LoadingHistoryPage() {
     <div className="max-w-2xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-xl font-bold text-gray-800">{t('loading.historyTitle')}</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-bold text-gray-800">{t('loading.historyTitle')}</h2>
+            <ModuleHelpModal
+              title={t('moduleHelp.loading.title')}
+              subtitle={t('moduleHelp.loading.subtitle')}
+              description={t('moduleHelp.loading.description')}
+              sections={t('moduleHelp.loading.sections', { returnObjects: true }) as any}
+            />
+          </div>
           <p className="text-sm text-gray-500">{t('loading.historyDesc')}</p>
         </div>
         <Link to="/loading" data-testid="back-to-schedule-link"><Button variant="outline" size="sm">{t('loading.title')}</Button></Link>

@@ -15,6 +15,7 @@ import {
   type MassaIndividualLaunch,
 } from '../lib/massas';
 import { Layers, History } from 'lucide-react';
+import { ModuleHelpModal } from '../components/ui/ModuleHelpModal';
 import { MassasLaunchGrid } from './massas/MassasLaunchGrid';
 import { MassasCollectiveTable } from './massas/MassasCollectiveTable';
 import { MassasWhatsAppShare } from './massas/MassasWhatsAppShare';
@@ -176,6 +177,12 @@ export function MassasLaunchPage() {
               <Layers className="h-6 w-6" />
             </span>
             <h1 className="text-2xl font-bold text-gray-900">{t('massas.title')}</h1>
+            <ModuleHelpModal
+              title={t('moduleHelp.massasLaunch.title')}
+              subtitle={t('moduleHelp.massasLaunch.subtitle')}
+              description={t('moduleHelp.massasLaunch.description')}
+              sections={t('moduleHelp.massasLaunch.sections', { returnObjects: true }) as any}
+            />
           </div>
           <p className="text-sm text-gray-500 mt-1">{t('massas.subtitle')}</p>
         </div>

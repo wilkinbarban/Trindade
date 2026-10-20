@@ -7,6 +7,7 @@ import { LoadingSpinner } from '../components/ui/loading-spinner';
 import { ScheduleGrid } from '../components/loading/ScheduleGrid';
 import { ScheduleExportView } from '../components/loading/ScheduleExportView';
 import { exportPdf } from '../lib/exportPdf';
+import { ModuleHelpModal } from '../components/ui/ModuleHelpModal';
 import type { ScheduleRow, DriverRow } from '../components/loading/ScheduleGrid';
 
 
@@ -136,9 +137,17 @@ export function LoadingSchedulePage() {
     <div className="max-w-2xl mx-auto">
       {/* Page header */}
       <div className="mb-4">
-        <h2 className="text-xl font-bold text-gray-800">
-          {t('loading.title')}
-        </h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-xl font-bold text-gray-800">
+            {t('loading.title')}
+          </h2>
+          <ModuleHelpModal
+            title={t('moduleHelp.loading.title')}
+            subtitle={t('moduleHelp.loading.subtitle')}
+            description={t('moduleHelp.loading.description')}
+            sections={t('moduleHelp.loading.sections', { returnObjects: true }) as any}
+          />
+        </div>
         <p className="text-sm text-gray-500 mt-1">
           {t('loading.description')}
         </p>

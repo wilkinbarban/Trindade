@@ -6,6 +6,7 @@ import { api, ApiClientError } from '../api/client';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { LoadingSpinner } from '../components/ui/loading-spinner';
+import { ModuleHelpModal } from '../components/ui/ModuleHelpModal';
 import {
   CategorySection,
   type CategoryType,
@@ -258,9 +259,17 @@ export function ReportsPage() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      <h2 className="text-xl font-bold text-gray-800 mb-1">
-        {t('reports.newReport')}
-      </h2>
+      <div className="flex items-center gap-2 mb-1">
+        <h2 className="text-xl font-bold text-gray-800">
+          {t('reports.newReport')}
+        </h2>
+        <ModuleHelpModal
+          title={t('moduleHelp.reports.title')}
+          subtitle={t('moduleHelp.reports.subtitle')}
+          description={t('moduleHelp.reports.description')}
+          sections={t('moduleHelp.reports.sections', { returnObjects: true }) as any}
+        />
+      </div>
       <p className="text-sm text-gray-500 mb-6">{t('reports.newReportDesc')}</p>
 
       <form onSubmit={handleSubmit} data-testid="report-builder-form">

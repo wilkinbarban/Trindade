@@ -16,6 +16,7 @@ import {
   type MassaIndividualLaunch,
 } from '../lib/massas';
 import { History, Calendar, ArrowLeft } from 'lucide-react';
+import { ModuleHelpModal } from '../components/ui/ModuleHelpModal';
 import { MassasCollectiveTable } from './massas/MassasCollectiveTable';
 import { MassasWhatsAppShare } from './massas/MassasWhatsAppShare';
 
@@ -167,6 +168,12 @@ export function MassasHistoryPage() {
               <History className="h-6 w-6" />
             </span>
             <h1 className="text-2xl font-bold text-gray-900">{t('massas.historyTitle')}</h1>
+            <ModuleHelpModal
+              title={t('moduleHelp.massasHistory.title')}
+              subtitle={t('moduleHelp.massasHistory.subtitle')}
+              description={t('moduleHelp.massasHistory.description')}
+              sections={t('moduleHelp.massasHistory.sections', { returnObjects: true }) as any}
+            />
           </div>
           <p className="text-sm text-gray-500 mt-1">{t('massas.historySubtitle')}</p>
         </div>

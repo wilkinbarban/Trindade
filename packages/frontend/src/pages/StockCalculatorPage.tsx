@@ -19,6 +19,7 @@ import {
 } from '../lib/stock';
 import { formatPhoneMask, toWhatsAppNumber } from '../lib/phone';
 import { shareOrCopy, waMeLink } from '../lib/whatsapp';
+import { ModuleHelpModal } from '../components/ui/ModuleHelpModal';
 
 /**
  * The stock counter.
@@ -186,7 +187,15 @@ export function StockCalculatorPage() {
     <div className="p-4 space-y-4" data-testid="stock-calculator">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold text-gray-800">{t('stock.title')}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-semibold text-gray-800">{t('stock.title')}</h1>
+            <ModuleHelpModal
+              title={t('moduleHelp.stock.title')}
+              subtitle={t('moduleHelp.stock.subtitle')}
+              description={t('moduleHelp.stock.description')}
+              sections={t('moduleHelp.stock.sections', { returnObjects: true }) as any}
+            />
+          </div>
           <p className="text-sm text-gray-500">{canEdit ? t('stock.subtitle') : t('stock.readOnly')}</p>
         </div>
         <Link to="/stock-history">

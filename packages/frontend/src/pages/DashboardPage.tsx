@@ -6,6 +6,7 @@ import { shareOrCopy } from '../lib/whatsapp';
 import { activeScheduleLink } from '../lib/active-schedule-link';
 import { Card, CardContent } from '../components/ui/card';
 import { LoadingSpinner } from '../components/ui/loading-spinner';
+import { ModuleHelpModal } from '../components/ui/ModuleHelpModal';
 
 interface DashboardSummary {
   reportsToday: number;
@@ -133,9 +134,17 @@ export function DashboardPage() {
 
   return (
     <div>
-      <h3 className="text-lg font-semibold text-gray-800 mb-4">
-        {t('dashboard.overview')}
-      </h3>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold text-gray-800">
+          {t('dashboard.overview')}
+        </h3>
+        <ModuleHelpModal
+          title={t('moduleHelp.dashboard.title')}
+          subtitle={t('moduleHelp.dashboard.subtitle')}
+          description={t('moduleHelp.dashboard.description')}
+          sections={t('moduleHelp.dashboard.sections', { returnObjects: true }) as any}
+        />
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         <SummaryCard

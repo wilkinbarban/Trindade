@@ -15,6 +15,7 @@ import {
 } from '../lib/assai';
 import { formatPhoneMask, toWhatsAppNumber } from '../lib/phone';
 import { shareOrCopy, waMeLink } from '../lib/whatsapp';
+import { ModuleHelpModal } from '../components/ui/ModuleHelpModal';
 
 /**
  * The Assaí order calculator.
@@ -73,9 +74,19 @@ export function AssaiCalculatorPage() {
 
   return (
     <div className="p-4 space-y-4" data-testid="assai-calculator">
-      <div>
-        <h1 className="text-xl font-semibold text-gray-800">{t('assai.title')}</h1>
-        <p className="text-sm text-gray-500">{t('assai.subtitle')}</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-semibold text-gray-800">{t('assai.title')}</h1>
+            <ModuleHelpModal
+              title={t('moduleHelp.assai.title')}
+              subtitle={t('moduleHelp.assai.subtitle')}
+              description={t('moduleHelp.assai.description')}
+              sections={t('moduleHelp.assai.sections', { returnObjects: true }) as any}
+            />
+          </div>
+          <p className="text-sm text-gray-500">{t('assai.subtitle')}</p>
+        </div>
       </div>
 
       <Card>

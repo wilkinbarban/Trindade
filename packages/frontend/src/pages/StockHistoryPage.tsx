@@ -9,6 +9,7 @@ import { Input } from '../components/ui/input';
 import { mailtoLink, saopauloToday, stockEmailBody, stockMessage, type StockDay, type StockProduct } from '../lib/stock';
 import { formatPhoneMask, toWhatsAppNumber } from '../lib/phone';
 import { shareOrCopy, waMeLink } from '../lib/whatsapp';
+import { ModuleHelpModal } from '../components/ui/ModuleHelpModal';
 
 /**
  * A past day of counting, as a place of its own.
@@ -140,7 +141,15 @@ export function StockHistoryPage() {
     <div className="p-4 space-y-4" data-testid="stock-history-page">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold text-gray-800">{t('stock.historyTitle')}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-semibold text-gray-800">{t('stock.historyTitle')}</h1>
+            <ModuleHelpModal
+              title={t('moduleHelp.stockHistory.title')}
+              subtitle={t('moduleHelp.stockHistory.subtitle')}
+              description={t('moduleHelp.stockHistory.description')}
+              sections={t('moduleHelp.stockHistory.sections', { returnObjects: true }) as any}
+            />
+          </div>
           <p className="text-sm text-gray-500">{canEdit ? t('stock.historySubtitle') : t('stock.readOnly')}</p>
         </div>
         <Link to="/stock-calculator">

@@ -16,6 +16,7 @@ import {
 import { api } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import { waMeLink, shareOrCopy } from '../lib/whatsapp';
+import { ModuleHelpModal } from '../components/ui/ModuleHelpModal';
 import {
   formatPhoneMask,
   toWhatsAppNumber,
@@ -196,10 +197,18 @@ export function ShareAppPage() {
     <div className="max-w-4xl mx-auto space-y-6 pb-12">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Share2 className="h-6 w-6 text-blue-600" />
-            {t('share.title', 'Compartilhar Trindade')}
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <Share2 className="h-6 w-6 text-blue-600" />
+              {t('share.title', 'Compartilhar Trindade')}
+            </h1>
+            <ModuleHelpModal
+              title={t('moduleHelp.share.title')}
+              subtitle={t('moduleHelp.share.subtitle')}
+              description={t('moduleHelp.share.description')}
+              sections={t('moduleHelp.share.sections', { returnObjects: true }) as any}
+            />
+          </div>
           <p className="text-sm text-gray-500 mt-1">
             {t('share.subtitle', 'Envie acessos e credenciais por WhatsApp para operadores e motoristas')}
           </p>
