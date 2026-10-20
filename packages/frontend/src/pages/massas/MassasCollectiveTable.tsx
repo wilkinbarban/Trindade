@@ -42,7 +42,7 @@ export function MassasCollectiveTable({
 
   return (
     <div className="space-y-6">
-      {/* Summary Table of the 10 Products */}
+      {/* Resumen Colectivo de los 10 Productos */}
       <Card className="border-gray-200 shadow-sm">
         <CardContent className="pt-6">
           <div className="mb-4">
@@ -50,7 +50,8 @@ export function MassasCollectiveTable({
             <p className="text-xs text-gray-500">{t('massas.collectiveSubtitle')}</p>
           </div>
 
-          <div className="overflow-x-auto rounded-lg border border-gray-200">
+          {/* VISTA ESCRITORIO (sm en adelante): Tabla Tabular Tradicional */}
+          <div className="hidden sm:block overflow-x-auto rounded-lg border border-gray-200">
             <table className="w-full text-left text-sm border-collapse">
               <thead>
                 <tr className="bg-gray-100 text-gray-700 text-xs font-semibold uppercase">
@@ -92,10 +93,53 @@ export function MassasCollectiveTable({
               </tfoot>
             </table>
           </div>
+
+          {/* VISTA MÓVIL (< sm / 640px): Tarjetas/Filas Apiladas Compactas y Fluidas */}
+          <div className="block sm:hidden space-y-2">
+            {products.map((p) => {
+              const hasProduction = p.totalBoxes > 0;
+              return (
+                <div
+                  key={p.code}
+                  className={`p-3 rounded-lg border flex items-center justify-between gap-3 ${
+                    hasProduction
+                      ? 'bg-amber-50/30 border-amber-200/80 shadow-xs'
+                      : 'bg-white border-gray-100 text-gray-400'
+                  }`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className={`text-sm font-semibold truncate ${hasProduction ? 'text-gray-900' : 'text-gray-600'}`}>
+                      {p.name}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {p.unitsPerBox} un/cx
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="text-xs text-gray-600 font-medium">
+                      {p.totalBoxes} cx
+                    </div>
+                    <div className={`text-sm font-bold ${hasProduction ? 'text-amber-800' : 'text-gray-400'}`}>
+                      {p.totalUnits} un
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Total Geral Móvil */}
+            <div className="mt-3 p-3.5 bg-amber-100/70 border border-amber-300 rounded-lg flex items-center justify-between">
+              <span className="font-bold text-gray-900 text-sm">Total Geral</span>
+              <div className="text-right">
+                <span className="text-xs font-semibold text-gray-700 mr-2">{totalBoxes} cx</span>
+                <span className="text-base font-extrabold text-amber-900">{totalUnits} un</span>
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
-      {/* Individual Launches by Operator with RBAC Edit/Delete */}
+      {/* Desglose Individual de Lanzamientos por Operario con RBAC */}
       <Card className="border-gray-200 shadow-sm">
         <CardContent className="pt-6">
           <div className="mb-4">
@@ -108,7 +152,7 @@ export function MassasCollectiveTable({
               {t('massas.noLaunches')}
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               {launches.map((launch) => {
                 const isOwner = currentUserId === launch.user_id;
                 const isEditing = editingLaunchId === launch.id;
@@ -117,15 +161,15 @@ export function MassasCollectiveTable({
                   <div
                     key={launch.id}
                     className={`p-3.5 rounded-lg border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-                      isOwner ? 'bg-amber-50/40 border-amber-200' : 'bg-gray-50/50 border-gray-200'
+                      isOwner ? 'bg-amber-50/40 border-amber-200' : 'bg-gray-50/60 border-gray-200'
                     }`}
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-gray-900 text-sm">{launch.product_name}</span>
-                        <span className="text-xs text-gray-400">#{launch.id}</span>
+                        <span className="font-semibold text-gray-900 text-sm truncate">{launch.product_name}</span>
+                        <span className="text-[11px] text-gray-400 shrink-0">#{launch.id}</span>
                       </div>
-                      <div className="flex items-center gap-3 text-xs text-gray-500 mt-0.5">
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 mt-1">
                         <span>
                           {t('massas.user')}: <strong className="text-gray-700">{launch.display_name || launch.username}</strong>
                         </span>
@@ -136,10 +180,10 @@ export function MassasCollectiveTable({
                       </div>
                     </div>
 
-                    {/* Quantities & Actions */}
-                    <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0">
+                    {/* Cantidades y Acciones táctiles sin encimarse en móviles */}
+                    <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-200/60">
                       {isEditing ? (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                           <Input
                             type="number"
                             min="1"
@@ -147,14 +191,14 @@ export function MassasCollectiveTable({
                             inputMode="numeric"
                             value={editingBoxes}
                             onChange={(e) => onEditBoxesChange(e.target.value)}
-                            className="h-8 w-20 text-center font-bold"
+                            className="h-9 w-20 text-center font-bold"
                           />
                           <span className="text-xs text-gray-500">cx</span>
                           <Button
                             size="sm"
                             onClick={() => onSaveEdit(launch.id)}
                             disabled={editingBusy || !editingBoxes || parseInt(editingBoxes, 10) <= 0}
-                            className="h-8 px-2 bg-green-600 hover:bg-green-700 text-white"
+                            className="h-9 px-3 bg-green-600 hover:bg-green-700 text-white"
                             title={t('massas.save')}
                           >
                             <Check className="h-4 w-4" />
@@ -163,54 +207,58 @@ export function MassasCollectiveTable({
                             size="sm"
                             variant="outline"
                             onClick={onCancelEdit}
-                            className="h-8 px-2"
+                            className="h-9 px-3"
                             title={t('massas.cancel')}
                           >
                             <X className="h-4 w-4" />
                           </Button>
                         </div>
                       ) : (
-                        <div className="text-right">
-                          <div className="text-sm font-bold text-gray-900">
-                            {launch.boxes} cx · <span className="text-amber-800">{launch.units} un</span>
-                          </div>
-                        </div>
-                      )}
-
-                      {!isEditing && (
-                        <div className="flex items-center gap-1.5 ml-2">
-                          {isOwner ? (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => onStartEdit(launch)}
-                                className="h-8 w-8 p-0 text-gray-600 hover:text-amber-700"
-                                title={t('massas.edit')}
-                              >
-                                <Edit2 className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => onDelete(launch.id)}
-                                disabled={deletingId === launch.id}
-                                className="h-8 w-8 p-0 text-gray-600 hover:text-red-700"
-                                title={t('massas.delete')}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </>
-                          ) : (
-                            <span
-                              className="inline-flex items-center gap-1 text-[11px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full"
-                              title="Lançamento feito por outro operador (somente leitura)"
-                            >
-                              <ShieldAlert className="h-3 w-3" />
-                              {launch.username}
+                        <>
+                          <div className="text-left sm:text-right">
+                            <span className="text-sm font-bold text-gray-900">
+                              {launch.boxes} cx
                             </span>
-                          )}
-                        </div>
+                            <span className="text-xs text-gray-400 mx-1">·</span>
+                            <span className="text-sm font-bold text-amber-800">
+                              {launch.units} un
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-1 shrink-0 ml-2">
+                            {isOwner ? (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => onStartEdit(launch)}
+                                  className="h-9 w-9 p-0 text-gray-600 hover:text-amber-700 active:bg-amber-100"
+                                  title={t('massas.edit')}
+                                >
+                                  <Edit2 className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => onDelete(launch.id)}
+                                  disabled={deletingId === launch.id}
+                                  className="h-9 w-9 p-0 text-gray-600 hover:text-red-700 active:bg-red-50"
+                                  title={t('massas.delete')}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </>
+                            ) : (
+                              <span
+                                className="inline-flex items-center gap-1 text-[11px] text-gray-500 bg-gray-100/90 px-2.5 py-1 rounded-md"
+                                title="Lançamento feito por outro operador (somente leitura)"
+                              >
+                                <ShieldAlert className="h-3.5 w-3.5 text-gray-400" />
+                                {launch.username}
+                              </span>
+                            )}
+                          </div>
+                        </>
                       )}
                     </div>
                   </div>
