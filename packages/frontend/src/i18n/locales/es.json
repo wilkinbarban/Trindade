@@ -61,6 +61,7 @@
     "operations": "Operaciones",
     "reportHistory": "Historial de Reportes",
     "reports": "Reportes",
+    "share": "Compartir",
     "stock": "Calculador de Estoque",
     "stockHistory": "Historial de conteo",
     "whatsappExport": "Exportación WhatsApp"
@@ -485,5 +486,31 @@
   },
   "admin.workers": {
     "userAlreadyExists": "Este nombre de usuario ya está en uso."
+  },
+  "share": {
+    "title": "Compartir Trindade",
+    "subtitle": "Envía accesos y credenciales por WhatsApp para operadores y choferes",
+    "platformLabel": "1. Plataforma de Acceso",
+    "bothPlatforms": "Ambos (Híbrido)",
+    "phoneLabel": "2. Teléfono WhatsApp del Destinatario",
+    "phoneHint": "Con código de área/DDD. Escribe el número para abrir el chat directo en WhatsApp.",
+    "includeCredentials": "3. Incluir Credenciales en el Mensaje",
+    "selectUser": "Seleccionar Usuario Registrado",
+    "customOrNewUser": "-- Escribir manualmente o elegir --",
+    "displayName": "Nombre para Mostrar",
+    "username": "Usuario de Login",
+    "password": "Contraseña Temporal",
+    "passwordHint": "Precargada por defecto como 123456789. Puede modificarse libremente.",
+    "previewTitle": "Vista Previa de WhatsApp",
+    "chars": "caracteres",
+    "sendWhatsApp": "Abrir Chat en WhatsApp",
+    "enterPhoneToSend": "Ingresa el celular para enviar",
+    "copyMessage": "Copiar Mensaje",
+    "copied": "¡Copiado al Portapapeles!",
+    "qrCodeTitle": "Escanear Código QR",
+    "qrWithPhone": "Apunta la cámara del celular para abrir la conversación con el mensaje completo.",
+    "qrWithoutPhone": "Apunta la cámara para acceder al enlace de descarga o aplicación web.",
+    "qrCodeAlt": "Código QR de Acceso",
+    "generatingQr": "Generando Código QR..."
   }
 }

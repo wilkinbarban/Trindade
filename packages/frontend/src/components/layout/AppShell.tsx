@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { DeveloperCredit } from '../ui/DeveloperCredit';
 import { useTranslation } from 'react-i18next';
-import { LucideMenu, LucideX, LayoutDashboard, ClipboardList, Truck, MessageCircle, Clock, ShieldCheck, History } from 'lucide-react';
+import { LucideMenu, LucideX, LayoutDashboard, ClipboardList, Truck, MessageCircle, Clock, ShieldCheck, History, Share2 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../ui/button';
 
@@ -110,6 +110,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <NavItem href="/stock-history" icon={<ClipboardList className="h-4 w-4" />} label={t('nav.stockHistory')} />
           <NavItem href="/loading/reports-history" icon={<History className="h-4 w-4" />} label={t('nav.reportHistory')} />
           <NavItem href="/loading/history" icon={<Truck className="h-4 w-4" />} label={t('nav.loadingHistory')} />
+          <NavItem href="/compartir" icon={<Share2 className="h-4 w-4" />} label={t('nav.share')} />
 
           {/* Admin section — visible to Administrador and limited Trabalhador panel */}
           {(user?.role === 'Administrador' || user?.role === 'Trabalhador') && (

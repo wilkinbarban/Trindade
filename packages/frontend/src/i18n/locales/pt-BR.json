@@ -61,6 +61,7 @@
     "operations": "Operações",
     "reportHistory": "Histórico de Relatórios",
     "reports": "Relatórios",
+    "share": "Compartilhar",
     "stock": "Calculador de Estoque",
     "stockHistory": "Histórico de Contagem",
     "whatsappExport": "Exportação WhatsApp"
@@ -485,5 +486,31 @@
   },
   "admin.workers": {
     "userAlreadyExists": "Este nome de usuário já está em uso."
+  },
+  "share": {
+    "title": "Compartilhar Trindade",
+    "subtitle": "Envie acessos e credenciais por WhatsApp para operadores e motoristas",
+    "platformLabel": "1. Plataforma de Acesso",
+    "bothPlatforms": "Ambos (Híbrido)",
+    "phoneLabel": "2. Telefone WhatsApp do Destinatário",
+    "phoneHint": "Com DDD brasileiro. Digite o número para abrir o chat direto no WhatsApp.",
+    "includeCredentials": "3. Incluir Credenciais na Mensagem",
+    "selectUser": "Selecionar Usuário Cadastrado",
+    "customOrNewUser": "-- Digitar manualmente ou escolher --",
+    "displayName": "Nome de Exibição",
+    "username": "Usuário de Login",
+    "password": "Senha Temporária",
+    "passwordHint": "Pré-carregada por padrão como 123456789. Pode ser alterada livremente.",
+    "previewTitle": "Pré-visualização do WhatsApp",
+    "chars": "caracteres",
+    "sendWhatsApp": "Abrir Chat no WhatsApp",
+    "enterPhoneToSend": "Informe o celular para enviar",
+    "copyMessage": "Copiar Mensagem",
+    "copied": "Copiado para a Área de Transferência!",
+    "qrCodeTitle": "Escanear Código QR",
+    "qrWithPhone": "Aponte a câmera do celular para abrir a conversa com mensagem preenchida.",
+    "qrWithoutPhone": "Aponte a câmera para acessar o link de download ou aplicativo web.",
+    "qrCodeAlt": "Código QR de Acesso",
+    "generatingQr": "Gerando QR Code..."
   }
 }

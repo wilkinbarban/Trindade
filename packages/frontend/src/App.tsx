@@ -22,6 +22,7 @@ const ReportEditPage = lazy(() => import('./pages/ReportEditPage').then(m => ({ 
 const LoadingEditPage = lazy(() => import('./pages/LoadingEditPage').then(m => ({ default: m.LoadingEditPage })));
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
 const AuditPage = lazy(() => import('./pages/admin/AuditPage').then(m => ({ default: m.AuditPage })));
+const ShareAppPage = lazy(() => import('./pages/ShareAppPage').then(m => ({ default: m.ShareAppPage })));
 
 function LazyFallback() {
   return (
@@ -212,6 +213,15 @@ export function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/compartir"
+            element={
+              <ProtectedRoute>
+                <ShareAppPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/compartilhar" element={<Navigate to="/compartir" replace />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       <GuestReadonlyNotice />
