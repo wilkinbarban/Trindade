@@ -31,7 +31,7 @@ S5. «Plan de Entrega ODD (Commits atómicos directos en main <= 400 líneas bru
 | ID | Tarea | Specs | Estado | Evidencia |
 | --- | --- | --- | --- | --- |
 | T1 | Backend endpoint GET /api/app/latest-release con caché en memoria (15 min), fallback resiliente, OpenAPI y tests unitarios | S1, S5 | hecha | `574b0d9` (354 líneas); tests unitarios 4/4; backend 494/494 verde; openapi y contratos actualizados |
-| T2 | Componente ShareAppPage.tsx mobile-first con selector de plataforma, selector de usuario, live preview, waMeLink, shareOrCopy y código QR | S1, S2, S3, S4, S5 | pendiente | - |
+| T2 | Componente ShareAppPage.tsx mobile-first con selector de plataforma, selector de usuario, live preview, waMeLink, shareOrCopy y código QR | S1, S2, S3, S4, S5 | hecha | `82dadb2` (deps qrcode), `48c6738` (share-app lib + tests 9/9), `6b1ccc7` (ShareAppPage.tsx 393 líneas); typecheck y suite frontend 100/100 verdes |
 | T3 | Integración en AppShell.tsx, registro de ruta /compartir en App.tsx, traducciones i18n (pt-BR y es) y build de producción | S1, S3, S4, S5 | pendiente | - |
 
 ## Log
