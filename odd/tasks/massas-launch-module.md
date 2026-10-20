@@ -25,11 +25,12 @@ S5: Despliegue, Git y Limpieza:
   - Dejar repositorio limpio y todo pusheado a `origin/main`.
 
 ## Tasks
-- T1 (S1, S2): Migración SQLite rev 6 (`massa_launches`), `SCHEMA_VERSION = 6`, `schema.sql` y tests de migración.
-- T2 (S1, S3): Módulo backend `massas`: servicio, schemas Zod, rutas GET/POST/PUT/DELETE, RBAC, OpenAPI y tests.
-- T3 (S4): Navegación Web: `/massas-launch` en `App.tsx`, enlace en `AppShell.tsx`, 3ª tarjeta en `DashboardPage.tsx`, i18n (`pt.json`, `es.json`) y biblioteca pura `lib/massas.ts` con tests.
-- T4 (S4): Pantalla `MassasLaunchPage.tsx`: grilla superior con 10 masas y cálculo en vivo, tabla intermedia colectiva con desglose por usuario y edición RBAC, bloque inferior WhatsApp con máscara y preview de unidades totales.
-- T5 (S5): Snapshot preventivo de base de datos en producción, ejecución de migración a rev 6, rebuild Docker Compose (`web`, `api`), verificación de salud y HTTP 200, git push a `origin/main`.
+- [x] T1 (S1, S2): Migración SQLite rev 6 (`massa_launches`), `SCHEMA_VERSION = 6`, `schema.sql` y tests de migración. (Commit `ec53120`)
+- [x] T2 (S1, S3): Módulo backend `massas`: servicio, schemas Zod, rutas GET/POST/PUT/DELETE, RBAC, OpenAPI y tests. (Commits `dc59b8b`, `7c860d6`, `e1a4267`, `69087ce`, `4deee72`)
+- [x] T3 (S4): Navegación Web: `/massas-launch` en `App.tsx`, enlace en `AppShell.tsx`, 3ª tarjeta en `DashboardPage.tsx`, i18n (`pt.json`, `es.json`) y biblioteca pura `lib/massas.ts` con tests. (Commit `bd9245d`)
+- [x] T4 (S4): Pantalla `MassasLaunchPage.tsx`: grilla superior con 10 masas y cálculo en vivo, tabla intermedia colectiva con desglose por usuario y edición RBAC, bloque inferior WhatsApp con máscara y preview de unidades totales. (Commits `e0a7c15`, `583cc2b`, `ae16864`)
+- [x] T5 (S5): Snapshot preventivo de base de datos en producción, ejecución de migración a rev 6, rebuild Docker Compose (`web`, `api`), verificación de salud y HTTP 200, git push a `origin/main`.
 
 ## Log
 - L1: Solicitud inicial del usuario para implementar el módulo "Lanzamiento de Masas" en Trindade Web con catálogo de 10 masas independiente de stock, migración SQLite rev 6, endpoints REST con RBAC por usuario, navegación en AppShell y Dashboard (3ª tarjeta), UI en 3 bloques (grilla sin reset, tabla colectiva editable por dueño, WhatsApp con máscara y unidades totales), commits atómicos en main y despliegue Docker en producción.
+- L2: Completadas las 5 fases. Snapshot preventivo `trindade.db.snapshot-pre-rev6-1792532087` generado en volumen de producción. Migración a rev 6 ejecutada exitosamente (`user_version = 6`, 17 tablas presentes). Contenedores Docker `trindade-api` y `trindade-web` reconstruidos y en estado healthy. Verificación HTTP 200 y endpoint `/api/massas-launch` confirmado.
