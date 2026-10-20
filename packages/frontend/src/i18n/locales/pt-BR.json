@@ -507,6 +507,7 @@
     "username": "Usuário de Login",
     "password": "Senha Temporária",
     "passwordHint": "Pré-carregada por padrão como 123456789. Pode ser alterada livremente.",
+    "adminPasswordHint": "Você pode informar a senha atribuída a este usuário ou manter a sugerida (123456789).",
     "readOnlyAdminHint": "Dados em modo somente leitura para administradores.",
     "sendApkFile": "Compartilhar Arquivo APK",
     "preparingApk": "Preparando arquivo APK...",

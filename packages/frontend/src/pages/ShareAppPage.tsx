@@ -55,6 +55,7 @@ export function ShareAppPage() {
   const [selectedUserId, setSelectedUserId] = useState<string>('');
   const [displayName, setDisplayName] = useState<string>('');
   const [username, setUsername] = useState<string>('');
+  const [password, setPassword] = useState<string>('123456789');
   const [includeCredentials, setIncludeCredentials] = useState<boolean>(true);
   const [phone, setPhone] = useState<string>('');
   const [copied, setCopied] = useState<boolean>(false);
@@ -124,10 +125,10 @@ export function ShareAppPage() {
       enabled: true,
       displayName,
       username,
-      password: '123456789',
+      password: password || '123456789',
     } : { enabled: false },
     locale: currentLocale,
-  }), [platform, release, isAdmin, includeCredentials, displayName, username, currentLocale]);
+  }), [platform, release, isAdmin, includeCredentials, displayName, username, password, currentLocale]);
 
   const rawDialDigits = toWhatsAppNumber(phone);
   const waLink = useMemo(() => rawDialDigits ? waMeLink(rawDialDigits, message) : null, [rawDialDigits, message]);
@@ -340,12 +341,13 @@ export function ShareAppPage() {
                     <Input
                       id={passwordInputId}
                       type="text"
-                      readOnly
-                      value="123456789"
-                      className="h-10 text-sm font-mono bg-gray-50 text-gray-700 cursor-not-allowed border-gray-200"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="123456789"
+                      className="h-10 text-sm font-mono border-gray-300"
                     />
-                    <p className="text-[11px] text-gray-400 mt-1">
-                      {t('share.readOnlyAdminHint', 'Dados em modo somente leitura para administradores.')}
+                    <p className="text-[11px] text-gray-500 mt-1">
+                      {t('share.adminPasswordHint', 'Você pode informar a senha atribuída a este usuário ou manter a sugerida (123456789).')}
                     </p>
                   </div>
                 </div>
