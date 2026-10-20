@@ -44,7 +44,7 @@ export function brazilianDate(date: string): string {
 
 /**
  * Formats WhatsApp message for massas launches showing strictly total units
- * per product (for launched products) and the overall total units.
+ * per product (for launched products) and the list of unique operators.
  */
 export function massasMessage(view: MassasLaunchDayView): string {
   const lines: string[] = [`🍝 *Lançamento de Massas — ${brazilianDate(view.date)}*`, ''];
@@ -60,8 +60,19 @@ export function massasMessage(view: MassasLaunchDayView): string {
     lines.push(`• ${product.name}: ${product.totalUnits} un`);
   }
 
-  lines.push('');
-  lines.push(`*Total Geral: ${view.totalUnits} un*`);
+  // Collect unique operator names from launches
+  const uniqueOperators = Array.from(
+    new Set(
+      (view.launches || [])
+        .map((l) => (l.display_name && l.display_name.trim()) || (l.username && l.username.trim()))
+        .filter((name): name is string => Boolean(name))
+    )
+  );
+
+  if (uniqueOperators.length > 0) {
+    lines.push('');
+    lines.push(`*Lançado por:* ${uniqueOperators.join(', ')}`);
+  }
 
   return lines.join('\n');
 }
