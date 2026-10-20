@@ -27,6 +27,7 @@ const EXPECTED_PATHS = [
   '/api/admin/users/{id}',
   '/api/admin/vehicles',
   '/api/admin/vehicles/{id}',
+  '/api/app/download-apk',
   '/api/app/latest-release',
   '/api/auth/change-password',
   '/api/auth/login',

@@ -7791,6 +7791,38 @@
         }
       }
     },
+    "/api/app/download-apk": {
+      "get": {
+        "summary": "Download the latest Android APK package directly",
+        "description": "Serves the binary Android package archive (.apk) with attachment headers for direct installation.",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "The Android APK binary file",
+            "content": {
+              "application/vnd.android.package-archive": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "APK upstream source is temporarily unreachable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/p/{token}": {
       "get": {
         "summary": "Fetch a photo by its short public link",

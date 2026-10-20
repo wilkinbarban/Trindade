@@ -218,6 +218,13 @@ function binaryResponse(description: string): ResponseConfig {
   return { description, content };
 }
 
+function apkBinaryResponse(description: string): ResponseConfig {
+  const content: NonNullable<ResponseConfig['content']> = {
+    'application/vnd.android.package-archive': { schema: { type: 'string', format: 'binary' } },
+  };
+  return { description, content };
+}
+
 // Path parameters. Declared as plain strings because that is what the router hands the
 // handler; each handler decides for itself whether the value is usable. The pattern is not
 // repeated here on purpose: the regex lives in the route, and duplicating it would create a
@@ -1471,6 +1478,19 @@ registerComponent(registry, 'StockHistory', StockHistorySchema);
     tags: ['system'],
     responses: {
       200: jsonResponse('Latest release information', LatestReleaseResponseSchema),
+    },
+  });
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/app/download-apk',
+    summary: 'Download the latest Android APK package directly',
+    description:
+      'Serves the binary Android package archive (.apk) with attachment headers for direct installation.',
+    tags: ['system'],
+    responses: {
+      200: apkBinaryResponse('The Android APK binary file'),
+      502: errorResponse('APK upstream source is temporarily unreachable'),
     },
   });
 

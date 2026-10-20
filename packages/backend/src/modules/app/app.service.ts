@@ -1,9 +1,15 @@
 import type { LatestReleaseResponse } from './app.schema.js';
 
+export const TRINDADE_APK_DOWNLOAD_URL =
+  'https://trindademasas.duckdns.org/api/app/download-apk';
+
+export const FALLBACK_UPSTREAM_APK_URL =
+  'https://github.com/wilkinbarban/Trindade/releases/download/v0.5.0/trindade-0.5.0.apk';
+
 export const FALLBACK_RELEASE: LatestReleaseResponse = {
   version: 'v0.5.0',
-  apkUrl: 'https://github.com/wilkinbarban/Trindade/releases/download/v0.5.0/trindade-0.5.0.apk',
-  apkName: 'trindade-0.5.0.apk',
+  apkUrl: TRINDADE_APK_DOWNLOAD_URL,
+  apkName: 'trindade.apk',
   apkSize: null,
   publishedAt: null,
   webUrl: 'https://trindademasas.duckdns.org',
@@ -16,6 +22,7 @@ export const RELEASE_CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutos en memoria
 
 interface CachedRelease {
   data: LatestReleaseResponse;
+  upstreamApkUrl: string;
   expiresAt: number;
 }
 
@@ -72,18 +79,17 @@ export async function getLatestRelease(options: { forceRefresh?: boolean } = {})
       (a) => typeof a.name === 'string' && a.name.toLowerCase().endsWith('.apk'),
     );
 
-    const apkUrl =
+    const upstreamApkUrl =
       apkAsset?.browser_download_url ||
       `https://github.com/wilkinbarban/Trindade/releases/download/${tagName}/trindade-${cleanTag}.apk`;
 
-    const apkName = apkAsset?.name || `trindade-${cleanTag}.apk`;
     const apkSize = typeof apkAsset?.size === 'number' ? apkAsset.size : null;
     const publishedAt = payload.published_at || null;
 
     const releaseData: LatestReleaseResponse = {
       version: tagName,
-      apkUrl,
-      apkName,
+      apkUrl: TRINDADE_APK_DOWNLOAD_URL,
+      apkName: 'trindade.apk',
       apkSize,
       publishedAt,
       webUrl: 'https://trindademasas.duckdns.org',
@@ -91,6 +97,7 @@ export async function getLatestRelease(options: { forceRefresh?: boolean } = {})
 
     cachedRelease = {
       data: releaseData,
+      upstreamApkUrl,
       expiresAt: now + RELEASE_CACHE_TTL_MS,
     };
 
@@ -98,5 +105,28 @@ export async function getLatestRelease(options: { forceRefresh?: boolean } = {})
   } catch {
     if (cachedRelease) return cachedRelease.data;
     return FALLBACK_RELEASE;
+  }
+}
+
+export async function downloadApkBinary(): Promise<{ buffer: Buffer; filename: string } | null> {
+  const release = await getLatestRelease();
+  const upstreamUrl = cachedRelease?.upstreamApkUrl || FALLBACK_UPSTREAM_APK_URL;
+  const fetcher = testFetcher ?? fetch;
+
+  try {
+    const res = await fetcher(upstreamUrl, {
+      headers: {
+        'User-Agent': 'Trindade-Backend',
+      },
+    });
+
+    if (!res.ok) return null;
+    const arrayBuffer = await res.arrayBuffer();
+    return {
+      buffer: Buffer.from(arrayBuffer),
+      filename: release.apkName || 'trindade.apk',
+    };
+  } catch {
+    return null;
   }
 }
