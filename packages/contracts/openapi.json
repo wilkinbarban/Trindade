@@ -1312,6 +1312,325 @@
           "webUrl"
         ]
       },
+      "MassaProductTotal": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "unitsPerBox": {
+            "type": "integer"
+          },
+          "totalBoxes": {
+            "type": "integer"
+          },
+          "totalUnits": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "unitsPerBox",
+          "totalBoxes",
+          "totalUnits"
+        ],
+        "additionalProperties": false
+      },
+      "MassaIndividualLaunch": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "launch_date": {
+            "type": "string"
+          },
+          "product_code": {
+            "type": "string"
+          },
+          "product_name": {
+            "type": "string"
+          },
+          "boxes": {
+            "type": "integer"
+          },
+          "units": {
+            "type": "integer"
+          },
+          "user_id": {
+            "type": "integer"
+          },
+          "username": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "launch_date",
+          "product_code",
+          "product_name",
+          "boxes",
+          "units",
+          "user_id",
+          "username",
+          "display_name",
+          "created_at",
+          "updated_at"
+        ],
+        "additionalProperties": false
+      },
+      "MassasLaunchDayView": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "products": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "unitsPerBox": {
+                  "type": "integer"
+                },
+                "totalBoxes": {
+                  "type": "integer"
+                },
+                "totalUnits": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "code",
+                "name",
+                "unitsPerBox",
+                "totalBoxes",
+                "totalUnits"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "launches": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "launch_date": {
+                  "type": "string"
+                },
+                "product_code": {
+                  "type": "string"
+                },
+                "product_name": {
+                  "type": "string"
+                },
+                "boxes": {
+                  "type": "integer"
+                },
+                "units": {
+                  "type": "integer"
+                },
+                "user_id": {
+                  "type": "integer"
+                },
+                "username": {
+                  "type": "string"
+                },
+                "display_name": {
+                  "type": "string"
+                },
+                "created_at": {
+                  "type": "string"
+                },
+                "updated_at": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "launch_date",
+                "product_code",
+                "product_name",
+                "boxes",
+                "units",
+                "user_id",
+                "username",
+                "display_name",
+                "created_at",
+                "updated_at"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "totalBoxes": {
+            "type": "integer"
+          },
+          "totalUnits": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "date",
+          "products",
+          "launches",
+          "totalBoxes",
+          "totalUnits"
+        ],
+        "additionalProperties": false
+      },
+      "MassasLaunchCreateRequest": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "product_code": {
+            "type": "string",
+            "minLength": 1
+          },
+          "boxes": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "product_code": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "boxes": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "required": [
+                "product_code",
+                "boxes"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "MassasLaunchCreateResponse": {
+        "type": "object",
+        "properties": {
+          "created": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "launch_date": {
+                  "type": "string"
+                },
+                "product_code": {
+                  "type": "string"
+                },
+                "product_name": {
+                  "type": "string"
+                },
+                "boxes": {
+                  "type": "integer"
+                },
+                "units": {
+                  "type": "integer"
+                },
+                "user_id": {
+                  "type": "integer"
+                },
+                "username": {
+                  "type": "string"
+                },
+                "display_name": {
+                  "type": "string"
+                },
+                "created_at": {
+                  "type": "string"
+                },
+                "updated_at": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "launch_date",
+                "product_code",
+                "product_name",
+                "boxes",
+                "units",
+                "user_id",
+                "username",
+                "display_name",
+                "created_at",
+                "updated_at"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "created"
+        ],
+        "additionalProperties": false
+      },
+      "MassasLaunchUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "boxes": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "boxes"
+        ],
+        "additionalProperties": false
+      },
+      "MassasLaunchDeleteResponse": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "additionalProperties": false
+      },
       "SchedulesResponse": {
         "type": "object",
         "properties": {
@@ -7677,6 +7996,233 @@
           },
           "401": {
             "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/massas-launch": {
+      "get": {
+        "summary": "Read a day of massas launch",
+        "description": "Answers 10 massas products with collective totals and individual user launches for the day.",
+        "tags": [
+          "massas"
+        ],
+        "responses": {
+          "200": {
+            "description": "The day view with collective totals and individual launches",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MassasLaunchDayView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Register massas launches for the authenticated user",
+        "tags": [
+          "massas"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MassasLaunchCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created launches",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MassasLaunchCreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request body failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/massas-launch/{id}": {
+      "put": {
+        "summary": "Update boxes of a massas launch",
+        "description": "Validates that the authenticated user owns the launch; answers 403 if it belongs to another user.",
+        "tags": [
+          "massas"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MassasLaunchUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated launch",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MassaIndividualLaunch"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request body failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The launch belongs to another user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The launch does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a massas launch",
+        "description": "Validates that the authenticated user owns the launch; answers 403 if it belongs to another user.",
+        "tags": [
+          "massas"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deletion confirmation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MassasLaunchDeleteResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request body failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The launch belongs to another user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The launch does not exist",
             "content": {
               "application/json": {
                 "schema": {
