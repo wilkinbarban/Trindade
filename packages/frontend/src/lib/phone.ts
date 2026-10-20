@@ -24,3 +24,33 @@ export function filterPhoneInput(raw: string): string {
 export function cleanPhone(raw: string): string {
   return filterPhoneInput(raw).replace(/\s+/g, ' ').trim();
 }
+
+/**
+ * Formats a Brazilian phone number progressively into (XX) 9XXXX-XXXX or (XX) XXXX-XXXX.
+ * Trims extraneous country codes or excessive digits past 11 digits.
+ */
+export function formatPhoneMask(raw: string): string {
+  let digits = raw.replace(/\D/g, '');
+  if (digits.startsWith('55') && digits.length > 11) {
+    digits = digits.slice(2);
+  }
+  digits = digits.slice(0, 11);
+
+  if (digits.length === 0) return '';
+  if (digits.length <= 2) return `(${digits}${digits.length === 2 ? ') ' : ''}`;
+  if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
+}
+
+/**
+ * Normalizes a Brazilian phone number to pure digits with international country code (55).
+ * If the number is 10 or 11 digits without 55, prepends 55 for WhatsApp API compatibility.
+ */
+export function toWhatsAppNumber(phone: string): string {
+  let digits = phone.replace(/\D/g, '');
+  if (!digits) return '';
+  if ((digits.length === 10 || digits.length === 11) && !digits.startsWith('55')) {
+    digits = `55${digits}`;
+  }
+  return digits;
+}

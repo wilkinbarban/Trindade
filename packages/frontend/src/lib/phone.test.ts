@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { cleanPhone, filterPhoneInput } from './phone';
+import { cleanPhone, filterPhoneInput, formatPhoneMask, toWhatsAppNumber } from './phone';
 
 /**
  * The phone field's rules, kept pure so the form that uses them has no logic of its own.
@@ -49,5 +49,42 @@ describe('filterPhoneInput', () => {
   it('leaves the spacing alone, so a number can be typed with spaces', () => {
     assert.equal(filterPhoneInput('11 '), '11 ');
     assert.equal(filterPhoneInput('+55 (11) 98888-7777'), '+55 (11) 98888-7777');
+  });
+});
+
+describe('formatPhoneMask', () => {
+  it('formats 11 digits into (XX) 9XXXX-XXXX', () => {
+    assert.equal(formatPhoneMask('11988887777'), '(11) 98888-7777');
+  });
+
+  it('formats partial input progressively', () => {
+    assert.equal(formatPhoneMask('1'), '(1');
+    assert.equal(formatPhoneMask('11'), '(11) ');
+    assert.equal(formatPhoneMask('119'), '(11) 9');
+    assert.equal(formatPhoneMask('119888'), '(11) 9888');
+    assert.equal(formatPhoneMask('1198888'), '(11) 98888');
+    assert.equal(formatPhoneMask('11988887777'), '(11) 98888-7777');
+  });
+
+  it('strips country code 55 when followed by full number', () => {
+    assert.equal(formatPhoneMask('+55 (11) 98888-7777'), '(11) 98888-7777');
+  });
+});
+
+describe('toWhatsAppNumber', () => {
+  it('prepends 55 to an 11-digit Brazilian number if missing', () => {
+    assert.equal(toWhatsAppNumber('(11) 98888-7777'), '5511988887777');
+  });
+
+  it('prepends 55 to a 10-digit Brazilian landline number if missing', () => {
+    assert.equal(toWhatsAppNumber('(11) 3333-4444'), '551133334444');
+  });
+
+  it('keeps 55 if already present', () => {
+    assert.equal(toWhatsAppNumber('+55 11 98888-7777'), '5511988887777');
+  });
+
+  it('returns empty string if no digits are provided', () => {
+    assert.equal(toWhatsAppNumber(''), '');
   });
 });

@@ -21,27 +21,7 @@ export interface ShareMessageParams {
   locale?: 'pt' | 'es';
 }
 
-export function formatPhoneMask(raw: string): string {
-  let digits = raw.replace(/\D/g, '');
-  if (digits.startsWith('55') && digits.length > 11) {
-    digits = digits.slice(2);
-  }
-  digits = digits.slice(0, 11);
-
-  if (digits.length === 0) return '';
-  if (digits.length <= 2) return `(${digits}${digits.length === 2 ? ') ' : ''}`;
-  if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
-  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
-}
-
-export function toWhatsAppNumber(phone: string): string {
-  let digits = phone.replace(/\D/g, '');
-  if (!digits) return '';
-  if ((digits.length === 10 || digits.length === 11) && !digits.startsWith('55')) {
-    digits = `55${digits}`;
-  }
-  return digits;
-}
+export { formatPhoneMask, toWhatsAppNumber } from './phone';
 
 export function buildShareMessage(params: ShareMessageParams): string {
   const { platform, release, credentials, locale = 'pt' } = params;
