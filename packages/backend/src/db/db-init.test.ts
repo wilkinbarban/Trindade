@@ -35,6 +35,7 @@ describe('Database Initialization', () => {
       'stock_counts',
       'drivers',
       'loading_schedules',
+      'massa_launches',
       'report_categories',
       'report_items',
       'report_photos',

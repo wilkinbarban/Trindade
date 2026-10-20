@@ -3,7 +3,7 @@
 -- 15 user tables: the approved schema after the admin-refactor-loading-rules change
 -- dropped report_products and report_quantities, whose data report_items carries in
 -- selected_products as JSON, and schema revision 2 added auth_sessions. The PRD listed
--- 16 tables; the refactor superseded two and revision 2 added one.
+-- 17 tables; the refactor superseded two, revision 2 added one, and revision 6 added massa_launches.
 -- Changing this file needs a matching SCHEMA_VERSION bump in schema-version.ts and an
 -- approved migration path: a fresh installation stamps PRAGMA user_version, and an
 -- existing database is never migrated, reset, seeded, or stamped by startup.

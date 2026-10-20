@@ -31,7 +31,7 @@ describe('startup schema notice', () => {
     assert.equal(notice.message, 'database schema notice');
     assert.equal(notice.payload.verdict, 'current');
     assert.equal(notice.payload.revision, SCHEMA_VERSION);
-    assert.equal(notice.payload.tables, 16);
+    assert.equal(notice.payload.tables, 17);
     assert.deepEqual(notice.payload.missingTables, []);
   });
 
