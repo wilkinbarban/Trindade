@@ -30,9 +30,10 @@ class RolePolicyTest {
                 EntryPoint.LOADING,
                 EntryPoint.CATALOG_TASKS,
                 EntryPoint.CATALOG_DRIVERS,
-            EntryPoint.ASSAI_ORDER,
-            EntryPoint.STOCK_COUNTER,
-            EntryPoint.STOCK_HISTORY,
+                EntryPoint.ASSAI_ORDER,
+                EntryPoint.STOCK_COUNTER,
+                EntryPoint.STOCK_HISTORY,
+                EntryPoint.SHARE_APP,
             ),
             RolePolicy.visibleEntryPoints(RolePolicy.WORKER),
         )

@@ -80,6 +80,9 @@ object RolePolicy {
 
         /** Session only: the counted days. Reading is both roles'; correcting on the screen is not. */
         STOCK_HISTORY,
+
+        /** Session only: share app links and official credentials. */
+        SHARE_APP,
     }
 
     /**
@@ -99,6 +102,7 @@ object RolePolicy {
         EntryPoint.ASSAI_ORDER,
         EntryPoint.STOCK_COUNTER,
         EntryPoint.STOCK_HISTORY,
+        EntryPoint.SHARE_APP,
     )
 
     /**
