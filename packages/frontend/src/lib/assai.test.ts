@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   ASSAI_PRODUCTS,
+  ASSAI_WEEKDAYS,
+  ASSAI_WEEKDAY_OPTIONS,
   assaiHasError,
   assaiLines,
   assaiMessage,
@@ -97,6 +99,22 @@ describe('assaiMessage', () => {
 
     const comBranco = assaiMessage(assaiLines({ [nhoque]: '30' }), '   ');
     assert.ok(comBranco.startsWith('🛒 Pedido Assaí\n'));
+  });
+});
+
+describe('dias da semana do Assai', () => {
+  it('oferece os quatro dias permitidos na ordem esperada', () => {
+    assert.deepEqual(ASSAI_WEEKDAYS, [
+      'Terça-feira',
+      'Quinta-feira',
+      'Sexta-feira',
+      'Sábado',
+    ]);
+    assert.equal(ASSAI_WEEKDAY_OPTIONS.length, 4);
+    assert.equal(ASSAI_WEEKDAY_OPTIONS[0].value, 'Terça-feira');
+    assert.equal(ASSAI_WEEKDAY_OPTIONS[1].value, 'Quinta-feira');
+    assert.equal(ASSAI_WEEKDAY_OPTIONS[2].value, 'Sexta-feira');
+    assert.equal(ASSAI_WEEKDAY_OPTIONS[3].value, 'Sábado');
   });
 });
 

@@ -126,6 +126,19 @@ export const ASSAI_WEEKDAYS = [
 
 export type AssaiWeekday = (typeof ASSAI_WEEKDAYS)[number];
 
+export interface AssaiWeekdayOption {
+  id: string;
+  value: AssaiWeekday;
+  labelKey: string;
+}
+
+export const ASSAI_WEEKDAY_OPTIONS: readonly AssaiWeekdayOption[] = [
+  { id: 'tuesday', value: 'Terça-feira', labelKey: 'assai.weekdayTuesday' },
+  { id: 'thursday', value: 'Quinta-feira', labelKey: 'assai.weekdayThursday' },
+  { id: 'friday', value: 'Sexta-feira', labelKey: 'assai.weekdayFriday' },
+  { id: 'saturday', value: 'Sábado', labelKey: 'assai.weekdaySaturday' },
+];
+
 /**
  * The message that goes out, which is the order and nothing else: one line per product being ordered, with
  * its boxes and its units, and the total at the end. A product nobody is ordering is not named -- a list of

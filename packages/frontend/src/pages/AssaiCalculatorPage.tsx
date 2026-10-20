@@ -6,6 +6,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import {
   ASSAI_PRODUCTS,
+  ASSAI_WEEKDAY_OPTIONS,
   assaiHasError,
   assaiLines,
   assaiMessage,
@@ -31,6 +32,7 @@ export function AssaiCalculatorPage() {
   // El campo que se esta editando ahora, y si ya se intento compartir con el pedido incompleto.
   const [focused, setFocused] = useState<string | null>(null);
   const [triedShare, setTriedShare] = useState(false);
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [freeNumber, setFreeNumber] = useState('');
   const [note, setNote] = useState('');
 
@@ -39,7 +41,7 @@ export function AssaiCalculatorPage() {
   const visibleErrors = assaiVisibleErrors(lines, { blurred, focused });
   const hasVisibleError = visibleErrors.length > 0;
   const totalBoxes = assaiTotalBoxes(lines);
-  const message = assaiMessage(lines);
+  const message = assaiMessage(lines, selectedDay);
 
   const targetNumber = freeNumber.trim();
 
@@ -134,6 +136,48 @@ export function AssaiCalculatorPage() {
 
       <Card>
         <CardContent className="p-3 space-y-3">
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-medium text-gray-600">{t('assai.weekdayLabel')}</label>
+              {selectedDay && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedDay(null)}
+                  className="text-[11px] text-gray-500 hover:text-gray-700 underline"
+                  data-testid="assai-weekday-clear"
+                >
+                  {t('assai.clearWeekday')}
+                </button>
+              )}
+            </div>
+            <div
+              className="grid grid-cols-2 sm:grid-cols-4 gap-1.5"
+              role="radiogroup"
+              aria-label={t('assai.weekdayLabel')}
+            >
+              {ASSAI_WEEKDAY_OPTIONS.map((opt) => {
+                const isSelected = selectedDay === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={isSelected}
+                    data-testid={`assai-weekday-${opt.id}`}
+                    onClick={() => setSelectedDay(isSelected ? null : opt.value)}
+                    className={`py-2 px-3 text-xs font-medium rounded-lg border text-center transition-all ${
+                      isSelected
+                        ? 'bg-green-600 text-white border-green-600 shadow-sm'
+                        : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    {t(opt.labelKey)}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <div>
             <label className="block text-xs font-medium text-gray-600">{t('assai.freeNumber')}</label>
             <Input

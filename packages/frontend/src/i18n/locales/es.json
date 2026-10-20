@@ -417,6 +417,7 @@
     "blocked": "Corregí las cantidades para poder enviar.",
     "boxes": "Cajas",
     "boxesWord": "cajas",
+    "clearWeekday": "Quitar día",
     "driver": "Chofer",
     "errorUnits": "Cantidad errada de unidades",
     "freeNumber": "Coloque el WhatsApp",
@@ -431,7 +432,12 @@
     "subtitle": "Informá las unidades de cada producto: la cantidad tiene que cerrar cajas enteras.",
     "title": "Calculadora de Assaí",
     "totalLabel": "Total del pedido",
-    "units": "Unidades"
+    "units": "Unidades",
+    "weekdayFriday": "Viernes",
+    "weekdayLabel": "Día de la semana (opcional)",
+    "weekdaySaturday": "Sábado",
+    "weekdayThursday": "Jueves",
+    "weekdayTuesday": "Martes"
   },
   "stock": {
     "add": "Agregar",
