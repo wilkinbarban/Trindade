@@ -244,3 +244,16 @@ CREATE TABLE IF NOT EXISTS stock_counts (
   user_id         INTEGER REFERENCES users(id),
   UNIQUE(count_date, product_code)
 );
+
+-- Revision 6: the daily launches of massa boxes per product and user.
+CREATE TABLE IF NOT EXISTS massa_launches (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  launch_date     TEXT NOT NULL,
+  product_code    TEXT NOT NULL,
+  boxes           INTEGER NOT NULL,
+  user_id         INTEGER NOT NULL REFERENCES users(id),
+  created_at      TEXT NOT NULL,
+  updated_at      TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_massa_launches_date ON massa_launches(launch_date);
+

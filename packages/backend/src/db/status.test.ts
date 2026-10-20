@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { afterEach, describe, it } from 'node:test';
 import Database from 'better-sqlite3';
 import { openDatabase } from './index.js';
-import { SCHEMA_VERSION } from './schema-version.js';
+import { SCHEMA_TABLES, SCHEMA_VERSION } from './schema-version.js';
 
 const statusScript = join(import.meta.dirname, 'status.ts');
 const schema = readFileSync(join(import.meta.dirname, 'schema.sql'), 'utf8');
@@ -62,7 +62,7 @@ describe('schema status command', () => {
     const { code, output } = await runStatus(databasePath);
     assert.equal(code, 1, output);
     assert.match(output, new RegExp(`schema revision: 0 \\(this build supports ${SCHEMA_VERSION}\\)`));
-    assert.match(output, /tables: 16 observed, 0 missing, 0 unexpected/);
+    assert.match(output, new RegExp(`tables: ${SCHEMA_TABLES.length} observed, 0 missing, 0 unexpected`));
     assert.match(output, /verdict: unversioned/);
     assert.equal(digest(databasePath), before, 'the status command modified the database');
 

@@ -4,6 +4,7 @@ import { migrateDriverPhone } from './driver-phone-migration.js';
 import { migrateStockCounts } from './stock-migration.js';
 import { migrateLegacyReportTemperatures } from './report-temperatures-migration.js';
 import { migrateSecurityVersion } from './security-version-migration.js';
+import { migrateMassaLaunches } from './massa-launches-migration.js';
 import { SCHEMA_VERSION, readSchemaReport, stampSchemaVersion, type SchemaReport } from './schema-version.js';
 
 export type MigrateResult =
@@ -71,6 +72,7 @@ export function migrateDatabase(db: Database.Database): MigrateResult {
     { to: 3, apply: () => migrateSecurityVersion(db) },
     { to: 4, apply: () => migrateDriverPhone(db) },
     { to: 5, apply: () => migrateStockCounts(db) },
+    { to: 6, apply: () => migrateMassaLaunches(db) },
   ];
 
   for (const step of steps) {

@@ -361,6 +361,31 @@ describe('schema migration', () => {
       .pluck()
       .all() as string[];
     assert.ok(tables.includes('auth_sessions'), 'a revision 0 migration must also reach revision 2');
+    assert.ok(tables.includes('massa_launches'), 'a revision 0 migration must also reach revision 6');
+    db.close();
+  });
+
+  it('creates massa_launches for a revision 5 database and reaches revision 6', () => {
+    const path = join(fixtureRoot(), 'revision-five.db');
+    const build = new Database(path);
+    build.exec(schema);
+    build.exec(seed);
+    build.exec('DROP TABLE massa_launches');
+    build.pragma('user_version = 5');
+    build.close();
+
+    const db = new Database(path);
+    assert.equal(readSchemaReport(db).version, 5);
+    const result = migrateDatabase(db);
+    assert.equal(result.outcome, 'migrated');
+    assert.equal(result.from, 5);
+    assert.equal(result.to, SCHEMA_VERSION);
+    assert.equal(db.pragma('user_version', { simple: true }), 6);
+    const tables = db
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
+      .pluck()
+      .all() as string[];
+    assert.ok(tables.includes('massa_launches'), 'revision 6 must add massa_launches');
     db.close();
   });
 
