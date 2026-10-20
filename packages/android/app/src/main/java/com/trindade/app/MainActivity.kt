@@ -71,6 +71,7 @@ import com.trindade.app.reports.ReportsHistoryRoute
 import com.trindade.app.ui.components.NavigationActionButton
 import com.trindade.app.ui.theme.TrindadeTheme
 import com.trindade.app.assai.AssaiCalculatorScreen
+import com.trindade.app.share.ShareAppScreen
 import com.trindade.app.stock.StockCalculatorScreen
 import com.trindade.app.stock.StockHistoryScreen
 import com.trindade.app.ui.components.DeveloperCredit
@@ -92,6 +93,7 @@ class MainActivity : ComponentActivity() {
         ASSAI(R.string.nav_assai),
         STOCK_COUNTER(R.string.nav_stock_counter),
         STOCK_HISTORY(R.string.nav_stock_history),
+        SHARE(R.string.nav_share),
     }
 
     companion object {
@@ -111,6 +113,7 @@ class MainActivity : ComponentActivity() {
             RolePolicy.EntryPoint.ASSAI_ORDER to Tab.ASSAI,
             RolePolicy.EntryPoint.STOCK_COUNTER to Tab.STOCK_COUNTER,
             RolePolicy.EntryPoint.STOCK_HISTORY to Tab.STOCK_HISTORY,
+            RolePolicy.EntryPoint.SHARE_APP to Tab.SHARE,
         )
     }
 
@@ -307,6 +310,7 @@ class MainActivity : ComponentActivity() {
                                 // Las tres superficies nuevas se dibujan sin argumentos: cada una resuelve su
                                 // ViewModel por Hilt, y la calculadora de Assaí no toca la red en absoluto.
                                 Tab.ASSAI -> AssaiCalculatorScreen()
+                                Tab.SHARE -> ShareAppScreen()
                                 // El histórico propaga el rol resuelto de sesión para que el
                                 // Administrador pueda realizar correcciones sobre días anteriores.
                                 Tab.STOCK_HISTORY -> StockHistoryScreen(role = role)
