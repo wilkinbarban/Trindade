@@ -41,7 +41,7 @@ S4. «FASE 4: Compilación Release, sustitución en Release v0.5.0 y Cierre
 | ID | Tarea | Specs | Estado | Evidencia |
 | --- | --- | --- | --- | --- |
 | T1 | Fase 1: Días de la semana en AssaiOrder, AssaiViewModel, AssaiCalculatorScreen y tests | S1 | completada | 5556511 (99 insertions, tests passing) |
-| T2 | Fase 2: Estandarización de inputs de teléfono WhatsApp en PhoneInput, Assai, Stock y tests | S2 | pendiente | - |
+| T2 | Fase 2: Estandarización de inputs de teléfono WhatsApp en PhoneInput, Assai, Stock y tests | S2 | completada | 7cca21c (94 insertions, tests passing) |
 | T3 | Fase 3: Módulo Compartir nativo en Android (ShareAppScreen, ViewModel, integración MainActivity y tests) | S3 | pendiente | - |
 | T4 | Fase 4: Compilación Release firmada, upload a Release v0.5.0, documentación y verificación final | S4 | pendiente | - |
 
