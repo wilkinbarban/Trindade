@@ -24,6 +24,7 @@ const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard').then(m 
 const AuditPage = lazy(() => import('./pages/admin/AuditPage').then(m => ({ default: m.AuditPage })));
 const ShareAppPage = lazy(() => import('./pages/ShareAppPage').then(m => ({ default: m.ShareAppPage })));
 const MassasLaunchPage = lazy(() => import('./pages/MassasLaunchPage').then(m => ({ default: m.MassasLaunchPage })));
+const MassasHistoryPage = lazy(() => import('./pages/MassasHistoryPage').then(m => ({ default: m.MassasHistoryPage })));
 
 function LazyFallback() {
   return (
@@ -227,6 +228,14 @@ export function App() {
             element={
               <ProtectedRoute>
                 <MassasLaunchPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/massas-history"
+            element={
+              <ProtectedRoute>
+                <MassasHistoryPage />
               </ProtectedRoute>
             }
           />

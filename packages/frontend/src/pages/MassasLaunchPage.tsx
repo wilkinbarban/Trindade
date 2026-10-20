@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
+import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { LoadingSpinner } from '../components/ui/loading-spinner';
 import { toWhatsAppNumber } from '../lib/phone';
@@ -12,7 +14,7 @@ import {
   type MassasLaunchDayView,
   type MassaIndividualLaunch,
 } from '../lib/massas';
-import { Layers } from 'lucide-react';
+import { Layers, History } from 'lucide-react';
 import { MassasLaunchGrid } from './massas/MassasLaunchGrid';
 import { MassasCollectiveTable } from './massas/MassasCollectiveTable';
 import { MassasWhatsAppShare } from './massas/MassasWhatsAppShare';
@@ -177,7 +179,13 @@ export function MassasLaunchPage() {
           </div>
           <p className="text-sm text-gray-500 mt-1">{t('massas.subtitle')}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Link to="/massas-history">
+            <Button variant="outline" className="flex items-center gap-1.5 text-xs font-semibold">
+              <History className="h-4 w-4" />
+              {t('massas.viewHistory')}
+            </Button>
+          </Link>
           <label htmlFor="massa-date" className="text-sm font-medium text-gray-700 whitespace-nowrap">
             {t('massas.date')}:
           </label>

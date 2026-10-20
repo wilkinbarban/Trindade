@@ -106,6 +106,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             excludedActivePrefixes={['/loading/reports-history', '/loading/history']}
           />
           <NavItem href="/massas-launch" icon={<Layers className="h-4 w-4" />} label={t('nav.massasLaunch')} />
+          <NavItem href="/massas-history" icon={<History className="h-4 w-4" />} label={t('nav.massasHistory')} />
           <NavItem href="/assai-calculator" icon={<ClipboardList className="h-4 w-4" />} label={t('nav.assai')} />
           <NavItem href="/stock-calculator" icon={<ClipboardList className="h-4 w-4" />} label={t('nav.stock')} />
           <NavItem href="/stock-history" icon={<ClipboardList className="h-4 w-4" />} label={t('nav.stockHistory')} />

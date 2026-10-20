@@ -43,6 +43,7 @@
     "shareSchedule": "Enviar pelo WhatsApp",
     "massasLaunch": "Lançamento de Massas",
     "massasLaunchHint": "Registrar produção de massas",
+    "massasHistory": "Ver Histórico",
     "stock": "Calculador de Estoque",
     "stockHint": "Contar caixas do dia",
     "stockHistory": "Histórico de Contagem",
@@ -60,6 +61,7 @@
     "loadingHistory": "Histórico de Carregamento",
     "loadingSchedule": "Cronograma de Carregamento",
     "massasLaunch": "Lançamento de Massas",
+    "massasHistory": "Histórico de Massas",
     "menu": "Menu",
     "operations": "Operações",
     "reportHistory": "Histórico de Relatórios",
@@ -482,7 +484,13 @@
     "deleteConfirm": "Tem certeza que deseja excluir este lançamento?",
     "deleteSuccess": "Lançamento excluído com sucesso",
     "deleteError": "Erro ao excluir lançamento",
-    "noLaunches": "Nenhum lançamento registrado nesta data."
+    "noLaunches": "Nenhum lançamento registrado nesta data.",
+    "historyTitle": "Histórico de Lançamento de Massas",
+    "historySubtitle": "Consulte lançamentos de dias anteriores, resumo coletivo e compartilhamento",
+    "viewHistory": "Ver Histórico",
+    "backToToday": "Voltar para Hoje",
+    "today": "Hoje",
+    "pastDaysWithLaunches": "Dias com lançamentos registrados"
   },
   "stock": {
     "add": "Adicionar",

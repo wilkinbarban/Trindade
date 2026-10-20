@@ -194,7 +194,19 @@ export function DashboardPage() {
         />
         <SummaryCard
           title={t('dashboard.massasLaunch')}
-          value={<span className="text-sm text-gray-500">{t('dashboard.massasLaunchHint')}</span>}
+          value={
+            <div className="space-y-1">
+              <span className="text-sm text-gray-500">{t('dashboard.massasLaunchHint')}</span>
+              <div className="pt-1">
+                <Link
+                  to="/massas-history"
+                  className="text-xs text-amber-700 hover:underline font-medium"
+                >
+                  {t('dashboard.massasHistory')} →
+                </Link>
+              </div>
+            </div>
+          }
           icon="🍝"
           to="/massas-launch"
         />
