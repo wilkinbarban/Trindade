@@ -26,7 +26,7 @@ S3. «ODD & Despliegue:
 
 | ID | Tarea | Specs | Estado | Evidencia |
 | --- | --- | --- | --- | --- |
-| T1 | Test-first en lib/assai.ts y assai.test.ts para soporte de assaiMessage(lines, day) | S1, S2 | pendiente | - |
+| T1 | Test-first en lib/assai.ts y assai.test.ts para soporte de assaiMessage(lines, day) | S1, S2 | hecha | `be548b4` (40 líneas); ciclo RED -> GREEN; tests unitarios 16/16 verdes |
 | T2 | Selector de día mobile-first en AssaiCalculatorPage.tsx y claves i18n (pt-BR y es) | S1, S2, S3 | pendiente | - |
 | T3 | Validación de tests/typecheck, git push y despliegue del servicio web en Docker | S3 | pendiente | - |
 
