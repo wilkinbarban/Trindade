@@ -7,6 +7,7 @@ import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { mailtoLink, saopauloToday, stockEmailBody, stockMessage, type StockDay, type StockProduct } from '../lib/stock';
+import { formatPhoneMask, toWhatsAppNumber } from '../lib/phone';
 import { shareOrCopy, waMeLink } from '../lib/whatsapp';
 
 /**
@@ -66,7 +67,7 @@ export function StockHistoryPage() {
   const counted = day === null ? [] : day.products.filter((product) => product.units > 0);
   const message = day === null ? '' : stockMessage(day);
   const emailBody = day === null ? '' : stockEmailBody(day);
-  const targetNumber = freeNumber.trim();
+  const targetNumber = toWhatsAppNumber(freeNumber);
 
   async function sendEntry(product: StockProduct) {
     const raw = (quantities[product.code] ?? '').trim();
@@ -284,7 +285,15 @@ export function StockHistoryPage() {
         <CardContent className="p-3 space-y-3">
           <div>
             <label className="block text-xs font-medium text-gray-600">{t('stock.freeNumber')}</label>
-            <Input value={freeNumber} onChange={(e) => setFreeNumber(e.target.value)} placeholder="+55 …" data-testid="stock-history-number" />
+            <Input
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              value={freeNumber}
+              onChange={(e) => setFreeNumber(formatPhoneMask(e.target.value))}
+              placeholder="(11) 9XXXX-XXXX"
+              data-testid="stock-history-number"
+            />
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-600">{t('stock.message')}</label>

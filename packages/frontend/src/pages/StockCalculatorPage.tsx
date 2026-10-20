@@ -17,6 +17,7 @@ import {
   type StockDay,
   type StockProduct,
 } from '../lib/stock';
+import { formatPhoneMask, toWhatsAppNumber } from '../lib/phone';
 import { shareOrCopy, waMeLink } from '../lib/whatsapp';
 
 /**
@@ -93,7 +94,7 @@ export function StockCalculatorPage() {
 
   const message = day === null ? '' : stockMessage(day);
   const emailBody = day === null ? '' : stockEmailBody(day);
-  const targetNumber = freeNumber.trim();
+  const targetNumber = toWhatsAppNumber(freeNumber);
   const visibleErrors = stockVisibleErrors(quantities, { blurred, focused });
   const boxes = (code: string) => quantities[code] ?? '';
 
@@ -389,9 +390,12 @@ export function StockCalculatorPage() {
           <div>
             <label className="block text-xs font-medium text-gray-600">{t('stock.freeNumber')}</label>
             <Input
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
               value={freeNumber}
-              onChange={(e) => setFreeNumber(e.target.value)}
-              placeholder="+55 …"
+              onChange={(e) => setFreeNumber(formatPhoneMask(e.target.value))}
+              placeholder="(11) 9XXXX-XXXX"
               data-testid="stock-free-number"
             />
           </div>

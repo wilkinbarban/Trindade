@@ -13,6 +13,7 @@ import {
   assaiTotalBoxes,
   assaiVisibleErrors,
 } from '../lib/assai';
+import { formatPhoneMask, toWhatsAppNumber } from '../lib/phone';
 import { shareOrCopy, waMeLink } from '../lib/whatsapp';
 
 /**
@@ -43,7 +44,7 @@ export function AssaiCalculatorPage() {
   const totalBoxes = assaiTotalBoxes(lines);
   const message = assaiMessage(lines, selectedDay);
 
-  const targetNumber = freeNumber.trim();
+  const targetNumber = toWhatsAppNumber(freeNumber);
 
   async function handleShare() {
     setNote('');
@@ -181,9 +182,12 @@ export function AssaiCalculatorPage() {
           <div>
             <label className="block text-xs font-medium text-gray-600">{t('assai.freeNumber')}</label>
             <Input
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
               value={freeNumber}
-              onChange={(e) => setFreeNumber(e.target.value)}
-              placeholder="+55 …"
+              onChange={(e) => setFreeNumber(formatPhoneMask(e.target.value))}
+              placeholder="(11) 9XXXX-XXXX"
               data-testid="assai-free-number"
             />
           </div>
