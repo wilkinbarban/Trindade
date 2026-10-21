@@ -549,11 +549,11 @@
     "stock": {
       "title": "Calculador de Estoque",
       "subtitle": "Contagem física do galpão",
-      "description": "Registre a contagem diária de massas e salgados estocados para controle e auditoria da fábrica.",
+      "description": "Consulte o estoque diário de massas e salgados. Apenas administradores podem registrar contagens e atualizar o fechamento oficial.",
       "sections": [
         {
-          "title": "Como Operar",
-          "description": "Insira as caixas contadas para cada produto. Conforme preenchido, os totais em unidades são atualizados na tela."
+          "title": "Como Operar e Permissões",
+          "description": "Operadores podem consultar o estoque e compartilhar o resumo por WhatsApp ou e-mail. Apenas administradores podem registrar contagens e realizar o fechamento."
         },
         {
           "title": "Compartilhamento",

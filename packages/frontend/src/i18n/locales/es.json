@@ -549,11 +549,11 @@
     "stock": {
       "title": "Calculador de Estoque",
       "subtitle": "Conteo físico del depósito",
-      "description": "Registre el conteo diario de masas y empanadas en depósito para control y auditoría de la planta.",
+      "description": "Consulte el stock diario de masas y empanadas en depósito. Solo administradores pueden registrar conteos y actualizar el cierre oficial.",
       "sections": [
         {
-          "title": "Cómo Operar",
-          "description": "Ingrese las cajas contadas para cada producto. Los totales en unidades se actualizan en pantalla en tiempo real."
+          "title": "Cómo Operar y Permisos",
+          "description": "Operadores pueden consultar el stock y compartir el resumen por WhatsApp o correo electrónico. Solo administradores pueden registrar conteos y realizar el cierre."
         },
         {
           "title": "Compartir",

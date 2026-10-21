@@ -550,7 +550,7 @@
     <string name="help_dashboard_desc">Acesso rápido a todos os módulos operacionais da fábrica Trindade. Navegue pelos cards para lançamentos, cronogramas, estoque e relatórios.</string>
 
     <string name="help_stock_title">Calculador de Estoque</string>
-    <string name="help_stock_desc">Controle de contagem de estoque e sobras diárias por produto terceirizado e massas. Permite contagem por caixas e zeramento.</string>
+    <string name="help_stock_desc">Controle de estoque e sobras diárias por produto terceirizado e massas. Consulta por operadores e fechamento por administradores.</string>
 
     <string name="help_stock_history_title">Histórico de Estoque</string>
     <string name="help_stock_history_desc">Consulte as contagens de estoque registradas em datas anteriores para fechamento de fábrica e conferência de sobras.</string>

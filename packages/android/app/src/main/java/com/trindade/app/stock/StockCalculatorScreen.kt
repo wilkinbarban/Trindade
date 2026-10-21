@@ -130,41 +130,43 @@ fun StockCalculatorScreen(
                             style = MaterialTheme.typography.bodyMedium,
                         )
                     }
-                    if (visibleErrors.contains(product.code)) {
+                    if (canEdit && visibleErrors.contains(product.code)) {
                         Text(
                             "Quantidade incorreta de caixas",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error,
                         )
                     }
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        OutlinedTextField(
-                            value = state.quantities[product.code] ?: "",
-                            onValueChange = { viewModel.onQuantityChange(product.code, it) },
-                            singleLine = true,
-                            enabled = canEdit,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier
-                                .width(110.dp)
-                                // El foco se escucha en el modificador, que es donde Compose lo ofrece.
-                                .onFocusChanged { focus ->
-                                    if (focus.isFocused) viewModel.onFocus(product.code) else viewModel.onBlur(product.code)
-                                },
-                        )
-                        Button(
-                            onClick = { viewModel.addEntry(product) },
-                            enabled = canEdit && !addDisabled(state.quantities[product.code] ?: ""),
+                    if (canEdit) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text("Adicionar")
-                        }
-                        Button(
-                            onClick = { viewModel.resetProduct(product) },
-                            enabled = canEdit,
-                        ) {
-                            Text("Resetar")
+                            OutlinedTextField(
+                                value = state.quantities[product.code] ?: "",
+                                onValueChange = { viewModel.onQuantityChange(product.code, it) },
+                                singleLine = true,
+                                enabled = canEdit,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier
+                                    .width(110.dp)
+                                    // El foco se escucha en el modificador, que es donde Compose lo ofrece.
+                                    .onFocusChanged { focus ->
+                                        if (focus.isFocused) viewModel.onFocus(product.code) else viewModel.onBlur(product.code)
+                                    },
+                            )
+                            Button(
+                                onClick = { viewModel.addEntry(product) },
+                                enabled = canEdit && !addDisabled(state.quantities[product.code] ?: ""),
+                            ) {
+                                Text("Adicionar")
+                            }
+                            Button(
+                                onClick = { viewModel.resetProduct(product) },
+                                enabled = canEdit,
+                            ) {
+                                Text("Resetar")
+                            }
                         }
                     }
                 }
@@ -240,7 +242,7 @@ fun StockCalculatorScreen(
                     ),
                     HelpSection(
                         title = "Fechamento e Permissões",
-                        description = "Operadores podem consultar o estoque e realizar contagens. Apenas administradores podem atualizar o fechamento oficial.",
+                        description = "Operadores podem consultar o estoque e compartilhar o resumo por WhatsApp ou e-mail. Apenas administradores podem registrar contagens e realizar o fechamento oficial.",
                     ),
                 ),
                 onDismissRequest = { showHelpDialog = false },

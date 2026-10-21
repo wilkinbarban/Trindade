@@ -264,49 +264,51 @@ export function StockCalculatorPage() {
                   {/* Se envuelve en vez de desbordar: en un celular de 360px el campo, el aviso de
                       error y los dos botones no entran en una sola línea, y sin wrap el último botón
                       terminaba salido del margen de la tarjeta. Con wrap, la fila baja entera. */}
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Input
-                      value={quantities[product.code] ?? ''}
-                      disabled={!canEdit}
-                      onFocus={() => setFocused(product.code)}
-                      onChange={(e) => {
-                        setQuantities({ ...quantities, [product.code]: e.target.value });
-                        // Volver a escribir apaga el cartel: la correccion esta en curso.
-                        setBlurred({ ...blurred, [product.code]: false });
-                      }}
-                      onBlur={() => {
-                        setBlurred({ ...blurred, [product.code]: true });
-                        setFocused(null);
-                      }}
-                      inputMode="numeric"
-                      placeholder="0"
-                      aria-label={product.name}
-                      className="w-20"
-                      data-testid={`stock-mobile-input-${product.code}`}
-                    />
-                    {visibleErrors.includes(product.code) && (
-                      <span className="text-xs text-red-600" data-testid={`stock-mobile-error-${product.code}`}>
-                        {t('stock.invalidBoxesInline')}
-                      </span>
-                    )}
-                    <Button
-                      onClick={() => sendEntry(product)}
-                      disabled={!canEdit || busy || stockAddDisabled(boxes(product.code))}
-                      size="sm"
-                      data-testid={`stock-mobile-add-${product.code}`}
-                    >
-                      {t('stock.add')}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => resetProduct(product)}
-                      disabled={!canEdit || busy || product.boxes === 0}
-                      size="sm"
-                      data-testid={`stock-mobile-reset-${product.code}`}
-                    >
-                      {t('stock.reset')}
-                    </Button>
-                  </div>
+                  {canEdit && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Input
+                        value={quantities[product.code] ?? ''}
+                        disabled={!canEdit}
+                        onFocus={() => setFocused(product.code)}
+                        onChange={(e) => {
+                          setQuantities({ ...quantities, [product.code]: e.target.value });
+                          // Volver a escribir apaga el cartel: la correccion esta en curso.
+                          setBlurred({ ...blurred, [product.code]: false });
+                        }}
+                        onBlur={() => {
+                          setBlurred({ ...blurred, [product.code]: true });
+                          setFocused(null);
+                        }}
+                        inputMode="numeric"
+                        placeholder="0"
+                        aria-label={product.name}
+                        className="w-20"
+                        data-testid={`stock-mobile-input-${product.code}`}
+                      />
+                      {visibleErrors.includes(product.code) && (
+                        <span className="text-xs text-red-600" data-testid={`stock-mobile-error-${product.code}`}>
+                          {t('stock.invalidBoxesInline')}
+                        </span>
+                      )}
+                      <Button
+                        onClick={() => sendEntry(product)}
+                        disabled={!canEdit || busy || stockAddDisabled(boxes(product.code))}
+                        size="sm"
+                        data-testid={`stock-mobile-add-${product.code}`}
+                      >
+                        {t('stock.add')}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => resetProduct(product)}
+                        disabled={!canEdit || busy || product.boxes === 0}
+                        size="sm"
+                        data-testid={`stock-mobile-reset-${product.code}`}
+                      >
+                        {t('stock.reset')}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -321,7 +323,7 @@ export function StockCalculatorPage() {
                     <th className="py-2 pr-2">{t('stock.product')}</th>
                     <th className="py-2 pr-2">{t('stock.boxes')}</th>
                     <th className="py-2 pr-2">{t('stock.units')}</th>
-                    <th className="py-2 pr-2">{t('stock.addBoxes')}</th>
+                    {canEdit && <th className="py-2 pr-2">{t('stock.addBoxes')}</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -335,49 +337,51 @@ export function StockCalculatorPage() {
                       <td className="py-2 pr-2 text-gray-600" data-testid={`stock-units-${product.code}`}>
                         {product.units} <span className="text-xs text-gray-400">({product.unitsPerBox}/cx)</span>
                       </td>
-                      <td className="py-2 pr-2">
-                        <div className="flex items-center gap-2">
-                          <Input
-                            value={quantities[product.code] ?? ''}
-                            disabled={!canEdit}
-                            onFocus={() => setFocused(product.code)}
-                      onChange={(e) => {
-                        setQuantities({ ...quantities, [product.code]: e.target.value });
-                        // Volver a escribir apaga el cartel: la correccion esta en curso.
-                        setBlurred({ ...blurred, [product.code]: false });
-                      }}
-                      onBlur={() => {
-                        setBlurred({ ...blurred, [product.code]: true });
-                        setFocused(null);
-                      }}
-                            inputMode="numeric"
-                            placeholder="0"
-                            aria-label={product.name}
-                            className="w-20"
-                            data-testid={`stock-input-${product.code}`}
-                          />
-                          {visibleErrors.includes(product.code) && (
-                            <span className="text-xs text-red-600" data-testid={`stock-error-${product.code}`}>
-                              {t('stock.invalidBoxesInline')}
-                            </span>
-                          )}
-                          <Button
-                            onClick={() => sendEntry(product)}
-                            disabled={!canEdit || busy || stockAddDisabled(boxes(product.code))}
-                            data-testid={`stock-add-${product.code}`}
-                          >
-                            {t('stock.add')}
-                          </Button>
-                          <Button
-                            variant="outline"
-                            onClick={() => resetProduct(product)}
-                            disabled={!canEdit || busy || product.boxes === 0}
-                            data-testid={`stock-reset-${product.code}`}
-                          >
-                            {t('stock.reset')}
-                          </Button>
-                        </div>
-                      </td>
+                      {canEdit && (
+                        <td className="py-2 pr-2">
+                          <div className="flex items-center gap-2">
+                            <Input
+                              value={quantities[product.code] ?? ''}
+                              disabled={!canEdit}
+                              onFocus={() => setFocused(product.code)}
+                              onChange={(e) => {
+                                setQuantities({ ...quantities, [product.code]: e.target.value });
+                                // Volver a escribir apaga el cartel: la correccion esta en curso.
+                                setBlurred({ ...blurred, [product.code]: false });
+                              }}
+                              onBlur={() => {
+                                setBlurred({ ...blurred, [product.code]: true });
+                                setFocused(null);
+                              }}
+                              inputMode="numeric"
+                              placeholder="0"
+                              aria-label={product.name}
+                              className="w-20"
+                              data-testid={`stock-input-${product.code}`}
+                            />
+                            {visibleErrors.includes(product.code) && (
+                              <span className="text-xs text-red-600" data-testid={`stock-error-${product.code}`}>
+                                {t('stock.invalidBoxesInline')}
+                              </span>
+                            )}
+                            <Button
+                              onClick={() => sendEntry(product)}
+                              disabled={!canEdit || busy || stockAddDisabled(boxes(product.code))}
+                              data-testid={`stock-add-${product.code}`}
+                            >
+                              {t('stock.add')}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              onClick={() => resetProduct(product)}
+                              disabled={!canEdit || busy || product.boxes === 0}
+                              data-testid={`stock-reset-${product.code}`}
+                            >
+                              {t('stock.reset')}
+                            </Button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
