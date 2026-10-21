@@ -15,7 +15,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -76,6 +78,7 @@ fun ProfileScreen(
     onCheckForUpdates: () -> Unit = {},
     onStartDownload: (String) -> Unit = {},
     onInstallApk: (File) -> Unit = {},
+    isMandatoryUpdate: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -101,7 +104,28 @@ fun ProfileScreen(
         modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        NavigationActionButton(onClick = onBack, text = stringResource(R.string.report_back))
+        if (isMandatoryUpdate) {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(text = "⚠️", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        text = stringResource(R.string.mandatory_update_banner),
+                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                    )
+                }
+            }
+        } else {
+            NavigationActionButton(onClick = onBack, text = stringResource(R.string.report_back))
+        }
         Text(text = stringResource(R.string.profile_title), style = MaterialTheme.typography.titleLarge)
 
         // One line for what went wrong, in the convention the other screens use.
@@ -489,6 +513,7 @@ private const val ROLE_WORKER = "Trabalhador"
 fun ProfileRoute(
     onBack: () -> Unit,
     onSignedOut: () -> Unit,
+    isMandatoryUpdate: Boolean = false,
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -510,5 +535,6 @@ fun ProfileRoute(
         onCheckForUpdates = viewModel::checkForUpdates,
         onStartDownload = viewModel::startDownload,
         onInstallApk = viewModel::installApk,
+        isMandatoryUpdate = isMandatoryUpdate,
     )
 }

@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.LaunchedEffect
 import com.trindade.app.network.GuestReadonlyNotice
@@ -138,6 +139,7 @@ class MainActivity : ComponentActivity() {
                 AppRoot {
                     var signedIn by remember { mutableStateOf(authRepository.hasSession()) }
                     var updateAvailable by remember { mutableStateOf(false) }
+                    var showMandatoryUpdateDialog by remember { mutableStateOf(false) }
                     var openReportId by remember { mutableStateOf<Int?>(null) }
                     var registerOpen by remember { mutableStateOf(false) }
                     var editingReportId by remember { mutableStateOf<Int?>(null) }
@@ -166,6 +168,9 @@ class MainActivity : ComponentActivity() {
                                     currentBuildTimeMillis = com.trindade.app.BuildConfig.BUILD_TIME,
                                 )
                                 updateAvailable = availability.isUpdateAvailable
+                                if (availability.isUpdateAvailable) {
+                                    showMandatoryUpdateDialog = true
+                                }
                             }
                         }
                     }
@@ -189,6 +194,8 @@ class MainActivity : ComponentActivity() {
                         loadingDayFromHistory = false
                         tab = Tab.DASHBOARD
                         signedIn = false
+                        updateAvailable = false
+                        showMandatoryUpdateDialog = false
                     }
 
                     val onBackReportEdit = { editingReportId = null }
@@ -226,6 +233,16 @@ class MainActivity : ComponentActivity() {
                             onSignedIn = { signedIn = true },
                             onNavigateToRegister = { registerOpen = true },
                         )
+                        updateAvailable -> {
+                            BackHandler(enabled = true) {
+                                showMandatoryUpdateDialog = true
+                            }
+                            ProfileRoute(
+                                onBack = { showMandatoryUpdateDialog = true },
+                                onSignedOut = { endSession() },
+                                isMandatoryUpdate = true,
+                            )
+                        }
                         editingReportId != null -> {
                             BackHandler(onBack = onBackReportEdit)
                             ReportEditRoute(
@@ -426,6 +443,34 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                         }
+                    }
+
+                    if (updateAvailable && showMandatoryUpdateDialog) {
+                        AlertDialog(
+                            onDismissRequest = { /* Bloqueo obligatorio: tocar fuera no descarta */ },
+                            title = {
+                                Text(
+                                    text = stringResource(R.string.mandatory_update_title),
+                                    fontWeight = FontWeight.Bold,
+                                )
+                            },
+                            text = {
+                                Text(
+                                    text = stringResource(R.string.mandatory_update_message),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                            },
+                            confirmButton = {
+                                Button(
+                                    onClick = { showMandatoryUpdateDialog = false },
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.mandatory_update_action),
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                }
+                            },
+                        )
                     }
                 }
             }
