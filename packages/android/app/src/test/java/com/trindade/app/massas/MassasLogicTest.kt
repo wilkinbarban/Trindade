@@ -132,4 +132,76 @@ class MassasLogicTest {
         // Unauthenticated cannot edit
         assertFalse(canEditOrDeleteLaunch(launchUserId = 10, currentUserId = null, isAdmin = false))
     }
+
+    @Test
+    fun operatorFilteringAndSubtotal_behavesExpectedly() {
+        val launches = listOf(
+            MassaIndividualLaunch(
+                id = 1,
+                launchDate = "2026-10-21",
+                productCode = "1045",
+                productName = "MASSA CASEIRA",
+                boxes = 4,
+                units = 40,
+                userId = 10,
+                username = "carlos",
+                displayName = "Carlos Bento",
+                createdAt = "2026-10-21T09:00:00Z",
+                updatedAt = "2026-10-21T09:00:00Z",
+            ),
+            MassaIndividualLaunch(
+                id = 2,
+                launchDate = "2026-10-21",
+                productCode = "1047",
+                productName = "MASSA ROLO 2KG",
+                boxes = 3,
+                units = 18,
+                userId = 20,
+                username = "ana",
+                displayName = "Ana Silva",
+                createdAt = "2026-10-21T10:00:00Z",
+                updatedAt = "2026-10-21T10:00:00Z",
+            ),
+            MassaIndividualLaunch(
+                id = 3,
+                launchDate = "2026-10-21",
+                productCode = "39",
+                productName = "MASSA DISCO 200G",
+                boxes = 2,
+                units = 20,
+                userId = 10,
+                username = "carlos",
+                displayName = "Carlos Bento",
+                createdAt = "2026-10-21T11:00:00Z",
+                updatedAt = "2026-10-21T11:00:00Z",
+            ),
+        )
+
+        // extractOperators
+        val operators = extractOperators(launches)
+        assertEquals(2, operators.size)
+        assertEquals(20, operators[0].id)
+        assertEquals("Ana Silva", operators[0].name)
+        assertEquals(10, operators[1].id)
+        assertEquals("Carlos Bento", operators[1].name)
+
+        // filterLaunchesByOperator
+        assertEquals(3, filterLaunchesByOperator(launches, null).size)
+        val carlosLaunches = filterLaunchesByOperator(launches, 10)
+        assertEquals(2, carlosLaunches.size)
+        assertTrue(carlosLaunches.all { it.userId == 10 })
+
+        val anaLaunches = filterLaunchesByOperator(launches, 20)
+        assertEquals(1, anaLaunches.size)
+        assertEquals(2, anaLaunches[0].id)
+
+        // calculateOperatorSubtotal
+        assertEquals(null, calculateOperatorSubtotal(launches, null))
+        val carlosSubtotal = calculateOperatorSubtotal(launches, 10)
+        assertEquals(Pair(6, 60), carlosSubtotal)
+
+        val anaSubtotal = calculateOperatorSubtotal(launches, 20)
+        assertEquals(Pair(3, 18), anaSubtotal)
+    }
 }
+

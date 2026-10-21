@@ -1,5 +1,6 @@
 package com.trindade.app.massas
 
+import com.trindade.app.network.MassaIndividualLaunch
 import com.trindade.app.network.MassasLaunchDayView
 
 data class MassaCatalogItem(
@@ -95,3 +96,49 @@ fun canEditOrDeleteLaunch(launchUserId: Int, currentUserId: Int?, isAdmin: Boole
     if (currentUserId == null) return false
     return launchUserId == currentUserId
 }
+
+data class MassaOperator(
+    val id: Int,
+    val name: String,
+)
+
+/**
+ * Extracts unique operators who registered launches, sorted alphabetically by name.
+ */
+fun extractOperators(launches: List<MassaIndividualLaunch>): List<MassaOperator> {
+    return launches
+        .map { launch ->
+            val name = launch.displayName.trim().takeIf { it.isNotEmpty() }
+                ?: launch.username.trim().takeIf { it.isNotEmpty() }
+                ?: "Operador ${launch.userId}"
+            MassaOperator(launch.userId, name)
+        }
+        .distinctBy { it.id }
+        .sortedBy { it.name }
+}
+
+/**
+ * Filters individual launches by operator ID, or returns all launches when operatorId is null.
+ */
+fun filterLaunchesByOperator(
+    launches: List<MassaIndividualLaunch>,
+    operatorId: Int?
+): List<MassaIndividualLaunch> {
+    if (operatorId == null) return launches
+    return launches.filter { it.userId == operatorId }
+}
+
+/**
+ * Calculates total boxes and units for a selected operator, or null when operatorId is null.
+ */
+fun calculateOperatorSubtotal(
+    launches: List<MassaIndividualLaunch>,
+    operatorId: Int?
+): Pair<Int, Int>? {
+    if (operatorId == null) return null
+    val filtered = filterLaunchesByOperator(launches, operatorId)
+    val boxes = filtered.sumOf { it.boxes }
+    val units = filtered.sumOf { it.units }
+    return Pair(boxes, units)
+}
+
