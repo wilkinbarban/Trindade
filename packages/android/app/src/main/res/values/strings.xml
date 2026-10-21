@@ -529,6 +529,15 @@
     <string name="massas_delete_confirm_message">Tem certeza de que deseja excluir este lançamento?</string>
     <string name="massas_delete_confirm_action">Excluir</string>
     <string name="massas_cancel">Cancelar</string>
+    <string name="massas_confirm_title">Confirmar Lançamento</string>
+    <string name="massas_confirm_subtitle">Verifique os produtos e caixas antes de confirmar:</string>
+    <string name="massas_confirm_action">Confirmar</string>
+    <string name="massas_total_to_launch">Total Geral a Lançar</string>
+    <string name="massas_all_workers">Todos os trabalhadores</string>
+    <string name="massas_worker_subtotal">Subtotal de %1$s</string>
+    <string name="massas_success_title">Lançamento Concluído</string>
+    <string name="massas_error_title">Erro no Lançamento</string>
+    <string name="massas_close">Fechar</string>
     <string name="massas_sync_now">Atualizar agora</string>
     <string name="massas_history_select_date">Selecione a Data</string>
     <string name="massas_history_days_count">%1$d dias registrados</string>

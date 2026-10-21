@@ -22,6 +22,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
+data class MassaConfirmItem(
+    val productCode: String,
+    val productName: String,
+    val boxes: Int,
+    val units: Int,
+)
+
 @HiltViewModel
 class MassasLaunchViewModel @Inject constructor(
     private val repository: MassasRepository,
@@ -51,6 +58,11 @@ class MassasLaunchViewModel @Inject constructor(
         val noticeMessage: String? = null,
         val errorMessage: String? = null,
         val showHelpDialog: Boolean = false,
+        val showConfirmLaunchDialog: Boolean = false,
+        val confirmItems: List<MassaConfirmItem> = emptyList(),
+        val resultDialogMessage: String? = null,
+        val resultDialogIsSuccess: Boolean = false,
+        val selectedOperatorId: Int? = null,
     )
 
     private val _state = MutableStateFlow(UiState())
@@ -134,6 +146,93 @@ class MassasLaunchViewModel @Inject constructor(
 
     fun clearQuantities() {
         _state.value = _state.value.copy(quantities = emptyMap(), noticeMessage = null)
+    }
+
+    fun selectOperator(operatorId: Int?) {
+        _state.value = _state.value.copy(selectedOperatorId = operatorId)
+    }
+
+    fun requestLaunchConfirmation() {
+        val quantities = _state.value.quantities
+        val dayProducts = _state.value.dayView?.products?.associateBy { it.code } ?: emptyMap()
+        val standardMap = STANDARD_MASSAS.associateBy { it.code }
+
+        val items = quantities.mapNotNull { (code, boxStr) ->
+            val boxes = boxStr.toIntOrNull()
+            if (boxes != null && boxes > 0) {
+                val name = dayProducts[code]?.name ?: standardMap[code]?.name ?: "Produto $code"
+                val unitsPerBox = dayProducts[code]?.unitsPerBox ?: standardMap[code]?.unitsPerBox ?: 10
+                MassaConfirmItem(
+                    productCode = code,
+                    productName = name,
+                    boxes = boxes,
+                    units = boxes * unitsPerBox,
+                )
+            } else {
+                null
+            }
+        }.sortedBy { it.productCode }
+
+        if (items.isEmpty()) return
+        _state.value = _state.value.copy(
+            showConfirmLaunchDialog = true,
+            confirmItems = items,
+        )
+    }
+
+    fun dismissConfirmLaunch() {
+        _state.value = _state.value.copy(
+            showConfirmLaunchDialog = false,
+            confirmItems = emptyList(),
+        )
+    }
+
+    fun confirmLaunch() {
+        val items = _state.value.confirmItems
+        if (items.isEmpty()) return
+        val apiItems = items.map { CreateMassasLaunchItem(it.productCode, it.boxes) }
+
+        viewModelScope.launch {
+            _state.value = _state.value.copy(
+                isSubmitting = true,
+                showConfirmLaunchDialog = false,
+                confirmItems = emptyList(),
+                errorMessage = null,
+                noticeMessage = null,
+            )
+            when (val result = repository.createLaunch(state.value.date, apiItems)) {
+                is MassasWriteResult.Saved -> {
+                    _state.value = _state.value.copy(
+                        isSubmitting = false,
+                        dayView = result.view,
+                        quantities = emptyMap(),
+                        resultDialogMessage = "Lançamento registrado com sucesso!",
+                        resultDialogIsSuccess = true,
+                    )
+                }
+                is MassasWriteResult.Refused -> {
+                    _state.value = _state.value.copy(
+                        isSubmitting = false,
+                        resultDialogMessage = "O servidor recusou o lançamento (código ${result.statusCode}).",
+                        resultDialogIsSuccess = false,
+                    )
+                }
+                is MassasWriteResult.Unreachable -> {
+                    _state.value = _state.value.copy(
+                        isSubmitting = false,
+                        resultDialogMessage = "Sem conexão com o servidor. Tente de novo.",
+                        resultDialogIsSuccess = false,
+                    )
+                }
+            }
+        }
+    }
+
+    fun dismissResultDialog() {
+        _state.value = _state.value.copy(
+            resultDialogMessage = null,
+            resultDialogIsSuccess = false,
+        )
     }
 
     fun submitLaunch() {

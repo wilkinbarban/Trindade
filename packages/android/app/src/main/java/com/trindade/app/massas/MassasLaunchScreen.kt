@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -34,6 +35,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -316,7 +318,7 @@ fun MassasLaunchScreen(
                     }
 
                     Button(
-                        onClick = { viewModel.submitLaunch() },
+                        onClick = { viewModel.requestLaunchConfirmation() },
                         enabled = hasAnyQuantity && !state.isSubmitting,
                         modifier = Modifier.weight(2f),
                         shape = RoundedCornerShape(10.dp),
@@ -447,7 +449,91 @@ fun MassasLaunchScreen(
                 )
 
                 val launches = state.dayView?.launches ?: emptyList()
-                if (launches.isEmpty()) {
+                val operators = remember(launches) { extractOperators(launches) }
+
+                // Chips de filtro por operador
+                if (operators.isNotEmpty()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            val isAllSelected = state.selectedOperatorId == null
+                            Button(
+                                onClick = { viewModel.selectOperator(null) },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (isAllSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                    contentColor = if (isAllSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                ),
+                                shape = RoundedCornerShape(20.dp),
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                modifier = Modifier.height(32.dp),
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.massas_all_workers),
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                )
+                            }
+
+                            operators.forEach { op ->
+                                val isSelected = state.selectedOperatorId == op.id
+                                Button(
+                                    onClick = { viewModel.selectOperator(op.id) },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                        contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    ),
+                                    shape = RoundedCornerShape(20.dp),
+                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                    modifier = Modifier.height(32.dp),
+                                ) {
+                                    Text(
+                                        text = "👤 ${op.name}",
+                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                    )
+                                }
+                            }
+                        }
+
+                        // Subtotal do operador selecionado
+                        if (state.selectedOperatorId != null) {
+                            val subtotal = calculateOperatorSubtotal(launches, state.selectedOperatorId)
+                            val opName = operators.find { it.id == state.selectedOperatorId }?.name ?: ""
+                            if (subtotal != null) {
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF3C7)),
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.massas_worker_subtotal, opName),
+                                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                                            color = Color(0xFF92400E),
+                                        )
+                                        Text(
+                                            text = "${subtotal.first} cx (${subtotal.second} un)",
+                                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.ExtraBold),
+                                            color = Color(0xFF78350F),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                val displayedLaunches = filterLaunchesByOperator(launches, state.selectedOperatorId)
+
+                if (displayedLaunches.isEmpty()) {
                     Text(
                         text = stringResource(R.string.massas_no_launches_today),
                         style = MaterialTheme.typography.bodySmall,
@@ -457,7 +543,7 @@ fun MassasLaunchScreen(
                     val currentUserId = state.currentUser?.id
                     val isAdmin = state.currentUser?.role == "Administrador"
 
-                    launches.forEach { launch ->
+                    displayedLaunches.forEach { launch ->
                         val canEdit = canEditOrDeleteLaunch(launch.userId, currentUserId, isAdmin)
                         val isEditingThis = state.editingLaunchId == launch.id
 
@@ -680,6 +766,130 @@ fun MassasLaunchScreen(
             dismissButton = {
                 TextButton(onClick = { viewModel.dismissDelete() }) {
                     Text(stringResource(R.string.massas_cancel))
+                }
+            },
+        )
+    }
+
+    // Diálogo de Confirmação Prévio ao Lançamento
+    if (state.showConfirmLaunchDialog) {
+        val totalBoxes = state.confirmItems.sumOf { it.boxes }
+        val totalUnits = state.confirmItems.sumOf { it.units }
+
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissConfirmLaunch() },
+            title = {
+                Text(
+                    text = "🍝 ${stringResource(R.string.massas_confirm_title)}",
+                    fontWeight = FontWeight.Bold,
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.massas_confirm_subtitle),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                            .padding(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        state.confirmItems.forEach { item ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Text(
+                                    text = "📦 ${item.productName}",
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                    modifier = Modifier.weight(1f),
+                                )
+                                Text(
+                                    text = "${item.boxes} cx (${item.units} un)",
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.massas_total_to_launch),
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                        )
+                        Text(
+                            text = "$totalBoxes cx ($totalUnits un)",
+                            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.ExtraBold),
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { viewModel.confirmLaunch() },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                ) {
+                    Text(stringResource(R.string.massas_confirm_action), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissConfirmLaunch() }) {
+                    Text(stringResource(R.string.massas_cancel))
+                }
+            },
+        )
+    }
+
+    // Diálogo Modal de Notificação de Resultado
+    if (state.resultDialogMessage != null) {
+        val isSuccess = state.resultDialogIsSuccess
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissResultDialog() },
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(text = if (isSuccess) "✅" else "❌")
+                    Text(
+                        text = stringResource(
+                            if (isSuccess) R.string.massas_success_title else R.string.massas_error_title
+                        ),
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            },
+            text = {
+                Text(
+                    text = state.resultDialogMessage ?: "",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = { viewModel.dismissResultDialog() },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isSuccess) Color(0xFF16A34A) else MaterialTheme.colorScheme.error,
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        text = stringResource(R.string.massas_close),
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                    )
                 }
             },
         )

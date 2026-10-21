@@ -211,6 +211,67 @@ class MassasLaunchViewModelTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
+    fun confirmLaunch_onSuccess_setsResultDialogAndClearsQuantities() = runTest {
+        val fakeRepo = FakeMassasRepository(massasApi)
+        val testVm = MassasLaunchViewModel(fakeRepo, authRepository)
+
+        // Setup dayView with products
+        testVm.onQuantityChange("1045", "3")
+        // Trigger confirmation
+        testVm.requestLaunchConfirmation()
+        assertTrue(testVm.state.value.showConfirmLaunchDialog)
+        assertEquals(1, testVm.state.value.confirmItems.size)
+        assertEquals("1045", testVm.state.value.confirmItems[0].productCode)
+        assertEquals(3, testVm.state.value.confirmItems[0].boxes)
+
+        // Dismiss test
+        testVm.dismissConfirmLaunch()
+        assertFalse(testVm.state.value.showConfirmLaunchDialog)
+        assertTrue(testVm.state.value.confirmItems.isEmpty())
+
+        // Re-request and confirm
+        testVm.requestLaunchConfirmation()
+        testVm.confirmLaunch()
+        testScheduler.runCurrent()
+
+        assertFalse(testVm.state.value.showConfirmLaunchDialog)
+        assertTrue(testVm.state.value.quantities.isEmpty())
+        assertTrue(testVm.state.value.resultDialogIsSuccess)
+        assertEquals("Lançamento registrado com sucesso!", testVm.state.value.resultDialogMessage)
+
+        testVm.dismissResultDialog()
+        assertNull(testVm.state.value.resultDialogMessage)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun confirmLaunch_onError_preservesQuantitiesAndSetsErrorDialog() = runTest {
+        val fakeRepo = FakeMassasRepository(massasApi)
+        fakeRepo.createLaunchResult = MassasWriteResult.Refused(400)
+        val testVm = MassasLaunchViewModel(fakeRepo, authRepository)
+
+        testVm.onQuantityChange("1045", "5")
+        testVm.requestLaunchConfirmation()
+        testVm.confirmLaunch()
+        testScheduler.runCurrent()
+
+        // Quantities MUST NOT be cleared on failure, so operator can retry or correct
+        assertEquals("5", testVm.state.value.quantities["1045"])
+        assertFalse(testVm.state.value.resultDialogIsSuccess)
+        assertTrue(testVm.state.value.resultDialogMessage?.contains("400") == true)
+    }
+
+    @Test
+    fun selectOperator_updatesSelectedOperatorId() {
+        assertNull(viewModel.state.value.selectedOperatorId)
+        viewModel.selectOperator(15)
+        assertEquals(15, viewModel.state.value.selectedOperatorId)
+        viewModel.selectOperator(null)
+        assertNull(viewModel.state.value.selectedOperatorId)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
     fun massasRepository_createLaunch_parses201AndRefreshesDay() = runTest {
         val testServer = MockWebServer()
         testServer.start()
