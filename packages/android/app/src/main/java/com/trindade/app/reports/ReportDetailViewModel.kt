@@ -43,6 +43,7 @@ class ReportDetailViewModel @Inject constructor(
         val exportText: String? = null,
         val loadingExport: Boolean = false,
         val message: String? = null,
+        val includeMassas: Boolean = false,
     ) {
         /** Five is the server's limit, and the add action is withheld rather than refused at the door. */
         val canAddPhoto: Boolean get() = !uploadingPhoto && photos.size < MAX_PHOTOS
@@ -141,7 +142,10 @@ class ReportDetailViewModel @Inject constructor(
         _state.update { it.copy(loadingExport = true, message = null) }
 
         viewModelScope.launch {
-            val text = repository.exportText(state.value.reportId)
+            val text = repository.exportText(
+                id = state.value.reportId,
+                includeMassas = state.value.includeMassas.takeIf { it },
+            )
             _state.update {
                 it.copy(
                     loadingExport = false,
@@ -150,6 +154,13 @@ class ReportDetailViewModel @Inject constructor(
                 )
             }
         }
+    }
+
+    /** Toggles inclusion of massas section in export text and reloads it. */
+    fun toggleIncludeMassas(include: Boolean) {
+        if (_state.value.includeMassas == include) return
+        _state.update { it.copy(includeMassas = include) }
+        loadExport()
     }
 
     /**

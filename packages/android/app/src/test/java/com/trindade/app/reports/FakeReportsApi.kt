@@ -218,12 +218,17 @@ class FakeReportsApi(
         )
     }
 
+    var lastExportIncludeMassas: Boolean? = null
+        private set
+
     override suspend fun photos(id: Int): Response<PhotosResponse> = Response.success(PhotosResponse(photos = photosToReturn))
 
     override suspend fun updateReport(id: Int, body: UpdateReportRequest): Response<ReportResponse> = error(NOT_USED)
 
-    override suspend fun export(id: Int): Response<TextResponse> =
-        if (reportToReturn == null) Response.error(404, EMPTY_BODY) else Response.success(TextResponse(text = exportToReturn))
+    override suspend fun export(id: Int, includeMassas: Boolean?): Response<TextResponse> {
+        lastExportIncludeMassas = includeMassas
+        return if (reportToReturn == null) Response.error(404, EMPTY_BODY) else Response.success(TextResponse(text = exportToReturn))
+    }
 
     override suspend fun attachPhoto(id: Int, file: MultipartBody.Part): Response<PhotoResponse> {
         attachCalls++

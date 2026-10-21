@@ -21,6 +21,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -64,6 +65,7 @@ fun ReportDetailScreen(
     onShareExport: () -> Unit,
     onEdit: () -> Unit,
     onBack: () -> Unit,
+    onToggleIncludeMassas: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -208,6 +210,29 @@ fun ReportDetailScreen(
 
         item {
             HorizontalDivider()
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Row(
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(text = "🍝", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        text = stringResource(R.string.report_include_massas),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+                Switch(
+                    checked = state.includeMassas,
+                    onCheckedChange = onToggleIncludeMassas,
+                )
+            }
+            Spacer(Modifier.height(4.dp))
             AdminPrimaryButton(
                 onClick = onLoadExport,
                 text = stringResource(R.string.export_load),
@@ -286,5 +311,6 @@ fun ReportDetailRoute(
         onShareExport = viewModel::shareExport,
         onEdit = onEdit,
         onBack = onBack,
+        onToggleIncludeMassas = viewModel::toggleIncludeMassas,
     )
 }

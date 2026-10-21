@@ -185,6 +185,13 @@ class ReportDetailScreenTest {
         composeRule.onNodeWithText(copy(R.string.report_edit)).assertIsDisplayed()
     }
 
+    @Test
+    fun `draws the include massas switch in export section`() {
+        render(state(report(canEdit = false, readOnly = true)))
+
+        composeRule.onNodeWithText(copy(R.string.report_include_massas)).assertIsDisplayed()
+    }
+
     /**
      * The widened branch, and the shape a detail reading `canEdit` on its own would miss from the other
      * side: an explicit `readOnly = false` is the server saying the report may be edited and it decides on

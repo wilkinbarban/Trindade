@@ -146,8 +146,8 @@ class ReportsRepository @Inject constructor(
      * Never assembled on the client: the text is the product's output rather than a view of the data,
      * and a second implementation would be a second thing to keep in agreement with the first.
      */
-    suspend fun exportText(id: Int): String? =
-        runCatchingCancellable { api.export(id) }.getOrNull()
+    suspend fun exportText(id: Int, includeMassas: Boolean? = null): String? =
+        runCatchingCancellable { api.export(id, includeMassas) }.getOrNull()
             ?.takeIf { it.isSuccessful }
             ?.body()
             ?.text

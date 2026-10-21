@@ -97,6 +97,7 @@
     <string name="report_photo_remove">Remover</string>
     <!-- Shared by both export surfaces: the text is the server's WhatsApp message either way, so the
          sentence lives once and neither screen owns the other's name. -->
+    <string name="report_include_massas">Incluir Lançamento de Massas</string>
     <string name="export_load">Gerar texto do WhatsApp</string>
     <string name="export_copy">Copiar texto</string>
     <string name="export_share_text">Compartilhar texto</string>

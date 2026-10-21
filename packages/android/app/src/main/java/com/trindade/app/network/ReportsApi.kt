@@ -143,7 +143,10 @@ interface ReportsApi {
      * the first.
      */
     @GET("api/reports/{id}/export")
-    suspend fun export(@Path("id") id: Int): Response<TextResponse>
+    suspend fun export(
+        @Path("id") id: Int,
+        @Query("includeMassas") includeMassas: Boolean? = null,
+    ): Response<TextResponse>
 
     @GET("api/reports/{id}/photos")
     suspend fun photos(@Path("id") id: Int): Response<PhotosResponse>

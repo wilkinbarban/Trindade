@@ -71,6 +71,25 @@ class ReportDetailViewModelTest {
     }
 
     @Test
+    fun `toggleIncludeMassas updates state and requests export with includeMassas`() {
+        val fakeApi = FakeReportsApi(exportToReturn = "EXPORT TEXT")
+        val model = ReportDetailViewModel(ReportsRepository(fakeApi), FakePhotoCompressor())
+        model.load(REPORT_ID)
+
+        assertFalse(model.state.value.includeMassas)
+        model.loadExport()
+        assertEquals(null, fakeApi.lastExportIncludeMassas)
+
+        model.toggleIncludeMassas(true)
+        assertTrue(model.state.value.includeMassas)
+        assertEquals(true, fakeApi.lastExportIncludeMassas)
+
+        model.toggleIncludeMassas(false)
+        assertFalse(model.state.value.includeMassas)
+        assertEquals(null, fakeApi.lastExportIncludeMassas)
+    }
+
+    @Test
     fun `sharing without an export yet shares nothing rather than an empty message`() {
         val shareManager = RecordingShareManager()
         val model = ReportDetailViewModel(
