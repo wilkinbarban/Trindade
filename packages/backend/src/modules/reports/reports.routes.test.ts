@@ -631,6 +631,52 @@ describe('Reports Routes', () => {
     );
   });
 
+  it('GET /:id/export with includeMassas=true includes massas section', async () => {
+    const createRes = await app.inject({
+      method: 'POST',
+      url: '/api/reports',
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        turno: 'tarde',
+        notes: 'Relatório com massas.',
+        items: [
+          { taskId: 1, checked: true },
+        ],
+        temperatures: buildTemperatureReadings(db),
+      },
+    });
+    const report = JSON.parse(createRes.body).report;
+    const reportId = report.id;
+    const reportDate = report.report_date;
+
+    // Insert a massa launch for this report's date
+    db.prepare(`
+      INSERT INTO massa_launches (launch_date, product_code, boxes, user_id, created_at, updated_at)
+      VALUES (?, '1045', 3, 1, '2026-10-21 10:00:00', '2026-10-21 10:00:00')
+    `).run(reportDate);
+
+    // Default call without includeMassas
+    const resDefault = await app.inject({
+      method: 'GET',
+      url: `/api/reports/${reportId}/export`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+    assert.strictEqual(resDefault.statusCode, 200);
+    const bodyDefault = JSON.parse(resDefault.body);
+    assert.ok(!bodyDefault.text.includes('LANÇAMENTO DE MASSAS'));
+
+    // Call with includeMassas=true
+    const resWith = await app.inject({
+      method: 'GET',
+      url: `/api/reports/${reportId}/export?includeMassas=true`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+    assert.strictEqual(resWith.statusCode, 200);
+    const bodyWith = JSON.parse(resWith.body);
+    assert.ok(bodyWith.text.includes('🍝 *LANÇAMENTO DE MASSAS*'));
+    assert.ok(bodyWith.text.includes('MASSA CASEIRA: 3 cx (30 un)'));
+  });
+
   it('GET /:id/export returns 404 for missing report', async () => {
     const res = await app.inject({
       method: 'GET',

@@ -313,4 +313,45 @@ describe('Export Service (Generador Inteligente)', () => {
     assert.ok(bordes.includes('A Câmara Principal tem uma temperatura de 15°C, recomenda-se limpar os ares-condicionados.'));
     assert.ok(bordes.includes('A Câmara de Resfriamento tem uma temperatura de 10°C, recomenda-se limpar os ares-condicionados.'));
   });
+
+  it('appends massas section when includeMassas is true and launches exist for date', () => {
+    db.prepare(`
+      INSERT INTO massa_launches (launch_date, product_code, boxes, user_id, created_at, updated_at)
+      VALUES ('2026-06-12', '1045', 4, 10, '2026-06-12 10:00:00', '2026-06-12 10:00:00')
+    `).run();
+    db.prepare(`
+      INSERT INTO massa_launches (launch_date, product_code, boxes, user_id, created_at, updated_at)
+      VALUES ('2026-06-12', '1047', 2, 10, '2026-06-12 11:00:00', '2026-06-12 11:00:00')
+    `).run();
+
+    // Default call (includeMassas = false)
+    const textWithout = generateWhatsAppText(db, reportId)!;
+    assert.ok(!textWithout.includes('LANÇAMENTO DE MASSAS'));
+
+    // Explicit includeMassas = true
+    const textWith = generateWhatsAppText(db, reportId, '', true)!;
+    assert.ok(textWith.includes('🍝 *LANÇAMENTO DE MASSAS*'));
+    assert.ok(textWith.includes('*Por Operário:*'));
+    assert.ok(textWith.includes('👤 Test User:'));
+    assert.ok(textWith.includes('   - MASSA CASEIRA: 4 cx (40 un)'));
+    assert.ok(textWith.includes('   - MASSA ROLO 2KG: 2 cx (12 un)'));
+    assert.ok(textWith.includes('*Resumo Coletivo:*'));
+    assert.ok(textWith.includes('📦 MASSA CASEIRA: 4 cx (40 un)'));
+    assert.ok(textWith.includes('📦 MASSA ROLO 2KG: 2 cx (12 un)'));
+    assert.ok(textWith.includes('*Total de Massas:* 6 cx (52 un)'));
+
+    // Check position: massas section appears before Observações
+    const massasIndex = textWith.indexOf('🍝 *LANÇAMENTO DE MASSAS*');
+    const notesIndex = textWith.indexOf('📝 *Observações:*');
+    assert.ok(massasIndex < notesIndex, 'Massas section must precede Observações');
+  });
+
+  it('omits massas section when includeMassas is true but no launches exist for that date', () => {
+    db.prepare(`
+      INSERT INTO reports (id, user_id, turno, report_date, notes, created_at)
+      VALUES (300, 10, 'tarde', '2026-06-13', NULL, '2026-06-13 18:00:00')
+    `).run();
+    const text = generateWhatsAppText(db, 300, '', true)!;
+    assert.ok(!text.includes('LANÇAMENTO DE MASSAS'));
+  });
 });
