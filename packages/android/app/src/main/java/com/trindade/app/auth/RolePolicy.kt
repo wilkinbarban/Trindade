@@ -83,6 +83,12 @@ object RolePolicy {
 
         /** Session only: share app links and official credentials. */
         SHARE_APP,
+
+        /** Session only: the massas launch counter. Reading and launches are both roles'; editing own only. */
+        MASSAS_LAUNCH,
+
+        /** Session only: the massas historical views. */
+        MASSAS_HISTORY,
     }
 
     /**
@@ -103,6 +109,8 @@ object RolePolicy {
         EntryPoint.STOCK_COUNTER,
         EntryPoint.STOCK_HISTORY,
         EntryPoint.SHARE_APP,
+        EntryPoint.MASSAS_LAUNCH,
+        EntryPoint.MASSAS_HISTORY,
     )
 
     /**

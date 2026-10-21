@@ -34,6 +34,8 @@ class RolePolicyTest {
                 EntryPoint.STOCK_COUNTER,
                 EntryPoint.STOCK_HISTORY,
                 EntryPoint.SHARE_APP,
+                EntryPoint.MASSAS_LAUNCH,
+                EntryPoint.MASSAS_HISTORY,
             ),
             RolePolicy.visibleEntryPoints(RolePolicy.WORKER),
         )
