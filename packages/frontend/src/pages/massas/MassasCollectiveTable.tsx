@@ -1,9 +1,16 @@
+import { useMemo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Edit2, Trash2, Check, X, ShieldAlert } from 'lucide-react';
-import type { MassaProductTotal, MassaIndividualLaunch } from '../../lib/massas';
+import {
+  extractOperators,
+  filterLaunchesByOperator,
+  calculateOperatorSubtotal,
+  type MassaProductTotal,
+  type MassaIndividualLaunch,
+} from '../../lib/massas';
 
 interface MassasCollectiveTableProps {
   products: MassaProductTotal[];
@@ -39,7 +46,29 @@ export function MassasCollectiveTable({
   deletingId,
 }: MassasCollectiveTableProps) {
   const { t } = useTranslation();
+  const [selectedOperatorId, setSelectedOperatorId] = useState<number | 'all'>('all');
   const activeProducts = products.filter((p) => p.totalBoxes > 0);
+
+  const operators = useMemo(() => extractOperators(launches), [launches]);
+
+  useEffect(() => {
+    if (selectedOperatorId !== 'all' && !operators.some((o) => o.id === selectedOperatorId)) {
+      setSelectedOperatorId('all');
+    }
+  }, [operators, selectedOperatorId]);
+
+  const displayedLaunches = useMemo(() => {
+    return filterLaunchesByOperator(launches, selectedOperatorId);
+  }, [launches, selectedOperatorId]);
+
+  const workerSubtotal = useMemo(() => {
+    return calculateOperatorSubtotal(launches, selectedOperatorId);
+  }, [launches, selectedOperatorId]);
+
+  const selectedOperatorName = useMemo(() => {
+    if (selectedOperatorId === 'all') return '';
+    return operators.find((o) => o.id === selectedOperatorId)?.name || '';
+  }, [operators, selectedOperatorId]);
 
   return (
     <div className="space-y-6">
@@ -149,13 +178,63 @@ export function MassasCollectiveTable({
             <p className="text-xs text-gray-500">{t('massas.userLaunchesSubtitle')}</p>
           </div>
 
-          {launches.length === 0 ? (
+          {/* Filtro por Trabajador */}
+          {operators.length > 0 && (
+            <div className="mb-4 space-y-2">
+              <div className="flex flex-wrap items-center gap-1.5" data-testid="massas-worker-chips">
+                <button
+                  type="button"
+                  onClick={() => setSelectedOperatorId('all')}
+                  className={`px-3 py-1 text-xs rounded-full border transition-all ${
+                    selectedOperatorId === 'all'
+                      ? 'bg-amber-600 text-white border-amber-600 font-semibold shadow-xs'
+                      : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                  }`}
+                  data-testid="filter-operator-all"
+                >
+                  {t('massas.allWorkers', 'Todos os trabalhadores')}
+                </button>
+                {operators.map((op) => (
+                  <button
+                    key={op.id}
+                    type="button"
+                    onClick={() => setSelectedOperatorId(op.id)}
+                    className={`px-3 py-1 text-xs rounded-full border transition-all ${
+                      selectedOperatorId === op.id
+                        ? 'bg-amber-600 text-white border-amber-600 font-semibold shadow-xs'
+                        : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                    }`}
+                    data-testid={`filter-operator-${op.id}`}
+                  >
+                    👤 {op.name}
+                  </button>
+                ))}
+              </div>
+
+              {/* Subtotal del trabajador seleccionado */}
+              {workerSubtotal && (
+                <div
+                  className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center justify-between text-xs sm:text-sm"
+                  data-testid="massas-worker-subtotal"
+                >
+                  <span className="text-gray-800">
+                    {t('massas.workerSubtotal', 'Subtotal de')} <strong>{selectedOperatorName}</strong>:
+                  </span>
+                  <span className="font-bold text-amber-900">
+                    {workerSubtotal.boxes} cx ({workerSubtotal.units} un)
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {displayedLaunches.length === 0 ? (
             <div className="py-8 text-center text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-200 text-sm">
               {t('massas.noLaunches')}
             </div>
           ) : (
             <div className="space-y-2.5">
-              {launches.map((launch) => {
+              {displayedLaunches.map((launch) => {
                 const isOwner = currentUserId === launch.user_id;
                 const isEditing = editingLaunchId === launch.id;
 

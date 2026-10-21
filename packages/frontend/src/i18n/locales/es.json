@@ -494,7 +494,16 @@
     "viewHistory": "Ver Historial",
     "backToToday": "Volver a Hoy",
     "today": "Hoy",
-    "pastDaysWithLaunches": "Días con lanzamientos registrados"
+    "pastDaysWithLaunches": "Días con lanzamientos registrados",
+    "confirmTitle": "Confirmar Lanzamiento de Masas",
+    "confirmSubtitle": "Verifique los productos y cajas antes de confirmar el lanzamiento:",
+    "confirmAction": "Confirmar",
+    "totalToLaunch": "Total General a Lanzar",
+    "allWorkers": "Todos los trabajadores",
+    "workerSubtotal": "Subtotal de",
+    "successTitle": "Lanzamiento Concluido",
+    "errorTitle": "Error en el Lanzamiento",
+    "close": "Cerrar"
   },
   "moduleHelp": {
     "dashboard": {

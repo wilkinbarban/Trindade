@@ -4,7 +4,11 @@ import {
   massasMessage,
   POLL_INTERVAL_MS,
   shouldPollMassas,
+  extractOperators,
+  filterLaunchesByOperator,
+  calculateOperatorSubtotal,
   type MassasLaunchDayView,
+  type MassaIndividualLaunch,
 } from './massas.js';
 
 describe('massas message formatting', () => {
@@ -150,4 +154,76 @@ describe('massas live polling guards', () => {
     assert.strictEqual(paused, false);
   });
 });
+
+describe('massas operator filtering and subtotal', () => {
+  const sampleLaunches: MassaIndividualLaunch[] = [
+    {
+      id: 1,
+      launch_date: '2026-10-21',
+      product_code: '1045',
+      product_name: 'MASSA CASEIRA',
+      boxes: 4,
+      units: 40,
+      user_id: 10,
+      username: 'carlos',
+      display_name: 'Carlos Bento',
+      created_at: '2026-10-21T09:00:00Z',
+      updated_at: '2026-10-21T09:00:00Z',
+    },
+    {
+      id: 2,
+      launch_date: '2026-10-21',
+      product_code: '1047',
+      product_name: 'MASSA ROLO 2KG',
+      boxes: 3,
+      units: 18,
+      user_id: 20,
+      username: 'ana',
+      display_name: 'Ana Silva',
+      created_at: '2026-10-21T10:00:00Z',
+      updated_at: '2026-10-21T10:00:00Z',
+    },
+    {
+      id: 3,
+      launch_date: '2026-10-21',
+      product_code: '39',
+      product_name: 'MASSA DISCO 200G',
+      boxes: 2,
+      units: 20,
+      user_id: 10,
+      username: 'carlos',
+      display_name: 'Carlos Bento',
+      created_at: '2026-10-21T11:00:00Z',
+      updated_at: '2026-10-21T11:00:00Z',
+    },
+  ];
+
+  it('extracts unique operators sorted alphabetically', () => {
+    const ops = extractOperators(sampleLaunches);
+    assert.strictEqual(ops.length, 2);
+    assert.deepStrictEqual(ops[0], { id: 20, name: 'Ana Silva' });
+    assert.deepStrictEqual(ops[1], { id: 10, name: 'Carlos Bento' });
+  });
+
+  it('filters launches by operator id or returns all when all is selected', () => {
+    assert.strictEqual(filterLaunchesByOperator(sampleLaunches, 'all').length, 3);
+    const carlosLaunches = filterLaunchesByOperator(sampleLaunches, 10);
+    assert.strictEqual(carlosLaunches.length, 2);
+    assert.ok(carlosLaunches.every((l) => l.user_id === 10));
+
+    const anaLaunches = filterLaunchesByOperator(sampleLaunches, 20);
+    assert.strictEqual(anaLaunches.length, 1);
+    assert.strictEqual(anaLaunches[0].id, 2);
+  });
+
+  it('calculates subtotal of boxes and units for selected operator', () => {
+    assert.strictEqual(calculateOperatorSubtotal(sampleLaunches, 'all'), null);
+    const carlosSubtotal = calculateOperatorSubtotal(sampleLaunches, 10);
+    assert.deepStrictEqual(carlosSubtotal, { boxes: 6, units: 60 });
+
+    const anaSubtotal = calculateOperatorSubtotal(sampleLaunches, 20);
+    assert.deepStrictEqual(anaSubtotal, { boxes: 3, units: 18 });
+  });
+});
+
 

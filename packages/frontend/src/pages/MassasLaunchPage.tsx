@@ -17,6 +17,7 @@ import {
   type MassaIndividualLaunch,
 } from '../lib/massas';
 import { History } from 'lucide-react';
+import { Dialog } from '../components/ui/dialog';
 import { ModuleHelpModal } from '../components/ui/ModuleHelpModal';
 import { MassasLaunchGrid } from './massas/MassasLaunchGrid';
 import { MassasCollectiveTable } from './massas/MassasCollectiveTable';
@@ -34,6 +35,11 @@ export function MassasLaunchPage() {
   // Block 1 state: quantities per product code
   const [quantities, setQuantities] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [itemsToConfirm, setItemsToConfirm] = useState<
+    Array<{ product_code: string; name: string; boxes: number; units: number }>
+  >([]);
+  const [resultModal, setResultModal] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Block 2 state: inline editing of an individual launch
   const [editingLaunchId, setEditingLaunchId] = useState<number | null>(null);
@@ -102,25 +108,46 @@ export function MassasLaunchPage() {
     setQuantities((prev) => ({ ...prev, [code]: cleaned }));
   };
 
-  const handleLaunch = async () => {
+  const handleRequestLaunch = () => {
     if (!dayView || submitting) return;
     const items = dayView.products
-      .map((p) => ({
-        product_code: p.code,
-        boxes: parseInt(quantities[p.code] || '0', 10),
-      }))
+      .map((p) => {
+        const boxes = parseInt(quantities[p.code] || '0', 10);
+        return {
+          product_code: p.code,
+          name: p.name,
+          boxes,
+          units: boxes * p.unitsPerBox,
+        };
+      })
       .filter((i) => i.boxes > 0);
 
     if (items.length === 0) return;
+    setItemsToConfirm(items);
+    setIsConfirmOpen(true);
+  };
+
+  const handleConfirmLaunch = async () => {
+    if (!dayView || submitting || itemsToConfirm.length === 0) return;
     setSubmitting(true);
-    setNotice(null);
+    setIsConfirmOpen(false);
     try {
-      await api.post('/massas-launch', { date, items });
+      await api.post('/massas-launch', {
+        date,
+        items: itemsToConfirm.map((i) => ({ product_code: i.product_code, boxes: i.boxes })),
+      });
       setQuantities({});
-      setNotice({ type: 'success', message: t('massas.launchSuccess') });
+      setResultModal({
+        type: 'success',
+        message: t('massas.launchSuccess', 'Lançamento registrado com sucesso!'),
+      });
       await load(date);
     } catch (err) {
-      setNotice({ type: 'error', message: err instanceof Error ? err.message : t('massas.launchError') });
+      setResultModal({
+        type: 'error',
+        message: err instanceof Error ? err.message : t('massas.launchError', 'Erro ao registrar lançamento.'),
+      });
+      // Do not clear quantities on error so the operator can retry
     } finally {
       setSubmitting(false);
     }
@@ -268,7 +295,7 @@ export function MassasLaunchPage() {
           products={dayView.products}
           quantities={quantities}
           onQuantityChange={handleQuantityChange}
-          onLaunch={handleLaunch}
+          onLaunch={handleRequestLaunch}
           submitting={submitting}
           date={date}
         />
@@ -303,6 +330,96 @@ export function MassasLaunchPage() {
         onOpenWhatsApp={handleOpenWhatsApp}
         copyNote={copyNote}
       />
+
+      {/* Modal de Confirmação Prévio ao Lançamento */}
+      {isConfirmOpen && (
+        <Dialog
+          open={isConfirmOpen}
+          onClose={() => setIsConfirmOpen(false)}
+          labelledBy="massa-confirm-title"
+          describedBy="massa-confirm-desc"
+          panelTestId="massa-confirm-modal"
+        >
+          <div className="p-6 space-y-4 max-w-md w-full">
+            <h2 id="massa-confirm-title" className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <span className="text-xl">🍝</span>
+              <span>{t('massas.confirmTitle', 'Confirmar Lançamento de Massas')}</span>
+            </h2>
+            <p id="massa-confirm-desc" className="text-xs text-gray-500">
+              {t('massas.confirmSubtitle', 'Verifique os produtos e caixas antes de confirmar o lançamento:')}
+            </p>
+
+            <div className="max-h-60 overflow-y-auto space-y-2 border rounded-lg p-3 bg-gray-50">
+              {itemsToConfirm.map((item) => (
+                <div key={item.product_code} className="flex justify-between items-center text-sm">
+                  <span className="font-medium text-gray-800">📦 {item.name}</span>
+                  <span className="font-bold text-amber-800">{item.boxes} cx ({item.units} un)</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="pt-2 border-t flex justify-between items-center text-sm">
+              <span className="font-semibold text-gray-700">{t('massas.totalToLaunch', 'Total Geral a Lançar')}:</span>
+              <span className="font-extrabold text-base text-amber-900">
+                {itemsToConfirm.reduce((sum, i) => sum + i.boxes, 0)} cx ({itemsToConfirm.reduce((sum, i) => sum + i.units, 0)} un)
+              </span>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-3">
+              <Button
+                variant="outline"
+                onClick={() => setIsConfirmOpen(false)}
+                disabled={submitting}
+              >
+                {t('massas.cancel', 'Cancelar')}
+              </Button>
+              <Button
+                onClick={handleConfirmLaunch}
+                disabled={submitting}
+                className="bg-amber-600 hover:bg-amber-700 text-white font-semibold"
+              >
+                {submitting ? t('massas.submitting', 'Lançando...') : t('massas.confirmAction', 'Confirmar')}
+              </Button>
+            </div>
+          </div>
+        </Dialog>
+      )}
+
+      {/* Diálogo Modal de Notificação de Resultado */}
+      {resultModal && (
+        <Dialog
+          open={resultModal !== null}
+          onClose={() => setResultModal(null)}
+          labelledBy="massa-result-title"
+          panelTestId="massa-result-modal"
+        >
+          <div className="p-6 space-y-4 max-w-sm w-full text-center">
+            <div className="text-4xl">
+              {resultModal.type === 'success' ? '✅' : '❌'}
+            </div>
+            <h2 id="massa-result-title" className="text-lg font-bold text-gray-900">
+              {resultModal.type === 'success'
+                ? t('massas.successTitle', 'Lançamento Concluído')
+                : t('massas.errorTitle', 'Erro no Lançamento')}
+            </h2>
+            <p className="text-sm text-gray-600">
+              {resultModal.message}
+            </p>
+            <div className="pt-2">
+              <Button
+                onClick={() => setResultModal(null)}
+                className={`w-full font-semibold ${
+                  resultModal.type === 'success'
+                    ? 'bg-green-600 hover:bg-green-700 text-white'
+                    : 'bg-red-600 hover:bg-red-700 text-white'
+                }`}
+              >
+                {t('massas.close', 'Fechar')}
+              </Button>
+            </div>
+          </div>
+        </Dialog>
+      )}
     </div>
   );
 }

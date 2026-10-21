@@ -104,3 +104,51 @@ export function shouldPollMassas({
   return true;
 }
 
+export interface MassaOperator {
+  id: number;
+  name: string;
+}
+
+/**
+ * Extracts the unique operators who registered launches on a date, sorted by name.
+ */
+export function extractOperators(launches: MassaIndividualLaunch[]): MassaOperator[] {
+  const map = new Map<number, string>();
+  for (const launch of launches) {
+    if (!map.has(launch.user_id)) {
+      const name = (launch.display_name || launch.username || `Operador ${launch.user_id}`).trim();
+      map.set(launch.user_id, name);
+    }
+  }
+  return Array.from(map.entries())
+    .map(([id, name]) => ({ id, name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * Filters individual launches by operator ID, or returns all launches when operatorId is 'all'.
+ */
+export function filterLaunchesByOperator(
+  launches: MassaIndividualLaunch[],
+  operatorId: number | 'all'
+): MassaIndividualLaunch[] {
+  if (operatorId === 'all') return launches;
+  return launches.filter((l) => l.user_id === operatorId);
+}
+
+/**
+ * Calculates total boxes and units for a selected operator, or null when 'all' is selected.
+ */
+export function calculateOperatorSubtotal(
+  launches: MassaIndividualLaunch[],
+  operatorId: number | 'all'
+): { boxes: number; units: number } | null {
+  if (operatorId === 'all') return null;
+  const filtered = filterLaunchesByOperator(launches, operatorId);
+  return {
+    boxes: filtered.reduce((acc, l) => acc + l.boxes, 0),
+    units: filtered.reduce((acc, l) => acc + l.units, 0),
+  };
+}
+
+
