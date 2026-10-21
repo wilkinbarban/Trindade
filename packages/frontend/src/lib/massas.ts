@@ -76,3 +76,31 @@ export function massasMessage(view: MassasLaunchDayView): string {
 
   return lines.join('\n');
 }
+
+/**
+ * Passive polling interval in milliseconds for live-reload across floor devices.
+ */
+export const POLL_INTERVAL_MS = 15000;
+
+export interface MassasPollingGuards {
+  visibilityState: DocumentVisibilityState | string;
+  isEditing: boolean;
+  isSubmitting: boolean;
+}
+
+/**
+ * Guard predicate determining if silent background polling should run.
+ * Suspends when document is hidden (background tab/screen off) or when
+ * the operator is actively editing or submitting.
+ */
+export function shouldPollMassas({
+  visibilityState,
+  isEditing,
+  isSubmitting,
+}: MassasPollingGuards): boolean {
+  if (visibilityState !== 'visible') return false;
+  if (isEditing) return false;
+  if (isSubmitting) return false;
+  return true;
+}
+

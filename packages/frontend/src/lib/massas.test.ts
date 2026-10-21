@@ -1,6 +1,11 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { massasMessage, type MassasLaunchDayView } from './massas.js';
+import {
+  massasMessage,
+  POLL_INTERVAL_MS,
+  shouldPollMassas,
+  type MassasLaunchDayView,
+} from './massas.js';
 
 describe('massas message formatting', () => {
   it('formats empty day when no massas have been launched', () => {
@@ -87,3 +92,62 @@ describe('massas message formatting', () => {
     assert.match(msg, /\*Lançado por:\* João Silva, Maria Oliveira/);
   });
 });
+
+describe('massas live polling guards', () => {
+  it('defines 15-second polling interval', () => {
+    assert.strictEqual(POLL_INTERVAL_MS, 15000);
+  });
+
+  it('allows polling when tab is visible and there is no active user interaction', () => {
+    const allowed = shouldPollMassas({
+      visibilityState: 'visible',
+      isEditing: false,
+      isSubmitting: false,
+    });
+    assert.strictEqual(allowed, true);
+  });
+
+  it('suspends polling when document is hidden (background tab or locked screen)', () => {
+    const hidden = shouldPollMassas({
+      visibilityState: 'hidden',
+      isEditing: false,
+      isSubmitting: false,
+    });
+    assert.strictEqual(hidden, false);
+
+    const prerender = shouldPollMassas({
+      visibilityState: 'prerender',
+      isEditing: false,
+      isSubmitting: false,
+    });
+    assert.strictEqual(prerender, false);
+  });
+
+  it('pauses polling while user is actively editing an individual launch', () => {
+    const paused = shouldPollMassas({
+      visibilityState: 'visible',
+      isEditing: true,
+      isSubmitting: false,
+    });
+    assert.strictEqual(paused, false);
+  });
+
+  it('pauses polling while user is actively submitting launches', () => {
+    const paused = shouldPollMassas({
+      visibilityState: 'visible',
+      isEditing: false,
+      isSubmitting: true,
+    });
+    assert.strictEqual(paused, false);
+  });
+
+  it('pauses polling when both editing and submitting', () => {
+    const paused = shouldPollMassas({
+      visibilityState: 'visible',
+      isEditing: true,
+      isSubmitting: true,
+    });
+    assert.strictEqual(paused, false);
+  });
+});
+

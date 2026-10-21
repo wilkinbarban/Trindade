@@ -11,6 +11,8 @@ import { shareOrCopy, waMeLink } from '../lib/whatsapp';
 import {
   massasMessage,
   saopauloToday,
+  POLL_INTERVAL_MS,
+  shouldPollMassas,
   type MassasLaunchDayView,
   type MassaIndividualLaunch,
 } from '../lib/massas';
@@ -44,23 +46,56 @@ export function MassasLaunchPage() {
   const [copyNote, setCopyNote] = useState('');
 
   const load = useCallback(
-    async (targetDate: string) => {
-      setError('');
+    async (targetDate: string, isSilent = false) => {
+      if (!isSilent) {
+        setError('');
+      }
       try {
         const loaded = await api.get<MassasLaunchDayView>(`/massas-launch?date=${targetDate}`);
         setDayView(loaded);
       } catch (err) {
-        setError(err instanceof Error ? err.message : t('massas.loadError'));
+        if (!isSilent) {
+          setError(err instanceof Error ? err.message : t('massas.loadError'));
+        }
       } finally {
-        setLoading(false);
+        if (!isSilent) {
+          setLoading(false);
+        }
       }
     },
     [t]
   );
 
+  // Initial load or date switch
   useEffect(() => {
     void load(date);
   }, [date, load]);
+
+  // Passive live-reload polling every 15s with visibility and interaction guards
+  useEffect(() => {
+    const triggerSilentPoll = () => {
+      const visibilityState = typeof document !== 'undefined' ? document.visibilityState : 'visible';
+      const isEditing = editingLaunchId !== null;
+      if (shouldPollMassas({ visibilityState, isEditing, isSubmitting: submitting })) {
+        void load(date, true);
+      }
+    };
+
+    const intervalId = window.setInterval(triggerSilentPoll, POLL_INTERVAL_MS);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        triggerSilentPoll();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [date, load, editingLaunchId, submitting]);
 
   const handleQuantityChange = (code: string, rawVal: string) => {
     const cleaned = rawVal.replace(/\D/g, '');
