@@ -1,0 +1,642 @@
+<resources>
+    <string name="app_name">Trindade</string>
+
+    <!-- Portuguese because the operators are: the app's own copy is the only text here that the
+         server did not write, and it is the same language the API answers in. -->
+    <string name="login_title">Trindade Massas</string>
+    <!-- The web's own tagline for the same screen, from the pt-BR locale's `app.tagline`, so the two
+         clients greet the operator with the same words. -->
+    <string name="login_tagline">Plataforma Operativa</string>
+    <string name="login_username">Usuario</string>
+    <string name="login_password">Contraseña</string>
+    <string name="login_password_show">Mostrar</string>
+    <string name="login_password_hide">Ocultar</string>
+    <string name="login_submit">Ingresar</string>
+    <string name="login_unreachable">Sin conexión con el servidor. Verifique la red e intente de nuevo.</string>
+    <!-- The sentences for the causes that produced no usable answer, which is what UnreachableCause
+         enumerates. "Usable" is the precise word, because these are not all about a network:
+           - login_timeout covers both OkHttp's connect timeout and its read timeout. The exception type
+             cannot tell them apart, so the sentence claims only what the client can know: the answer did
+             not arrive in time. It keeps "verifique a rede" out of it, because sending the operator to
+             check a network the failure had not been shown to involve is exactly what the first sentence
+             used to do wrongly.
+           - login_tls is a connection that was established and whose secure transport then failed.
+           - login_unreadable_body is the case where the server answered and the reply could not be read
+             as this client's envelope. The server was reached; only its answer was unusable.
+         All three close with "Tente de novo", the same verb the refusals above use, so the operator reads
+         one voice rather than three. -->
+    <string name="login_timeout">El servidor no respondió a tiempo. Intente de nuevo.</string>
+    <string name="login_tls">Fallo en la conexión segura con el servidor. Intente de nuevo.</string>
+    <string name="login_unreadable_body">Respuesta del servidor no reconocida. Intente de nuevo.</string>
+    <!-- The residue's sentence: the cause the taxonomy could not name. It says only that signing in did
+         not happen and invites a retry, and it names no cause at all, not the network, because an
+         unclassified Throwable has not been shown to involve one. This is the sentence `Unknown` used to
+         borrow from `login_unreachable`, which sent the operator to check a network the failure had not been
+         shown to involve. -->
+    <string name="login_unknown">No fue posible ingresar. Intente de nuevo.</string>
+    <string name="login_invalid_credentials">Usuario o contraseña incorrectos.</string>
+    <!-- The login form's only way into worker self-registration, and the only string this screen adds for
+         it: the registration screen owns every other word of that flow. It matches the wording the
+         registration screen's own submit action ships (`register_submit`), so the operator reads one name
+         for the errand on both screens instead of a link that promises something the next screen calls
+         something else. -->
+    <string name="login_register_link">Solicitar registro</string>
+
+    <string name="register_title">Solicitar Registro</string>
+    <string name="register_worker_role_notice">El registro solicita acceso con el rol Trabajador y requiere aprobación de un administrador antes del primer acceso.</string>
+    <string name="register_username">Nombre de Usuario</string>
+    <string name="register_display_name">Nombre para Mostrar</string>
+    <string name="register_password">Contraseña</string>
+    <string name="register_confirm_password">Confirmar Contraseña</string>
+    <string name="register_password_helper">Mínimo 15 caracteres visibles</string>
+    <string name="register_submit">Solicitar registro</string>
+    <string name="register_back_to_login">Volver al login</string>
+    <string name="register_success_title">Solicitud Enviada</string>
+    <string name="register_rate_limit_wait">Límite de solicitudes excedido. Intente nuevamente en %1$d segundos.</string>
+    <string name="register_unknown">No fue posible completar el registro. Intente de nuevo.</string>
+
+    <string name="report_submit">Guardar reporte</string>
+    <string name="report_created">Reporte %1$d guardado.</string>
+    <!--
+      What the generator says when a read did not supply a piece the form is made of, and the way back.
+      Each missing piece is named rather than left as a blank form, because an operator who sees an empty
+      form reads it as a day with no tasks, and that is a different fact from a read that never arrived.
+    -->
+    <string name="report_missing_shift">No fue posible detectar el turno. Verifique la conexión e intente de nuevo.</string>
+    <string name="report_missing_categories">Las tareas del reporte no llegaron. Verifique la conexión e intente de nuevo.</string>
+    <string name="report_missing_offers">Las listas de productos no llegaron: no se pueden responder las tareas de producto.</string>
+    <string name="report_retry">Intentar de nuevo</string>
+    <!--
+      What the form says while it still owes a temperature reading, and the reason the save is withheld:
+      the same sentence the server answers 400 with and the one the web shows before sending
+      (`reports.temperaturesRequired` in the frontend's catalogue, character for character), because one
+      missing reading is one fact and describing it differently on each client would be two answers to the
+      same refusal.
+    -->
+    <string name="report_temperatures_required">Falta colocar las temperaturas en el reporte.</string>
+    <!-- The edit surface, the web's own `ReportEditPage`. Each is that page's own `pt-BR` text for the
+         same control, out of the locale's `reports` block:
+           - `editTitle` is "Editar", and it is one string here because the web uses the one key for
+             both jobs this app needs it for: this screen's heading, and the label of the action on the
+             report detail that opens it (`ReportViewPage` draws `reports.editTitle` on its edit button).
+           - `updateReport` is the save action. It is deliberately not `report_submit` above, which is
+             this app's own word for the create: the two writes are different routes (that one makes a
+             report "Salvar relatório", this one changes one "Atualizar Relatório") and the web names
+             them differently too, with `saveReport` and `updateReport`.
+           - `notesLabel` is the notes field's label. Its placeholder (`notesPlaceholder`) is not used:
+             a field whose label already says what it is does not need a second sentence inside it.
+         The two shift names the chips draw are the history's pair below rather than two more strings:
+         they spell the same two shifts, and this file shares a word rather than writing it twice, for the
+         same reason `history_previous` is the loading history's too. -->
+    <string name="report_edit">Editar</string>
+    <string name="report_update">Actualizar Reporte</string>
+    <string name="report_notes">Observaciones</string>
+    <string name="report_back">Volver</string>
+    <string name="report_photos">Fotos (%1$d/%2$d)</string>
+    <string name="report_photo_add">Tomar foto</string>
+    <string name="report_photo_remove">Eliminar</string>
+    <!-- Shared by both export surfaces: the text is the server's WhatsApp message either way, so the
+         sentence lives once and neither screen owns the other's name. -->
+    <string name="report_include_massas">Incluir Lanzamiento de Masas</string>
+    <string name="export_load">Generar texto de WhatsApp</string>
+    <string name="export_copy">Copiar texto</string>
+    <string name="export_share_text">Compartir texto</string>
+    <string name="export_send_to_fletero">Enviar directo al fletero</string>
+    <string name="export_share_pdf">Exportar PDF</string>
+
+    <!-- The history of the reports this surface produces. Its own door is on the generator rather than
+         in a third tab, so the action there is named for where it goes and not for the tab it is not.
+         The word is shared with the loading history's own door, which makes the same choice on the
+         grid for the same reason: both histories list what their surface produces, so the way in is an
+         action on that surface. The two screens' filter, paging and lifecycle words are shared below
+         for the same reason, since they name the same controls, while the sentences that name a report
+         or a batch are each screen's own. -->
+    <string name="report_history">Historial</string>
+    <string name="history_title">Historial de reportes</string>
+    <string name="history_all_reports">Todos los reportes</string>
+    <string name="history_filtered">Reportes de %1$s</string>
+    <string name="history_filter_day">Día</string>
+    <string name="history_filter_month">Mes</string>
+    <string name="history_filter_day_value">Día: %1$s</string>
+    <string name="history_filter_month_value">Mes: %1$s</string>
+    <string name="history_clear_filters">Limpiar</string>
+    <string name="history_month_picker_title">Elija el mes</string>
+    <string name="history_turno_tarde">Tarde</string>
+    <string name="history_turno_noite">Noche</string>
+    <string name="history_inactive">Inactivo</string>
+    <string name="history_deactivate">Desactivar</string>
+    <string name="history_delete">Eliminar</string>
+    <!-- The only action on this screen that asks twice: the deletion is irreversible on the server. -->
+    <string name="history_delete_confirm_title">¿Eliminar este reporte?</string>
+    <string name="history_delete_confirm_body">No se puede deshacer: se elimina para todos, no solo de esta pantalla.</string>
+    <string name="history_empty">No se encontraron reportes para este período.</string>
+    <string name="history_pagination">Página %1$d de %2$d (%3$d registros)</string>
+    <string name="history_previous">Anterior</string>
+    <string name="history_next">Siguiente</string>
+
+    <!-- The loading history. One row is one batch, meaning a day's entries rather than one entry, so
+         the copy that names what a row is belongs to this screen; the words shared with the report
+         history above are the ones that name a control rather than a thing. -->
+    <string name="loading_history_title">Historial de cargamentos</string>
+    <string name="loading_history_all">Todos los cargamentos</string>
+    <string name="loading_history_filtered">Cargamentos de %1$s</string>
+    <!-- Labelled, because the loading date is not the batch date above it on six days out of seven. -->
+    <string name="loading_history_loading_date">Cargamento: %1$s</string>
+    <string name="loading_history_loadings">%1$d cargamentos</string>
+    <string name="loading_history_empty">No se encontraron cargamentos para este período.</string>
+    <!-- The batch's own date, so the confirmation names the day the operator is about to lose. -->
+    <string name="loading_history_delete_confirm_title">¿Eliminar el cargamento de %1$s?</string>
+    <string name="loading_history_delete_confirm_body">No se puede deshacer: todos los registros de este día se eliminan para todos, no solo de esta pantalla.</string>
+
+    <!-- The dashboard: the surface the app opens on, and the web's own `/dashboard`. Every string below
+         except `dashboard_unreachable` is the web's own `pt-BR` text, character for character, out of its
+         `dashboard` and `nav` blocks, because the two clients have to say the same thing about the same
+         numbers. The two breakdown lines keep the web's own arrow, written rather than redrawn as an icon:
+         the glyph is the locale file's text, and a picture of it would be a second thing to keep in
+         agreement with the first. -->
+    <string name="nav_dashboard">Panel de Control</string>
+    <string name="dashboard_overview">Vista General</string>
+    <string name="dashboard_reports_today">Reportes de Hoy</string>
+    <string name="dashboard_active_schedule">Cronograma activo</string>
+    <string name="dashboard_active_users">Usuarios Activos</string>
+    <string name="dashboard_reports_total">Reportes Totales</string>
+    <string name="dashboard_schedules_total">Historial de Cargamento Total</string>
+    <string name="dashboard_higiene_count">Hig. &amp; Org. -> %1$d Tareas</string>
+    <string name="dashboard_recepcion_count">Recepción -> %1$d Mercaderías</string>
+    <string name="dashboard_deferred_notice">Nuevos módulos estarán disponibles en versiones futuras.</string>
+    <!-- The one string here the web does not have, and it says what it says on purpose. It names no
+         cause, because a timeout, a refused connection and a reply nobody could read are not
+         distinguishable from this screen, and it is not the web's own "Erro ao carregar dashboard"
+         because that wording would invite the operator to report a fault the read has not been shown to
+         have. See the dashboard view model for why the failure is a flag rather than a sentence. -->
+    <string name="dashboard_unreachable">No fue posible cargar el resumen. Intente de nuevo.</string>
+
+    <string name="nav_reports">Reportes</string>
+    <string name="nav_loading">Horarios</string>
+    <!-- The branded header title for the top-level app shell. -->
+    <string name="nav_brand_title">Trindade Massas</string>
+    <string name="nav_menu">Menú</string>
+    <string name="nav_tasks">Tareas</string>
+    <string name="nav_drivers">Choferes</string>
+    <string name="nav_categories">Categorías</string>
+    <string name="nav_vehicles">Vehículos</string>
+    <string name="nav_time_slots">Horarios</string>
+    <string name="nav_users">Usuarios</string>
+    <string name="nav_audit">Auditoría</string>
+
+    <!-- The account. Its entry point is not a third tab: it sits at the far end of the tab row, because
+         the two tabs are the app's jobs and this is who the operator is. The labels are the words the
+         desktop screen uses for the same fields, since the operators read both. -->
+    <string name="profile_title">Perfil</string>
+    <string name="profile_account">Cuenta</string>
+    <string name="profile_username">Usuario</string>
+    <string name="profile_display_name">Nombre</string>
+    <string name="profile_role">Rol</string>
+    <!-- The two roles the database has. The contract types `role` as a bare string, so an unknown value
+         is shown as it arrived rather than as one of these two. -->
+    <string name="profile_role_administrator">Administrador</string>
+    <string name="profile_role_worker">Trabajador</string>
+    <string name="profile_save">Guardar</string>
+    <string name="profile_name_saved">Nombre actualizado.</string>
+    <!-- One string for the block and for the action that sends it: both name the same thing. -->
+    <string name="profile_change_password">Cambiar contraseña</string>
+    <string name="profile_current_password">Contraseña actual</string>
+    <string name="profile_new_password">Nueva contraseña</string>
+    <!-- The server's minimum, stated where the password is typed instead of discovered as a 400. The
+         number is the view model's constant, so the rule and the sentence cannot drift apart. -->
+    <string name="profile_password_rule">La nueva contraseña necesita al menos %1$d caracteres.</string>
+    <!-- No confirmation accompanies this action: see the screen for why it does not ask twice. -->
+    <string name="profile_sign_out">Cerrar sesión</string>
+    <!-- Shown in place of the form once the session has ended. The password change brings its own
+         sentence, because that sign-out is one the operator did not ask for. -->
+    <string name="profile_signed_out">Sesión cerrada.</string>
+    <string name="profile_back_to_login">Iniciar sesión de nuevo</string>
+    <!-- The APK's own version, for the operator who asks whether the update reached the phone. It is read
+         from the build, never typed here, so the number on screen is the number that was packaged. Kept out
+         of the account block on purpose: see the screen for why it is drawn even when nothing loaded. -->
+    <string name="profile_app_version">Versión de la aplicación</string>
+    <!-- What the check that runs when the screen opens found, drawn under the version it is about.
+         Three sentences for three voices, and the difference between them is the point: "up to date"
+         is quiet because there is nothing to do; "there is a new version" is the one that wants the
+         eye, because the download action is directly below it; and a check that could not be made says
+         so in the same quiet voice, because it is not a fault of the operator's session. It says
+         "verificar" rather than "baixar" or "atualizar" on purpose: nothing is downloaded and nothing
+         is installed by this app, it only asks GitHub which release is newest. See the screen for why
+         this line is not drawn in the error colour. -->
+    <string name="profile_update_up_to_date">Ya estás en la versión más reciente.</string>
+    <!-- The number is the newest release without the tag's "v", so it reads the same way the version
+         line above it does. -->
+    <string name="profile_update_available">Hay una versión nueva: %1$s</string>
+    <string name="profile_update_unavailable">No fue posible verificar si hay una versión nueva.</string>
+    <!-- The way to the download, drawn next to the version it is about: the operator reads the version,
+         sees it is old, and this is the tap that takes them to the page it is published on. It says
+         "baixar" rather than "atualizar" on purpose: the app downloads nothing and installs nothing;
+         the browser does that, which is why this app needs no install permission. The address is not here:
+         it is a build declaration, because where the APK is hosted is not a sentence anyone writes
+         (see RELEASES_URL in build.gradle.kts). -->
+    <string name="profile_download_update">Descargar nueva versión</string>
+    <!-- The one thing about this action that looks like a fault the first time and is not. An APK that did
+         not come from the store makes the phone ask once whether to allow it, and that prompt arrives
+         seconds after this button is tapped: a screen that says nothing about it turns a normal first
+         install into something that reads as gone wrong. One sentence, because it is one fact. -->
+    <string name="profile_download_update_hint">La primera vez el teléfono pregunta si puede instalar una aplicación externa a la tienda, y pregunta una sola vez.</string>
+    <!-- The tap above that found nothing on this phone able to open a link, which is reachable because an
+         APK also arrives by adb, by MDM or from a file manager and none of those proves a browser exists.
+         It says what to do about it, since a button that silently does nothing is what support would
+         otherwise have to guess at, and it does not repeat the address: the address is a build declaration
+         and the log line carries it. -->
+    <string name="profile_download_update_failed">Ninguna aplicación de este teléfono abre enlaces, por lo que la página de descarga no abrió. Instale un navegador y toque de nuevo, o descargue el APK en la computadora y páselo al teléfono.</string>
+    <string name="mandatory_update_title">Actualización Obligatoria</string>
+    <string name="mandatory_update_message">Una nueva versión de la aplicación Trindade está disponible. Es obligatorio actualizar para continuar utilizando la aplicación.</string>
+    <string name="mandatory_update_action">Ir a Actualización</string>
+    <string name="mandatory_update_banner">Actualización obligatoria pendiente. Descargue e instale la nueva versión para desbloquear los demás módulos.</string>
+    <string name="loading_title">Cronograma de carga</string>
+    <string name="loading_fleteros">%1$d/%2$d fleteros</string>
+    <string name="loading_add_entry">Agregar</string>
+    <string name="loading_pick_driver">Chofer</string>
+    <string name="loading_pick_vehicle">Vehículo</string>
+    <string name="loading_confirm">Confirmar</string>
+    <string name="loading_cancel">Cancelar</string>
+    <!-- The loading edit surface, the web's own `LoadingEditPage`, which is a screen of its own rather
+         than a mode inside the grid: it carries its own heading and names its own save. Both are the
+         page's own `pt-BR` text out of the locale's `loading` block, as the strings above are:
+           - `editTitle` is "Editar Agendamento", this screen's heading.
+           - `updateEntry` is "Atualizar agendamento", the save action. Deliberately not `report_update`,
+             which spells the same verb for a different route and a different object ("Atualizar
+             Relatório"), and the web names the two separately just as this file does.
+         The row's own two labels are shared rather than written again, for the reason this file gives
+         wherever two screens name one control: the way in is `report_edit` ("Editar", which is also the
+         web's `loading.editEntry` for the same button) and the way out is `report_back`.
+         No refusal is here. The one-hour window's sentence is the backend's, character for character,
+         and it reaches the operator through the state's `message`: a copy of it in this file would be
+         a second statement of a rule this client deliberately does not implement. -->
+    <string name="loading_edit">Editar Agendamiento</string>
+    <!-- The picker's own name, above its options. It is the web's word for this field,
+         `loading.timeSlot`, and a noun is what the loading surface already labels a group of choices
+         with: the add form draws "Motorista" and "Veículo" over its own radio rows the same way. -->
+    <string name="loading_pick_slot">Horario</string>
+    <string name="loading_edit_save">Actualizar agendamiento</string>
+
+    <string name="tasks_title">Tareas</string>
+    <string name="tasks_add_new">+ Nueva</string>
+    <string name="tasks_edit_title">Editar tarea</string>
+    <string name="tasks_create_title">Crear tarea</string>
+    <string name="tasks_category_select">Seleccionar categoría</string>
+    <string name="tasks_name_pt">Nombre (pt-BR)</string>
+    <string name="tasks_name_es">Nombre (ES)</string>
+    <string name="tasks_name_es_value">Nombre (ES): %1$s</string>
+    <string name="tasks_category_value">Categoría: %1$s</string>
+    <string name="tasks_type_value">Tipo: %1$s</string>
+    <string name="tasks_type_check">Check</string>
+    <string name="tasks_type_temperature">Temperatura</string>
+    <string name="tasks_type_check_assai">Check Assaí</string>
+    <string name="tasks_type_check_normal">Check Normal</string>
+    <string name="tasks_status_active">Estado: Activo</string>
+    <string name="tasks_status_inactive">Estado: Inactivo</string>
+    <string name="tasks_temperature_readings">Lecturas de temperatura</string>
+    <string name="tasks_decrease_readings">Disminuir lecturas</string>
+    <string name="tasks_increase_readings">Aumentar lecturas</string>
+    <string name="tasks_edit">Editar</string>
+    <string name="tasks_delete">Eliminar</string>
+    <string name="tasks_activate">Activar</string>
+    <string name="tasks_deactivate">Desactivar</string>
+    <string name="tasks_create">Crear</string>
+    <string name="tasks_update">Actualizar</string>
+    <string name="tasks_cancel">Cancelar</string>
+    <string name="tasks_empty">No se encontraron tareas</string>
+    <string name="tasks_delete_confirm_title">¿Eliminar tarea?</string>
+    <string name="tasks_delete_confirm_body">¿Está seguro de que desea eliminar la tarea “%1$s” permanentemente?</string>
+
+    <string name="drivers_title">Choferes</string>
+    <string name="drivers_add_new">+ Nuevo</string>
+    <string name="drivers_edit_title">Editar chofer</string>
+    <string name="drivers_create_title">Crear chofer</string>
+    <string name="drivers_name">Nombre</string>
+    <string name="drivers_phone">Teléfono (WhatsApp)</string>
+    <string name="drivers_type">Tipo</string>
+    <string name="drivers_type_value">Tipo: %1$s</string>
+    <string name="drivers_type_casa">Propio (Casa)</string>
+    <string name="drivers_type_fletero">Tercerizado (Fletero)</string>
+    <string name="drivers_status_active">Estado: Activo</string>
+    <string name="drivers_status_inactive">Estado: Inactivo</string>
+    <string name="drivers_edit">Editar</string>
+    <string name="drivers_read_only">Solo lectura</string>
+    <string name="drivers_activate">Activar</string>
+    <string name="drivers_deactivate">Desactivar</string>
+    <string name="drivers_create">Crear</string>
+    <string name="drivers_update">Actualizar</string>
+    <string name="drivers_cancel">Cancelar</string>
+    <string name="drivers_empty">No se encontraron choferes</string>
+
+    <string name="admin_panel_title">Panel Admin</string>
+    <string name="admin_panel_description">Gestión y configuraciones administrativas</string>
+    <string name="admin_section_categories">Categorías</string>
+    <string name="admin_section_categories_desc">Gestión de tipos y agrupamientos de tareas</string>
+    <string name="admin_section_vehicles">Vehículos</string>
+    <string name="admin_section_vehicles_desc">Registro y control de la flota de vehículos</string>
+    <string name="admin_section_time_slots">Horarios de Carga</string>
+    <string name="admin_section_time_slots_desc">Configuración de ventanas de cargamento</string>
+    <string name="admin_section_users">Usuarios</string>
+    <string name="admin_section_users_desc">Gestión de accesos y colaboradores</string>
+    <string name="admin_section_audit">Auditoría</string>
+    <string name="admin_section_audit_desc">Registro histórico de acciones del sistema</string>
+    <string name="admin_badge_coming_soon">Próximamente</string>
+    <string name="admin_access_section">Acceder</string>
+
+    <string name="categories_title">Categorías</string>
+    <string name="categories_add_new">+ Nueva</string>
+    <string name="categories_edit_title">Editar categoría</string>
+    <string name="categories_create_title">Crear categoría</string>
+    <string name="categories_name_pt">Nombre (pt-BR)</string>
+    <string name="categories_name_es">Nombre (ES)</string>
+    <string name="categories_name_es_value">Nombre (ES): %1$s</string>
+    <string name="categories_type_label">Tipo</string>
+    <string name="categories_type_value">Tipo: %1$s</string>
+    <string name="categories_type_check">Check</string>
+    <string name="categories_type_temperature">Temperatura</string>
+    <string name="categories_type_check_assai">Check Assaí</string>
+    <string name="categories_type_check_normal">Check Normal</string>
+    <string name="categories_order">Orden</string>
+    <string name="categories_order_value">Orden: %1$d</string>
+    <string name="categories_status_active">Estado: Activo</string>
+    <string name="categories_status_inactive">Estado: Inactivo</string>
+    <string name="categories_edit">Editar</string>
+    <string name="categories_delete">Eliminar</string>
+    <string name="categories_activate">Activar</string>
+    <string name="categories_deactivate">Desactivar</string>
+    <string name="categories_create">Crear</string>
+    <string name="categories_update">Actualizar</string>
+    <string name="categories_cancel">Cancelar</string>
+    <string name="categories_empty">No se encontraron categorías</string>
+    <string name="categories_delete_confirm_title">¿Eliminar categoría?</string>
+    <string name="categories_delete_confirm_body">¿Está seguro de que desea eliminar la categoría “%1$s” permanentemente?</string>
+
+    <string name="vehicles_title">Vehículos</string>
+    <string name="vehicles_add_new">+ Nuevo</string>
+    <string name="vehicles_edit_title">Editar vehículo</string>
+    <string name="vehicles_create_title">Crear vehículo</string>
+    <string name="vehicles_description">Descripción</string>
+    <string name="vehicles_description_value">Descripción: %1$s</string>
+    <string name="vehicles_plate">Patente</string>
+    <string name="vehicles_plate_value">Patente: %1$s</string>
+    <string name="vehicles_status_active">Estado: Activo</string>
+    <string name="vehicles_status_inactive">Estado: Inactivo</string>
+    <string name="vehicles_edit">Editar</string>
+    <string name="vehicles_delete">Eliminar</string>
+    <string name="vehicles_activate">Activar</string>
+    <string name="vehicles_deactivate">Desactivar</string>
+    <string name="vehicles_create">Crear</string>
+    <string name="vehicles_update">Actualizar</string>
+    <string name="vehicles_cancel">Cancelar</string>
+    <string name="vehicles_empty">No se encontraron vehículos</string>
+    <string name="vehicles_delete_confirm_title">¿Eliminar vehículo?</string>
+    <string name="vehicles_delete_confirm_body">¿Está seguro de que desea eliminar el vehículo “%1$s” permanentemente?</string>
+
+    <string name="time_slots_title">Horarios de Carga</string>
+    <string name="time_slots_add_new">+ Nuevo</string>
+    <string name="time_slots_new_slot">Nuevo horario</string>
+    <string name="time_slots_slot_label">Horario</string>
+    <string name="time_slots_slot_placeholder">HH:MM</string>
+    <string name="time_slots_add">Agregar</string>
+    <string name="time_slots_saving">Guardando…</string>
+    <string name="time_slots_remove">Eliminar</string>
+    <string name="time_slots_cancel">Cancelar</string>
+    <string name="time_slots_empty">No hay horarios configurados</string>
+    <string name="time_slots_delete_confirm_title">¿Eliminar horario?</string>
+    <string name="time_slots_delete_confirm_body">¿Está seguro de que desea eliminar el horario “%1$s”?</string>
+
+    <string name="users_title">Usuarios</string>
+    <string name="users_add_new">+ Nuevo</string>
+    <string name="users_edit_title">Editar usuario</string>
+    <string name="users_create_title">Crear usuario</string>
+    <string name="users_username">Nombre de Usuario</string>
+    <string name="users_username_value">Usuario: %1$s</string>
+    <string name="users_display_name">Nombre para Mostrar</string>
+    <string name="users_display_name_value">Nombre: %1$s</string>
+    <string name="users_password">Contraseña</string>
+    <string name="users_password_placeholder_edit">Dejar en blanco para mantener</string>
+    <string name="users_password_helper">Mínimo 15 caracteres visibles</string>
+    <string name="users_role">Rol</string>
+    <string name="users_role_value">Rol: %1$s</string>
+    <string name="users_role_admin">Administrador</string>
+    <string name="users_role_worker">Trabajador</string>
+    <string name="users_status_active">Estado: Activo</string>
+    <string name="users_status_inactive">Estado: Inactivo</string>
+    <string name="users_edit">Editar</string>
+    <string name="users_delete">Eliminar</string>
+    <string name="users_activate">Activar</string>
+    <string name="users_deactivate">Desactivar</string>
+    <string name="users_create">Crear</string>
+    <string name="users_update">Actualizar</string>
+    <string name="users_cancel">Cancelar</string>
+    <string name="users_empty">No se encontraron usuarios</string>
+    <string name="users_delete_confirm_title">¿Eliminar usuario?</string>
+    <string name="users_delete_confirm_body">¿Está seguro de que desea eliminar el usuario “%1$s” permanentemente?</string>
+
+    <string name="audit_title">Auditoría</string>
+    <string name="audit_filter_title">Filtros</string>
+    <string name="audit_filter_action">Acción</string>
+    <string name="audit_filter_action_value">Acción: %1$s</string>
+    <string name="audit_filter_entity">Entidad</string>
+    <string name="audit_filter_entity_value">Entidad: %1$s</string>
+    <string name="audit_filter_user_id">ID Usuario</string>
+    <string name="audit_filter_user_id_placeholder">Ej: 1</string>
+    <string name="audit_filter_apply">Filtrar</string>
+    <string name="audit_filter_clear">Limpiar</string>
+    <string name="audit_empty">No se encontraron registros de auditoría.</string>
+    <string name="audit_access_denied_title">Acceso Restringido</string>
+    <string name="audit_access_denied_desc">Esta área es exclusiva para administradores.</string>
+    <string name="audit_pagination_summary">%1$d registros — Página %2$d de %3$d</string>
+    <string name="audit_pagination_prev">Anterior</string>
+    <string name="audit_pagination_next">Siguiente</string>
+    <string name="audit_item_date">Fecha/Hora: %1$s</string>
+    <string name="audit_item_user">Usuario: %1$s</string>
+    <string name="audit_item_action">Acción: %1$s</string>
+    <string name="audit_item_entity">Entidad: %1$s</string>
+    <string name="audit_item_entity_id">ID Ent.: %1$s</string>
+    <string name="audit_item_ip">IP: %1$s</string>
+    <string name="audit_item_details">Detalles: %1$s</string>
+    <string name="audit_details_expand">Ver detalles</string>
+    <string name="audit_details_collapse">Ocultar detalles</string>
+    <string name="audit_error_fetch">Error al cargar registros de auditoría</string>
+    <string name="nav_assai">Calculadora de Assaí</string>
+    <string name="nav_stock_counter">Calculador de Estoque</string>
+    <string name="nav_stock_history">Historial de Conteo</string>
+    <string name="nav_share">Compartir App</string>
+    <string name="dashboard_stock_counter">Cuente y sume las cajas del día</string>
+    <string name="dashboard_stock_history">Los días ya contados, solo con lo que se contó</string>
+    <string name="dashboard_assai">Arme el pedido de compra en cajas enteras</string>
+    <string name="guest_readonly_title">Modo Solo Lectura</string>
+    <!-- O corpo do aviso: o que a sessão de convidado é, em uma linha. -->
+    <string name="guest_readonly_intro">Está en el acceso de invitado: se puede ver todo, pero no modificar.</string>
+    <string name="guest_readonly_dismiss">Entendido</string>
+    <string name="guest_readonly_go_to_login">Ir al Login</string>
+    <string name="dashboard_view_schedule">Ver cronograma</string>
+    <string name="dashboard_create_schedule">Crear cronograma</string>
+    <string name="dashboard_share_schedule">Enviar por WhatsApp</string>
+
+    <!-- Admin validation & error messages -->
+    <string name="categories_error_name">Ingrese el nombre de la categoría en portugués o español.</string>
+    <string name="categories_error_type">Seleccione un tipo de categoría válido.</string>
+    <string name="categories_error_sort_order">El orden de visualización debe ser un número entero no negativo.</string>
+    <string name="categories_error_refused">El servidor rechazó esta operación de categoría.</string>
+
+    <string name="tasks_error_category">Seleccione una categoría válida.</string>
+    <string name="tasks_error_name">Ingrese el nombre en portugués o español.</string>
+    <string name="tasks_error_readings">Las tareas de temperatura requieren de 1 a 3 mediciones.</string>
+    <string name="tasks_error_refused">El servidor rechazó esta operación de tarea.</string>
+
+    <string name="drivers_error_name">Ingrese el nombre del chofer.</string>
+    <string name="drivers_error_type">Seleccione un tipo de chofer válido.</string>
+    <string name="drivers_error_refused">El servidor rechazó esta operación de chofer.</string>
+
+    <string name="vehicles_error_description">Ingrese la descripción del vehículo.</string>
+    <string name="vehicles_error_license_plate">Ingrese la patente del vehículo.</string>
+    <string name="vehicles_error_refused">El servidor rechazó esta operación de vehículo.</string>
+
+    <string name="time_slots_error_at_least_one">Al menos un horario es obligatorio.</string>
+    <string name="time_slots_error_refused">El servidor rechazó esta operación de horario.</string>
+
+    <string name="users_error_username">Ingrese el nombre de usuario.</string>
+    <string name="users_error_display_name">Ingrese el nombre para mostrar.</string>
+    <string name="users_error_password">Ingrese la contraseña.</string>
+    <string name="users_error_password_too_short">La contraseña debe tener al menos 15 caracteres visibles.</string>
+    <string name="users_error_password_too_many_bytes">La contraseña no debe superar los 72 bytes.</string>
+    <string name="users_error_refused">El servidor rechazó esta operación de usuario.</string>
+
+    <string name="audit_error_invalid_user_id">El ID de usuario debe ser un número entero positivo.</string>
+    <string name="admin_error_unreachable">Sin conexión con el servidor. Verifique la red e intente de nuevo.</string>
+
+    <!-- General Help Component Strings -->
+    <string name="help_button_label">Ayuda</string>
+    <string name="help_dialog_understood">Entendido</string>
+
+    <!-- Massas Launch Strings -->
+    <string name="massas_title">Lanzamiento de Masas</string>
+    <string name="massas_tagline">Control diario colectivo de producción de masas</string>
+    <string name="massas_history_title">Historial de Masas</string>
+    <string name="massas_boxes">Cajas</string>
+    <string name="massas_units">Unidades</string>
+    <string name="massas_total_boxes">Total de Cajas</string>
+    <string name="massas_total_units">Total de Unidades</string>
+    <string name="massas_submit">Lanzar</string>
+    <string name="massas_submitting">Lanzando...</string>
+    <string name="massas_success">¡Lanzamiento registrado con éxito!</string>
+    <string name="massas_collective_summary">Resumen Colectivo del Día</string>
+    <string name="massas_recent_launches">Lanzamientos Individuales del Día</string>
+    <string name="massas_no_launches_today">Ningún lanzamiento registrado hasta ahora para este día.</string>
+    <string name="massas_whatsapp_share">Compartir en WhatsApp</string>
+    <string name="massas_copy_report">Copiar Mensaje</string>
+    <string name="massas_copied">¡Mensaje copiado al portapapeles!</string>
+    <string name="massas_edit_title">Editar Lanzamiento</string>
+    <string name="massas_edit_save">Guardar Modificación</string>
+    <string name="massas_delete_confirm_title">Eliminar Lanzamiento</string>
+    <string name="massas_delete_confirm_message">¿Está seguro de que desea eliminar este lanzamiento?</string>
+    <string name="massas_delete_confirm_action">Eliminar</string>
+    <string name="massas_cancel">Cancelar</string>
+    <string name="massas_confirm_title">Confirmar Lanzamiento</string>
+    <string name="massas_confirm_subtitle">Verifique los productos y cajas antes de confirmar:</string>
+    <string name="massas_confirm_action">Confirmar</string>
+    <string name="massas_total_to_launch">Total General a Lanzar</string>
+    <string name="massas_all_workers">Todos los trabajadores</string>
+    <string name="massas_worker_subtotal">Subtotal de %1$s</string>
+    <string name="massas_success_title">Lanzamiento Completado</string>
+    <string name="massas_error_title">Error en el Lanzamiento</string>
+    <string name="massas_close">Cerrar</string>
+    <string name="massas_sync_now">Actualizar ahora</string>
+    <string name="massas_history_select_date">Seleccione la Fecha</string>
+    <string name="massas_history_days_count">%1$d días registrados</string>
+
+    <!-- Module Help Dialog Content Strings -->
+    <string name="help_massas_title">Cómo Funciona el Lanzamiento de Masas</string>
+    <string name="help_massas_desc">Registre la producción colectiva de masas del día por cajas. El sistema calcula las unidades automáticamente y sincroniza en tiempo real con todos los operarios.</string>
+    <string name="help_massas_step1_title">Ingresar Cajas</string>
+    <string name="help_massas_step1_desc">Escriba la cantidad de cajas producidas para cada masa. La conversión a unidades se calcula en tiempo real según el empaque.</string>
+    <string name="help_massas_step2_title">Resumen Colectivo en Tiempo Real</string>
+    <string name="help_massas_step2_desc">Acompañe los totales de la fábrica sumados automáticamente. El panel sincroniza cada 15 segundos entre todos los dispositivos.</string>
+    <string name="help_massas_step3_title">Compartir por WhatsApp</string>
+    <string name="help_massas_step3_desc">Envíe el resumen formateado con los productos lanzados y la lista de operarios participantes con un solo toque.</string>
+
+    <string name="help_massas_history_title">Historial de Producción de Masas</string>
+    <string name="help_massas_history_desc">Consulte lanzamientos de días anteriores, verifique totales consolidados y los operarios que registraron producción.</string>
+
+    <string name="help_dashboard_title">Visión General del Panel</string>
+    <string name="help_dashboard_desc">Acceso rápido a todos los módulos operativos de la fábrica Trindade. Navegue por las tarjetas para lanzamientos, cronogramas, stock y reportes.</string>
+
+    <string name="help_stock_title">Calculador de Estoque</string>
+    <string name="help_stock_desc">Control de stock y sobrantes diarios por producto tercerizado y masas. Consulta por operarios y cierre por administradores.</string>
+
+    <string name="help_stock_history_title">Historial de Stock</string>
+    <string name="help_stock_history_desc">Consulte los conteos de stock registrados en fechas anteriores para cierre de fábrica y control de sobrantes.</string>
+
+    <string name="help_assai_title">Calculador de Pedidos Assaí</string>
+    <string name="help_assai_desc">Calcule las cantidades recomendadas de cajas por producto según la regla del día de entrega (Lunes o Miércoles/Viernes).</string>
+
+    <string name="help_loading_title">Cronograma de Carga</string>
+    <string name="help_loading_desc">Planifique viajes, choferes, vehículos y horarios de cargamento para la flota y fleteros con vista por día.</string>
+
+    <string name="help_loading_history_title">Historial de Cargas</string>
+    <string name="help_loading_history_desc">Consulte cargamentos de fechas anteriores y exporte listas organizadas para choferes y despachantes.</string>
+
+    <string name="help_reports_title">Generación de Reportes Operativos</string>
+    <string name="help_reports_desc">Complete la verificación de inicio de turno, temperaturas de cámaras frigoríficas y observaciones detalladas de las líneas de producción.</string>
+
+    <string name="help_reports_history_title">Historial de Reportes</string>
+    <string name="help_reports_history_desc">Consulte los reportes operativos finalizados con fotos, datos de temperatura y auditoría completa por operario.</string>
+
+    <string name="help_share_title">Compartir Aplicación</string>
+    <string name="help_share_desc">Comparta el enlace de la aplicación con operarios y choferes por WhatsApp, copia de enlace o código QR en pantalla.</string>
+
+    <!-- Additional Screen Labels & Common Actions -->
+    <string name="dashboard_massas_launch_now">Lanzar ahora</string>
+    <string name="dashboard_massas_view_history">Ver historial</string>
+    <string name="profile_check_updates">Verificar actualizaciones</string>
+    <string name="profile_patch_update_available">Nueva corrección disponible para v%1$s</string>
+    <string name="profile_downloading_update">Descargando actualización…</string>
+    <string name="massas_clear">Limpiar</string>
+    <string name="massas_edit">Editar</string>
+    <string name="massas_delete">Eliminar</string>
+    <string name="massas_by_operator">Por: %1$s</string>
+    <string name="massas_boxes_quantity">Cantidad de Cajas</string>
+    <string name="massas_calculated_units_format">= %1$d unidades (%2$d un/cx)</string>
+    <string name="massas_production_date">Fecha de Producción: %1$s</string>
+    <string name="whatsapp_phone_label">Coloque el WhatsApp</string>
+    <string name="whatsapp_phone_placeholder">(11) 9XXXX-XXXX</string>
+    <string name="whatsapp_message_label">Mensaje</string>
+    <string name="whatsapp_send_button">Enviar por WhatsApp</string>
+    <string name="stock_day_total">Total del día</string>
+    <string name="stock_send_email_button">Enviar por e-mail</string>
+    <string name="stock_add_button">Agregar</string>
+    <string name="stock_reset_button">Resetear</string>
+    <string name="stock_count_day">Día del conteo</string>
+    <string name="stock_failed_to_load_count_day">No fue posible cargar el día del conteo.</string>
+    <string name="stock_no_products_counted">Ningún producto contado en este día.</string>
+    <string name="assai_title">Calculadora de Assaí</string>
+    <string name="assai_weekday_label">Día de la semana (opcional)</string>
+    <string name="weekday_tuesday">Martes</string>
+    <string name="weekday_thursday">Jueves</string>
+    <string name="weekday_friday">Viernes</string>
+    <string name="weekday_saturday">Sábado</string>
+    <string name="assai_order_total">Total del pedido</string>
+    <string name="share_access_title">Compartir Acceso</string>
+    <string name="share_platform_label">Plataforma</string>
+    <string name="share_platform_android">Android</string>
+    <string name="share_platform_iphone">iPhone</string>
+    <string name="share_platform_both">Ambos</string>
+    <string name="share_credentials_title">Credenciales de Acceso</string>
+    <string name="share_select_user">Seleccionar usuario</string>
+    <string name="share_initial_password">Contraseña inicial</string>
+    <string name="share_target_whatsapp">WhatsApp de destino</string>
+    <string name="share_preview_label">Vista previa del Mensaje</string>
+    <string name="share_send_whatsapp">Enviar WhatsApp</string>
+    <string name="loading_new_fletero">Nuevo fletero</string>
+    <string name="loading_fletero_name">Nombre</string>
+    <string name="loading_fletero_plate">Patente</string>
+    <string name="admin_loading">Cargando…</string>
+    <string name="admin_confirm_delete">Confirmar eliminación</string>
+    <string name="admin_no_categories">Ninguna categoría</string>
+    <string name="admin_no_tasks">Ninguna tarea</string>
+    <string name="admin_no_drivers">Ningún chofer</string>
+    <string name="admin_no_users">Ningún usuario</string>
+    <string name="admin_no_vehicles">Ningún vehículo</string>
+</resources>
