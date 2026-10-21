@@ -562,7 +562,17 @@
     "stockHistory": {
       "title": "Histórico de Estoque",
       "subtitle": "Auditoria de contagens anteriores",
-      "description": "Acesse os registros de estoque de dias anteriores para comparar saldos e auditar a produção."
+      "description": "Acesse os registros de estoque de dias anteriores para comparar saldos e auditar a produção.",
+      "sections": [
+        {
+          "title": "Consulta de Datas",
+          "description": "Selecione qualquer data anterior para visualizar as caixas e unidades totais computadas naquele dia."
+        },
+        {
+          "title": "Auditoria e Correção",
+          "description": "Apenas administradores podem retificar valores ou zerar contagens registradas em datas passadas."
+        }
+      ]
     },
     "assai": {
       "title": "Calculadora Assaí",

@@ -562,7 +562,17 @@
     "stockHistory": {
       "title": "Historial de Conteo",
       "subtitle": "Auditoría de conteos anteriores",
-      "description": "Acceda a los registros de stock de días anteriores para comparar saldos y auditar la producción."
+      "description": "Acceda a los registros de stock de días anteriores para comparar saldos y auditar la producción.",
+      "sections": [
+        {
+          "title": "Consulta de Fechas",
+          "description": "Seleccione cualquier fecha anterior para visualizar las cajas y unidades totales computadas en ese día."
+        },
+        {
+          "title": "Auditoría y Corrección",
+          "description": "Solo administradores pueden rectificar valores o resetear conteos registrados en fechas pasadas."
+        }
+      ]
     },
     "assai": {
       "title": "Calculadora Assaí",
