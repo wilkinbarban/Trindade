@@ -21,13 +21,21 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.trindade.app.R
+import com.trindade.app.ui.components.HelpSection
+import com.trindade.app.ui.components.ModuleHelpButton
+import com.trindade.app.ui.components.ModuleHelpDialog
 import com.trindade.app.ui.formatPhoneMask
 
 /**
@@ -45,6 +53,7 @@ fun AssaiCalculatorScreen(viewModel: AssaiViewModel = hiltViewModel()) {
     val lines = viewModel.lines()
     val visibleErrors = viewModel.visibleErrors()
     val link = viewModel.whatsappLink()
+    var showHelpDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -53,7 +62,14 @@ fun AssaiCalculatorScreen(viewModel: AssaiViewModel = hiltViewModel()) {
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text("Calculadora de Assaí", style = MaterialTheme.typography.titleLarge)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Calculadora de Assaí", style = MaterialTheme.typography.titleLarge)
+            ModuleHelpButton(onClick = { showHelpDialog = true })
+        }
         Text(
             "Informe as unidades de cada produto: a quantidade tem de fechar caixas inteiras.",
             style = MaterialTheme.typography.bodySmall,
@@ -184,6 +200,24 @@ fun AssaiCalculatorScreen(viewModel: AssaiViewModel = hiltViewModel()) {
 
         if (state.note.isNotEmpty()) {
             Text(state.note, style = MaterialTheme.typography.bodySmall)
+        }
+
+        if (showHelpDialog) {
+            ModuleHelpDialog(
+                title = stringResource(R.string.help_assai_title),
+                description = stringResource(R.string.help_assai_desc),
+                sections = listOf(
+                    HelpSection(
+                        title = "Caixas Fechadas",
+                        description = "Digite as unidades demandadas. O pedido só permite múltiplos exatos para fechar caixas completas sem sobras.",
+                    ),
+                    HelpSection(
+                        title = "Dias de Entrega",
+                        description = "Selecione o dia da semana desejado para incluir no cabeçalho do pedido do WhatsApp.",
+                    ),
+                ),
+                onDismissRequest = { showHelpDialog = false },
+            )
         }
     }
 }

@@ -44,6 +44,9 @@ import com.trindade.app.ui.filterPhoneInput
 import com.trindade.app.ui.components.AdminDestructiveButton
 import com.trindade.app.ui.components.AdminPrimaryButton
 import com.trindade.app.ui.components.AdminSecondaryButton
+import com.trindade.app.ui.components.HelpSection
+import com.trindade.app.ui.components.ModuleHelpButton
+import com.trindade.app.ui.components.ModuleHelpDialog
 import com.trindade.app.ui.components.NavigationActionButton
 
 /**
@@ -82,6 +85,7 @@ fun LoadingScreen(
     onQuickAdd: (String, String?, String?) -> Unit = { _, _, _ -> },
 ) {
     val clipboard = LocalClipboardManager.current
+    var showHelpDialog by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = modifier.fillMaxSize().padding(16.dp),
@@ -100,7 +104,14 @@ fun LoadingScreen(
 
         item {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(text = stringResource(R.string.loading_title), style = MaterialTheme.typography.titleLarge)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(text = stringResource(R.string.loading_title), style = MaterialTheme.typography.titleLarge)
+                    ModuleHelpButton(onClick = { showHelpDialog = true })
+                }
                 Text(text = state.date, style = MaterialTheme.typography.bodyMedium)
                 OutlinedButton(
                     onClick = onLoadExport,
@@ -221,6 +232,24 @@ fun LoadingScreen(
                 onQuickAdd = onQuickAdd,
             )
         }
+    }
+
+    if (showHelpDialog) {
+        ModuleHelpDialog(
+            title = stringResource(R.string.help_loading_title),
+            description = stringResource(R.string.help_loading_desc),
+            sections = listOf(
+                HelpSection(
+                    title = "Organização por Faixas Horárias",
+                    description = "Consulte os motoristas e veículos alocados por horário. O painel indica a ocupação máxima por faixa horária.",
+                ),
+                HelpSection(
+                    title = "Exportação e Comunicação",
+                    description = "Exporte o cronograma completo para compartilhamento ou acione motoristas diretamente no WhatsApp.",
+                ),
+            ),
+            onDismissRequest = { showHelpDialog = false },
+        )
     }
 }
 

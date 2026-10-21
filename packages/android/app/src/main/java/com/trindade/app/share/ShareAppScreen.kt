@@ -32,10 +32,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.trindade.app.R
+import com.trindade.app.ui.components.HelpSection
+import com.trindade.app.ui.components.ModuleHelpButton
+import com.trindade.app.ui.components.ModuleHelpDialog
 
 @Composable
 fun ShareAppScreen(
@@ -45,6 +50,7 @@ fun ShareAppScreen(
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
     var usersMenuExpanded by remember { mutableStateOf(false) }
+    var showHelpDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -53,7 +59,14 @@ fun ShareAppScreen(
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text("Compartilhar Acesso", style = MaterialTheme.typography.titleLarge)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Compartilhar Acesso", style = MaterialTheme.typography.titleLarge)
+            ModuleHelpButton(onClick = { showHelpDialog = true })
+        }
         Text(
             "Compartilhe o link oficial e acessos do Trindade Massas via WhatsApp.",
             style = MaterialTheme.typography.bodySmall,
@@ -214,6 +227,24 @@ fun ShareAppScreen(
 
         if (state.note.isNotEmpty()) {
             Text(state.note, style = MaterialTheme.typography.bodySmall)
+        }
+
+        if (showHelpDialog) {
+            ModuleHelpDialog(
+                title = stringResource(R.string.help_share_title),
+                description = stringResource(R.string.help_share_desc),
+                sections = listOf(
+                    HelpSection(
+                        title = "Links por Plataforma",
+                        description = "Gere mensagens personalizadas para usuários de Android, iPhone ou acesso Web com ou sem credenciais.",
+                    ),
+                    HelpSection(
+                        title = "Envio WhatsApp",
+                        description = "Dispare a mensagem diretamente para o contato informado com formatação amigável e links seguros.",
+                    ),
+                ),
+                onDismissRequest = { showHelpDialog = false },
+            )
         }
     }
 }

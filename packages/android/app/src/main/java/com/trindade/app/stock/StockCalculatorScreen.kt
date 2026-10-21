@@ -21,13 +21,21 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.trindade.app.R
+import com.trindade.app.ui.components.HelpSection
+import com.trindade.app.ui.components.ModuleHelpButton
+import com.trindade.app.ui.components.ModuleHelpDialog
 import com.trindade.app.ui.formatPhoneMask
 
 /**
@@ -54,6 +62,7 @@ fun StockCalculatorScreen(
     // porque el servidor ya dijo cuál viene primero en el catálogo.
     val shown = state.tab ?: groups.keys.firstOrNull()
     val active = shown?.let { groups[it] } ?: groups.values.firstOrNull()
+    var showHelpDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(role) { viewModel.onRoleKnown(role) }
     LaunchedEffect(Unit) { viewModel.load() }
@@ -65,7 +74,14 @@ fun StockCalculatorScreen(
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text("Calculador de Estoque", style = MaterialTheme.typography.titleLarge)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Calculador de Estoque", style = MaterialTheme.typography.titleLarge)
+            ModuleHelpButton(onClick = { showHelpDialog = true })
+        }
         Text(
             if (canEdit) "Conte as caixas: o sistema acumula e calcula as unidades."
             else "Modo de leitura: apenas administradores podem atualizar o estoque.",
@@ -209,6 +225,24 @@ fun StockCalculatorScreen(
 
         if (state.note.isNotEmpty()) {
             Text(state.note, style = MaterialTheme.typography.bodySmall)
+        }
+
+        if (showHelpDialog) {
+            ModuleHelpDialog(
+                title = stringResource(R.string.help_stock_title),
+                description = stringResource(R.string.help_stock_desc),
+                sections = listOf(
+                    HelpSection(
+                        title = "Contagem por Caixas",
+                        description = "Insira as caixas contadas em cada produto. As unidades são calculadas automaticamente conforme o padrão de embalagem.",
+                    ),
+                    HelpSection(
+                        title = "Fechamento e Permissões",
+                        description = "Operadores podem consultar o estoque e realizar contagens. Apenas administradores podem atualizar o fechamento oficial.",
+                    ),
+                ),
+                onDismissRequest = { showHelpDialog = false },
+            )
         }
     }
 }

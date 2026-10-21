@@ -16,7 +16,7 @@ import {
   type MassasLaunchDayView,
   type MassaIndividualLaunch,
 } from '../lib/massas';
-import { Layers, History } from 'lucide-react';
+import { History } from 'lucide-react';
 import { ModuleHelpModal } from '../components/ui/ModuleHelpModal';
 import { MassasLaunchGrid } from './massas/MassasLaunchGrid';
 import { MassasCollectiveTable } from './massas/MassasCollectiveTable';
@@ -208,8 +208,8 @@ export function MassasLaunchPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
         <div>
           <div className="flex items-center gap-2">
-            <span className="p-2 bg-amber-100 text-amber-800 rounded-lg">
-              <Layers className="h-6 w-6" />
+            <span className="p-2 bg-amber-100 text-amber-800 rounded-lg text-xl flex items-center justify-center w-10 h-10 select-none">
+              🍝
             </span>
             <h1 className="text-2xl font-bold text-gray-900">{t('massas.title')}</h1>
             <ModuleHelpModal

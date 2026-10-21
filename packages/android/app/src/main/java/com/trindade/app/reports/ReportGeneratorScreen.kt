@@ -19,6 +19,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -27,6 +30,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.trindade.app.R
 import com.trindade.app.ui.components.AdminPrimaryButton
+import com.trindade.app.ui.components.HelpSection
+import com.trindade.app.ui.components.ModuleHelpButton
+import com.trindade.app.ui.components.ModuleHelpDialog
 import com.trindade.app.ui.components.NavigationActionButton
 
 /**
@@ -55,6 +61,8 @@ fun ReportGeneratorScreen(
     onTurnoChange: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    var showHelpDialog by remember { mutableStateOf(false) }
+
     LazyColumn(
         modifier = modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -67,8 +75,10 @@ fun ReportGeneratorScreen(
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
+                ModuleHelpButton(onClick = { showHelpDialog = true })
                 NavigationActionButton(
                     onClick = onOpenHistory,
                     text = stringResource(R.string.report_history),
@@ -257,6 +267,24 @@ fun ReportGeneratorScreen(
 
             ReportGeneratorViewModel.Stage.FAILED -> Unit
         }
+    }
+
+    if (showHelpDialog) {
+        ModuleHelpDialog(
+            title = stringResource(R.string.help_reports_title),
+            description = stringResource(R.string.help_reports_desc),
+            sections = listOf(
+                HelpSection(
+                    title = "Checklist e Turnos",
+                    description = "Preencha as tarefas operacionais de início ou fim de turno e selecione o turno correspondente.",
+                ),
+                HelpSection(
+                    title = "Temperaturas e Câmaras",
+                    description = "Registre as medições de temperatura das câmaras frias para garantir o padrão de qualidade e auditoria.",
+                ),
+            ),
+            onDismissRequest = { showHelpDialog = false },
+        )
     }
 }
 
