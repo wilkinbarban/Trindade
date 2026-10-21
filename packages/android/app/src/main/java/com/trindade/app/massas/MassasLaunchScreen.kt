@@ -160,7 +160,7 @@ fun MassasLaunchScreen(
                         modifier = Modifier.weight(1f),
                     )
                     TextButton(onClick = { viewModel.clearNotice() }) {
-                        Text("Fechar", color = Color(0xFF166534))
+                        Text(stringResource(R.string.massas_close), color = Color(0xFF166534))
                     }
                 }
             }
@@ -187,7 +187,7 @@ fun MassasLaunchScreen(
                         modifier = Modifier.weight(1f),
                     )
                     TextButton(onClick = { viewModel.clearError() }) {
-                        Text("Fechar", color = Color(0xFF991B1B))
+                        Text(stringResource(R.string.massas_close), color = Color(0xFF991B1B))
                     }
                 }
             }
@@ -206,7 +206,7 @@ fun MassasLaunchScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = "Data de Produção: ${brazilianDate(state.date)}",
+                    text = stringResource(R.string.massas_production_date, brazilianDate(state.date)),
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -220,7 +220,7 @@ fun MassasLaunchScreen(
                     if (state.isLoading) {
                         CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
                     } else {
-                        Text("Atualizar", style = MaterialTheme.typography.labelSmall)
+                        Text(stringResource(R.string.massas_sync_now), style = MaterialTheme.typography.labelSmall)
                     }
                 }
             }
@@ -314,7 +314,7 @@ fun MassasLaunchScreen(
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(10.dp),
                     ) {
-                        Text("Limpar", style = MaterialTheme.typography.labelLarge)
+                        Text(stringResource(R.string.massas_clear), style = MaterialTheme.typography.labelLarge)
                     }
 
                     Button(
@@ -497,7 +497,7 @@ fun MassasLaunchScreen(
                                 ) {
                                     val operatorName = launch.displayName.ifBlank { launch.username }
                                     Text(
-                                        text = "Por: $operatorName",
+                                        text = stringResource(R.string.massas_by_operator, operatorName),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
@@ -505,11 +505,11 @@ fun MassasLaunchScreen(
                                     if (canEdit) {
                                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                             TextButton(onClick = { viewModel.startEdit(launch) }) {
-                                                Text("Editar", style = MaterialTheme.typography.labelSmall)
+                                                Text(stringResource(R.string.massas_edit), style = MaterialTheme.typography.labelSmall)
                                             }
                                             TextButton(onClick = { viewModel.promptDelete(launch.id) }) {
                                                 Text(
-                                                    "Excluir",
+                                                    stringResource(R.string.massas_delete),
                                                     style = MaterialTheme.typography.labelSmall,
                                                     color = MaterialTheme.colorScheme.error,
                                                 )
@@ -602,8 +602,8 @@ fun MassasLaunchScreen(
                     value = state.phone,
                     onValueChange = { viewModel.onPhoneChange(filterPhoneDigits(it)) },
                     visualTransformation = BrazilianPhoneVisualTransformation(),
-                    label = { Text("Coloque o WhatsApp") },
-                    placeholder = { Text("(11) 9XXXX-XXXX") },
+                    label = { Text(stringResource(R.string.whatsapp_phone_label)) },
+                    placeholder = { Text(stringResource(R.string.whatsapp_phone_placeholder)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
@@ -746,7 +746,7 @@ fun MassasLaunchScreen(
                     OutlinedTextField(
                         value = state.editingBoxes,
                         onValueChange = { viewModel.onEditingBoxesChange(it) },
-                        label = { Text("Quantidade de Caixas") },
+                        label = { Text(stringResource(R.string.massas_boxes_quantity)) },
                         placeholder = { Text("0") },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -755,7 +755,7 @@ fun MassasLaunchScreen(
 
                     if (calculatedUnits > 0) {
                         Text(
-                            text = "= $calculatedUnits unidades ($unitsPerBox un/cx)",
+                            text = stringResource(R.string.massas_calculated_units_format, calculatedUnits, unitsPerBox),
                             style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
                             color = Color(0xFF16A34A),
                         )

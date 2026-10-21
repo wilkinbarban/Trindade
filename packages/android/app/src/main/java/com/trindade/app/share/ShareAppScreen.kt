@@ -65,7 +65,7 @@ fun ShareAppScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("Compartilhar Acesso", style = MaterialTheme.typography.titleLarge)
+            Text(stringResource(R.string.share_access_title), style = MaterialTheme.typography.titleLarge)
             ModuleHelpButton(onClick = { showHelpDialog = true })
         }
         Text(
@@ -76,7 +76,7 @@ fun ShareAppScreen(
         // Platform selection card
         Card {
             Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Plataforma", style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.share_platform_label), style = MaterialTheme.typography.titleSmall)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -84,19 +84,19 @@ fun ShareAppScreen(
                     FilterChip(
                         selected = state.platform == SharePlatform.ANDROID,
                         onClick = { viewModel.onPlatformSelect(SharePlatform.ANDROID) },
-                        label = { Text("Android") },
+                        label = { Text(stringResource(R.string.share_platform_android)) },
                         modifier = Modifier.weight(1f),
                     )
                     FilterChip(
                         selected = state.platform == SharePlatform.IOS,
                         onClick = { viewModel.onPlatformSelect(SharePlatform.IOS) },
-                        label = { Text("iPhone") },
+                        label = { Text(stringResource(R.string.share_platform_iphone)) },
                         modifier = Modifier.weight(1f),
                     )
                     FilterChip(
                         selected = state.platform == SharePlatform.BOTH,
                         onClick = { viewModel.onPlatformSelect(SharePlatform.BOTH) },
-                        label = { Text("Ambos") },
+                        label = { Text(stringResource(R.string.share_platform_both)) },
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -155,7 +155,7 @@ fun ShareAppScreen(
                             value = state.username,
                             onValueChange = {},
                             readOnly = true,
-                            label = { Text("Usuário") },
+                            label = { Text(stringResource(R.string.profile_username)) },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                         )
@@ -164,7 +164,7 @@ fun ShareAppScreen(
                         OutlinedTextField(
                             value = state.password,
                             onValueChange = { viewModel.onPasswordChange(it) },
-                            label = { Text("Senha inicial") },
+                            label = { Text(stringResource(R.string.share_initial_password)) },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                         )
@@ -178,8 +178,8 @@ fun ShareAppScreen(
             value = state.phone,
             onValueChange = { viewModel.onPhoneChange(it) },
             visualTransformation = BrazilianPhoneVisualTransformation(),
-            label = { Text("WhatsApp de destino") },
-            placeholder = { Text("(11) 9XXXX-XXXX") },
+            label = { Text(stringResource(R.string.share_target_whatsapp)) },
+            placeholder = { Text(stringResource(R.string.whatsapp_phone_placeholder)) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
@@ -188,7 +188,7 @@ fun ShareAppScreen(
         // Preview of the message
         Card {
             Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Pré-visualização da Mensagem", style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.share_preview_label), style = MaterialTheme.typography.titleSmall)
                 Text(viewModel.message(), style = MaterialTheme.typography.bodySmall)
             }
         }
@@ -207,7 +207,7 @@ fun ShareAppScreen(
                 },
                 modifier = Modifier.weight(1f),
             ) {
-                Text("Copiar texto")
+                Text(stringResource(R.string.export_copy))
             }
 
             Button(
@@ -223,7 +223,7 @@ fun ShareAppScreen(
                 enabled = viewModel.whatsappLink() != null,
                 modifier = Modifier.weight(1f),
             ) {
-                Text("Enviar WhatsApp")
+                Text(stringResource(R.string.share_send_whatsapp))
             }
         }
 

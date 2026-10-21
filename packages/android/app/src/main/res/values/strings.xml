@@ -586,4 +586,57 @@
 
     <string name="help_share_title">Compartilhar Aplicativo</string>
     <string name="help_share_desc">Compartilhe o link do aplicativo com operadores e motoristas por WhatsApp, cópia de link ou código QR na tela.</string>
+
+    <!-- Additional Screen Labels & Common Actions -->
+    <string name="dashboard_massas_launch_now">Lançar agora</string>
+    <string name="dashboard_massas_view_history">Ver histórico</string>
+    <string name="profile_check_updates">Verificar atualizações</string>
+    <string name="profile_patch_update_available">Nova correção disponível para v%1$s</string>
+    <string name="profile_downloading_update">Baixando atualização…</string>
+    <string name="massas_clear">Limpar</string>
+    <string name="massas_edit">Editar</string>
+    <string name="massas_delete">Excluir</string>
+    <string name="massas_by_operator">Por: %1$s</string>
+    <string name="massas_boxes_quantity">Quantidade de Caixas</string>
+    <string name="massas_calculated_units_format">= %1$d unidades (%2$d un/cx)</string>
+    <string name="massas_production_date">Data de Produção: %1$s</string>
+    <string name="whatsapp_phone_label">Coloque o WhatsApp</string>
+    <string name="whatsapp_phone_placeholder">(11) 9XXXX-XXXX</string>
+    <string name="whatsapp_message_label">Mensagem</string>
+    <string name="whatsapp_send_button">Enviar por WhatsApp</string>
+    <string name="stock_day_total">Total do dia</string>
+    <string name="stock_send_email_button">Enviar por e-mail</string>
+    <string name="stock_add_button">Adicionar</string>
+    <string name="stock_reset_button">Resetar</string>
+    <string name="stock_count_day">Dia da contagem</string>
+    <string name="stock_failed_to_load_count_day">Não foi possível carregar o dia da contagem.</string>
+    <string name="stock_no_products_counted">Nenhum produto contado neste dia.</string>
+    <string name="assai_title">Calculadora de Assaí</string>
+    <string name="assai_weekday_label">Dia da semana (opcional)</string>
+    <string name="weekday_tuesday">Terça-feira</string>
+    <string name="weekday_thursday">Quinta-feira</string>
+    <string name="weekday_friday">Sexta-feira</string>
+    <string name="weekday_saturday">Sábado</string>
+    <string name="assai_order_total">Total do pedido</string>
+    <string name="share_access_title">Compartilhar Acesso</string>
+    <string name="share_platform_label">Plataforma</string>
+    <string name="share_platform_android">Android</string>
+    <string name="share_platform_iphone">iPhone</string>
+    <string name="share_platform_both">Ambos</string>
+    <string name="share_credentials_title">Credenciais de Acesso</string>
+    <string name="share_select_user">Selecionar usuário</string>
+    <string name="share_initial_password">Senha inicial</string>
+    <string name="share_target_whatsapp">WhatsApp de destino</string>
+    <string name="share_preview_label">Pré-visualização da Mensagem</string>
+    <string name="share_send_whatsapp">Enviar WhatsApp</string>
+    <string name="loading_new_fletero">Novo fletero</string>
+    <string name="loading_fletero_name">Nome</string>
+    <string name="loading_fletero_plate">Placa</string>
+    <string name="admin_loading">Carregando…</string>
+    <string name="admin_confirm_delete">Confirmar exclusão</string>
+    <string name="admin_no_categories">Nenhuma categoria</string>
+    <string name="admin_no_tasks">Nenhuma tarefa</string>
+    <string name="admin_no_drivers">Nenhum motorista</string>
+    <string name="admin_no_users">Nenhum usuário</string>
+    <string name="admin_no_vehicles">Nenhum veículo</string>
 </resources>

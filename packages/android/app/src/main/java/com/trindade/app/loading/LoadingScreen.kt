@@ -406,7 +406,7 @@ private fun AddEntryForm(
                 onClick = { showQuickAdd = true },
                 modifier = Modifier.padding(vertical = 4.dp),
             ) {
-                Text("Novo fletero")
+                Text(stringResource(R.string.loading_new_fletero))
             }
         } else {
             Card(
@@ -418,18 +418,18 @@ private fun AddEntryForm(
                     modifier = Modifier.padding(12.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    Text("Novo fletero", style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.loading_new_fletero), style = MaterialTheme.typography.titleSmall)
                     OutlinedTextField(
                         value = quickName,
                         onValueChange = { quickName = it },
-                        label = { Text("Nome") },
+                        label = { Text(stringResource(R.string.loading_fletero_name)) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                     )
                     OutlinedTextField(
                         value = quickPlate,
                         onValueChange = { quickPlate = it },
-                        label = { Text("Placa") },
+                        label = { Text(stringResource(R.string.loading_fletero_plate)) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                     )

@@ -125,7 +125,7 @@ fun MassasHistoryScreen(
                         modifier = Modifier.weight(1f),
                     )
                     Button(onClick = { viewModel.loadHistory() }) {
-                        Text("Tentar de novo")
+                        Text(stringResource(R.string.report_retry))
                     }
                 }
             }

@@ -68,7 +68,7 @@ fun AssaiCalculatorScreen(viewModel: AssaiViewModel = hiltViewModel()) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("Calculadora de Assaí", style = MaterialTheme.typography.titleLarge)
+            Text(stringResource(R.string.assai_title), style = MaterialTheme.typography.titleLarge)
             ModuleHelpButton(onClick = { showHelpDialog = true })
         }
         Text(
@@ -120,7 +120,7 @@ fun AssaiCalculatorScreen(viewModel: AssaiViewModel = hiltViewModel()) {
 
         Card {
             Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Dia da semana (opcional)", style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.assai_weekday_label), style = MaterialTheme.typography.bodySmall)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -128,13 +128,13 @@ fun AssaiCalculatorScreen(viewModel: AssaiViewModel = hiltViewModel()) {
                     FilterChip(
                         selected = state.selectedDay == "Terça-feira",
                         onClick = { viewModel.onDaySelect("Terça-feira") },
-                        label = { Text("Terça-feira") },
+                        label = { Text(stringResource(R.string.weekday_tuesday)) },
                         modifier = Modifier.weight(1f),
                     )
                     FilterChip(
                         selected = state.selectedDay == "Quinta-feira",
                         onClick = { viewModel.onDaySelect("Quinta-feira") },
-                        label = { Text("Quinta-feira") },
+                        label = { Text(stringResource(R.string.weekday_thursday)) },
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -145,13 +145,13 @@ fun AssaiCalculatorScreen(viewModel: AssaiViewModel = hiltViewModel()) {
                     FilterChip(
                         selected = state.selectedDay == "Sexta-feira",
                         onClick = { viewModel.onDaySelect("Sexta-feira") },
-                        label = { Text("Sexta-feira") },
+                        label = { Text(stringResource(R.string.weekday_friday)) },
                         modifier = Modifier.weight(1f),
                     )
                     FilterChip(
                         selected = state.selectedDay == "Sábado",
                         onClick = { viewModel.onDaySelect("Sábado") },
-                        label = { Text("Sábado") },
+                        label = { Text(stringResource(R.string.weekday_saturday)) },
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -160,7 +160,7 @@ fun AssaiCalculatorScreen(viewModel: AssaiViewModel = hiltViewModel()) {
 
         HorizontalDivider()
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("Total do pedido")
+            Text(stringResource(R.string.assai_order_total))
             Text("${viewModel.totalBoxes()} caixas", style = MaterialTheme.typography.titleMedium)
         }
 
@@ -168,8 +168,8 @@ fun AssaiCalculatorScreen(viewModel: AssaiViewModel = hiltViewModel()) {
             value = state.freeNumber,
             onValueChange = { viewModel.onNumberChange(filterPhoneDigits(it)) },
             visualTransformation = BrazilianPhoneVisualTransformation(),
-            label = { Text("Coloque o WhatsApp") },
-            placeholder = { Text("(11) 9XXXX-XXXX") },
+            label = { Text(stringResource(R.string.whatsapp_phone_label)) },
+            placeholder = { Text(stringResource(R.string.whatsapp_phone_placeholder)) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
@@ -177,7 +177,7 @@ fun AssaiCalculatorScreen(viewModel: AssaiViewModel = hiltViewModel()) {
 
         Card {
             Column(modifier = Modifier.padding(10.dp)) {
-                Text("Mensagem", style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.whatsapp_message_label), style = MaterialTheme.typography.bodySmall)
                 Text(viewModel.message(), style = MaterialTheme.typography.bodySmall)
             }
         }
@@ -197,7 +197,7 @@ fun AssaiCalculatorScreen(viewModel: AssaiViewModel = hiltViewModel()) {
             enabled = !viewModel.hasError() && link != null,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Enviar por WhatsApp")
+            Text(stringResource(R.string.whatsapp_send_button))
         }
 
         if (state.note.isNotEmpty()) {

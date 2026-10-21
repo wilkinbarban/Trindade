@@ -288,13 +288,13 @@ fun ProfileScreen(
                     onClick = onCheckForUpdates,
                     modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp),
                 ) {
-                    Text("Verificar atualizações")
+                    Text(stringResource(R.string.profile_check_updates))
                 }
             }
 
             is ProfileViewModel.UpdateStatus.Available -> {
                 val updateNoticeText = if (update.isPatch) {
-                    "Nova correção disponível para v${update.version}"
+                    stringResource(R.string.profile_patch_update_available, update.version)
                 } else {
                     stringResource(R.string.profile_update_available, update.version)
                 }
@@ -313,7 +313,7 @@ fun ProfileScreen(
                     onClick = onCheckForUpdates,
                     modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp),
                 ) {
-                    Text("Verificar atualizações")
+                    Text(stringResource(R.string.profile_check_updates))
                 }
             }
         }
@@ -331,7 +331,7 @@ fun ProfileScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
-                            Text("Baixando atualização…", style = MaterialTheme.typography.bodyMedium)
+                            Text(stringResource(R.string.profile_downloading_update), style = MaterialTheme.typography.bodyMedium)
                             Text("${dl.percent}%", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
                         }
                         LinearProgressIndicator(

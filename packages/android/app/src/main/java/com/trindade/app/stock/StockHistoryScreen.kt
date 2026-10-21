@@ -25,9 +25,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.trindade.app.R
 import com.trindade.app.ui.BrazilianPhoneVisualTransformation
 import com.trindade.app.ui.filterPhoneDigits
 
@@ -65,7 +67,7 @@ fun StockHistoryScreen(
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text("Histórico de Contagem", style = MaterialTheme.typography.titleLarge)
+        Text(stringResource(R.string.nav_stock_history), style = MaterialTheme.typography.titleLarge)
         Text(
             if (canEdit) "Dias anteriores, com o que foi contado em cada um." else "Somente leitura para o seu perfil.",
             style = MaterialTheme.typography.bodySmall,
@@ -74,7 +76,7 @@ fun StockHistoryScreen(
         OutlinedTextField(
             value = state.date,
             onValueChange = { viewModel.onDateChange(it) },
-            label = { Text("Dia da contagem") },
+            label = { Text(stringResource(R.string.stock_count_day)) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -93,11 +95,11 @@ fun StockHistoryScreen(
         }
 
         if (state.failed) {
-            Text("Não foi possível carregar o dia da contagem.", color = MaterialTheme.colorScheme.error)
+            Text(stringResource(R.string.stock_failed_to_load_count_day), color = MaterialTheme.colorScheme.error)
         }
 
         if (state.day != null && counted.isEmpty()) {
-            Text("Nenhum produto contado neste dia.", style = MaterialTheme.typography.bodyMedium)
+            Text(stringResource(R.string.stock_no_products_counted), style = MaterialTheme.typography.bodyMedium)
         }
 
         counted.forEach { product ->
@@ -142,10 +144,10 @@ fun StockHistoryScreen(
                                 onClick = { viewModel.addEntry(product) },
                                 enabled = !addDisabled(state.quantities[product.code] ?: ""),
                             ) {
-                                Text("Adicionar")
+                                Text(stringResource(R.string.stock_add_button))
                             }
                             Button(onClick = { viewModel.resetProduct(product) }) {
-                                Text("Resetar")
+                                Text(stringResource(R.string.stock_reset_button))
                             }
                         }
                     }
@@ -155,7 +157,7 @@ fun StockHistoryScreen(
 
         HorizontalDivider()
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("Total do dia")
+            Text(stringResource(R.string.stock_day_total))
             Text(
                 "${counted.sumOf { it.boxes }} caixas · ${counted.sumOf { it.units }} unidades",
                 style = MaterialTheme.typography.titleMedium,
@@ -166,8 +168,8 @@ fun StockHistoryScreen(
             value = state.number,
             onValueChange = { viewModel.onNumberChange(filterPhoneDigits(it)) },
             visualTransformation = BrazilianPhoneVisualTransformation(),
-            label = { Text("Coloque o WhatsApp") },
-            placeholder = { Text("(11) 9XXXX-XXXX") },
+            label = { Text(stringResource(R.string.whatsapp_phone_label)) },
+            placeholder = { Text(stringResource(R.string.whatsapp_phone_placeholder)) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
@@ -186,7 +188,7 @@ fun StockHistoryScreen(
             enabled = counted.isNotEmpty(),
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Enviar por WhatsApp")
+            Text(stringResource(R.string.whatsapp_send_button))
         }
 
         Button(
@@ -198,7 +200,7 @@ fun StockHistoryScreen(
             enabled = counted.isNotEmpty(),
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Enviar por e-mail")
+            Text(stringResource(R.string.stock_send_email_button))
         }
 
         if (state.note.isNotEmpty()) {

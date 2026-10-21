@@ -80,7 +80,7 @@ fun StockCalculatorScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("Calculador de Estoque", style = MaterialTheme.typography.titleLarge)
+            Text(stringResource(R.string.nav_stock_counter), style = MaterialTheme.typography.titleLarge)
             ModuleHelpButton(onClick = { showHelpDialog = true })
         }
         Text(
@@ -92,13 +92,13 @@ fun StockCalculatorScreen(
         OutlinedTextField(
             value = state.date,
             onValueChange = { viewModel.onDateChange(it) },
-            label = { Text("Dia da contagem") },
+            label = { Text(stringResource(R.string.stock_count_day)) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
 
         if (state.failed) {
-            Text("Não foi possível carregar o dia da contagem.", color = MaterialTheme.colorScheme.error)
+            Text(stringResource(R.string.stock_failed_to_load_count_day), color = MaterialTheme.colorScheme.error)
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -159,13 +159,13 @@ fun StockCalculatorScreen(
                                 onClick = { viewModel.addEntry(product) },
                                 enabled = canEdit && !addDisabled(state.quantities[product.code] ?: ""),
                             ) {
-                                Text("Adicionar")
+                                Text(stringResource(R.string.stock_add_button))
                             }
                             Button(
                                 onClick = { viewModel.resetProduct(product) },
                                 enabled = canEdit,
                             ) {
-                                Text("Resetar")
+                                Text(stringResource(R.string.stock_reset_button))
                             }
                         }
                     }
@@ -175,7 +175,7 @@ fun StockCalculatorScreen(
 
         HorizontalDivider()
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("Total do dia")
+            Text(stringResource(R.string.stock_day_total))
             Text(
                 "${state.day?.totalBoxes ?: 0} caixas · ${state.day?.totalUnits ?: 0} unidades",
                 style = MaterialTheme.typography.titleMedium,
@@ -186,8 +186,8 @@ fun StockCalculatorScreen(
             value = state.number,
             onValueChange = { viewModel.onNumberChange(filterPhoneDigits(it)) },
             visualTransformation = BrazilianPhoneVisualTransformation(),
-            label = { Text("Coloque o WhatsApp") },
-            placeholder = { Text("(11) 9XXXX-XXXX") },
+            label = { Text(stringResource(R.string.whatsapp_phone_label)) },
+            placeholder = { Text(stringResource(R.string.whatsapp_phone_placeholder)) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
@@ -195,7 +195,7 @@ fun StockCalculatorScreen(
 
         Card {
             Column(modifier = Modifier.padding(10.dp)) {
-                Text("Mensagem", style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.whatsapp_message_label), style = MaterialTheme.typography.bodySmall)
                 Text(viewModel.message(), style = MaterialTheme.typography.bodySmall)
             }
         }
@@ -213,7 +213,7 @@ fun StockCalculatorScreen(
             enabled = viewModel.hasSomethingToSend() && state.number.isNotBlank(),
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Enviar por WhatsApp")
+            Text(stringResource(R.string.whatsapp_send_button))
         }
 
         Button(
@@ -224,7 +224,7 @@ fun StockCalculatorScreen(
             },
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Enviar por e-mail")
+            Text(stringResource(R.string.stock_send_email_button))
         }
 
         if (state.note.isNotEmpty()) {

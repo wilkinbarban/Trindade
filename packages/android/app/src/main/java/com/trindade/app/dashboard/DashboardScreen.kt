@@ -226,10 +226,10 @@ fun DashboardScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         TextButton(onClick = onOpenMassas) {
-                            Text(text = "Lançar agora")
+                            Text(text = stringResource(R.string.dashboard_massas_launch_now))
                         }
                         TextButton(onClick = onOpenMassasHistory) {
-                            Text(text = "Ver histórico")
+                            Text(text = stringResource(R.string.dashboard_massas_view_history))
                         }
                     }
                 }
