@@ -8,6 +8,7 @@ import com.trindade.app.network.AuthApi
 import com.trindade.app.network.BigDecimalSerializer
 import com.trindade.app.network.GuestReadonlyInterceptor
 import com.trindade.app.network.LoadingApi
+import com.trindade.app.network.MassasApi
 import com.trindade.app.network.ReportsApi
 import com.trindade.app.network.StockApi
 import com.trindade.app.network.SystemApi
@@ -238,6 +239,10 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideLoadingApi(@BackendClient retrofit: Retrofit): LoadingApi = retrofit.create(LoadingApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideMassasApi(@BackendClient retrofit: Retrofit): MassasApi = retrofit.create(MassasApi::class.java)
 
     @Provides
     @Singleton
