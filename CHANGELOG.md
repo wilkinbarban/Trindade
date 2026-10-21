@@ -6,6 +6,27 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [0.5.1] — 2026-10-21
+
+### 🎯 Adicionado (Lançamento de Massas e Ajuda Contextual)
+- **Módulo Lançamento de Massas** (`/massas-launch`, web e Android):
+  - Catálogo de 10 produtos de massas com cálculo em tempo real de caixas para unidades.
+  - **Resumo Coletivo do Dia**: agregação de caixas e unidades totais em formato adaptado a dispositivos móveis, com detalhe cronológico de cada lançamento registrado (hora, operador, quantidades).
+  - **RBAC e controle de autor**: botões de edição e exclusão de lançamentos habilitados exclusivamente para o próprio usuário autor (`launch.user_id == currentUserId`) ou para Administradores.
+  - **Atualização pasiva em tempo real (Live Polling)**: sincronização silenciosa a cada 15 segundos (`POLL_INTERVAL_MS = 15000L`) em segundo plano enquanto a tela estiver visível e sem edição ativa, sem interromper foco nem inputs do operador.
+  - **Histórico de Lançamentos de Massas** (`/massas-history`, web e Android): navegação cronológica por data com resumo acumulado dos produtos lançados.
+  - **Compartilhamento WhatsApp**: formato limpo `🍝 *Lançamento de Massas — DD/MM/AAAA*` com lista de itens lançados e rodapé `*Lançado por:* Operador1, Operador2`, estritamente sem linha de total geral.
+- **Componente Reutilizável de Ajuda Contextual** (`ModuleHelpDialog` / `ModuleHelpModal`):
+  - Modal explicativo passo-a-passo com design consistente em Material 3 / shadcn, ícone âmbar e seções roláveis.
+  - Integrado no cabeçalho dos principais módulos operacionais: Dashboard, Estoque, Assaí, Carregamento, Relatórios, Compartilhar Acesso e Lançamento de Massas.
+- **Dashboard Operacional**:
+  - Cartão "Lançamento de Massas" posicionado fixamente na 3ª posição (entre Cronograma Ativo e Calculador de Estoque), com ícone 🍝 e atalhos para lançamento e histórico.
+- **Distribuição Android v0.5.1 (Code 502)**:
+  - Binário oficial assinado sob esquema APK Signature Scheme v2 (`CN=Trindade Massas Operacoes`).
+  - Instalado e validado em emulador Ubuntu (`Trindade_UX_v030`).
+
+---
+
 ## [0.5.0] — 2026-10-15
 
 ### 🎯 Adicionado (Calculadoras operacionais)

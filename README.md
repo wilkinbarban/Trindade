@@ -24,23 +24,25 @@ O ecossistema **Trindade Massas Operações** foi desenhado para unificar a roti
 - **Aplicativo Android**: Kotlin 2.4 + Jetpack Compose Material 3 + Hilt + Retrofit 3.0 + Coroutines & Flow (API mínima: Android 8.0 Oreo / Alvo: Android 15).
 - **Frontend Web**: React 18 + TypeScript + Vite + TailwindCSS + shadcn/ui.
 - **Backend API**: Node.js 24 + Fastify + TypeScript + Zod + JWT + bcryptjs.
-- **Banco de Dados**: SQLite gerenciado via `better-sqlite3` com versionamento de esquema atômico (**Revisão 4 atual**).
+- **Banco de Dados**: SQLite gerenciado via `better-sqlite3` com versionamento de esquema atômico (**Revisão 5 atual**).
 - **Infraestrutura**: Docker & Docker Compose com proxy reverso Nginx e TLS automático (Let's Encrypt / Certbot).
 
 ---
 
-## Aplicativo Móvel Android (v0.5.0)
+## Aplicativo Móvel Android (v0.5.1)
 
 O aplicativo móvel é distribuído diretamente via GitHub Releases com assinatura digital oficial em chave RSA 4096 (esquema APK v2).
 
 📲 **Download da versão estável:**
-👉 **[Baixar o APK mais recente (trindade-0.4.0.apk)](https://github.com/wilkinbarban/Trindade/releases/latest)**
+👉 **[Baixar o APK mais recente (trindade-0.5.1.apk)](https://github.com/wilkinbarban/Trindade/releases/latest)**
 
 ### Destaques e Paridade Funcional
 
 | Módulo / Tela | Descrição | Regra de Acesso |
 |---|---|---|
-| **Dashboard** | Indicadores operacionais do dia, cronograma ativo com o dia que está sendo carregado e totais históricos em tempo real | Administrador e Trabalhador |
+| **Dashboard** | Indicadores operacionais do dia, cronograma ativo, acesso direto ao Lançamento de Massas (3ª pos) e totais históricos | Administrador e Trabalhador |
+| **Lançamento de Massas** | Entradas por caixa com cálculo de unidades, resumo diário coletivo com auditoria, polling pasivo a 15s e WhatsApp | Administrador e Trabalhador |
+| **Histórico de Massas** | Consulta cronológica e auditoria de lotes de massas lançados | Administrador e Trabalhador |
 | **Relatórios** | Formulários de checklists e registros numéricos de temperatura com fotos | Administrador e Trabalhador |
 | **Edição de Relatórios** | Correção de registros de produtos e fotos dentro da janela operacional | Administrador e Trabalhador |
 | **Carregamento** | Cronograma por horários, gestão de cotas por fletero e texto para WhatsApp com compartilhamento nativo e envio direto a cada fletero | Administrador e Trabalhador |
@@ -153,23 +155,25 @@ El ecosistema **Trindade Massas Operaciones** fue diseñado para unificar la ope
 - **Aplicación Android**: Kotlin 2.4 + Jetpack Compose Material 3 + Hilt + Retrofit 3.0 + Coroutines & Flow (API mínima: Android 8.0 Oreo / Objetivo: Android 15 / Compilador: API 37).
 - **Frontend Web**: React 18 + TypeScript + Vite + TailwindCSS + shadcn/ui.
 - **Backend API**: Node.js 24 + Fastify + TypeScript + Zod + JWT + bcryptjs.
-- **Base de Datos**: SQLite gestionado con `better-sqlite3` con versionado atómico (**Revisión 4 actual**).
+- **Base de Datos**: SQLite gestionado con `better-sqlite3` con versionado atómico (**Revisión 5 actual**).
 - **Infraestructura**: Docker & Docker Compose con proxy inverso Nginx y TLS automatizado (Let's Encrypt / Certbot).
 
 ---
 
-## Aplicación Móvil Android (v0.5.0)
+## Aplicación Móvil Android (v0.5.1)
 
 La app móvil se distribuye directamente a través de GitHub Releases con firma criptográfica oficial en clave RSA 4096 (esquema APK v2).
 
 📲 **Descarga de la versión estable:**
-👉 **[Descargar el APK más reciente (trindade-0.4.0.apk)](https://github.com/wilkinbarban/Trindade/releases/latest)**
+👉 **[Descargar el APK más reciente (trindade-0.5.1.apk)](https://github.com/wilkinbarban/Trindade/releases/latest)**
 
 ### Superficies Operativas y Paridad Funcional
 
 | Módulo / Pantalla | Descripción | Regla de Acceso |
 |---|---|---|
-| **Visión General (Dashboard)** | Indicadores en vivo de reportes, cronograma activo con el día que se está cargando y totales históricos | Administrador y Trabajador |
+| **Visión General (Dashboard)** | Indicadores en vivo de reportes, cronograma activo, acceso a Lanzamiento de Masas (3ª pos) y totales históricos | Administrador y Trabajador |
+| **Lanzamiento de Masas** | Entradas por caja con cálculo de unidades, resumen diario colectivo con auditoría, polling pasivo a 15s y WhatsApp | Administrador y Trabajador |
+| **Historial de Masas** | Consulta cronológica y auditoría de lotes de masas lanzados | Administrador y Trabajador |
 | **Generador de Reportes** | Checklists dinámicos y tomas de temperatura con adjuntos fotográficos | Administrador y Trabajador |
 | **Edición de Reportes** | Corrección de productos y fotos en la ventana operativa habilitada | Administrador y Trabajador |
 | **Cronograma de Carga** | Asignación de fleteros por horario, validación de cupos y texto WhatsApp con compartir nativo y envío directo a cada fletero | Administrador y Trabajador |

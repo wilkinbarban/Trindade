@@ -1,8 +1,19 @@
-# Calculadoras operacionais (v0.5.0)
+# Calculadoras e Lançamentos Operacionais (v0.5.1)
 
-Três ferramentas de balcão para a planta, disponíveis na web e no Android. As duas plataformas partilham a
+Quatro ferramentas operacionais para a planta, disponíveis na web e no Android. As duas plataformas partilham a
 **mesma regra de negócio**, escrita uma vez em cada linguagem num módulo puro com os seus testes, e o **mesmo
-contrato**: o catálogo chega do servidor e não de uma cópia local em cada cliente.
+contrato**: o catálogo e os lançamentos chegam do servidor e não de uma cópia local em cada cliente.
+
+## Lançamento de Massas (`/massas-launch` e Android)
+
+Registo em tempo real da produção e carregamento de massas por operador:
+- **Catálogo de 10 produtos de massas**: inputs por caixas inteiras com cálculo automático de unidades em tempo real.
+- **Resumo Coletivo do Dia**: agrega totais acumulados de caixas e unidades e lista cada lançamento individual com hora e operador.
+- **RBAC de Autor/Administrador**: botões de edição e exclusão de lançamentos ativos exclusivamente para o próprio autor do lançamento (`launch.user_id == currentUserId`) ou para o Administrador.
+- **Polling pasivo em tempo real**: recarga periódica silenciosa a cada 15 segundos (`POLL_INTERVAL_MS = 15000L`) em segundo plano enquanto a tela estiver visível e sem edição ativa.
+- **Compartilhamento WhatsApp**: formato limpo `🍝 *Lançamento de Massas — DD/MM/AAAA*` com lista de produtos contados e rodapé `*Lançado por:* Operador1, Operador2`, estritamente **sem linha de Total Geral**.
+- **Histórico de Massas (`/massas-history`)**: consulta por data e auditoria de dias anteriores.
+- **Modal de Ajuda Contextual (`ModuleHelpDialog`)**: botão de ajuda presente no topo explicando o fluxo em 3 passos simples.
 
 ## Calculadora de Assaí
 
@@ -66,11 +77,13 @@ segurança preventiva verificada antes de tocar na base.
 
 ```bash
 # Os testes de unidade do cliente, no host onde vive o SDK
+./gradlew :app:testDebugUnitTest --tests "com.trindade.app.massas.*"
+./gradlew :app:testDebugUnitTest --tests "com.trindade.app.ui.ModuleHelpTest"
 ./gradlew :app:testDebugUnitTest --tests "com.trindade.app.stock.*"
 ./gradlew :app:testDebugUnitTest --tests "com.trindade.app.assai.*"
 
 # O emulador: o APK de debug é o que Android assina sozinho
-./gradlew :app:assembleDebug -PversionName=0.5.0 -PversionCode=500
+./gradlew :app:assembleDebug -PversionName=0.5.1 -PversionCode=502
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb exec-out screencap -p > pantalla.png
 ```
@@ -80,7 +93,7 @@ O APK de **release** exige três parâmetros e não tem valores por defeito, de 
 ```bash
 ./gradlew :app:assembleRelease --no-daemon \
   -PapiBaseUrl=https://trindademasas.duckdns.org/ \
-  -PversionName=0.5.0 -PversionCode=500
+  -PversionName=0.5.1 -PversionCode=502
 ```
 
 Um release não pode apontar em silêncio para o loopback de desenvolvimento nem sair com uma versão que o build
