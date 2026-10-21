@@ -39,10 +39,11 @@ export function MassasCollectiveTable({
   deletingId,
 }: MassasCollectiveTableProps) {
   const { t } = useTranslation();
+  const activeProducts = products.filter((p) => p.totalBoxes > 0);
 
   return (
     <div className="space-y-6">
-      {/* Resumen Colectivo de los 10 Productos */}
+      {/* Resumen Colectivo de Productos con Lançamentos */}
       <Card className="border-gray-200 shadow-sm">
         <CardContent className="pt-6">
           <div className="mb-4">
@@ -50,92 +51,93 @@ export function MassasCollectiveTable({
             <p className="text-xs text-gray-500">{t('massas.collectiveSubtitle')}</p>
           </div>
 
-          {/* VISTA ESCRITORIO (sm en adelante): Tabla Tabular Tradicional */}
-          <div className="hidden sm:block overflow-x-auto rounded-lg border border-gray-200">
-            <table className="w-full text-left text-sm border-collapse">
-              <thead>
-                <tr className="bg-gray-100 text-gray-700 text-xs font-semibold uppercase">
-                  <th className="py-3 px-4">{t('massas.product')}</th>
-                  <th className="py-3 px-4 text-center">Un/Cx</th>
-                  <th className="py-3 px-4 text-right">{t('massas.boxes')}</th>
-                  <th className="py-3 px-4 text-right">{t('massas.units')}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 bg-white">
-                {products.map((p) => (
-                  <tr
-                    key={p.code}
-                    className={p.totalBoxes > 0 ? 'bg-amber-50/20 font-medium' : 'text-gray-500'}
-                  >
-                    <td className="py-2.5 px-4 text-gray-900">{p.name}</td>
-                    <td className="py-2.5 px-4 text-center text-xs text-gray-500">{p.unitsPerBox}</td>
-                    <td className="py-2.5 px-4 text-right font-semibold text-gray-900">
-                      {p.totalBoxes > 0 ? `${p.totalBoxes} cx` : '0'}
-                    </td>
-                    <td className="py-2.5 px-4 text-right font-bold text-amber-800">
-                      {p.totalUnits > 0 ? `${p.totalUnits} un` : '0'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="bg-gray-100 text-gray-900 font-bold border-t-2 border-gray-300">
-                  <td colSpan={2} className="py-3 px-4 text-base">
-                    Total Geral
-                  </td>
-                  <td className="py-3 px-4 text-right text-base text-gray-900">
-                    {totalBoxes} cx
-                  </td>
-                  <td className="py-3 px-4 text-right text-base text-amber-900">
-                    {totalUnits} un
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+          {activeProducts.length === 0 ? (
+            <div className="py-8 px-4 text-center text-gray-500 bg-gray-50/50 rounded-lg border border-dashed border-gray-200">
+              <p className="text-sm font-medium">{t('massas.noProductsLaunched', 'Nenhum produto lançado nesta data')}</p>
+            </div>
+          ) : (
+            <>
+              {/* VISTA ESCRITORIO (sm en adelante): Tabla Tabular Tradicional */}
+              <div className="hidden sm:block overflow-x-auto rounded-lg border border-gray-200">
+                <table className="w-full text-left text-sm border-collapse">
+                  <thead>
+                    <tr className="bg-gray-100 text-gray-700 text-xs font-semibold uppercase">
+                      <th className="py-3 px-4">{t('massas.product')}</th>
+                      <th className="py-3 px-4 text-center">Un/Cx</th>
+                      <th className="py-3 px-4 text-right">{t('massas.boxes')}</th>
+                      <th className="py-3 px-4 text-right">{t('massas.units')}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 bg-white">
+                    {activeProducts.map((p) => (
+                      <tr
+                        key={p.code}
+                        className="bg-amber-50/20 font-medium"
+                      >
+                        <td className="py-2.5 px-4 text-gray-900">{p.name}</td>
+                        <td className="py-2.5 px-4 text-center text-xs text-gray-500">{p.unitsPerBox}</td>
+                        <td className="py-2.5 px-4 text-right font-semibold text-gray-900">
+                          {p.totalBoxes} cx
+                        </td>
+                        <td className="py-2.5 px-4 text-right font-bold text-amber-800">
+                          {p.totalUnits} un
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-gray-100 text-gray-900 font-bold border-t-2 border-gray-300">
+                      <td colSpan={2} className="py-3 px-4 text-base">
+                        Total Geral
+                      </td>
+                      <td className="py-3 px-4 text-right text-base text-gray-900">
+                        {totalBoxes} cx
+                      </td>
+                      <td className="py-3 px-4 text-right text-base text-amber-900">
+                        {totalUnits} un
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
 
-          {/* VISTA MÓVIL (< sm / 640px): Tarjetas/Filas Apiladas Compactas y Fluidas */}
-          <div className="block sm:hidden space-y-2">
-            {products.map((p) => {
-              const hasProduction = p.totalBoxes > 0;
-              return (
-                <div
-                  key={p.code}
-                  className={`p-3 rounded-lg border flex items-center justify-between gap-3 ${
-                    hasProduction
-                      ? 'bg-amber-50/30 border-amber-200/80 shadow-xs'
-                      : 'bg-white border-gray-100 text-gray-400'
-                  }`}
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className={`text-sm font-semibold truncate ${hasProduction ? 'text-gray-900' : 'text-gray-600'}`}>
-                      {p.name}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      {p.unitsPerBox} un/cx
-                    </p>
+              {/* VISTA MÓVIL (< sm / 640px): Tarjetas/Filas Apiladas Compactas y Fluidas */}
+              <div className="block sm:hidden space-y-2">
+                {activeProducts.map((p) => (
+                  <div
+                    key={p.code}
+                    className="p-3 rounded-lg border flex items-center justify-between gap-3 bg-amber-50/30 border-amber-200/80 shadow-xs"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold truncate text-gray-900">
+                        {p.name}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {p.unitsPerBox} un/cx
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-xs text-gray-600 font-medium">
+                        {p.totalBoxes} cx
+                      </div>
+                      <div className="text-sm font-bold text-amber-800">
+                        {p.totalUnits} un
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-right shrink-0">
-                    <div className="text-xs text-gray-600 font-medium">
-                      {p.totalBoxes} cx
-                    </div>
-                    <div className={`text-sm font-bold ${hasProduction ? 'text-amber-800' : 'text-gray-400'}`}>
-                      {p.totalUnits} un
-                    </div>
+                ))}
+
+                {/* Total Geral Móvil */}
+                <div className="mt-3 p-3.5 bg-amber-100/70 border border-amber-300 rounded-lg flex items-center justify-between">
+                  <span className="font-bold text-gray-900 text-sm">Total Geral</span>
+                  <div className="text-right">
+                    <span className="text-xs font-semibold text-gray-700 mr-2">{totalBoxes} cx</span>
+                    <span className="text-base font-extrabold text-amber-900">{totalUnits} un</span>
                   </div>
                 </div>
-              );
-            })}
-
-            {/* Total Geral Móvil */}
-            <div className="mt-3 p-3.5 bg-amber-100/70 border border-amber-300 rounded-lg flex items-center justify-between">
-              <span className="font-bold text-gray-900 text-sm">Total Geral</span>
-              <div className="text-right">
-                <span className="text-xs font-semibold text-gray-700 mr-2">{totalBoxes} cx</span>
-                <span className="text-base font-extrabold text-amber-900">{totalUnits} un</span>
               </div>
-            </div>
-          </div>
+            </>
+          )}
         </CardContent>
       </Card>
 

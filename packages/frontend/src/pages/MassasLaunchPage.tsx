@@ -221,23 +221,25 @@ export function MassasLaunchPage() {
           </div>
           <p className="text-sm text-gray-500 mt-1">{t('massas.subtitle')}</p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <Link to="/massas-history">
-            <Button variant="outline" className="flex items-center gap-1.5 text-xs font-semibold">
-              <History className="h-4 w-4" />
-              {t('massas.viewHistory')}
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Link to="/massas-history" className="flex-1 sm:flex-initial">
+            <Button variant="outline" className="w-full sm:w-auto flex items-center justify-center gap-1.5 text-xs font-semibold px-2.5">
+              <History className="h-4 w-4 shrink-0" />
+              <span className="truncate">{t('massas.viewHistory')}</span>
             </Button>
           </Link>
-          <label htmlFor="massa-date" className="text-sm font-medium text-gray-700 whitespace-nowrap">
-            {t('massas.date')}:
-          </label>
-          <Input
-            id="massa-date"
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="w-auto font-medium"
-          />
+          <div className="flex items-center gap-1.5 flex-1 sm:flex-initial">
+            <label htmlFor="massa-date" className="sr-only sm:not-sr-only text-sm font-medium text-gray-700 whitespace-nowrap">
+              {t('massas.date')}:
+            </label>
+            <Input
+              id="massa-date"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-full sm:w-auto font-medium text-xs sm:text-sm px-2.5"
+            />
+          </div>
         </div>
       </div>
 

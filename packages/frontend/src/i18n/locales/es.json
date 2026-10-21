@@ -458,6 +458,7 @@
     "liveUnits": "unidades calculadas",
     "collectiveTitle": "Resumen Colectivo del Día",
     "collectiveSubtitle": "Suma de cajas y unidades producidas por todos los usuarios",
+    "noProductsLaunched": "Ningún producto registrado en esta fecha",
     "totalBoxes": "Total de Cajas",
     "totalUnits": "Total de Unidades",
     "userLaunchesTitle": "Lanzamientos Individuales",
