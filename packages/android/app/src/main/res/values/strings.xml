@@ -501,4 +501,75 @@
 
     <string name="audit_error_invalid_user_id">O ID do usuário deve ser um número inteiro positivo.</string>
     <string name="admin_error_unreachable">Sem conexão com o servidor. Verifique a rede e tente de novo.</string>
+
+    <!-- General Help Component Strings -->
+    <string name="help_button_label">Ajuda</string>
+    <string name="help_dialog_understood">Entendido</string>
+
+    <!-- Massas Launch Strings -->
+    <string name="massas_title">Lançamento de Massas</string>
+    <string name="massas_tagline">Controle diário coletivo de produção de massas</string>
+    <string name="massas_history_title">Histórico de Massas</string>
+    <string name="massas_boxes">Caixas</string>
+    <string name="massas_units">Unidades</string>
+    <string name="massas_total_boxes">Total de Caixas</string>
+    <string name="massas_total_units">Total de Unidades</string>
+    <string name="massas_submit">Lançar</string>
+    <string name="massas_submitting">Lançando...</string>
+    <string name="massas_success">Lançamento registrado com sucesso!</string>
+    <string name="massas_collective_summary">Resumo Coletivo do Dia</string>
+    <string name="massas_recent_launches">Lançamentos Individuais do Dia</string>
+    <string name="massas_no_launches_today">Nenhum lançamento registrado até agora para este dia.</string>
+    <string name="massas_whatsapp_share">Compartilhar no WhatsApp</string>
+    <string name="massas_copy_report">Copiar Mensagem</string>
+    <string name="massas_copied">Mensagem copiada para a área de transferência!</string>
+    <string name="massas_edit_title">Editar Lançamento</string>
+    <string name="massas_edit_save">Salvar Alteração</string>
+    <string name="massas_delete_confirm_title">Excluir Lançamento</string>
+    <string name="massas_delete_confirm_message">Tem certeza de que deseja excluir este lançamento?</string>
+    <string name="massas_delete_confirm_action">Excluir</string>
+    <string name="massas_cancel">Cancelar</string>
+    <string name="massas_sync_now">Atualizar agora</string>
+    <string name="massas_history_select_date">Selecione a Data</string>
+    <string name="massas_history_days_count">%1$d dias registrados</string>
+
+    <!-- Module Help Dialog Content Strings -->
+    <string name="help_massas_title">Como Funciona o Lançamento de Massas</string>
+    <string name="help_massas_desc">Registre a produção coletiva de massas do dia por caixas. O sistema calcula as unidades automaticamente e sincroniza em tempo real com todos os operadores.</string>
+    <string name="help_massas_step1_title">Inserir Caixas</string>
+    <string name="help_massas_step1_desc">Digite a quantidade de caixas produzidas para cada massa. A conversão para unidades é calculada em tempo real com base na embalagem.</string>
+    <string name="help_massas_step2_title">Resumo Coletivo em Tempo Real</string>
+    <string name="help_massas_step2_desc">Acompanhe os totais da fábrica somados automaticamente. O painel sincroniza a cada 15 segundos entre todos os aparelhos.</string>
+    <string name="help_massas_step3_title">Compartilhar no WhatsApp</string>
+    <string name="help_massas_step3_desc">Envie o resumo formatado com os produtos lançados e a lista de operadores participantes com um clique.</string>
+
+    <string name="help_massas_history_title">Histórico de Produção de Massas</string>
+    <string name="help_massas_history_desc">Consulte lançamentos de dias anteriores, verifique totais consolidados e operadores que registraram produção.</string>
+
+    <string name="help_dashboard_title">Visão Geral do Painel</string>
+    <string name="help_dashboard_desc">Acesso rápido a todos os módulos operacionais da fábrica Trindade. Navegue pelos cards para lançamentos, cronogramas, estoque e relatórios.</string>
+
+    <string name="help_stock_title">Calculador de Estoque</string>
+    <string name="help_stock_desc">Controle de contagem de estoque e sobras diárias por produto terceirizado e massas. Permite contagem por caixas e zeramento.</string>
+
+    <string name="help_stock_history_title">Histórico de Estoque</string>
+    <string name="help_stock_history_desc">Consulte as contagens de estoque registradas em datas anteriores para fechamento de fábrica e conferência de sobras.</string>
+
+    <string name="help_assai_title">Calculador de Pedidos Assaí</string>
+    <string name="help_assai_desc">Calcule as quantidades recomendadas de caixas por produto conforme a regra de dia de entrega (Segunda ou Quarta/Sexta).</string>
+
+    <string name="help_loading_title">Cronograma de Carga</string>
+    <string name="help_loading_desc">Planeje as viagens, motoristas, veículos e horários de carregamento para a frota e fleteros com visualização por dia.</string>
+
+    <string name="help_loading_history_title">Histórico de Cargas</string>
+    <string name="help_loading_history_desc">Consulte carregamentos de datas anteriores e exporte listas organizadas para motoristas e conferentes.</string>
+
+    <string name="help_reports_title">Geração de Relatórios Operacionais</string>
+    <string name="help_reports_desc">Preencha a checagem de início de turno, temperaturas das câmaras frias e observações detalhadas das linhas de produção.</string>
+
+    <string name="help_reports_history_title">Histórico de Relatórios</string>
+    <string name="help_reports_history_desc">Consulte os relatórios operacionais finalizados com fotos, dados de temperatura e auditoria completa por operador.</string>
+
+    <string name="help_share_title">Compartilhar Aplicativo</string>
+    <string name="help_share_desc">Compartilhe o link do aplicativo com operadores e motoristas por WhatsApp, cópia de link ou código QR na tela.</string>
 </resources>
