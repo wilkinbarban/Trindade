@@ -4,10 +4,10 @@ export const TRINDADE_APK_DOWNLOAD_URL =
   'https://trindademasas.duckdns.org/api/app/download-apk';
 
 export const FALLBACK_UPSTREAM_APK_URL =
-  'https://github.com/wilkinbarban/Trindade/releases/download/v0.5.0/trindade-0.5.0.apk';
+  'https://github.com/wilkinbarban/Trindade/releases/download/v0.5.1/trindade-0.5.1.apk';
 
 export const FALLBACK_RELEASE: LatestReleaseResponse = {
-  version: 'v0.5.0',
+  version: 'v0.5.1',
   apkUrl: TRINDADE_APK_DOWNLOAD_URL,
   apkName: 'trindade.apk',
   apkSize: null,
