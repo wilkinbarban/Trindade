@@ -13,6 +13,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.StringRes
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -87,6 +88,8 @@ class MainActivity : ComponentActivity() {
         DASHBOARD(R.string.nav_dashboard),
         REPORTS(R.string.nav_reports),
         LOADING(R.string.nav_loading),
+        MASSAS_LAUNCH(R.string.massas_title),
+        MASSAS_HISTORY(R.string.massas_history_title),
         TASKS(R.string.tasks_title),
         DRIVERS(R.string.drivers_title),
         ADMIN(R.string.admin_panel_title),
@@ -107,6 +110,8 @@ class MainActivity : ComponentActivity() {
             RolePolicy.EntryPoint.DASHBOARD to Tab.DASHBOARD,
             RolePolicy.EntryPoint.REPORTS to Tab.REPORTS,
             RolePolicy.EntryPoint.LOADING to Tab.LOADING,
+            RolePolicy.EntryPoint.MASSAS_LAUNCH to Tab.MASSAS_LAUNCH,
+            RolePolicy.EntryPoint.MASSAS_HISTORY to Tab.MASSAS_HISTORY,
             RolePolicy.EntryPoint.CATALOG_TASKS to Tab.TASKS,
             RolePolicy.EntryPoint.CATALOG_DRIVERS to Tab.DRIVERS,
             RolePolicy.EntryPoint.CATEGORIES to Tab.ADMIN,
@@ -142,6 +147,8 @@ class MainActivity : ComponentActivity() {
                     var profileOpen by remember { mutableStateOf(false) }
                     var historyOpen by remember { mutableStateOf(false) }
                     var loadingHistoryOpen by remember { mutableStateOf(false) }
+                    var massasHistoryOpen by remember { mutableStateOf(false) }
+                    var massasLaunchDay by remember { mutableStateOf<String?>(null) }
                     var loadingDay by remember { mutableStateOf<String?>(null) }
                     var loadingDayFromHistory by remember { mutableStateOf(false) }
                     var tab by remember { mutableStateOf(Tab.DASHBOARD) }
@@ -176,6 +183,8 @@ class MainActivity : ComponentActivity() {
                         loadingStale = false
                         historyOpen = false
                         loadingHistoryOpen = false
+                        massasHistoryOpen = false
+                        massasLaunchDay = null
                         loadingDay = null
                         loadingDayFromHistory = false
                         tab = Tab.DASHBOARD
@@ -272,6 +281,20 @@ class MainActivity : ComponentActivity() {
                                 },
                             )
                         }
+                        massasHistoryOpen -> {
+                            val onBackMassasHistory = { massasHistoryOpen = false }
+                            BackHandler(onBack = onBackMassasHistory)
+                            val historyViewModel: com.trindade.app.massas.MassasHistoryViewModel = hiltViewModel()
+                            com.trindade.app.massas.MassasHistoryScreen(
+                                viewModel = historyViewModel,
+                                onBack = onBackMassasHistory,
+                                onSelectDate = { date ->
+                                    massasHistoryOpen = false
+                                    massasLaunchDay = date
+                                    tab = Tab.MASSAS_LAUNCH
+                                },
+                            )
+                        }
                         loadingDay != null -> {
                             BackHandler(onBack = onBackLoadingDay)
                             LoadingRoute(
@@ -311,6 +334,27 @@ class MainActivity : ComponentActivity() {
                                 // ViewModel por Hilt, y la calculadora de Assaí no toca la red en absoluto.
                                 Tab.ASSAI -> AssaiCalculatorScreen()
                                 Tab.SHARE -> ShareAppScreen()
+                                Tab.MASSAS_LAUNCH -> {
+                                    val massasViewModel: com.trindade.app.massas.MassasLaunchViewModel = hiltViewModel()
+                                    LaunchedEffect(massasLaunchDay) {
+                                        massasLaunchDay?.let { massasViewModel.loadDay(it) }
+                                    }
+                                    com.trindade.app.massas.MassasLaunchScreen(
+                                        viewModel = massasViewModel,
+                                        onNavigateToHistory = { massasHistoryOpen = true },
+                                    )
+                                }
+                                Tab.MASSAS_HISTORY -> {
+                                    val historyViewModel: com.trindade.app.massas.MassasHistoryViewModel = hiltViewModel()
+                                    com.trindade.app.massas.MassasHistoryScreen(
+                                        viewModel = historyViewModel,
+                                        onBack = { tab = Tab.MASSAS_LAUNCH },
+                                        onSelectDate = { selectedDate ->
+                                            massasLaunchDay = selectedDate
+                                            tab = Tab.MASSAS_LAUNCH
+                                        },
+                                    )
+                                }
                                 // El histórico propaga el rol resuelto de sesión para que el
                                 // Administrador pueda realizar correcciones sobre días anteriores.
                                 Tab.STOCK_HISTORY -> StockHistoryScreen(role = role)
@@ -332,6 +376,15 @@ class MainActivity : ComponentActivity() {
                                     onOpenStock = { tab = Tab.STOCK_COUNTER },
                                     onOpenStockHistory = { tab = Tab.STOCK_HISTORY },
                                     onOpenAssai = { tab = Tab.ASSAI },
+                                    onOpenMassas = {
+                                        tab = Tab.MASSAS_LAUNCH
+                                        massasHistoryOpen = false
+                                        massasLaunchDay = null
+                                    },
+                                    onOpenMassasHistory = {
+                                        tab = Tab.MASSAS_LAUNCH
+                                        massasHistoryOpen = true
+                                    },
                                 )
                                 Tab.REPORTS -> ReportGeneratorRoute(
                                     onCreated = { openReportId = it },

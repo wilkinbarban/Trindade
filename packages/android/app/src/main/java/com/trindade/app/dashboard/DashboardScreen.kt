@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,6 +24,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -32,6 +36,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.trindade.app.R
 import com.trindade.app.contract.models.DashboardSummary
 import com.trindade.app.loading.saoPauloToday
+import com.trindade.app.ui.components.HelpSection
+import com.trindade.app.ui.components.ModuleHelpButton
+import com.trindade.app.ui.components.ModuleHelpDialog
 
 /**
  * The dashboard: the five cards the web's own dashboard draws, in the web's order and with the web's
@@ -67,6 +74,8 @@ fun DashboardScreen(
     onOpenReports: () -> Unit,
     onOpenLoading: () -> Unit,
     onOpenLoadingDay: (String) -> Unit,
+    onOpenMassas: () -> Unit = {},
+    onOpenMassasHistory: () -> Unit = {},
     // Los tres accesos directos a las calculadoras: las pestañas ya existen, así que la tarjeta
     // solo tiene que llevar a ellas.
     onOpenStock: () -> Unit,
@@ -111,6 +120,7 @@ fun DashboardScreen(
         else -> {
             // Read once, here, rather than at each of the uses below.
             val summary: DashboardSummary = state.summary
+            var showHelpDialog by remember { mutableStateOf(false) }
 
             Column(
                 modifier = modifier
@@ -118,12 +128,19 @@ fun DashboardScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                Text(
-                    text = stringResource(R.string.dashboard_overview),
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.Bold,
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.dashboard_overview),
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    ModuleHelpButton(onClick = { showHelpDialog = true })
+                }
 
                 // The two values of the first card, drawn as the web draws them: one line per module
                 // rather than the card's own big number, and at `bodyMedium` rather than the
@@ -194,6 +211,29 @@ fun DashboardScreen(
                     }
                 }
 
+                // 3ra posição: Lançamento de Massas (entre Cronograma Ativo e Calculador de Estoque)
+                DashboardCard(
+                    label = "🍝 " + stringResource(R.string.massas_title),
+                    onClick = onOpenMassas,
+                ) {
+                    Text(
+                        text = stringResource(R.string.massas_tagline),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        TextButton(onClick = onOpenMassas) {
+                            Text(text = "Lançar agora")
+                        }
+                        TextButton(onClick = onOpenMassasHistory) {
+                            Text(text = "Ver histórico")
+                        }
+                    }
+                }
+
                 // La tarjeta lleva a la misma pestaña que su texto nombra: el acceso directo y el menú
                 // dicen lo mismo porque usan la misma cadena.
                 DashboardCard(
@@ -249,6 +289,24 @@ fun DashboardScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
+                if (showHelpDialog) {
+                    ModuleHelpDialog(
+                        title = stringResource(R.string.help_dashboard_title),
+                        description = stringResource(R.string.help_dashboard_desc),
+                        sections = listOf(
+                            HelpSection(
+                                title = "Módulos Operacionais",
+                                description = "Navegue diretamente pelos cartões ou use o menu lateral para acessar Relatórios, Cronogramas, Massas, Estoque e Calculadoras.",
+                            ),
+                            HelpSection(
+                                title = "Lançamento de Massas",
+                                description = "Acesse a 3ª posição do painel para lançar as caixas produzidas do dia ou consultar o histórico de produção.",
+                            ),
+                        ),
+                        onDismissRequest = { showHelpDialog = false },
+                    )
+                }
+
             }
             // El credito es el ultimo hijo del Column scrolleable y no parte de la rama de arriba: como
             // hijo de un bloque condicional solo se dibujaba en esa rama, y ahi no era el pie de nada.
@@ -277,6 +335,8 @@ fun DashboardRoute(
     onOpenReports: () -> Unit,
     onOpenLoading: () -> Unit,
     onOpenLoadingDay: (String) -> Unit,
+    onOpenMassas: () -> Unit = {},
+    onOpenMassasHistory: () -> Unit = {},
     // Los tres accesos directos: la pantalla los ofrece y la ruta los entrega.
     onOpenStock: () -> Unit,
     onOpenStockHistory: () -> Unit,
@@ -294,6 +354,8 @@ fun DashboardRoute(
         onOpenReports = onOpenReports,
         onOpenLoading = onOpenLoading,
         onOpenLoadingDay = onOpenLoadingDay,
+        onOpenMassas = onOpenMassas,
+        onOpenMassasHistory = onOpenMassasHistory,
         onOpenStock = onOpenStock,
         onOpenStockHistory = onOpenStockHistory,
         onOpenAssai = onOpenAssai,
