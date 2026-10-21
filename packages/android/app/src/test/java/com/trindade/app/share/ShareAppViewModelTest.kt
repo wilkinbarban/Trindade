@@ -156,7 +156,7 @@ class ShareAppViewModelTest {
         assertNull(vm.whatsappLink())
 
         vm.onPhoneChange("11988887777")
-        assertEquals("(11) 98888-7777", vm.state.value.phone)
+        assertEquals("11988887777", vm.state.value.phone)
 
         val link = vm.whatsappLink()
         assertNotNull(link)

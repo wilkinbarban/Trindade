@@ -1,5 +1,10 @@
 package com.trindade.app.ui
 
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
+
 /**
  * The driver's phone number, as the fleet keeps it.
  *
@@ -63,3 +68,60 @@ fun toWhatsAppNumber(phone: String): String {
     }
     return digits
 }
+
+/**
+ * Extracts pure digits from raw input, trimming country code +55 when length exceeds 11 digits,
+ * and capping at 11 digits maximum (standard Brazilian mobile length DDD + 9 digits).
+ */
+fun filterPhoneDigits(raw: String): String {
+    var digits = raw.filter { it in '0'..'9' }
+    if (digits.startsWith("55") && digits.length > 11) {
+        digits = digits.substring(2)
+    }
+    return if (digits.length > 11) digits.substring(0, 11) else digits
+}
+
+/**
+ * Visual transformation that renders raw digits (up to 11) as a formatted Brazilian phone:
+ * - 0 digits: ""
+ * - 1..2 digits: "(XX" or "(XX) "
+ * - 3..7 digits: "(XX) XXXXX"
+ * - 8..11 digits: "(XX) XXXXX-XXXX"
+ *
+ * Keeps the underlying TextField state as pure digits so IME backspace and cursor positioning
+ * never jump or get blocked at mask delimiters.
+ */
+class BrazilianPhoneVisualTransformation : VisualTransformation {
+    override fun filter(text: AnnotatedString): TransformedText {
+        val digits = filterPhoneDigits(text.text)
+        val formatted = formatPhoneMask(digits)
+
+        val offsetMapping = object : OffsetMapping {
+            override fun originalToTransformed(offset: Int): Int {
+                val clamped = offset.coerceIn(0, digits.length)
+                return when {
+                    clamped <= 0 -> 0
+                    clamped == 1 -> 2.coerceAtMost(formatted.length)
+                    clamped == 2 -> if (formatted.length >= 5) 5 else formatted.length
+                    clamped in 3..7 -> (clamped + 3).coerceAtMost(formatted.length)
+                    else -> (clamped + 4).coerceAtMost(formatted.length)
+                }
+            }
+
+            override fun transformedToOriginal(offset: Int): Int {
+                val clamped = offset.coerceIn(0, formatted.length)
+                return when {
+                    clamped <= 1 -> 0
+                    clamped in 2..3 -> (clamped - 1).coerceIn(0, digits.length)
+                    clamped in 4..5 -> 2.coerceAtMost(digits.length)
+                    clamped in 6..10 -> (clamped - 3).coerceIn(0, digits.length)
+                    clamped == 11 -> 7.coerceAtMost(digits.length)
+                    else -> (clamped - 4).coerceIn(0, digits.length)
+                }
+            }
+        }
+
+        return TransformedText(AnnotatedString(formatted), offsetMapping)
+    }
+}
+

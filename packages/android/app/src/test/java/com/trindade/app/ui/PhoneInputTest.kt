@@ -1,5 +1,6 @@
 package com.trindade.app.ui
 
+import androidx.compose.ui.text.AnnotatedString
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -97,4 +98,58 @@ class PhoneInputTest {
         assertEquals("", toWhatsAppNumber("   "))
         assertEquals("", toWhatsAppNumber("abc"))
     }
+
+    @Test
+    fun `filterPhoneDigits extracts digits and handles 55 prefix`() {
+        assertEquals("11988887777", filterPhoneDigits("+55 (11) 98888-7777"))
+        assertEquals("11988887777", filterPhoneDigits("5511988887777"))
+        assertEquals("11988887777", filterPhoneDigits("1198888777799999"))
+        assertEquals("11", filterPhoneDigits("11"))
+        assertEquals("", filterPhoneDigits("abc"))
+    }
+
+    @Test
+    fun `BrazilianPhoneVisualTransformation transforms text and maps offsets accurately`() {
+        val transformation = BrazilianPhoneVisualTransformation()
+        val transformed = transformation.filter(AnnotatedString("11988887777"))
+        assertEquals("(11) 98888-7777", transformed.text.text)
+
+        val mapping = transformed.offsetMapping
+        // original to transformed
+        assertEquals(0, mapping.originalToTransformed(0))
+        assertEquals(2, mapping.originalToTransformed(1))
+        assertEquals(5, mapping.originalToTransformed(2))
+        assertEquals(6, mapping.originalToTransformed(3))
+        assertEquals(10, mapping.originalToTransformed(7))
+        assertEquals(12, mapping.originalToTransformed(8))
+        assertEquals(15, mapping.originalToTransformed(11))
+
+        // transformed to original
+        assertEquals(0, mapping.transformedToOriginal(0))
+        assertEquals(0, mapping.transformedToOriginal(1))
+        assertEquals(1, mapping.transformedToOriginal(2))
+        assertEquals(2, mapping.transformedToOriginal(3))
+        assertEquals(2, mapping.transformedToOriginal(5))
+        assertEquals(3, mapping.transformedToOriginal(6))
+        assertEquals(7, mapping.transformedToOriginal(10))
+        assertEquals(7, mapping.transformedToOriginal(11))
+        assertEquals(8, mapping.transformedToOriginal(12))
+        assertEquals(11, mapping.transformedToOriginal(15))
+    }
+
+    @Test
+    fun `BrazilianPhoneVisualTransformation handles empty and short digits safely`() {
+        val transformation = BrazilianPhoneVisualTransformation()
+        val emptyResult = transformation.filter(AnnotatedString(""))
+        assertEquals("", emptyResult.text.text)
+        assertEquals(0, emptyResult.offsetMapping.originalToTransformed(0))
+        assertEquals(0, emptyResult.offsetMapping.transformedToOriginal(0))
+
+        val shortResult = transformation.filter(AnnotatedString("1"))
+        assertEquals("(1", shortResult.text.text)
+        assertEquals(0, shortResult.offsetMapping.originalToTransformed(0))
+        assertEquals(2, shortResult.offsetMapping.originalToTransformed(1))
+        assertEquals(1, shortResult.offsetMapping.transformedToOriginal(2))
+    }
 }
+

@@ -28,7 +28,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.trindade.app.ui.formatPhoneMask
+import com.trindade.app.ui.BrazilianPhoneVisualTransformation
+import com.trindade.app.ui.filterPhoneDigits
 
 /**
  * A past day of counting, as a place of its own.
@@ -163,7 +164,8 @@ fun StockHistoryScreen(
 
         OutlinedTextField(
             value = state.number,
-            onValueChange = { viewModel.onNumberChange(formatPhoneMask(it)) },
+            onValueChange = { viewModel.onNumberChange(filterPhoneDigits(it)) },
+            visualTransformation = BrazilianPhoneVisualTransformation(),
             label = { Text("Coloque o WhatsApp") },
             placeholder = { Text("(11) 9XXXX-XXXX") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),

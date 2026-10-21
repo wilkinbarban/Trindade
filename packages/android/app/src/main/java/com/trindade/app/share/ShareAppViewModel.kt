@@ -6,7 +6,7 @@ import com.trindade.app.admin.UsersRepository
 import com.trindade.app.auth.AuthRepository
 import com.trindade.app.auth.RolePolicy
 import com.trindade.app.contract.models.AdminUserResponseUser
-import com.trindade.app.ui.formatPhoneMask
+import com.trindade.app.ui.filterPhoneDigits
 import com.trindade.app.ui.toWhatsAppNumber
 import com.trindade.app.ui.waMeLink
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -89,7 +89,7 @@ class ShareAppViewModel @Inject constructor(
     }
 
     fun onPhoneChange(raw: String) {
-        _state.update { it.copy(phone = formatPhoneMask(raw)) }
+        _state.update { it.copy(phone = filterPhoneDigits(raw)) }
     }
 
     fun onNote(text: String) {

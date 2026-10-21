@@ -38,6 +38,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.trindade.app.R
+import com.trindade.app.ui.BrazilianPhoneVisualTransformation
 import com.trindade.app.ui.components.HelpSection
 import com.trindade.app.ui.components.ModuleHelpButton
 import com.trindade.app.ui.components.ModuleHelpDialog
@@ -176,6 +177,7 @@ fun ShareAppScreen(
         OutlinedTextField(
             value = state.phone,
             onValueChange = { viewModel.onPhoneChange(it) },
+            visualTransformation = BrazilianPhoneVisualTransformation(),
             label = { Text("WhatsApp de destino") },
             placeholder = { Text("(11) 9XXXX-XXXX") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
