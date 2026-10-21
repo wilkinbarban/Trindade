@@ -343,7 +343,7 @@ fun MassasLaunchScreen(
             }
         }
 
-        // BLOQUE 2: Resumo Coletivo do Dia (Otimizado para Mobile)
+        // BLOQUE 2: Resumo Coletivo do Dia (Otimizado para Mobile com Prioridade aos Trabalhadores)
         Card(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             shape = RoundedCornerShape(16.dp),
@@ -357,101 +357,17 @@ fun MassasLaunchScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                Text(
-                    text = stringResource(R.string.massas_collective_summary),
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-
-                // Totales consolidados (Caixas e Unidades)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFEFF6FF)),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text(
-                                text = stringResource(R.string.massas_total_boxes),
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                                color = Color(0xFF1E40AF),
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "${state.dayView?.totalBoxes ?: 0} cx",
-                                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                                color = Color(0xFF1E3A8A),
-                            )
-                        }
-                    }
-
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF0FDF4)),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text(
-                                text = stringResource(R.string.massas_total_units),
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                                color = Color(0xFF166534),
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "${state.dayView?.totalUnits ?: 0} un",
-                                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                                color = Color(0xFF14532D),
-                            )
-                        }
-                    }
-                }
-
-                // Lista de produtos lançados com unidades acumuladas
-                val launchedProducts = state.dayView?.products?.filter { it.totalUnits > 0 } ?: emptyList()
-                if (launchedProducts.isNotEmpty()) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(Color(0xFFF9FAFB), RoundedCornerShape(10.dp))
-                            .padding(10.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        launchedProducts.forEach { product ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                            ) {
-                                Text(
-                                    text = product.name,
-                                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                                    color = Color(0xFF374151),
-                                )
-                                Text(
-                                    text = "${product.totalBoxes} cx  (${product.totalUnits} un)",
-                                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
-                                    color = Color(0xFF111827),
-                                )
-                            }
-                        }
-                    }
-                }
-
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-
-                // Lançamentos Individuais
+                // Título com foco em lançamentos de trabalhadores
                 Text(
                     text = stringResource(R.string.massas_recent_launches),
-                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onSurface,
                 )
 
                 val launches = state.dayView?.launches ?: emptyList()
                 val operators = remember(launches) { extractOperators(launches) }
 
-                // Chips de filtro por operador
+                // 1. Chips de filtro por operador no topo
                 if (operators.isNotEmpty()) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(
@@ -497,7 +413,7 @@ fun MassasLaunchScreen(
                             }
                         }
 
-                        // Subtotal do operador selecionado
+                        // 2. Subtotal do operador selecionado
                         if (state.selectedOperatorId != null) {
                             val subtotal = calculateOperatorSubtotal(launches, state.selectedOperatorId)
                             val opName = operators.find { it.id == state.selectedOperatorId }?.name ?: ""
@@ -531,6 +447,7 @@ fun MassasLaunchScreen(
                     }
                 }
 
+                // 3. Lista de lançamentos individuais (máxima prioridade visual)
                 val displayedLaunches = filterLaunchesByOperator(launches, state.selectedOperatorId)
 
                 if (displayedLaunches.isEmpty()) {
@@ -545,7 +462,6 @@ fun MassasLaunchScreen(
 
                     displayedLaunches.forEach { launch ->
                         val canEdit = canEditOrDeleteLaunch(launch.userId, currentUserId, isAdmin)
-                        val isEditingThis = state.editingLaunchId == launch.id
 
                         Card(
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
@@ -586,7 +502,7 @@ fun MassasLaunchScreen(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
 
-                                    if (canEdit && !isEditingThis) {
+                                    if (canEdit) {
                                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                             TextButton(onClick = { viewModel.startEdit(launch) }) {
                                                 Text("Editar", style = MaterialTheme.typography.labelSmall)
@@ -601,34 +517,59 @@ fun MassasLaunchScreen(
                                         }
                                     }
                                 }
+                            }
+                        }
+                    }
+                }
 
-                                if (isEditingThis) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                    ) {
-                                        OutlinedTextField(
-                                            value = state.editingBoxes,
-                                            onValueChange = { viewModel.onEditingBoxesChange(it) },
-                                            label = { Text("Caixas") },
-                                            singleLine = true,
-                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                            modifier = Modifier
-                                                .width(100.dp)
-                                                .height(52.dp),
-                                        )
-                                        Button(
-                                            onClick = { viewModel.saveEdit() },
-                                            enabled = !state.isSubmitting && (state.editingBoxes.toIntOrNull() ?: 0) > 0,
-                                            shape = RoundedCornerShape(8.dp),
-                                        ) {
-                                            Text(stringResource(R.string.massas_edit_save), style = MaterialTheme.typography.labelSmall)
-                                        }
-                                        TextButton(onClick = { viewModel.cancelEdit() }) {
-                                            Text(stringResource(R.string.massas_cancel), style = MaterialTheme.typography.labelSmall)
-                                        }
-                                    }
+                // 4. Totais consolidados ao FINAL com menor relevância visual (design sutil e compacto)
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                            shape = RoundedCornerShape(10.dp),
+                        )
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.massas_collective_summary),
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text(
+                            text = "${state.dayView?.totalBoxes ?: 0} cx · ${state.dayView?.totalUnits ?: 0} un",
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+
+                    val launchedProducts = state.dayView?.products?.filter { it.totalUnits > 0 } ?: emptyList()
+                    if (launchedProducts.isNotEmpty()) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            launchedProducts.forEach { product ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                ) {
+                                    Text(
+                                        text = product.name,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    Text(
+                                        text = "${product.totalBoxes} cx (${product.totalUnits} un)",
+                                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                    )
                                 }
                             }
                         }
@@ -765,6 +706,73 @@ fun MassasLaunchScreen(
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.dismissDelete() }) {
+                    Text(stringResource(R.string.massas_cancel))
+                }
+            },
+        )
+    }
+
+    // Diálogo Modal de Edição de Lançamento (Rediseño amplio con cálculo de unidades)
+    if (state.editingLaunchId != null) {
+        val launchId = state.editingLaunchId
+        val editingLaunch = state.dayView?.launches?.find { it.id == launchId }
+        val productName = editingLaunch?.productName ?: "Massa"
+        val unitsPerBox = state.dayView?.products?.find { it.code == editingLaunch?.productCode }?.unitsPerBox
+            ?: STANDARD_MASSAS.find { it.code == editingLaunch?.productCode }?.unitsPerBox
+            ?: (if (editingLaunch != null && editingLaunch.boxes > 0) editingLaunch.units / editingLaunch.boxes else 10)
+        val editedBoxes = state.editingBoxes.toIntOrNull() ?: 0
+        val calculatedUnits = editedBoxes * unitsPerBox
+
+        AlertDialog(
+            onDismissRequest = { viewModel.cancelEdit() },
+            title = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = stringResource(R.string.massas_edit_title),
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    )
+                    Text(
+                        text = productName,
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    OutlinedTextField(
+                        value = state.editingBoxes,
+                        onValueChange = { viewModel.onEditingBoxesChange(it) },
+                        label = { Text("Quantidade de Caixas") },
+                        placeholder = { Text("0") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+
+                    if (calculatedUnits > 0) {
+                        Text(
+                            text = "= $calculatedUnits unidades ($unitsPerBox un/cx)",
+                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                            color = Color(0xFF16A34A),
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { viewModel.saveEdit() },
+                    enabled = !state.isSubmitting && (state.editingBoxes.toIntOrNull() ?: 0) > 0,
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                ) {
+                    Text(stringResource(R.string.massas_edit_save), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { viewModel.cancelEdit() }) {
                     Text(stringResource(R.string.massas_cancel))
                 }
             },

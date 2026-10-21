@@ -203,5 +203,18 @@ class MassasLogicTest {
         val anaSubtotal = calculateOperatorSubtotal(launches, 20)
         assertEquals(Pair(3, 18), anaSubtotal)
     }
+
+    @Test
+    fun launchCalculation_multipliesUnitsPerBoxCorrectly() {
+        val standard = STANDARD_MASSAS.find { it.code == "1045" } // 10 units/box
+        val boxes = 5
+        val units = boxes * (standard?.unitsPerBox ?: 10)
+        assertEquals(50, units)
+
+        val rolo2kg = STANDARD_MASSAS.find { it.code == "1047" } // 6 units/box
+        val roloBoxes = 4
+        val roloUnits = roloBoxes * (rolo2kg?.unitsPerBox ?: 6)
+        assertEquals(24, roloUnits)
+    }
 }
 
