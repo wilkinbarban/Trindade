@@ -19,6 +19,12 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - **Componente Reutilizável de Ajuda Contextual** (`ModuleHelpDialog` / `ModuleHelpModal`):
   - Modal explicativo passo-a-passo com design consistente em Material 3 / shadcn, ícone âmbar e seções roláveis.
   - Integrado no cabeçalho dos principais módulos operacionais: Dashboard, Estoque, Assaí, Carregamento, Relatórios, Compartilhar Acesso e Lançamento de Massas.
+- **Internacionalização Automática e Paridade de Idioma Nativa (`pt-BR` e `es`)**:
+  - Resolução nativa de idioma automática baseada no `Locale` do dispositivo do usuário (100% automático, sem seletores manuais na interface).
+  - Recurso base `values/strings.xml` por padrão em Português do Brasil (`pt-BR`) sincronizado com 463 chaves.
+  - Novo recurso `values-es/strings.xml` contendo todas as 463 chaves traduzidas fielmente para Espanhol (`es`) com paridade estrita de especificadores de formato posicional (`%1$s`, `%1$d`).
+  - Refatoração de strings hardcoded em componentes Compose para uso de `stringResource(R.string.*)` em todas as telas operacionais.
+  - Cobertura de testes unitários: `LocaleStringsParityTest` (validação de chaves e especificadores de formato XML) e `SpanishLocaleResolutionTest` (resolução em tempo de execução via Robolectric para locales `es` e `pt-rBR`).
 - **Dashboard Operacional**:
   - Cartão "Lançamento de Massas" posicionado fixamente na 3ª posição (entre Cronograma Ativo e Calculador de Estoque), com ícone 🍝 e atalhos para lançamento e histórico.
 - **Distribuição Android v0.5.1 (Code 502)**:
