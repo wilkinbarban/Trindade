@@ -331,14 +331,15 @@ describe('Export Service (Generador Inteligente)', () => {
     // Explicit includeMassas = true
     const textWith = generateWhatsAppText(db, reportId, '', true)!;
     assert.ok(textWith.includes('🍝 *LANÇAMENTO DE MASSAS*'));
-    assert.ok(textWith.includes('*Por Operário:*'));
+    assert.ok(textWith.includes('Por Operário:'));
     assert.ok(textWith.includes('👤 Test User:'));
-    assert.ok(textWith.includes('   - MASSA CASEIRA: 4 cx (40 un)'));
-    assert.ok(textWith.includes('   - MASSA ROLO 2KG: 2 cx (12 un)'));
-    assert.ok(textWith.includes('*Resumo Coletivo:*'));
-    assert.ok(textWith.includes('📦 MASSA CASEIRA: 4 cx (40 un)'));
-    assert.ok(textWith.includes('📦 MASSA ROLO 2KG: 2 cx (12 un)'));
-    assert.ok(textWith.includes('*Total de Massas:* 6 cx (52 un)'));
+    assert.ok(textWith.includes('   - MASSA CASEIRA: 40 un'));
+    assert.ok(textWith.includes('   - MASSA ROLO 2KG: 12 un'));
+    assert.ok(textWith.includes('Resumo Coletivo:'));
+    assert.ok(textWith.includes('📦 MASSA CASEIRA: 40 un'));
+    assert.ok(textWith.includes('📦 MASSA ROLO 2KG: 12 un'));
+    assert.ok(!textWith.includes('Total de Massas'));
+    assert.ok(!textWith.includes('cx'));
 
     // Check position: massas section appears before Observações
     const massasIndex = textWith.indexOf('🍝 *LANÇAMENTO DE MASSAS*');

@@ -249,29 +249,26 @@ export function generateWhatsAppText(
       }
 
       if (operatorsMap.size > 0) {
-        lines.push('*Por Operário:*');
+        lines.push('Por Operário:');
         for (const [operatorName, userProducts] of operatorsMap) {
           lines.push(`👤 ${operatorName}:`);
           for (const item of userProducts.values()) {
-            if (item.boxes > 0) {
-              lines.push(`   - ${item.name}: ${item.boxes} cx (${item.units} un)`);
+            if (item.units > 0) {
+              lines.push(`   - ${item.name}: ${item.units} un`);
             }
           }
         }
         lines.push('');
       }
 
-      const activeProducts = dayView.products.filter((p) => p.totalBoxes > 0);
+      const activeProducts = dayView.products.filter((p) => p.totalUnits > 0);
       if (activeProducts.length > 0) {
-        lines.push('*Resumo Coletivo:*');
+        lines.push('Resumo Coletivo:');
         for (const p of activeProducts) {
-          lines.push(`📦 ${p.name}: ${p.totalBoxes} cx (${p.totalUnits} un)`);
+          lines.push(`📦 ${p.name}: ${p.totalUnits} un`);
         }
         lines.push('');
       }
-
-      lines.push(`*Total de Massas:* ${dayView.totalBoxes} cx (${dayView.totalUnits} un)`);
-      lines.push('');
     }
   }
 

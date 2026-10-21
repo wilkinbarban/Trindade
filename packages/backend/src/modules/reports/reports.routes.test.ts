@@ -674,7 +674,9 @@ describe('Reports Routes', () => {
     assert.strictEqual(resWith.statusCode, 200);
     const bodyWith = JSON.parse(resWith.body);
     assert.ok(bodyWith.text.includes('🍝 *LANÇAMENTO DE MASSAS*'));
-    assert.ok(bodyWith.text.includes('MASSA CASEIRA: 3 cx (30 un)'));
+    assert.ok(bodyWith.text.includes('MASSA CASEIRA: 30 un'));
+    assert.ok(!bodyWith.text.includes('Total de Massas'));
+    assert.ok(!bodyWith.text.includes('cx'));
   });
 
   it('GET /:id/export returns 404 for missing report', async () => {
