@@ -23,16 +23,17 @@ data class MassaProductTotal(
 @Serializable
 data class MassaIndividualLaunch(
     val id: Int,
-    @SerialName("launch_date") val launchDate: String,
+    @SerialName("launch_date") val launchDate: String = "",
+    val date: String = "",
     @SerialName("product_code") val productCode: String,
-    @SerialName("product_name") val productName: String,
+    @SerialName("product_name") val productName: String = "",
     val boxes: Int,
     val units: Int,
     @SerialName("user_id") val userId: Int,
-    val username: String,
-    @SerialName("display_name") val displayName: String,
-    @SerialName("created_at") val createdAt: String,
-    @SerialName("updated_at") val updatedAt: String,
+    val username: String = "",
+    @SerialName("display_name") val displayName: String = "",
+    @SerialName("created_at") val createdAt: String = "",
+    @SerialName("updated_at") val updatedAt: String = "",
 )
 
 @Serializable
@@ -57,8 +58,18 @@ data class CreateMassasLaunchRequest(
 )
 
 @Serializable
+data class CreateMassasLaunchResponse(
+    val created: List<MassaIndividualLaunch> = emptyList(),
+)
+
+@Serializable
 data class UpdateMassasLaunchRequest(
     val boxes: Int,
+)
+
+@Serializable
+data class DeleteMassasLaunchResponse(
+    val ok: Boolean = true,
 )
 
 @Serializable
@@ -83,16 +94,16 @@ interface MassasApi {
     suspend fun day(@Query("date") date: String): Response<MassasLaunchDayView>
 
     @POST("api/massas-launch")
-    suspend fun createLaunch(@Body request: CreateMassasLaunchRequest): Response<MassasLaunchDayView>
+    suspend fun createLaunch(@Body request: CreateMassasLaunchRequest): Response<CreateMassasLaunchResponse>
 
     @PUT("api/massas-launch/{id}")
     suspend fun updateLaunch(
         @Path("id") id: Int,
         @Body request: UpdateMassasLaunchRequest,
-    ): Response<MassasLaunchDayView>
+    ): Response<MassaIndividualLaunch>
 
     @DELETE("api/massas-launch/{id}")
-    suspend fun deleteLaunch(@Path("id") id: Int): Response<MassasLaunchDayView>
+    suspend fun deleteLaunch(@Path("id") id: Int): Response<DeleteMassasLaunchResponse>
 
     @GET("api/massas-launch/history")
     suspend fun history(): Response<MassasHistoryResponse>

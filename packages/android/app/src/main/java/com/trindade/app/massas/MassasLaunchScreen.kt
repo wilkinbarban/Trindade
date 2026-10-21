@@ -48,10 +48,11 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.trindade.app.R
-import com.trindade.app.ui.formatPhoneMask
+import com.trindade.app.ui.BrazilianPhoneVisualTransformation
 import com.trindade.app.ui.components.HelpSection
 import com.trindade.app.ui.components.ModuleHelpButton
 import com.trindade.app.ui.components.ModuleHelpDialog
+import com.trindade.app.ui.filterPhoneDigits
 
 @Composable
 fun MassasLaunchScreen(
@@ -301,26 +302,40 @@ fun MassasLaunchScreen(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 val hasAnyQuantity = state.quantities.values.any { (it.toIntOrNull() ?: 0) > 0 }
-                Button(
-                    onClick = { viewModel.submitLaunch() },
-                    enabled = hasAnyQuantity && !state.isSubmitting,
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    if (state.isSubmitting) {
-                        CircularProgressIndicator(
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp,
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.massas_submitting))
-                    } else {
-                        Text(
-                            text = stringResource(R.string.massas_submit),
-                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-                        )
+                    OutlinedButton(
+                        onClick = { viewModel.clearQuantities() },
+                        enabled = hasAnyQuantity && !state.isSubmitting,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp),
+                    ) {
+                        Text("Limpar", style = MaterialTheme.typography.labelLarge)
+                    }
+
+                    Button(
+                        onClick = { viewModel.submitLaunch() },
+                        enabled = hasAnyQuantity && !state.isSubmitting,
+                        modifier = Modifier.weight(2f),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    ) {
+                        if (state.isSubmitting) {
+                            CircularProgressIndicator(
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(stringResource(R.string.massas_submitting))
+                        } else {
+                            Text(
+                                text = stringResource(R.string.massas_submit),
+                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                            )
+                        }
                     }
                 }
             }
@@ -558,13 +573,41 @@ fun MassasLaunchScreen(
 
                 OutlinedTextField(
                     value = state.phone,
-                    onValueChange = { viewModel.onPhoneChange(formatPhoneMask(it)) },
+                    onValueChange = { viewModel.onPhoneChange(filterPhoneDigits(it)) },
+                    visualTransformation = BrazilianPhoneVisualTransformation(),
                     label = { Text("Coloque o WhatsApp") },
                     placeholder = { Text("(11) 9XXXX-XXXX") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
+
+                // Pré-visualização da Mensagem
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    ),
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Text(
+                            text = "Pré-visualização da Mensagem",
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text(
+                            text = viewModel.getShareText(),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+                }
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),

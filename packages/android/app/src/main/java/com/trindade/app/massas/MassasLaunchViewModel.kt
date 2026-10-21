@@ -7,6 +7,7 @@ import com.trindade.app.contract.models.ProfileResponseUser
 import com.trindade.app.network.CreateMassasLaunchItem
 import com.trindade.app.network.MassaIndividualLaunch
 import com.trindade.app.network.MassasLaunchDayView
+import com.trindade.app.ui.filterPhoneDigits
 import com.trindade.app.ui.waMeLink
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.text.SimpleDateFormat
@@ -61,7 +62,6 @@ class MassasLaunchViewModel @Inject constructor(
     init {
         loadCurrentUser()
         loadDay(state.value.date)
-        startPolling()
     }
 
     private fun loadCurrentUser() {
@@ -73,8 +73,13 @@ class MassasLaunchViewModel @Inject constructor(
 
     fun onScreenActive(active: Boolean) {
         isScreenActive = active
-        if (active && (pollingJob == null || pollingJob?.isActive != true)) {
-            startPolling()
+        if (active) {
+            if (pollingJob == null || pollingJob?.isActive != true) {
+                startPolling()
+            }
+        } else {
+            pollingJob?.cancel()
+            pollingJob = null
         }
     }
 
@@ -125,6 +130,10 @@ class MassasLaunchViewModel @Inject constructor(
             newQuantities[productCode] = filtered
         }
         _state.value = _state.value.copy(quantities = newQuantities, noticeMessage = null)
+    }
+
+    fun clearQuantities() {
+        _state.value = _state.value.copy(quantities = emptyMap(), noticeMessage = null)
     }
 
     fun submitLaunch() {
@@ -193,7 +202,7 @@ class MassasLaunchViewModel @Inject constructor(
 
         viewModelScope.launch {
             _state.value = _state.value.copy(isSubmitting = true, errorMessage = null, noticeMessage = null)
-            when (val result = repository.updateLaunch(launchId, boxes)) {
+            when (val result = repository.updateLaunch(launchId, boxes, state.value.date)) {
                 is MassasWriteResult.Saved -> {
                     _state.value = _state.value.copy(
                         isSubmitting = false,
@@ -236,7 +245,7 @@ class MassasLaunchViewModel @Inject constructor(
                 errorMessage = null,
                 noticeMessage = null,
             )
-            when (val result = repository.deleteLaunch(launchId)) {
+            when (val result = repository.deleteLaunch(launchId, state.value.date)) {
                 is MassasWriteResult.Saved -> {
                     _state.value = _state.value.copy(
                         isSubmitting = false,
@@ -261,7 +270,7 @@ class MassasLaunchViewModel @Inject constructor(
     }
 
     fun onPhoneChange(phone: String) {
-        _state.value = _state.value.copy(phone = phone)
+        _state.value = _state.value.copy(phone = filterPhoneDigits(phone))
     }
 
     fun getWhatsAppLink(): String? {

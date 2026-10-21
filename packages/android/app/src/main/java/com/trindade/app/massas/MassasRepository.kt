@@ -18,38 +18,86 @@ sealed interface MassasWriteResult {
 }
 
 @Singleton
-class MassasRepository @Inject constructor(
+open class MassasRepository @Inject constructor(
     private val api: MassasApi,
 ) {
-    suspend fun day(date: String): MassasLaunchDayView? =
+    open suspend fun day(date: String): MassasLaunchDayView? =
         runCatchingCancellable { api.day(date) }
             .getOrNull()
             ?.takeIf { it.isSuccessful }
             ?.body()
 
-    suspend fun history(): List<MassaHistoryDay>? =
+    open suspend fun history(): List<MassaHistoryDay>? =
         runCatchingCancellable { api.history() }
             .getOrNull()
             ?.takeIf { it.isSuccessful }
             ?.body()
             ?.days
 
-    suspend fun createLaunch(date: String, items: List<CreateMassasLaunchItem>): MassasWriteResult =
-        write { api.createLaunch(CreateMassasLaunchRequest(date = date, items = items)) }
+    open suspend fun createLaunch(date: String, items: List<CreateMassasLaunchItem>): MassasWriteResult {
+        val response = runCatchingCancellable {
+            api.createLaunch(CreateMassasLaunchRequest(date = date, items = items))
+        }.getOrNull() ?: return MassasWriteResult.Unreachable
 
-    suspend fun updateLaunch(id: Int, boxes: Int): MassasWriteResult =
-        write { api.updateLaunch(id, UpdateMassasLaunchRequest(boxes = boxes)) }
-
-    suspend fun deleteLaunch(id: Int): MassasWriteResult =
-        write { api.deleteLaunch(id) }
-
-    private suspend fun write(call: suspend () -> Response<MassasLaunchDayView>): MassasWriteResult {
-        val response = runCatchingCancellable { call() }.getOrNull() ?: return MassasWriteResult.Unreachable
-        val body = response.body()
-        return if (response.isSuccessful && body != null) {
-            MassasWriteResult.Saved(body)
-        } else {
-            MassasWriteResult.Refused(response.code())
+        if (response.isSuccessful) {
+            val refreshedDay = day(date)
+            return if (refreshedDay != null) {
+                MassasWriteResult.Saved(refreshedDay)
+            } else {
+                MassasWriteResult.Saved(
+                    MassasLaunchDayView(
+                        date = date,
+                        products = emptyList(),
+                        launches = emptyList(),
+                    ),
+                )
+            }
         }
+        return MassasWriteResult.Refused(response.code())
+    }
+
+    open suspend fun updateLaunch(id: Int, boxes: Int, date: String? = null): MassasWriteResult {
+        val response = runCatchingCancellable {
+            api.updateLaunch(id, UpdateMassasLaunchRequest(boxes = boxes))
+        }.getOrNull() ?: return MassasWriteResult.Unreachable
+
+        if (response.isSuccessful) {
+            val targetDate = date ?: response.body()?.launchDate ?: response.body()?.date
+            val refreshedDay = if (!targetDate.isNullOrEmpty()) day(targetDate) else null
+            return if (refreshedDay != null) {
+                MassasWriteResult.Saved(refreshedDay)
+            } else {
+                MassasWriteResult.Saved(
+                    MassasLaunchDayView(
+                        date = targetDate ?: "",
+                        products = emptyList(),
+                        launches = emptyList(),
+                    ),
+                )
+            }
+        }
+        return MassasWriteResult.Refused(response.code())
+    }
+
+    open suspend fun deleteLaunch(id: Int, date: String? = null): MassasWriteResult {
+        val response = runCatchingCancellable {
+            api.deleteLaunch(id)
+        }.getOrNull() ?: return MassasWriteResult.Unreachable
+
+        if (response.isSuccessful) {
+            val refreshedDay = if (!date.isNullOrEmpty()) day(date) else null
+            return if (refreshedDay != null) {
+                MassasWriteResult.Saved(refreshedDay)
+            } else {
+                MassasWriteResult.Saved(
+                    MassasLaunchDayView(
+                        date = date ?: "",
+                        products = emptyList(),
+                        launches = emptyList(),
+                    ),
+                )
+            }
+        }
+        return MassasWriteResult.Refused(response.code())
     }
 }

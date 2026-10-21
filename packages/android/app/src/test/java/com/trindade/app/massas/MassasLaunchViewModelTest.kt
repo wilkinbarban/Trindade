@@ -5,8 +5,18 @@ import com.trindade.app.auth.TokenStore
 import com.trindade.app.network.AuthApi
 import com.trindade.app.network.MassaIndividualLaunch
 import com.trindade.app.network.MassasApi
+import com.trindade.app.network.MassasLaunchDayView
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -22,6 +32,9 @@ class MassasLaunchViewModelTest {
 
     private lateinit var server: MockWebServer
     private lateinit var viewModel: MassasLaunchViewModel
+    private lateinit var massasApi: MassasApi
+    private lateinit var authRepository: AuthRepository
+    private lateinit var massasRepository: MassasRepository
 
     private class FakeTokenStore : TokenStore {
         private var access: String? = null
@@ -45,8 +58,10 @@ class MassasLaunchViewModelTest {
         }
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     @Before
     fun setUp() {
+        Dispatchers.setMain(UnconfinedTestDispatcher())
         server = MockWebServer()
         server.start()
         val json = Json { ignoreUnknownKeys = true; explicitNulls = false }
@@ -54,18 +69,20 @@ class MassasLaunchViewModelTest {
             .baseUrl(server.url("/"))
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
-        val massasApi = retrofit.create(MassasApi::class.java)
+        massasApi = retrofit.create(MassasApi::class.java)
         val authApi = retrofit.create(AuthApi::class.java)
         val tokenStore = FakeTokenStore()
-        val authRepository = AuthRepository(authApi, tokenStore, json)
-        val massasRepository = MassasRepository(massasApi)
+        authRepository = AuthRepository(authApi, tokenStore, json)
+        massasRepository = MassasRepository(massasApi)
 
         viewModel = MassasLaunchViewModel(massasRepository, authRepository)
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     @After
     fun tearDown() {
         server.shutdown()
+        Dispatchers.resetMain()
     }
 
     @Test
@@ -144,5 +161,94 @@ class MassasLaunchViewModelTest {
         assertNull(viewModel.getWhatsAppLink())
         viewModel.onPhoneChange("abc")
         assertNull(viewModel.getWhatsAppLink())
+    }
+
+    @Test
+    fun clearQuantities_clearsAllInputs() {
+        viewModel.onQuantityChange("1045", "4")
+        viewModel.onQuantityChange("1046", "2")
+        assertEquals(2, viewModel.state.value.quantities.size)
+
+        viewModel.clearQuantities()
+        assertTrue(viewModel.state.value.quantities.isEmpty())
+    }
+
+    private class FakeMassasRepository(api: MassasApi) : MassasRepository(api) {
+        var createLaunchResult: MassasWriteResult = MassasWriteResult.Saved(
+            MassasLaunchDayView(date = "2026-10-21", totalUnits = 30, totalBoxes = 3)
+        )
+        var lastCreatedItems: List<com.trindade.app.network.CreateMassasLaunchItem>? = null
+
+        override suspend fun createLaunch(
+            date: String,
+            items: List<com.trindade.app.network.CreateMassasLaunchItem>,
+        ): MassasWriteResult {
+            lastCreatedItems = items
+            return createLaunchResult
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun submitLaunch_onSuccess_clearsQuantitiesAndSetsNotice() = runTest {
+        val fakeRepo = FakeMassasRepository(massasApi)
+        val testVm = MassasLaunchViewModel(fakeRepo, authRepository)
+
+        testVm.onQuantityChange("1045", "3")
+        assertEquals(1, testVm.state.value.quantities.size)
+
+        testVm.submitLaunch()
+        testScheduler.runCurrent()
+
+        assertTrue(testVm.state.value.quantities.isEmpty())
+        assertFalse(testVm.state.value.isSubmitting)
+        assertEquals("Lançamento registrado com sucesso!", testVm.state.value.noticeMessage)
+        assertEquals(30, testVm.state.value.dayView?.totalUnits)
+        assertEquals(1, fakeRepo.lastCreatedItems?.size)
+        assertEquals("1045", fakeRepo.lastCreatedItems?.first()?.productCode)
+        assertEquals(3, fakeRepo.lastCreatedItems?.first()?.boxes)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun massasRepository_createLaunch_parses201AndRefreshesDay() = runTest {
+        val testServer = MockWebServer()
+        testServer.start()
+        try {
+            val json = Json { ignoreUnknownKeys = true; explicitNulls = false }
+            val retrofit = Retrofit.Builder()
+                .baseUrl(testServer.url("/"))
+                .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+                .build()
+            val api = retrofit.create(MassasApi::class.java)
+            val repo = MassasRepository(api)
+
+            testServer.enqueue(
+                MockResponse()
+                    .setResponseCode(201)
+                    .setBody("""{"created":[{"id":10,"launch_date":"2026-10-21","product_code":"1045","boxes":3,"units":30,"user_id":1}]}""")
+            )
+            testServer.enqueue(
+                MockResponse()
+                    .setResponseCode(200)
+                    .setBody("""{"date":"2026-10-21","products":[],"launches":[],"totalBoxes":3,"totalUnits":30}""")
+            )
+
+            val result = repo.createLaunch("2026-10-21", listOf(com.trindade.app.network.CreateMassasLaunchItem("1045", 3)))
+            assertTrue(result is MassasWriteResult.Saved)
+            val saved = result as MassasWriteResult.Saved
+            assertEquals(30, saved.view.totalUnits)
+
+            val postRequest = testServer.takeRequest()
+            assertEquals("/api/massas-launch", postRequest.path)
+            assertEquals("POST", postRequest.method)
+            assertTrue(postRequest.body.readUtf8().contains(""""boxes":3"""))
+
+            val getRequest = testServer.takeRequest()
+            assertEquals("/api/massas-launch?date=2026-10-21", getRequest.path)
+            assertEquals("GET", getRequest.method)
+        } finally {
+            testServer.shutdown()
+        }
     }
 }
