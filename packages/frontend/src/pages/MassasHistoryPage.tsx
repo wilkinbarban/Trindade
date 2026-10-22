@@ -204,9 +204,13 @@ export function MassasHistoryPage() {
                 className="w-auto font-medium"
               />
             </div>
-            {date === saopauloToday() && (
+            {date === saopauloToday() ? (
               <span className="text-xs bg-amber-100 text-amber-800 font-semibold px-2.5 py-1 rounded-full self-start sm:self-auto">
                 {t('massas.today')}
+              </span>
+            ) : (
+              <span className="text-xs bg-gray-100 text-gray-700 font-semibold px-2.5 py-1 rounded-full self-start sm:self-auto">
+                {t('massas.readOnly', 'Modo Leitura')}
               </span>
             )}
           </div>
@@ -282,6 +286,7 @@ export function MassasHistoryPage() {
           onEditBoxesChange={setEditingBoxes}
           onDelete={handleDeleteLaunch}
           deletingId={deletingLaunchId}
+          readOnly={date !== saopauloToday()}
         />
       )}
 

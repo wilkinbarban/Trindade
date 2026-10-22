@@ -546,6 +546,8 @@
     <string name="massas_sync_now">Atualizar agora</string>
     <string name="massas_history_select_date">Selecione a Data</string>
     <string name="massas_history_days_count">%1$d dias registrados</string>
+    <string name="massas_back_to_history">Voltar ao Histórico</string>
+    <string name="massas_read_only_badge">Modo Leitura</string>
 
     <!-- Module Help Dialog Content Strings -->
     <string name="help_massas_title">Como Funciona o Lançamento de Massas</string>

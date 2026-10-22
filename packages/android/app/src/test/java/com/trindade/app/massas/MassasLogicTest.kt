@@ -119,6 +119,8 @@ class MassasLogicTest {
         assertFalse(shouldPollMassas(isScreenActive = true, isEditing = true, isSubmitting = false))
         assertFalse(shouldPollMassas(isScreenActive = true, isEditing = false, isSubmitting = true))
         assertFalse(shouldPollMassas(isScreenActive = true, isEditing = true, isSubmitting = true))
+        // Suspends polling on past dates (historical view)
+        assertFalse(shouldPollMassas(isScreenActive = true, isEditing = false, isSubmitting = false, isToday = false))
     }
 
     @Test
@@ -131,6 +133,9 @@ class MassasLogicTest {
         assertFalse(canEditOrDeleteLaunch(launchUserId = 10, currentUserId = 5, isAdmin = false))
         // Unauthenticated cannot edit
         assertFalse(canEditOrDeleteLaunch(launchUserId = 10, currentUserId = null, isAdmin = false))
+        // Past dates strictly forbid edits even for admin or author
+        assertFalse(canEditOrDeleteLaunch(launchUserId = 10, currentUserId = 5, isAdmin = true, isToday = false))
+        assertFalse(canEditOrDeleteLaunch(launchUserId = 5, currentUserId = 5, isAdmin = false, isToday = false))
     }
 
     @Test

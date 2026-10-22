@@ -15,6 +15,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
   - **RBAC e controle de autor**: botões de edição e exclusão de lançamentos habilitados exclusivamente para o próprio usuário autor (`launch.user_id == currentUserId`) ou para Administradores.
   - **Atualização pasiva em tempo real (Live Polling)**: sincronização silenciosa a cada 15 segundos (`POLL_INTERVAL_MS = 15000L`) em segundo plano enquanto a tela estiver visível e sem edição ativa, sem interromper foco nem inputs do operador.
   - **Histórico de Lançamentos de Massas** (`/massas-history`, web e Android): navegação cronológica por data com resumo acumulado dos produtos lançados.
+  - **Modo Leitura Estrito em Datas Anteriores**: em datas passadas (`date != saopauloToday()`), oculta a calculadora de caixas e inputs de produção, desativa a edição e exclusão de lançamentos individuais, exibe badge informativo de *Modo Leitura* / *Modo Lectura*, suspende o Live Polling e provê navegação de retorno ágil ao Histórico (`Voltar ao Histórico` e suporte via `BackHandler`).
   - **Compartilhamento WhatsApp**: formato limpo `🍝 *Lançamento de Massas — DD/MM/AAAA*` com lista de itens lançados e rodapé `*Lançado por:* Operador1, Operador2`, estritamente sem linha de total geral.
 - **Componente Reutilizável de Ajuda Contextual** (`ModuleHelpDialog` / `ModuleHelpModal`):
   - Modal explicativo passo-a-passo com design consistente em Material 3 / shadcn, ícone âmbar e seções roláveis.
@@ -30,7 +31,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
   - Comparação estrita de digest e tamanho contra os metadatos do GitHub Release (`GitHubAsset.digest`), eliminando falsos positivos e loops infinitos provocados pela discrepância de timestamps entre a compilação Gradle e o upload do release.
 - **Dashboard Operacional**:
   - Cartão "Lançamento de Massas" posicionado fixamente na 3ª posição (entre Cronograma Ativo e Calculador de Estoque), com ícone 🍝 e atalhos para lançamento e histórico.
-- **Distribuição Android v0.5.1 (Code 502)**:
+- **Distribuição Android v0.5.1 (Code 504)**:
   - Binário oficial assinado sob esquema APK Signature Scheme v2 (`CN=Trindade Massas Operacoes`).
   - Instalado e validado em emulador Ubuntu (`Trindade_UX_v030`).
 

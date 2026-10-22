@@ -27,6 +27,7 @@ interface MassasCollectiveTableProps {
   onEditBoxesChange: (val: string) => void;
   onDelete: (launchId: number) => void;
   deletingId: number | null;
+  readOnly?: boolean;
 }
 
 export function MassasCollectiveTable({
@@ -44,6 +45,7 @@ export function MassasCollectiveTable({
   onEditBoxesChange,
   onDelete,
   deletingId,
+  readOnly = false,
 }: MassasCollectiveTableProps) {
   const { t } = useTranslation();
   const [selectedOperatorId, setSelectedOperatorId] = useState<number | 'all'>('all');
@@ -306,39 +308,41 @@ export function MassasCollectiveTable({
                             </span>
                           </div>
 
-                          <div className="flex items-center gap-1 shrink-0 ml-2">
-                            {isOwner ? (
-                              <>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => onStartEdit(launch)}
-                                  className="h-9 w-9 p-0 text-gray-600 hover:text-amber-700 active:bg-amber-100"
-                                  title={t('massas.edit')}
+                          {!readOnly && (
+                            <div className="flex items-center gap-1 shrink-0 ml-2">
+                              {isOwner ? (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => onStartEdit(launch)}
+                                    className="h-9 w-9 p-0 text-gray-600 hover:text-amber-700 active:bg-amber-100"
+                                    title={t('massas.edit')}
+                                  >
+                                    <Edit2 className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => onDelete(launch.id)}
+                                    disabled={deletingId === launch.id}
+                                    className="h-9 w-9 p-0 text-gray-600 hover:text-red-700 active:bg-red-50"
+                                    title={t('massas.delete')}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <span
+                                  className="inline-flex items-center gap-1 text-[11px] text-gray-500 bg-gray-100/90 px-2.5 py-1 rounded-md"
+                                  title="Lançamento feito por outro operador (somente leitura)"
                                 >
-                                  <Edit2 className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => onDelete(launch.id)}
-                                  disabled={deletingId === launch.id}
-                                  className="h-9 w-9 p-0 text-gray-600 hover:text-red-700 active:bg-red-50"
-                                  title={t('massas.delete')}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </>
-                            ) : (
-                              <span
-                                className="inline-flex items-center gap-1 text-[11px] text-gray-500 bg-gray-100/90 px-2.5 py-1 rounded-md"
-                                title="Lançamento feito por outro operador (somente leitura)"
-                              >
-                                <ShieldAlert className="h-3.5 w-3.5 text-gray-400" />
-                                {launch.username}
-                              </span>
-                            )}
-                          </div>
+                                  <ShieldAlert className="h-3.5 w-3.5 text-gray-400" />
+                                  {launch.username}
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </>
                       )}
                     </div>

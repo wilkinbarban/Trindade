@@ -494,6 +494,7 @@
     "viewHistory": "Ver Historial",
     "backToToday": "Volver a Hoy",
     "today": "Hoy",
+    "readOnly": "Modo Lectura",
     "pastDaysWithLaunches": "Días con lanzamientos registrados",
     "confirmTitle": "Confirmar Lanzamiento de Masas",
     "confirmSubtitle": "Verifique los productos y cajas antes de confirmar el lanzamiento:",

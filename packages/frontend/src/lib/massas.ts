@@ -86,18 +86,21 @@ export interface MassasPollingGuards {
   visibilityState: DocumentVisibilityState | string;
   isEditing: boolean;
   isSubmitting: boolean;
+  isToday?: boolean;
 }
 
 /**
  * Guard predicate determining if silent background polling should run.
- * Suspends when document is hidden (background tab/screen off) or when
- * the operator is actively editing or submitting.
+ * Suspends when document is hidden (background tab/screen off), when
+ * the operator is actively editing or submitting, or on past dates.
  */
 export function shouldPollMassas({
   visibilityState,
   isEditing,
   isSubmitting,
+  isToday = true,
 }: MassasPollingGuards): boolean {
+  if (isToday === false) return false;
   if (visibilityState !== 'visible') return false;
   if (isEditing) return false;
   if (isSubmitting) return false;

@@ -155,6 +155,7 @@ class MainActivity : ComponentActivity() {
                     var loadingHistoryOpen by remember { mutableStateOf(false) }
                     var massasHistoryOpen by remember { mutableStateOf(false) }
                     var massasLaunchDay by remember { mutableStateOf<String?>(null) }
+                    var massasDayFromHistory by remember { mutableStateOf(false) }
                     var loadingDay by remember { mutableStateOf<String?>(null) }
                     var loadingDayFromHistory by remember { mutableStateOf(false) }
                     var tab by remember { mutableStateOf(Tab.DASHBOARD) }
@@ -215,6 +216,7 @@ class MainActivity : ComponentActivity() {
                         loadingHistoryOpen = false
                         massasHistoryOpen = false
                         massasLaunchDay = null
+                        massasDayFromHistory = false
                         loadingDay = null
                         loadingDayFromHistory = false
                         tab = Tab.DASHBOARD
@@ -244,7 +246,15 @@ class MainActivity : ComponentActivity() {
                     val onBackLoadingTab = { tab = Tab.DASHBOARD }
                     val onBackAssaiTab = { tab = Tab.DASHBOARD }
                     val onBackShareTab = { tab = Tab.DASHBOARD }
-                    val onBackMassasLaunchTab = { tab = Tab.DASHBOARD }
+                    val onBackMassasLaunchTab = {
+                        if (massasDayFromHistory) {
+                            massasDayFromHistory = false
+                            massasLaunchDay = null
+                            massasHistoryOpen = true
+                        } else {
+                            tab = Tab.DASHBOARD
+                        }
+                    }
                     val onBackReportsTab = { tab = Tab.DASHBOARD }
                     val onBackTasksTab = { tab = Tab.DASHBOARD }
                     val onBackDriversTab = { tab = Tab.DASHBOARD }
@@ -337,6 +347,8 @@ class MainActivity : ComponentActivity() {
                                 onSelectDate = { date ->
                                     massasHistoryOpen = false
                                     massasLaunchDay = date
+                                    val isToday = date == com.trindade.app.massas.MassasLaunchViewModel.saopauloToday()
+                                    massasDayFromHistory = !isToday
                                     tab = Tab.MASSAS_LAUNCH
                                 },
                             )
@@ -388,11 +400,16 @@ class MainActivity : ComponentActivity() {
                                     BackHandler(enabled = !drawerState.isOpen, onBack = onBackMassasLaunchTab)
                                     val massasViewModel: com.trindade.app.massas.MassasLaunchViewModel = hiltViewModel()
                                     LaunchedEffect(massasLaunchDay) {
-                                        massasLaunchDay?.let { massasViewModel.loadDay(it) }
+                                        if (massasLaunchDay != null) {
+                                            massasViewModel.loadDay(massasLaunchDay!!)
+                                        } else {
+                                            massasViewModel.loadDay(com.trindade.app.massas.MassasLaunchViewModel.saopauloToday())
+                                        }
                                     }
                                     com.trindade.app.massas.MassasLaunchScreen(
                                         viewModel = massasViewModel,
                                         onNavigateToHistory = { massasHistoryOpen = true },
+                                        onBackToHistory = if (massasDayFromHistory) onBackMassasLaunchTab else null,
                                     )
                                 }
                                 Tab.MASSAS_HISTORY -> {
@@ -404,6 +421,8 @@ class MainActivity : ComponentActivity() {
                                         onBack = onBackMassasHistoryTab,
                                         onSelectDate = { selectedDate ->
                                             massasLaunchDay = selectedDate
+                                            val isToday = selectedDate == com.trindade.app.massas.MassasLaunchViewModel.saopauloToday()
+                                            massasDayFromHistory = !isToday
                                             tab = Tab.MASSAS_LAUNCH
                                         },
                                     )
@@ -443,10 +462,13 @@ class MainActivity : ComponentActivity() {
                                         tab = Tab.MASSAS_LAUNCH
                                         massasHistoryOpen = false
                                         massasLaunchDay = null
+                                        massasDayFromHistory = false
                                     },
                                     onOpenMassasHistory = {
                                         tab = Tab.MASSAS_LAUNCH
                                         massasHistoryOpen = true
+                                        massasLaunchDay = null
+                                        massasDayFromHistory = false
                                     },
                                 )
                                 Tab.REPORTS -> {

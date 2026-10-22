@@ -153,6 +153,16 @@ describe('massas live polling guards', () => {
     });
     assert.strictEqual(paused, false);
   });
+
+  it('suspends polling when viewing past dates (isToday: false)', () => {
+    const past = shouldPollMassas({
+      visibilityState: 'visible',
+      isEditing: false,
+      isSubmitting: false,
+      isToday: false,
+    });
+    assert.strictEqual(past, false);
+  });
 });
 
 describe('massas operator filtering and subtotal', () => {

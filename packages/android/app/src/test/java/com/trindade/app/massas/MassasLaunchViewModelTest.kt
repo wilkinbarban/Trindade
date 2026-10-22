@@ -312,4 +312,53 @@ class MassasLaunchViewModelTest {
             testServer.shutdown()
         }
     }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun loadDay_withPastDate_setsReadOnlyAndForbidsModifications() = runTest {
+        val fakeRepo = FakeMassasRepository(massasApi)
+        val testVm = MassasLaunchViewModel(fakeRepo, authRepository)
+        testScheduler.runCurrent()
+
+        testVm.loadDay("2020-01-01")
+        testScheduler.runCurrent()
+
+        assertTrue(testVm.state.value.isReadOnly)
+        assertEquals("2020-01-01", testVm.state.value.date)
+
+        // Quantity change is ignored when isReadOnly
+        testVm.onQuantityChange("1045", "5")
+        assertTrue(testVm.state.value.quantities.isEmpty())
+
+        // Launch confirmation cannot be requested when isReadOnly
+        testVm.requestLaunchConfirmation()
+        assertFalse(testVm.state.value.showConfirmLaunchDialog)
+
+        // Past launch cannot be edited
+        val pastLaunch = MassaIndividualLaunch(
+            id = 1,
+            launchDate = "2020-01-01",
+            productCode = "1045",
+            productName = "MASSA CASEIRA",
+            boxes = 5,
+            units = 50,
+            userId = 1,
+            username = "admin",
+            displayName = "Admin",
+            createdAt = "2020-01-01T10:00:00Z",
+            updatedAt = "2020-01-01T10:00:00Z",
+        )
+        assertFalse(testVm.canEdit(pastLaunch))
+        testVm.startEdit(pastLaunch)
+        assertNull(testVm.state.value.editingLaunchId)
+
+        // Delete prompt is ignored when isReadOnly
+        testVm.promptDelete(1)
+        assertNull(testVm.state.value.deleteConfirmLaunchId)
+
+        // Return to today clears isReadOnly
+        testVm.loadDay(MassasLaunchViewModel.saopauloToday())
+        testScheduler.runCurrent()
+        assertFalse(testVm.state.value.isReadOnly)
+    }
 }

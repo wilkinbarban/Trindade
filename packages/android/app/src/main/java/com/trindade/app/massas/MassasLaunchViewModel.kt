@@ -63,6 +63,7 @@ class MassasLaunchViewModel @Inject constructor(
         val resultDialogMessage: String? = null,
         val resultDialogIsSuccess: Boolean = false,
         val selectedOperatorId: Int? = null,
+        val isReadOnly: Boolean = false,
     )
 
     private val _state = MutableStateFlow(UiState())
@@ -85,7 +86,8 @@ class MassasLaunchViewModel @Inject constructor(
 
     fun onScreenActive(active: Boolean) {
         isScreenActive = active
-        if (active) {
+        val isToday = state.value.date == saopauloToday()
+        if (active && isToday) {
             if (pollingJob == null || pollingJob?.isActive != true) {
                 startPolling()
             }
@@ -103,7 +105,8 @@ class MassasLaunchViewModel @Inject constructor(
                 val currentState = _state.value
                 val isEditing = currentState.editingLaunchId != null
                 val isSubmitting = currentState.isSubmitting
-                if (shouldPollMassas(isScreenActive, isEditing, isSubmitting)) {
+                val isToday = currentState.date == saopauloToday()
+                if (shouldPollMassas(isScreenActive, isEditing, isSubmitting, isToday)) {
                     silentRefresh()
                 }
             }
@@ -111,8 +114,24 @@ class MassasLaunchViewModel @Inject constructor(
     }
 
     fun loadDay(date: String) {
+        val isToday = date == saopauloToday()
+        val isReadOnly = !isToday
+        if (isReadOnly) {
+            pollingJob?.cancel()
+            pollingJob = null
+        } else if (isScreenActive && (pollingJob == null || pollingJob?.isActive != true)) {
+            startPolling()
+        }
         viewModelScope.launch {
-            _state.value = _state.value.copy(isLoading = true, errorMessage = null, date = date)
+            _state.value = _state.value.copy(
+                isLoading = true,
+                errorMessage = null,
+                date = date,
+                isReadOnly = isReadOnly,
+                editingLaunchId = null,
+                editingBoxes = "",
+                deleteConfirmLaunchId = null,
+            )
             val result = repository.day(date)
             _state.value = _state.value.copy(
                 isLoading = false,
@@ -134,6 +153,7 @@ class MassasLaunchViewModel @Inject constructor(
     }
 
     fun onQuantityChange(productCode: String, value: String) {
+        if (state.value.isReadOnly) return
         val filtered = value.filter { it in '0'..'9' }
         val newQuantities = _state.value.quantities.toMutableMap()
         if (filtered.isEmpty() || filtered == "0") {
@@ -153,6 +173,7 @@ class MassasLaunchViewModel @Inject constructor(
     }
 
     fun requestLaunchConfirmation() {
+        if (state.value.isReadOnly) return
         val quantities = _state.value.quantities
         val dayProducts = _state.value.dayView?.products?.associateBy { it.code } ?: emptyMap()
         val standardMap = STANDARD_MASSAS.associateBy { it.code }
@@ -188,6 +209,7 @@ class MassasLaunchViewModel @Inject constructor(
     }
 
     fun confirmLaunch() {
+        if (state.value.isReadOnly) return
         val items = _state.value.confirmItems
         if (items.isEmpty()) return
         val apiItems = items.map { CreateMassasLaunchItem(it.productCode, it.boxes) }
@@ -274,7 +296,15 @@ class MassasLaunchViewModel @Inject constructor(
         }
     }
 
+    fun canEdit(launch: MassaIndividualLaunch): Boolean {
+        if (state.value.isReadOnly) return false
+        val user = state.value.currentUser ?: return false
+        val isAdmin = user.role == "admin"
+        return canEditOrDeleteLaunch(launch.userId, user.id, isAdmin, !state.value.isReadOnly)
+    }
+
     fun startEdit(launch: MassaIndividualLaunch) {
+        if (state.value.isReadOnly) return
         _state.value = _state.value.copy(
             editingLaunchId = launch.id,
             editingBoxes = launch.boxes.toString(),
@@ -295,6 +325,7 @@ class MassasLaunchViewModel @Inject constructor(
     }
 
     fun saveEdit() {
+        if (state.value.isReadOnly) return
         val launchId = _state.value.editingLaunchId ?: return
         val boxes = _state.value.editingBoxes.toIntOrNull() ?: return
         if (boxes <= 0) return
@@ -328,6 +359,7 @@ class MassasLaunchViewModel @Inject constructor(
     }
 
     fun promptDelete(launchId: Int) {
+        if (state.value.isReadOnly) return
         _state.value = _state.value.copy(deleteConfirmLaunchId = launchId)
     }
 
@@ -336,6 +368,7 @@ class MassasLaunchViewModel @Inject constructor(
     }
 
     fun deleteLaunch() {
+        if (state.value.isReadOnly) return
         val launchId = _state.value.deleteConfirmLaunchId ?: return
         viewModelScope.launch {
             _state.value = _state.value.copy(

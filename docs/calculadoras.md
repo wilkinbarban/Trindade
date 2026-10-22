@@ -13,6 +13,9 @@ Registo em tempo real da produção e carregamento de massas por operador:
 - **Polling pasivo em tempo real**: recarga periódica silenciosa a cada 15 segundos (`POLL_INTERVAL_MS = 15000L`) em segundo plano enquanto a tela estiver visível e sem edição ativa.
 - **Compartilhamento WhatsApp**: formato limpo `🍝 *Lançamento de Massas — DD/MM/AAAA*` com lista de produtos contados e rodapé `*Lançado por:* Operador1, Operador2`, estritamente **sem linha de Total Geral**.
 - **Histórico de Massas (`/massas-history`)**: consulta por data e auditoria de dias anteriores.
+  - **Modo Leitura em Datas Passadas**: quando a data selecionada não for o dia de hoje (`date != saopauloToday()`), oculta a calculadora e os inputs de caixas, desativa ações de edição/exclusão de lançamentos e exibe badge de *Modo Leitura*.
+  - **Suspensão de Live Polling**: recargas automáticas são desativadas em datas históricas para prevenir chamadas desnecessárias à API.
+  - **Navegação Integrada**: botão "Voltar ao Histórico" e retorno via `BackHandler` ao inspecionar lançamentos históricos.
 - **Modal de Ajuda Contextual (`ModuleHelpDialog`)**: botão de ajuda presente no topo explicando o fluxo em 3 passos simples.
 
 ## Calculadora de Assaí

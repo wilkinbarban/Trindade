@@ -78,9 +78,16 @@ fun formatMassasWhatsAppMessage(view: MassasLaunchDayView): String {
 
 /**
  * Guard predicate determining if silent background polling should run.
- * Suspends when screen is inactive/hidden, or when operator is actively editing or submitting.
+ * Suspends when screen is inactive/hidden, when operator is actively editing or submitting,
+ * or when viewing a past date (read-only historical view).
  */
-fun shouldPollMassas(isScreenActive: Boolean, isEditing: Boolean, isSubmitting: Boolean): Boolean {
+fun shouldPollMassas(
+    isScreenActive: Boolean,
+    isEditing: Boolean,
+    isSubmitting: Boolean,
+    isToday: Boolean = true,
+): Boolean {
+    if (!isToday) return false
     if (!isScreenActive) return false
     if (isEditing) return false
     if (isSubmitting) return false
@@ -89,9 +96,16 @@ fun shouldPollMassas(isScreenActive: Boolean, isEditing: Boolean, isSubmitting: 
 
 /**
  * Guard predicate determining if the user has permission to edit or delete an individual launch.
- * Restricted to the author of the launch or users with the admin role.
+ * Restricted to the author of the launch or users with the admin role, and only permitted
+ * on the current day (past dates are strictly read-only).
  */
-fun canEditOrDeleteLaunch(launchUserId: Int, currentUserId: Int?, isAdmin: Boolean): Boolean {
+fun canEditOrDeleteLaunch(
+    launchUserId: Int,
+    currentUserId: Int?,
+    isAdmin: Boolean,
+    isToday: Boolean = true,
+): Boolean {
+    if (!isToday) return false
     if (isAdmin) return true
     if (currentUserId == null) return false
     return launchUserId == currentUserId

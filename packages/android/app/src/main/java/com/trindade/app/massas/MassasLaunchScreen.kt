@@ -54,12 +54,14 @@ import com.trindade.app.ui.BrazilianPhoneVisualTransformation
 import com.trindade.app.ui.components.HelpSection
 import com.trindade.app.ui.components.ModuleHelpButton
 import com.trindade.app.ui.components.ModuleHelpDialog
+import com.trindade.app.ui.components.NavigationActionButton
 import com.trindade.app.ui.filterPhoneDigits
 
 @Composable
 fun MassasLaunchScreen(
     viewModel: MassasLaunchViewModel,
     onNavigateToHistory: () -> Unit,
+    onBackToHistory: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsState()
@@ -108,31 +110,67 @@ fun MassasLaunchScreen(
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Top,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.massas_title),
-                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                Text(
-                    text = stringResource(R.string.massas_tagline),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(
-                    onClick = onNavigateToHistory,
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                    modifier = Modifier.height(36.dp),
-                ) {
-                    Text(
-                        text = "Histórico",
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (state.isReadOnly && onBackToHistory != null) {
+                    NavigationActionButton(
+                        onClick = onBackToHistory,
+                        text = stringResource(R.string.massas_back_to_history),
                     )
+                }
+                Column {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.massas_title),
+                            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        if (state.isReadOnly) {
+                            Text(
+                                text = stringResource(R.string.massas_read_only_badge),
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                modifier = Modifier
+                                    .background(
+                                        color = MaterialTheme.colorScheme.tertiaryContainer,
+                                        shape = RoundedCornerShape(6.dp),
+                                    )
+                                    .padding(horizontal = 6.dp, vertical = 2.dp),
+                            )
+                        }
+                    }
+                    Text(
+                        text = if (state.isReadOnly) {
+                            stringResource(R.string.massas_production_date, state.date)
+                        } else {
+                            stringResource(R.string.massas_tagline)
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (!state.isReadOnly) {
+                    OutlinedButton(
+                        onClick = onNavigateToHistory,
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                        modifier = Modifier.height(36.dp),
+                    ) {
+                        Text(
+                            text = "Histórico",
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                        )
+                    }
                 }
                 ModuleHelpButton(onClick = { viewModel.toggleHelpDialog(true) })
             }
@@ -226,117 +264,119 @@ fun MassasLaunchScreen(
             }
         }
 
-        // BLOQUE 1: Lançar Produção do Dia (Cálculo e Inputs)
-        Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp)),
-        ) {
-            Column(
+        if (!state.isReadOnly) {
+            // BLOQUE 1: Lançar Produção do Dia (Cálculo e Inputs)
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                shape = RoundedCornerShape(16.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp)),
             ) {
-                Text(
-                    text = "Lançar Produção por Caixas",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text(
+                        text = "Lançar Produção por Caixas",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
 
-                STANDARD_MASSAS.forEach { product ->
-                    val boxesStr = state.quantities[product.code] ?: ""
-                    val boxes = boxesStr.toIntOrNull() ?: 0
-                    val calculatedUnits = boxes * product.unitsPerBox
+                    STANDARD_MASSAS.forEach { product ->
+                        val boxesStr = state.quantities[product.code] ?: ""
+                        val boxes = boxesStr.toIntOrNull() ?: 0
+                        val calculatedUnits = boxes * product.unitsPerBox
 
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(
-                                color = if (boxes > 0) Color(0xFFF0FDF4) else Color.Transparent,
-                                shape = RoundedCornerShape(8.dp),
-                            )
-                            .padding(horizontal = 8.dp, vertical = 6.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = product.name,
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text(
-                                    text = "${product.unitsPerBox} un/cx",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    color = if (boxes > 0) Color(0xFFF0FDF4) else Color.Transparent,
+                                    shape = RoundedCornerShape(8.dp),
                                 )
-                                if (calculatedUnits > 0) {
+                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = product.name,
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
                                     Text(
-                                        text = "= $calculatedUnits un",
-                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                        color = Color(0xFF16A34A),
+                                        text = "${product.unitsPerBox} un/cx",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
+                                    if (calculatedUnits > 0) {
+                                        Text(
+                                            text = "= $calculatedUnits un",
+                                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                            color = Color(0xFF16A34A),
+                                        )
+                                    }
                                 }
                             }
+
+                            OutlinedTextField(
+                                value = boxesStr,
+                                onValueChange = { viewModel.onQuantityChange(product.code, it) },
+                                placeholder = { Text("0", style = MaterialTheme.typography.bodyMedium) },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier
+                                    .width(90.dp)
+                                    .height(52.dp),
+                                shape = RoundedCornerShape(8.dp),
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    val hasAnyQuantity = state.quantities.values.any { (it.toIntOrNull() ?: 0) > 0 }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        OutlinedButton(
+                            onClick = { viewModel.clearQuantities() },
+                            enabled = hasAnyQuantity && !state.isSubmitting,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp),
+                        ) {
+                            Text(stringResource(R.string.massas_clear), style = MaterialTheme.typography.labelLarge)
                         }
 
-                        OutlinedTextField(
-                            value = boxesStr,
-                            onValueChange = { viewModel.onQuantityChange(product.code, it) },
-                            placeholder = { Text("0", style = MaterialTheme.typography.bodyMedium) },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier
-                                .width(90.dp)
-                                .height(52.dp),
-                            shape = RoundedCornerShape(8.dp),
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                val hasAnyQuantity = state.quantities.values.any { (it.toIntOrNull() ?: 0) > 0 }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    OutlinedButton(
-                        onClick = { viewModel.clearQuantities() },
-                        enabled = hasAnyQuantity && !state.isSubmitting,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(10.dp),
-                    ) {
-                        Text(stringResource(R.string.massas_clear), style = MaterialTheme.typography.labelLarge)
-                    }
-
-                    Button(
-                        onClick = { viewModel.requestLaunchConfirmation() },
-                        enabled = hasAnyQuantity && !state.isSubmitting,
-                        modifier = Modifier.weight(2f),
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                    ) {
-                        if (state.isSubmitting) {
-                            CircularProgressIndicator(
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp,
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(stringResource(R.string.massas_submitting))
-                        } else {
-                            Text(
-                                text = stringResource(R.string.massas_submit),
-                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-                            )
+                        Button(
+                            onClick = { viewModel.requestLaunchConfirmation() },
+                            enabled = hasAnyQuantity && !state.isSubmitting,
+                            modifier = Modifier.weight(2f),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        ) {
+                            if (state.isSubmitting) {
+                                CircularProgressIndicator(
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp,
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(stringResource(R.string.massas_submitting))
+                            } else {
+                                Text(
+                                    text = stringResource(R.string.massas_submit),
+                                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                                )
+                            }
                         }
                     }
                 }
@@ -457,11 +497,8 @@ fun MassasLaunchScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 } else {
-                    val currentUserId = state.currentUser?.id
-                    val isAdmin = state.currentUser?.role == "Administrador"
-
                     displayedLaunches.forEach { launch ->
-                        val canEdit = canEditOrDeleteLaunch(launch.userId, currentUserId, isAdmin)
+                        val canEdit = viewModel.canEdit(launch)
 
                         Card(
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
