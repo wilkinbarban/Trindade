@@ -86,7 +86,9 @@ class StockViewModel @Inject constructor(private val repository: StockRepository
 
     fun onDateChange(date: String) {
         _state.value = _state.value.copy(date = date)
-        load()
+        if (date.matches(Regex("""^\d{4}-\d{2}-\d{2}$"""))) {
+            load()
+        }
     }
 
     fun onTabChange(category: String) {
@@ -120,11 +122,12 @@ class StockViewModel @Inject constructor(private val repository: StockRepository
     fun load() {
         viewModelScope.launch {
             _state.value = _state.value.copy(loading = true, failed = false)
-            val day = repository.day(_state.value.date)
+            val isValidDate = _state.value.date.matches(Regex("""^\d{4}-\d{2}-\d{2}$"""))
+            val day = if (isValidDate) repository.day(_state.value.date) else null
             _state.value = _state.value.copy(
                 day = day,
                 loading = false,
-                failed = day == null,
+                failed = isValidDate && day == null,
                 tab = _state.value.tab ?: day?.products?.firstOrNull()?.category,
             )
         }

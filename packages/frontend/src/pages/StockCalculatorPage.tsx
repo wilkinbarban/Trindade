@@ -250,7 +250,7 @@ export function StockCalculatorPage() {
                 <div key={product.code} className="border rounded-lg p-3 space-y-2" data-testid={`stock-card-${product.code}`}>
                   <div className="flex items-baseline justify-between gap-2">
                     <span className="font-medium text-gray-900">{product.name}</span>
-                    <span className="text-xs text-gray-500">{product.code}</span>
+                    <span className="text-xs text-gray-500 font-mono">Cód: {product.code}</span>
                   </div>
                   <div className="flex gap-4 text-sm text-gray-600">
                     <span>

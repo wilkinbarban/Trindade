@@ -77,7 +77,9 @@ class StockHistoryViewModel @Inject constructor(
 
     fun onDateChange(date: String) {
         _state.value = _state.value.copy(date = date)
-        load()
+        if (date.matches(Regex("""^\d{4}-\d{2}-\d{2}$"""))) {
+            load()
+        }
     }
 
     fun onQuantityChange(code: String, value: String) {
@@ -111,13 +113,14 @@ class StockHistoryViewModel @Inject constructor(
             _state.value = _state.value.copy(loading = true, failed = false)
             val days = repository.history() ?: emptyList()
             val date = _state.value.date.ifEmpty { days.firstOrNull()?.date ?: "" }
-            val day = if (date.isEmpty()) null else repository.day(date)
+            val isValidDate = date.matches(Regex("""^\d{4}-\d{2}-\d{2}$"""))
+            val day = if (isValidDate) repository.day(date) else null
             _state.value = _state.value.copy(
                 days = days,
                 date = date,
                 day = day,
                 loading = false,
-                failed = date.isNotEmpty() && day == null,
+                failed = isValidDate && day == null,
             )
         }
     }

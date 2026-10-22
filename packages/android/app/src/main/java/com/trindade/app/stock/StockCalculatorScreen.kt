@@ -1,8 +1,11 @@
 package com.trindade.app.stock
 
+import android.app.DatePickerDialog
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,6 +16,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -38,6 +42,8 @@ import com.trindade.app.ui.components.HelpSection
 import com.trindade.app.ui.components.ModuleHelpButton
 import com.trindade.app.ui.components.ModuleHelpDialog
 import com.trindade.app.ui.filterPhoneDigits
+import java.time.LocalDate
+import java.util.Locale
 
 /**
  * The counter, held in one hand at a shelf.
@@ -65,6 +71,10 @@ fun StockCalculatorScreen(
     val active = shown?.let { groups[it] } ?: groups.values.firstOrNull()
     var showHelpDialog by remember { mutableStateOf(false) }
 
+    val invalidPhoneNote = stringResource(R.string.stock_whatsapp_invalid_phone)
+    val openingWhatsappNote = stringResource(R.string.stock_whatsapp_opening)
+    val openingEmailNote = stringResource(R.string.stock_email_opening)
+
     LaunchedEffect(role) { viewModel.onRoleKnown(role) }
     LaunchedEffect(Unit) { viewModel.load() }
 
@@ -84,18 +94,41 @@ fun StockCalculatorScreen(
             ModuleHelpButton(onClick = { showHelpDialog = true })
         }
         Text(
-            if (canEdit) "Conte as caixas: o sistema acumula e calcula as unidades."
-            else "Modo de leitura: apenas administradores podem atualizar o estoque.",
+            if (canEdit) stringResource(R.string.stock_calculator_subtitle_edit)
+            else stringResource(R.string.stock_calculator_subtitle_readonly),
             style = MaterialTheme.typography.bodySmall,
         )
 
-        OutlinedTextField(
-            value = state.date,
-            onValueChange = { viewModel.onDateChange(it) },
-            label = { Text(stringResource(R.string.stock_count_day)) },
-            singleLine = true,
+        Row(
             modifier = Modifier.fillMaxWidth(),
-        )
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            OutlinedTextField(
+                value = state.date,
+                onValueChange = { viewModel.onDateChange(it) },
+                label = { Text(stringResource(R.string.stock_count_day)) },
+                placeholder = { Text("AAAA-MM-DD") },
+                singleLine = true,
+                modifier = Modifier.weight(1f),
+            )
+            Button(
+                onClick = { openDayPicker(context, state.date) { viewModel.onDateChange(it) } },
+            ) {
+                Text(stringResource(R.string.stock_pick_date))
+            }
+        }
+
+        if (state.loading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator()
+            }
+        }
 
         if (state.failed) {
             Text(stringResource(R.string.stock_failed_to_load_count_day), color = MaterialTheme.colorScheme.error)
@@ -107,7 +140,8 @@ fun StockCalculatorScreen(
                     onClick = { viewModel.onTabChange(category) },
                     enabled = category != shown,
                 ) {
-                    val label = if (category == "Massas") "Massas" else "Terceirizados"
+                    val label = if (category == "Massas") stringResource(R.string.stock_category_massas)
+                    else stringResource(R.string.stock_category_terceirizados)
                     Text("$label (${groups[category]?.size ?: 0})")
                 }
             }
@@ -121,18 +155,24 @@ fun StockCalculatorScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         Text(product.name, style = MaterialTheme.typography.bodyLarge)
-                        Text(product.code, style = MaterialTheme.typography.bodySmall)
+                        Text(
+                            stringResource(R.string.stock_code_prefix, product.code),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        Text("Caixas: ${product.boxes}", style = MaterialTheme.typography.bodyMedium)
                         Text(
-                            "Unidades: ${product.units}  (${product.unitsPerBox}/cx)",
+                            stringResource(R.string.stock_boxes_label, product.boxes),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Text(
+                            stringResource(R.string.stock_units_per_box_label, product.units, product.unitsPerBox),
                             style = MaterialTheme.typography.bodyMedium,
                         )
                     }
                     if (canEdit && visibleErrors.contains(product.code)) {
                         Text(
-                            "Quantidade incorreta de caixas",
+                            stringResource(R.string.stock_invalid_boxes_error),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error,
                         )
@@ -177,7 +217,11 @@ fun StockCalculatorScreen(
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(stringResource(R.string.stock_day_total))
             Text(
-                "${state.day?.totalBoxes ?: 0} caixas · ${state.day?.totalUnits ?: 0} unidades",
+                stringResource(
+                    R.string.stock_day_total_format,
+                    state.day?.totalBoxes ?: 0,
+                    state.day?.totalUnits ?: 0,
+                ),
                 style = MaterialTheme.typography.titleMedium,
             )
         }
@@ -204,10 +248,10 @@ fun StockCalculatorScreen(
             onClick = {
                 val target = viewModel.whatsappLink()
                 if (target == null) {
-                    viewModel.onNote("Este número não serve para abrir uma conversa.")
+                    viewModel.onNote(invalidPhoneNote)
                 } else {
                     context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(target)))
-                    viewModel.onNote("Abrindo a conversa…")
+                    viewModel.onNote(openingWhatsappNote)
                 }
             },
             enabled = viewModel.hasSomethingToSend() && state.number.isNotBlank(),
@@ -220,7 +264,7 @@ fun StockCalculatorScreen(
             onClick = {
                 // El destino es el buzon de la planta; el correo del autor no se usa aca.
                 context.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse(viewModel.mailtoLink())))
-                viewModel.onNote("Abrindo o e-mail…")
+                viewModel.onNote(openingEmailNote)
             },
             modifier = Modifier.fillMaxWidth(),
         ) {
@@ -237,12 +281,12 @@ fun StockCalculatorScreen(
                 description = stringResource(R.string.help_stock_desc),
                 sections = listOf(
                     HelpSection(
-                        title = "Contagem por Caixas",
-                        description = "Insira as caixas contadas em cada produto. As unidades são calculadas automaticamente conforme o padrão de embalagem.",
+                        title = stringResource(R.string.help_stock_counting_title),
+                        description = stringResource(R.string.help_stock_counting_desc),
                     ),
                     HelpSection(
-                        title = "Fechamento e Permissões",
-                        description = "Operadores podem consultar o estoque e compartilhar o resumo por WhatsApp ou e-mail. Apenas administradores podem registrar contagens e realizar o fechamento oficial.",
+                        title = stringResource(R.string.help_stock_permissions_title),
+                        description = stringResource(R.string.help_stock_permissions_desc),
                     ),
                 ),
                 onDismissRequest = { showHelpDialog = false },
@@ -250,3 +294,18 @@ fun StockCalculatorScreen(
         }
     }
 }
+
+private fun openDayPicker(context: Context, selected: String?, onPick: (String) -> Unit) {
+    val initial = selected?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: LocalDate.now()
+
+    DatePickerDialog(
+        context,
+        { _, year, month, day -> onPick(isoDay(year, month + 1, day)) },
+        initial.year,
+        initial.monthValue - 1,
+        initial.dayOfMonth,
+    ).show()
+}
+
+private fun isoDay(year: Int, month: Int, day: Int): String =
+    String.format(Locale.ROOT, "%04d-%02d-%02d", year, month, day)

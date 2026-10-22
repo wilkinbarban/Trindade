@@ -37,6 +37,7 @@ import com.trindade.app.ui.BrazilianPhoneVisualTransformation
 import com.trindade.app.ui.components.HelpSection
 import com.trindade.app.ui.components.ModuleHelpButton
 import com.trindade.app.ui.components.ModuleHelpDialog
+import com.trindade.app.ui.components.NavigationActionButton
 import com.trindade.app.ui.filterPhoneDigits
 
 /**
@@ -48,13 +49,19 @@ import com.trindade.app.ui.filterPhoneDigits
  * cannot be served is worse than no order.
  */
 @Composable
-fun AssaiCalculatorScreen(viewModel: AssaiViewModel = hiltViewModel()) {
+fun AssaiCalculatorScreen(
+    onBack: () -> Unit = {},
+    viewModel: AssaiViewModel = hiltViewModel(),
+) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     val lines = viewModel.lines()
     val visibleErrors = viewModel.visibleErrors()
     val link = viewModel.whatsappLink()
     var showHelpDialog by remember { mutableStateOf(false) }
+
+    val invalidPhoneNote = stringResource(R.string.stock_whatsapp_invalid_phone)
+    val openingWhatsappNote = stringResource(R.string.stock_whatsapp_opening)
 
     Column(
         modifier = Modifier
@@ -68,11 +75,17 @@ fun AssaiCalculatorScreen(viewModel: AssaiViewModel = hiltViewModel()) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(stringResource(R.string.assai_title), style = MaterialTheme.typography.titleLarge)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                NavigationActionButton(onClick = onBack, text = stringResource(R.string.report_back))
+                Text(stringResource(R.string.assai_title), style = MaterialTheme.typography.titleLarge)
+            }
             ModuleHelpButton(onClick = { showHelpDialog = true })
         }
         Text(
-            "Informe as unidades de cada produto: a quantidade tem de fechar caixas inteiras.",
+            stringResource(R.string.assai_subtitle),
             style = MaterialTheme.typography.bodySmall,
         )
 
@@ -87,13 +100,13 @@ fun AssaiCalculatorScreen(viewModel: AssaiViewModel = hiltViewModel()) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(line.product, style = MaterialTheme.typography.bodyLarge)
                             Text(
-                                "${line.unitsPerBox} por caixa" +
-                                    if (line.filled && line.exact) "  ·  ${line.boxes} caixas" else "",
+                                stringResource(R.string.assai_units_per_box, line.unitsPerBox) +
+                                    if (line.filled && line.exact) stringResource(R.string.assai_boxes_count, line.boxes) else "",
                                 style = MaterialTheme.typography.bodySmall,
                             )
                             if (visibleErrors.contains(line.product)) {
                                 Text(
-                                    "Quantidade incorreta de unidades",
+                                    stringResource(R.string.assai_invalid_units_error),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.error,
                                 )
@@ -161,7 +174,7 @@ fun AssaiCalculatorScreen(viewModel: AssaiViewModel = hiltViewModel()) {
         HorizontalDivider()
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(stringResource(R.string.assai_order_total))
-            Text("${viewModel.totalBoxes()} caixas", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.assai_total_boxes_format, viewModel.totalBoxes()), style = MaterialTheme.typography.titleMedium)
         }
 
         OutlinedTextField(
@@ -188,10 +201,10 @@ fun AssaiCalculatorScreen(viewModel: AssaiViewModel = hiltViewModel()) {
                 // application answers it stays the system's decision.
                 val target = link
                 if (target == null) {
-                    viewModel.onNote("Este número não serve para abrir uma conversa.")
+                    viewModel.onNote(invalidPhoneNote)
                 } else {
                     context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(target)))
-                    viewModel.onNote("Abrindo a conversa…")
+                    viewModel.onNote(openingWhatsappNote)
                 }
             },
             enabled = !viewModel.hasError() && link != null,
@@ -210,12 +223,12 @@ fun AssaiCalculatorScreen(viewModel: AssaiViewModel = hiltViewModel()) {
                 description = stringResource(R.string.help_assai_desc),
                 sections = listOf(
                     HelpSection(
-                        title = "Caixas Fechadas",
-                        description = "Digite as unidades demandadas. O pedido só permite múltiplos exatos para fechar caixas completas sem sobras.",
+                        title = stringResource(R.string.help_assai_boxes_title),
+                        description = stringResource(R.string.help_assai_boxes_desc),
                     ),
                     HelpSection(
-                        title = "Dias de Entrega",
-                        description = "Selecione o dia da semana desejado para incluir no cabeçalho do pedido do WhatsApp.",
+                        title = stringResource(R.string.help_assai_weekdays_title),
+                        description = stringResource(R.string.help_assai_weekdays_desc),
                     ),
                 ),
                 onDismissRequest = { showHelpDialog = false },

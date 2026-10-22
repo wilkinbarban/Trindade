@@ -135,4 +135,21 @@ class StockHistoryViewModelTest {
         viewModel.onBlur("787")
         assertEquals(listOf("787"), viewModel.visibleErrors())
     }
+
+    @Test
+    fun `onDateChange updates date without querying when date is partial or invalid ISO`() {
+        viewModel.onDateChange("2")
+        assertEquals("2", viewModel.state.value.date)
+        assertEquals(false, viewModel.state.value.loading)
+
+        viewModel.onDateChange("2026-1")
+        assertEquals("2026-1", viewModel.state.value.date)
+        assertEquals(false, viewModel.state.value.loading)
+    }
+
+    @Test
+    fun `onDateChange accepts valid ISO date and updates state`() {
+        viewModel.onDateChange("2026-04-18")
+        assertEquals("2026-04-18", viewModel.state.value.date)
+    }
 }

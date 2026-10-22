@@ -42,6 +42,7 @@ import com.trindade.app.ui.BrazilianPhoneVisualTransformation
 import com.trindade.app.ui.components.HelpSection
 import com.trindade.app.ui.components.ModuleHelpButton
 import com.trindade.app.ui.components.ModuleHelpDialog
+import com.trindade.app.ui.filterPhoneDigits
 
 @Composable
 fun ShareAppScreen(
@@ -52,6 +53,10 @@ fun ShareAppScreen(
     val clipboard = LocalClipboardManager.current
     var usersMenuExpanded by remember { mutableStateOf(false) }
     var showHelpDialog by remember { mutableStateOf(false) }
+
+    val noteCopied = stringResource(R.string.share_note_copied)
+    val noteInvalidPhone = stringResource(R.string.share_note_invalid_phone)
+    val noteOpeningWhatsapp = stringResource(R.string.share_note_opening_whatsapp)
 
     Column(
         modifier = Modifier
@@ -69,7 +74,7 @@ fun ShareAppScreen(
             ModuleHelpButton(onClick = { showHelpDialog = true })
         }
         Text(
-            "Compartilhe o link oficial e acessos do Trindade Massas via WhatsApp.",
+            stringResource(R.string.share_subtitle),
             style = MaterialTheme.typography.bodySmall,
         )
 
@@ -112,7 +117,7 @@ fun ShareAppScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text("Credenciais de Acesso", style = MaterialTheme.typography.titleSmall)
+                        Text(stringResource(R.string.share_credentials_title), style = MaterialTheme.typography.titleSmall)
                         Switch(
                             checked = state.includeCredentials,
                             onCheckedChange = { viewModel.onIncludeCredentialsToggle(it) },
@@ -121,7 +126,7 @@ fun ShareAppScreen(
 
                     if (state.includeCredentials) {
                         // User selection
-                        Text("Selecionar usuário", style = MaterialTheme.typography.bodySmall)
+                        Text(stringResource(R.string.share_select_user), style = MaterialTheme.typography.bodySmall)
                         Box(modifier = Modifier.fillMaxWidth()) {
                             OutlinedButton(
                                 onClick = { usersMenuExpanded = true },
@@ -130,7 +135,7 @@ fun ShareAppScreen(
                                 val label = if (state.displayName.isNotBlank()) {
                                     state.displayName
                                 } else {
-                                    "Selecione um usuário"
+                                    stringResource(R.string.share_select_user_placeholder)
                                 }
                                 Text(label)
                             }
@@ -176,7 +181,7 @@ fun ShareAppScreen(
         // Destination phone field with mask
         OutlinedTextField(
             value = state.phone,
-            onValueChange = { viewModel.onPhoneChange(it) },
+            onValueChange = { viewModel.onPhoneChange(filterPhoneDigits(it)) },
             visualTransformation = BrazilianPhoneVisualTransformation(),
             label = { Text(stringResource(R.string.share_target_whatsapp)) },
             placeholder = { Text(stringResource(R.string.whatsapp_phone_placeholder)) },
@@ -203,7 +208,7 @@ fun ShareAppScreen(
             OutlinedButton(
                 onClick = {
                     clipboard.setText(AnnotatedString(viewModel.message()))
-                    viewModel.onNote("Texto copiado para a área de transferência!")
+                    viewModel.onNote(noteCopied)
                 },
                 modifier = Modifier.weight(1f),
             ) {
@@ -214,10 +219,10 @@ fun ShareAppScreen(
                 onClick = {
                     val link = viewModel.whatsappLink()
                     if (link == null) {
-                        viewModel.onNote("Informe um número de WhatsApp válido.")
+                        viewModel.onNote(noteInvalidPhone)
                     } else {
                         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(link)))
-                        viewModel.onNote("Abrindo WhatsApp…")
+                        viewModel.onNote(noteOpeningWhatsapp)
                     }
                 },
                 enabled = viewModel.whatsappLink() != null,
@@ -237,12 +242,12 @@ fun ShareAppScreen(
                 description = stringResource(R.string.help_share_desc),
                 sections = listOf(
                     HelpSection(
-                        title = "Links por Plataforma",
-                        description = "Gere mensagens personalizadas para usuários de Android, iPhone ou acesso Web com ou sem credenciais.",
+                        title = stringResource(R.string.help_share_platforms_title),
+                        description = stringResource(R.string.help_share_platforms_desc),
                     ),
                     HelpSection(
-                        title = "Envio WhatsApp",
-                        description = "Dispare a mensagem diretamente para o contato informado com formatação amigável e links seguros.",
+                        title = stringResource(R.string.help_share_whatsapp_title),
+                        description = stringResource(R.string.help_share_whatsapp_desc),
                     ),
                 ),
                 onDismissRequest = { showHelpDialog = false },

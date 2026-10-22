@@ -219,6 +219,10 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                     val onBackLoadingTab = { tab = Tab.DASHBOARD }
+                    val onBackAssaiTab = { tab = Tab.DASHBOARD }
+                    val onBackShareTab = { tab = Tab.DASHBOARD }
+                    val onBackMassasLaunchTab = { tab = Tab.DASHBOARD }
+                    val onBackReportsTab = { tab = Tab.DASHBOARD }
                     val onBackTasksTab = { tab = Tab.DASHBOARD }
                     val onBackDriversTab = { tab = Tab.DASHBOARD }
                     val onBackAdminTab = { tab = Tab.DASHBOARD }
@@ -349,11 +353,16 @@ class MainActivity : ComponentActivity() {
                             drawerState = drawerState,
                         ) {
                             when (tab) {
-                                // Las tres superficies nuevas se dibujan sin argumentos: cada una resuelve su
-                                // ViewModel por Hilt, y la calculadora de Assaí no toca la red en absoluto.
-                                Tab.ASSAI -> AssaiCalculatorScreen()
-                                Tab.SHARE -> ShareAppScreen()
+                                Tab.ASSAI -> {
+                                    BackHandler(enabled = !drawerState.isOpen, onBack = onBackAssaiTab)
+                                    AssaiCalculatorScreen(onBack = onBackAssaiTab)
+                                }
+                                Tab.SHARE -> {
+                                    BackHandler(enabled = !drawerState.isOpen, onBack = onBackShareTab)
+                                    ShareAppScreen()
+                                }
                                 Tab.MASSAS_LAUNCH -> {
+                                    BackHandler(enabled = !drawerState.isOpen, onBack = onBackMassasLaunchTab)
                                     val massasViewModel: com.trindade.app.massas.MassasLaunchViewModel = hiltViewModel()
                                     LaunchedEffect(massasLaunchDay) {
                                         massasLaunchDay?.let { massasViewModel.loadDay(it) }
@@ -364,10 +373,12 @@ class MainActivity : ComponentActivity() {
                                     )
                                 }
                                 Tab.MASSAS_HISTORY -> {
+                                    val onBackMassasHistoryTab = { tab = Tab.MASSAS_LAUNCH }
+                                    BackHandler(enabled = !drawerState.isOpen, onBack = onBackMassasHistoryTab)
                                     val historyViewModel: com.trindade.app.massas.MassasHistoryViewModel = hiltViewModel()
                                     com.trindade.app.massas.MassasHistoryScreen(
                                         viewModel = historyViewModel,
-                                        onBack = { tab = Tab.MASSAS_LAUNCH },
+                                        onBack = onBackMassasHistoryTab,
                                         onSelectDate = { selectedDate ->
                                             massasLaunchDay = selectedDate
                                             tab = Tab.MASSAS_LAUNCH
@@ -376,8 +387,18 @@ class MainActivity : ComponentActivity() {
                                 }
                                 // El histórico propaga el rol resuelto de sesión para que el
                                 // Administrador pueda realizar correcciones sobre días anteriores.
-                                Tab.STOCK_HISTORY -> StockHistoryScreen(role = role)
-                                Tab.STOCK_COUNTER -> StockCalculatorScreen(role = role)
+                                Tab.STOCK_HISTORY -> {
+                                    val onBackStockHistory = { tab = Tab.STOCK_COUNTER }
+                                    BackHandler(enabled = !drawerState.isOpen, onBack = onBackStockHistory)
+                                    StockHistoryScreen(
+                                        role = role,
+                                        onBack = onBackStockHistory,
+                                    )
+                                }
+                                Tab.STOCK_COUNTER -> {
+                                    BackHandler(enabled = !drawerState.isOpen) { tab = Tab.DASHBOARD }
+                                    StockCalculatorScreen(role = role)
+                                }
                                 Tab.DASHBOARD -> DashboardRoute(
                                     sessionKey = sessionKey,
                                     onOpenReport = { openReportId = it },
@@ -405,10 +426,13 @@ class MainActivity : ComponentActivity() {
                                         massasHistoryOpen = true
                                     },
                                 )
-                                Tab.REPORTS -> ReportGeneratorRoute(
-                                    onCreated = { openReportId = it },
-                                    onOpenHistory = { historyOpen = true },
-                                )
+                                Tab.REPORTS -> {
+                                    BackHandler(enabled = !drawerState.isOpen, onBack = onBackReportsTab)
+                                    ReportGeneratorRoute(
+                                        onCreated = { openReportId = it },
+                                        onOpenHistory = { historyOpen = true },
+                                    )
+                                }
                                 Tab.LOADING -> {
                                     BackHandler(enabled = !drawerState.isOpen, onBack = onBackLoadingTab)
                                     LoadingRoute(
