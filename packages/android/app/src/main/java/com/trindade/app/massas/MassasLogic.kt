@@ -1,6 +1,7 @@
 package com.trindade.app.massas
 
 import com.trindade.app.network.MassaIndividualLaunch
+import com.trindade.app.network.MassaProductTotal
 import com.trindade.app.network.MassasLaunchDayView
 
 data class MassaCatalogItem(
@@ -43,8 +44,8 @@ fun brazilianDate(date: String): String {
 }
 
 /**
- * Formats WhatsApp message for massas launches showing strictly total units
- * per launched product and the list of unique operators (without Total Geral).
+ * Formats WhatsApp message for massas launches with the collective summary of the day
+ * plus a per-worker breakdown, with the redundant "MASSA" prefix removed from names.
  */
 fun formatMassasWhatsAppMessage(view: MassasLaunchDayView): String {
     val lines = mutableListOf<String>()
@@ -57,23 +58,153 @@ fun formatMassasWhatsAppMessage(view: MassasLaunchDayView): String {
         return lines.joinToString("\n")
     }
 
+    lines.add("*Resumo Coletivo:*")
     for (product in launchedProducts) {
-        lines.add("• ${product.name}: ${product.totalUnits} un")
+        lines.add(
+            "• ${stripMassasPrefix(product.name)}: ${product.totalUnits} un (${product.totalBoxes} cx)"
+        )
     }
 
-    val uniqueOperators = view.launches
+    val workers = buildWorkerTotals(view)
+    if (workers.isNotEmpty()) {
+        lines.add("")
+        lines.add("*Por Trabalhador:*")
+        workers.forEachIndexed { index, worker ->
+            if (index > 0) lines.add("")
+            lines.add("👤 *${worker.name}:*")
+            for (product in worker.products) {
+                lines.add(
+                    "• ${stripMassasPrefix(product.name)}: ${product.totalUnits} un (${product.totalBoxes} cx)"
+                )
+            }
+        }
+    }
+
+    return lines.joinToString("\n")
+}
+
+private val MASSAS_PREFIX_REGEX = Regex("^MASSA\\s+(?:DE\\s+)?", RegexOption.IGNORE_CASE)
+
+/**
+ * Removes the leading "MASSA" (or "MASSA DE") prefix from a product name,
+ * so the message reads "CASEIRA" instead of "MASSA CASEIRA".
+ */
+fun stripMassasPrefix(name: String): String = name.trim().replace(MASSAS_PREFIX_REGEX, "").trim()
+
+data class MassaWorkerProductLine(
+    val code: String,
+    val name: String,
+    val totalBoxes: Int,
+    val totalUnits: Int,
+)
+
+data class MassaWorkerTotals(
+    val userId: Int,
+    val name: String,
+    val products: List<MassaWorkerProductLine>,
+)
+
+private fun <T> sortByCatalogOrder(items: List<T>, catalog: List<MassaProductTotal>, code: (T) -> String, name: (T) -> String): List<T> {
+    val order = catalog.mapIndexed { index, product -> product.code to index }.toMap()
+    return items.sortedWith(
+        compareBy(
+            { order[code(it)] ?: Int.MAX_VALUE },
+            { name(it) },
+        )
+    )
+}
+
+/**
+ * Consolidates launches per product, using the catalog only as the source of names,
+ * units per box and display order. This makes the collective summary follow the
+ * selected worker filter instead of the server-wide aggregate.
+ */
+fun groupProductsFromLaunches(
+    launches: List<MassaIndividualLaunch>,
+    catalog: List<MassaProductTotal>,
+): List<MassaProductTotal> {
+    val catalogByCode = catalog.associateBy { it.code }
+    val totals = linkedMapOf<String, MassaProductTotal>()
+
+    for (launch in launches) {
+        val meta = catalogByCode[launch.productCode]
+        val current = totals[launch.productCode]
+        totals[launch.productCode] = MassaProductTotal(
+            code = launch.productCode,
+            name = meta?.name ?: launch.productName,
+            unitsPerBox = meta?.unitsPerBox
+                ?: if (launch.boxes > 0) Math.round(launch.units.toFloat() / launch.boxes) else 0,
+            totalBoxes = (current?.totalBoxes ?: 0) + launch.boxes,
+            totalUnits = (current?.totalUnits ?: 0) + launch.units,
+        )
+    }
+
+    return sortByCatalogOrder(
+        totals.values.filter { it.totalUnits > 0 },
+        catalog,
+        code = { it.code },
+        name = { it.name },
+    )
+}
+
+/**
+ * Lists the distinct workers who launched a given product, sorted by name.
+ */
+fun productWorkerNames(
+    launches: List<MassaIndividualLaunch>,
+    productCode: String,
+): List<String> {
+    return launches
+        .filter { it.productCode == productCode }
         .mapNotNull { launch ->
             launch.displayName.trim().takeIf { it.isNotEmpty() }
                 ?: launch.username.trim().takeIf { it.isNotEmpty() }
         }
         .distinct()
+        .sorted()
+}
 
-    if (uniqueOperators.isNotEmpty()) {
-        lines.add("")
-        lines.add("*Lançado por:* ${uniqueOperators.joinToString(", ")}")
+/**
+ * Builds the per-worker breakdown of the day, with products in catalog order.
+ */
+fun buildWorkerTotals(view: MassasLaunchDayView): List<MassaWorkerTotals> {
+    data class Accumulator(
+        var name: String,
+        val products: LinkedHashMap<String, MassaWorkerProductLine>,
+    )
+
+    val byUser = linkedMapOf<Int, Accumulator>()
+
+    for (launch in view.launches) {
+        val name = launch.displayName.trim().takeIf { it.isNotEmpty() }
+            ?: launch.username.trim().takeIf { it.isNotEmpty() }
+            ?: "Operador ${launch.userId}"
+        val accumulator = byUser.getOrPut(launch.userId) { Accumulator(name, linkedMapOf()) }
+        if (name.isNotEmpty()) accumulator.name = name
+
+        val current = accumulator.products[launch.productCode]
+        accumulator.products[launch.productCode] = MassaWorkerProductLine(
+            code = launch.productCode,
+            name = launch.productName,
+            totalBoxes = (current?.totalBoxes ?: 0) + launch.boxes,
+            totalUnits = (current?.totalUnits ?: 0) + launch.units,
+        )
     }
 
-    return lines.joinToString("\n")
+    return byUser.map { (userId, accumulator) ->
+        MassaWorkerTotals(
+            userId = userId,
+            name = accumulator.name,
+            products = sortByCatalogOrder(
+                accumulator.products.values.filter { it.totalUnits > 0 },
+                view.products,
+                code = { it.code },
+                name = { it.name },
+            ),
+        )
+    }
+        .filter { it.products.isNotEmpty() }
+        .sortedBy { it.name }
 }
 
 /**

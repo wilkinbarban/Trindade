@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -370,7 +371,7 @@ fun MassasLaunchScreen(
             }
         }
 
-        // BLOQUE 2: Resumo Coletivo do Dia (Otimizado para Mobile com Prioridade aos Trabalhadores)
+        // BLOQUE 2: Lançamentos Individuais do Dia (filtro por trabalhador no topo)
         Card(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             shape = RoundedCornerShape(16.dp),
@@ -546,53 +547,108 @@ fun MassasLaunchScreen(
                     }
                 }
 
-                // 4. Totais consolidados ao FINAL com menor relevância visual (design sutil e compacto)
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            }
+        }
 
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+        // BLOQUE 3: Resumo Coletivo do Dia (segue o filtro de trabalhador e destaca os totais)
+        Card(
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp)),
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.massas_collective_summary),
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+
+                val catalog = state.dayView?.products ?: emptyList()
+                val allLaunches = state.dayView?.launches ?: emptyList()
+                val visibleLaunches = filterLaunchesByOperator(allLaunches, state.selectedOperatorId)
+                val collectiveProducts = remember(visibleLaunches, catalog) {
+                    groupProductsFromLaunches(visibleLaunches, catalog)
+                }
+
+                if (collectiveProducts.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.massas_no_launches_today),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    collectiveProducts.forEach { product ->
+                        val workerNames = productWorkerNames(visibleLaunches, product.code)
+
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF3C7)),
                             shape = RoundedCornerShape(10.dp),
-                        )
-                        .padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = stringResource(R.string.massas_collective_summary),
-                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Text(
-                            text = "${state.dayView?.totalBoxes ?: 0} cx · ${state.dayView?.totalUnits ?: 0} un",
-                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-
-                    val launchedProducts = state.dayView?.products?.filter { it.totalUnits > 0 } ?: emptyList()
-                    if (launchedProducts.isNotEmpty()) {
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            launchedProducts.forEach { product ->
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .border(1.dp, Color(0xFFFCD34D), RoundedCornerShape(10.dp)),
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
                                 ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = product.name,
+                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                            color = Color(0xFF78350F),
+                                        )
+                                        Text(
+                                            text = "${product.unitsPerBox} un/cx",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = Color(0xFF92400E),
+                                        )
+                                    }
+
+                                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Box(
+                                            modifier = Modifier
+                                                .background(Color(0x14000000), RoundedCornerShape(6.dp))
+                                                .padding(horizontal = 8.dp, vertical = 3.dp),
+                                        ) {
+                                            Text(
+                                                text = "${product.totalBoxes} cx",
+                                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                                color = Color(0xFF1F2937),
+                                            )
+                                        }
+                                        Box(
+                                            modifier = Modifier
+                                                .background(Color(0xFFB45309), RoundedCornerShape(6.dp))
+                                                .padding(horizontal = 8.dp, vertical = 3.dp),
+                                        ) {
+                                            Text(
+                                                text = "${product.totalUnits} un",
+                                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.ExtraBold),
+                                                color = Color.White,
+                                            )
+                                        }
+                                    }
+                                }
+
+                                if (workerNames.isNotEmpty()) {
                                     Text(
-                                        text = product.name,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                    Text(
-                                        text = "${product.totalBoxes} cx (${product.totalUnits} un)",
-                                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                                        color = MaterialTheme.colorScheme.onSurface,
+                                        text = "👤 ${workerNames.joinToString(", ")}",
+                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                                        color = Color(0xFF92400E),
                                     )
                                 }
                             }
@@ -602,7 +658,7 @@ fun MassasLaunchScreen(
             }
         }
 
-        // BLOQUE 3: Compartilhar no WhatsApp
+        // BLOQUE 4: Compartilhar no WhatsApp
         Card(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             shape = RoundedCornerShape(16.dp),

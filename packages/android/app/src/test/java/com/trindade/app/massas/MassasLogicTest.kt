@@ -104,12 +104,73 @@ class MassasLogicTest {
         )
 
         val message = formatMassasWhatsAppMessage(view)
-        assertTrue(message.startsWith("🍝 *Lançamento de Massas — 18/05/2025*"))
-        assertTrue(message.contains("• MASSA CASEIRA: 50 un"))
-        assertTrue(message.contains("• MASSA TOKO: 20 un"))
-        assertFalse(message.contains("MASSA DISCO 200G"))
-        assertTrue(message.contains("*Lançado por:* João Silva, Maria Souza"))
+        val expected = listOf(
+            "🍝 *Lançamento de Massas — 18/05/2025*",
+            "",
+            "*Resumo Coletivo:*",
+            "• CASEIRA: 50 un (5 cx)",
+            "• TOKO: 20 un (2 cx)",
+            "",
+            "*Por Trabalhador:*",
+            "👤 *João Silva:*",
+            "• CASEIRA: 50 un (5 cx)",
+            "• TOKO: 10 un (1 cx)",
+            "",
+            "👤 *Maria Souza:*",
+            "• TOKO: 20 un (2 cx)",
+        ).joinToString("\n")
+
+        assertEquals(expected, message)
+        assertFalse(message.contains("MASSA "))
+        assertFalse(message.contains("*Lançado por:*"))
         assertFalse(message.contains("Total Geral"))
+    }
+
+    @Test
+    fun stripMassasPrefix_removesOnlyTheLeadingMassaPrefix() {
+        assertEquals("CASEIRA", stripMassasPrefix("MASSA CASEIRA"))
+        assertEquals("DISCO 200G", stripMassasPrefix("massa disco 200g".uppercase()))
+        assertEquals("disco 200g", stripMassasPrefix("massa disco 200g"))
+        assertEquals("ROLÔ DE QUEIJO", stripMassasPrefix("MASSA DE ROLÔ DE QUEIJO"))
+        assertEquals("TOKO", stripMassasPrefix("  MASSA TOKO  "))
+    }
+
+    @Test
+    fun groupProductsFromLaunches_followsTheFilteredLaunchesAndCatalogOrder() {
+        val catalog = listOf(
+            MassaProductTotal("1045", "MASSA CASEIRA", 10, totalBoxes = 8, totalUnits = 80),
+            MassaProductTotal("1616", "MASSA TOKO", 10, totalBoxes = 3, totalUnits = 30),
+            MassaProductTotal("39", "MASSA DISCO 200G", 10, totalBoxes = 0, totalUnits = 0),
+        )
+        val launches = listOf(
+            MassaIndividualLaunch(
+                id = 1, productCode = "1045", productName = "MASSA CASEIRA",
+                boxes = 5, units = 50, userId = 2, username = "joao", displayName = "João Silva",
+            ),
+            MassaIndividualLaunch(
+                id = 2, productCode = "1045", productName = "MASSA CASEIRA",
+                boxes = 3, units = 30, userId = 3, username = "maria", displayName = "Maria Souza",
+            ),
+            MassaIndividualLaunch(
+                id = 3, productCode = "1616", productName = "MASSA TOKO",
+                boxes = 3, units = 30, userId = 2, username = "joao", displayName = "João Silva",
+            ),
+        )
+
+        val all = groupProductsFromLaunches(launches, catalog)
+        assertEquals(listOf("1045", "1616"), all.map { it.code })
+        assertEquals(listOf(8, 3), all.map { it.totalBoxes })
+        assertEquals(listOf(80, 30), all.map { it.totalUnits })
+        assertEquals(listOf("João Silva", "Maria Souza"), productWorkerNames(launches, "1045"))
+
+        val onlyMaria = filterLaunchesByOperator(launches, 3)
+        val mariaProducts = groupProductsFromLaunches(onlyMaria, catalog)
+        assertEquals(1, mariaProducts.size)
+        assertEquals("1045", mariaProducts[0].code)
+        assertEquals(3, mariaProducts[0].totalBoxes)
+        assertEquals(30, mariaProducts[0].totalUnits)
+        assertEquals(listOf("Maria Souza"), productWorkerNames(onlyMaria, "1045"))
+        assertTrue(productWorkerNames(onlyMaria, "1616").isEmpty())
     }
 
     @Test
