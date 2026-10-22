@@ -15,7 +15,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - **Total Geral removido** do resumo coletivo; o total do formulário de lançamento permanece inalterado.
 - **Destaque visual do resumo coletivo**: cartões em âmbar, tipografia em negrito e badges dedicados para `cx` e `un`.
 - **Prévia de WhatsApp reformulada**: remove o prefixo `MASSA ` / `MASSA DE ` dos nomes de produto, inclui o *Resumo Coletivo* e adiciona o bloco `*Por Trabalhador:*` com `un (cx)` por operador, em ordem alfabética e com os produtos na ordem do catálogo.
-- **Distribuição Android v0.5.1 (Code 507)**: `versionCode=507`, `versionName=0.5.1`, binário assinado sob APK Signature Scheme v2 (`CN=Trindade Massas Operacoes`), `aapt2` com `versionCode='507'`, `10,814,264` bytes, `sha256 26101389c0eacfee99c10577e0cb445f16fdf8a2ab2843b45c7ad834a7b9db20`, com `app-release-unsigned.apk` ausente do diretório de saída. Publicado em GitHub Release `v0.5.1` (`trindade-0.5.1.apk`) e copiado para o Desktop.
+- **Distribuição Android v0.5.1 (Code 507)**: `versionCode=507`, `versionName=0.5.1`, binário assinado sob APK Signature Scheme v2 (`CN=Trindade Massas Operacoes`), `aapt2` com `versionCode='507'`, `10,814,264` bytes, `sha256 3d03d5819423c05d9cc9bc61b28227363a4ce751bd86085bc8859cb725675cf7`, com `app-release-unsigned.apk` ausente do diretório de saída. Publicado em GitHub Release `v0.5.1` (`trindade-0.5.1.apk`) e copiado para o Desktop.
 
 ---
 
