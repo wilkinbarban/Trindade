@@ -6,6 +6,16 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [0.5.1+508] — 2026-10-22
+
+### 🐛 Corrigido (Relatório — seção de massas)
+- **Prefixo `MASSA` removido do texto exportado**: o texto de WhatsApp gerado pelo backend para o módulo Relatório passa a exibir `CASEIRA` e `ROLO 2KG` em `Por Operário:` e `Resumo Coletivo:`, em vez de `MASSA CASEIRA` / `MASSA ROLO 2KG`, alinhando o relatório ao módulo Lançamento de Massas. Regra aplicada: `^MASSAS?\s+(?:DE\s+)?` (insensível a caixa), portanto nomes sem o prefixo permanecem intactos.
+
+### 🔧 Manutenção
+- **Distribuição Android v0.5.1 (Code 508)**: `versionCode=508`, `versionName=0.5.1`, binário assinado sob APK Signature Scheme v2 (`CN=Trindade Massas Operacoes`).
+
+---
+
 ## [0.5.1+507] — 2026-10-22
 
 ### ✨ Melhorado (Lançamento de Massas — paridade Web e Android)
