@@ -31,7 +31,8 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
   - Comparação estrita de digest e tamanho contra os metadatos do GitHub Release (`GitHubAsset.digest`), eliminando falsos positivos e loops infinitos provocados pela discrepância de timestamps entre a compilação Gradle e o upload do release.
 - **Dashboard Operacional**:
   - Cartão "Lançamento de Massas" posicionado fixamente na 3ª posição (entre Cronograma Ativo e Calculador de Estoque), com ícone 🍝 e atalhos para lançamento e histórico.
-- **Distribuição Android v0.5.1 (Code 504)**:
+  - **Refinamento de UI no Cabeçalho**: padronização do botão de retorno usando `R.string.report_back` ("Voltar" / "Volver"), tipografia `titleLarge` em negrito com elipse e badge "Modo Leitura" integrado harmoniosamente na linha de data de produção.
+- **Distribuição Android v0.5.1 (Code 505)**:
   - Binário oficial assinado sob esquema APK Signature Scheme v2 (`CN=Trindade Massas Operacoes`).
   - Instalado e validado em emulador Ubuntu (`Trindade_UX_v030`).
 
