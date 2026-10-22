@@ -674,7 +674,8 @@ describe('Reports Routes', () => {
     assert.strictEqual(resWith.statusCode, 200);
     const bodyWith = JSON.parse(resWith.body);
     assert.ok(bodyWith.text.includes('🍝 *LANÇAMENTO DE MASSAS*'));
-    assert.ok(bodyWith.text.includes('MASSA CASEIRA: 30 un'));
+    assert.ok(bodyWith.text.includes('CASEIRA: 30 un'));
+    assert.ok(!bodyWith.text.includes('MASSA '), 'the exported section strips the MASSA prefix');
     assert.ok(!bodyWith.text.includes('Total de Massas'));
     assert.ok(!bodyWith.text.includes('cx'));
   });

@@ -10,6 +10,18 @@ import { massasLaunchDayView } from '../massas/massas.service.js';
  * copy-paste into WhatsApp.
  */
 
+/**
+ * Removes the leading "MASSA" (or "MASSAS", optionally followed by "DE") prefix
+ * from a massas product name, so the message reads "CASEIRA" instead of
+ * "MASSA CASEIRA". Keeps the same rule the web and Android massas modules use.
+ */
+export function stripMassasPrefix(name: string): string {
+  return name
+    .trim()
+    .replace(/^MASSAS?\s+(?:DE\s+)?/i, '')
+    .trim();
+}
+
 interface ExportRow {
   id: number;
   turno: string;
@@ -254,7 +266,7 @@ export function generateWhatsAppText(
           lines.push(`👤 ${operatorName}:`);
           for (const item of userProducts.values()) {
             if (item.units > 0) {
-              lines.push(`   - ${item.name}: ${item.units} un`);
+              lines.push(`   - ${stripMassasPrefix(item.name)}: ${item.units} un`);
             }
           }
         }
@@ -265,7 +277,7 @@ export function generateWhatsAppText(
       if (activeProducts.length > 0) {
         lines.push('Resumo Coletivo:');
         for (const p of activeProducts) {
-          lines.push(`📦 ${p.name}: ${p.totalUnits} un`);
+          lines.push(`📦 ${stripMassasPrefix(p.name)}: ${p.totalUnits} un`);
         }
         lines.push('');
       }

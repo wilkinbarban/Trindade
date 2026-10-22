@@ -3,7 +3,7 @@ import assert from 'node:assert';
 import Database from 'better-sqlite3';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { generateWhatsAppText } from './export.service.js';
+import { generateWhatsAppText, stripMassasPrefix } from './export.service.js';
 
 /**
  * Creates an in-memory database with schema + seed, then inserts a test report
@@ -333,11 +333,12 @@ describe('Export Service (Generador Inteligente)', () => {
     assert.ok(textWith.includes('🍝 *LANÇAMENTO DE MASSAS*'));
     assert.ok(textWith.includes('Por Operário:'));
     assert.ok(textWith.includes('👤 Test User:'));
-    assert.ok(textWith.includes('   - MASSA CASEIRA: 40 un'));
-    assert.ok(textWith.includes('   - MASSA ROLO 2KG: 12 un'));
+    assert.ok(textWith.includes('   - CASEIRA: 40 un'));
+    assert.ok(textWith.includes('   - ROLO 2KG: 12 un'));
     assert.ok(textWith.includes('Resumo Coletivo:'));
-    assert.ok(textWith.includes('📦 MASSA CASEIRA: 40 un'));
-    assert.ok(textWith.includes('📦 MASSA ROLO 2KG: 12 un'));
+    assert.ok(textWith.includes('📦 CASEIRA: 40 un'));
+    assert.ok(textWith.includes('📦 ROLO 2KG: 12 un'));
+    assert.ok(!textWith.includes('MASSA '), 'no product line keeps the MASSA prefix');
     assert.ok(!textWith.includes('Total de Massas'));
     assert.ok(!textWith.includes('cx'));
 
@@ -345,6 +346,16 @@ describe('Export Service (Generador Inteligente)', () => {
     const massasIndex = textWith.indexOf('🍝 *LANÇAMENTO DE MASSAS*');
     const notesIndex = textWith.indexOf('📝 *Observações:*');
     assert.ok(massasIndex < notesIndex, 'Massas section must precede Observações');
+  });
+
+  it('strips only the leading MASSA prefix from a massas product name', () => {
+    assert.strictEqual(stripMassasPrefix('MASSA CASEIRA'), 'CASEIRA');
+    assert.strictEqual(stripMassasPrefix('MASSAS TOKO'), 'TOKO');
+    assert.strictEqual(stripMassasPrefix('Massa de Rolo 2kg'), 'Rolo 2kg');
+    assert.strictEqual(stripMassasPrefix('  MASSA ROLO 2KG  '), 'ROLO 2KG');
+    assert.strictEqual(stripMassasPrefix('CASEIRA'), 'CASEIRA');
+    assert.strictEqual(stripMassasPrefix('PIZZA MASSA FINA'), 'PIZZA MASSA FINA');
+    assert.strictEqual(stripMassasPrefix(''), '');
   });
 
   it('omits massas section when includeMassas is true but no launches exist for that date', () => {
