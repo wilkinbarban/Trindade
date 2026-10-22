@@ -174,6 +174,33 @@ class MassasLogicTest {
     }
 
     @Test
+    fun productWorkerNames_ordersNamesByCodeUnitLikeTheWebBuild() {
+        val launches = listOf(
+            MassaIndividualLaunch(
+                id = 1, productCode = "1045", productName = "MASSA CASEIRA",
+                boxes = 1, units = 10, userId = 1, username = "alvaro", displayName = "Álvaro Nunes",
+            ),
+            MassaIndividualLaunch(
+                id = 2, productCode = "1045", productName = "MASSA CASEIRA",
+                boxes = 1, units = 10, userId = 2, username = "bruno", displayName = "Bruno Lima",
+            ),
+            MassaIndividualLaunch(
+                id = 3, productCode = "1045", productName = "MASSA CASEIRA",
+                boxes = 1, units = 10, userId = 3, username = "ana", displayName = "Ana Souza",
+            ),
+        )
+
+        assertEquals(
+            listOf("Ana Souza", "Bruno Lima", "Álvaro Nunes"),
+            productWorkerNames(launches, "1045"),
+        )
+        assertEquals(
+            listOf("Ana Souza", "Bruno Lima", "Álvaro Nunes"),
+            extractOperators(launches).map { it.name },
+        )
+    }
+
+    @Test
     fun shouldPollMassas_respectsGuards() {
         assertTrue(shouldPollMassas(isScreenActive = true, isEditing = false, isSubmitting = false))
         assertFalse(shouldPollMassas(isScreenActive = false, isEditing = false, isSubmitting = false))

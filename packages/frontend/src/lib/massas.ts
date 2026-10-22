@@ -92,6 +92,17 @@ export function stripMassasPrefix(name: string): string {
     .trim();
 }
 
+/**
+ * Locale-independent name comparison, matching Kotlin's `compareBy { it.lowercase() }` so the web and
+ * Android builds order workers the same way even when a name starts with an accented letter.
+ */
+export function compareWorkerNames(a: string, b: string): number {
+  const left = a.toLowerCase();
+  const right = b.toLowerCase();
+  if (left === right) return 0;
+  return left < right ? -1 : 1;
+}
+
 export interface MassaWorkerProductLine {
   code: string;
   name: string;
@@ -113,7 +124,7 @@ function sortByCatalogOrder<T extends { code: string; name: string }>(
   return [...items].sort((a, b) => {
     const left = order.get(a.code) ?? Number.MAX_SAFE_INTEGER;
     const right = order.get(b.code) ?? Number.MAX_SAFE_INTEGER;
-    return left === right ? a.name.localeCompare(b.name) : left - right;
+    return left === right ? compareWorkerNames(a.name, b.name) : left - right;
   });
 }
 
@@ -162,7 +173,7 @@ export function productWorkerNames(
     const name = (launch.display_name || launch.username || '').trim();
     if (name) names.add(name);
   }
-  return Array.from(names).sort((a, b) => a.localeCompare(b));
+  return Array.from(names).sort(compareWorkerNames);
 }
 
 /**
@@ -198,7 +209,7 @@ export function buildWorkerTotals(view: MassasLaunchDayView): MassaWorkerTotals[
       ),
     }))
     .filter((worker) => worker.products.length > 0)
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort((a, b) => compareWorkerNames(a.name, b.name));
 }
 
 /**
@@ -249,7 +260,7 @@ export function extractOperators(launches: MassaIndividualLaunch[]): MassaOperat
   }
   return Array.from(map.entries())
     .map(([id, name]) => ({ id, name }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort((a, b) => compareWorkerNames(a.name, b.name));
 }
 
 /**

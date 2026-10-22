@@ -9,6 +9,7 @@ import {
   calculateOperatorSubtotal,
   groupProductsFromLaunches,
   productWorkerNames,
+  compareWorkerNames,
   type MassasLaunchDayView,
   type MassaIndividualLaunch,
   type MassaProductTotal,
@@ -330,5 +331,16 @@ describe('massas collective summary derived from filtered launches', () => {
       products.map((p) => p.code),
       ['1045', '84']
     );
+  });
+});
+
+describe('massas worker ordering', () => {
+  it('orders names by code unit, not by locale, so web and android agree', () => {
+    const names = ['Álvaro Nunes', 'Bruno Lima', 'Ana Souza'];
+    assert.deepStrictEqual(names.sort(compareWorkerNames), [
+      'Ana Souza',
+      'Bruno Lima',
+      'Álvaro Nunes',
+    ]);
   });
 });

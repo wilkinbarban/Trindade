@@ -109,7 +109,7 @@ private fun <T> sortByCatalogOrder(items: List<T>, catalog: List<MassaProductTot
     return items.sortedWith(
         compareBy(
             { order[code(it)] ?: Int.MAX_VALUE },
-            { name(it) },
+            { name(it).lowercase() },
         )
     )
 }
@@ -161,7 +161,7 @@ fun productWorkerNames(
                 ?: launch.username.trim().takeIf { it.isNotEmpty() }
         }
         .distinct()
-        .sorted()
+        .sortedBy { it.lowercase() }
 }
 
 /**
@@ -204,7 +204,7 @@ fun buildWorkerTotals(view: MassasLaunchDayView): List<MassaWorkerTotals> {
         )
     }
         .filter { it.products.isNotEmpty() }
-        .sortedBy { it.name }
+        .sortedBy { it.name.lowercase() }
 }
 
 /**
@@ -259,7 +259,7 @@ fun extractOperators(launches: List<MassaIndividualLaunch>): List<MassaOperator>
             MassaOperator(launch.userId, name)
         }
         .distinctBy { it.id }
-        .sortedBy { it.name }
+        .sortedBy { it.name.lowercase() }
 }
 
 /**
