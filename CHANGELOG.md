@@ -6,6 +6,19 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [0.5.1+507] — 2026-10-22
+
+### ✨ Melhorado (Lançamento de Massas — paridade Web e Android)
+- **Ordem das vistas**: *Lançamentos Individuais* passam a aparecer acima do *Resumo Coletivo do Dia* nas duas plataformas.
+- **Filtro simultâneo por trabalhador**: os chips de trabalhador filtram tanto a lista de lançamentos individuais quanto os produtos do resumo coletivo, recalculados a partir dos lançamentos visíveis (o catálogo fornece apenas nomes, unidades por caixa e ordem).
+- **Nomes dos trabalhadores por produto**: cada item do resumo coletivo exibe `👤 João Silva, Maria Souza`.
+- **Total Geral removido** do resumo coletivo; o total do formulário de lançamento permanece inalterado.
+- **Destaque visual do resumo coletivo**: cartões em âmbar, tipografia em negrito e badges dedicados para `cx` e `un`.
+- **Prévia de WhatsApp reformulada**: remove o prefixo `MASSA ` / `MASSA DE ` dos nomes de produto, inclui o *Resumo Coletivo* e adiciona o bloco `*Por Trabalhador:*` com `un (cx)` por operador, em ordem alfabética e com os produtos na ordem do catálogo.
+- **Distribuição Android v0.5.1 (Code 507)**: `versionCode=507`, `versionName=0.5.1`, binário assinado sob APK Signature Scheme v2 (`CN=Trindade Massas Operacoes`), `aapt2` com `versionCode='507'`, `10,814,264` bytes, `sha256 26101389c0eacfee99c10577e0cb445f16fdf8a2ab2843b45c7ad834a7b9db20`, com `app-release-unsigned.apk` ausente do diretório de saída. Publicado em GitHub Release `v0.5.1` (`trindade-0.5.1.apk`) e copiado para o Desktop.
+
+---
+
 ## [0.5.1] — 2026-10-21
 
 ### 🎯 Adicionado (Lançamento de Massas e Ajuda Contextual)
