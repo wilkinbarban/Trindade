@@ -6,7 +6,11 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.trindade.app.network.GuestReadonlyNotice
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
@@ -157,8 +161,10 @@ class MainActivity : ComponentActivity() {
                     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
                     val role = remember(signedIn) { authRepository.sessionRole() }
                     val sessionKey = remember(signedIn) { authRepository.sessionGeneration.toString() }
+                    val sessionScope = rememberCoroutineScope()
+                    val lifecycleOwner = LocalLifecycleOwner.current
 
-                    LaunchedEffect(signedIn) {
+                    val checkAppUpdate: suspend () -> Unit = {
                         if (signedIn) {
                             val release = updateRepository.latestRelease()
                             if (release != null) {
@@ -176,9 +182,26 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     }
+
+                    LaunchedEffect(signedIn) {
+                        checkAppUpdate()
+                    }
+
+                    DisposableEffect(lifecycleOwner, signedIn) {
+                        val observer = LifecycleEventObserver { _, event ->
+                            if (event == Lifecycle.Event.ON_RESUME && signedIn) {
+                                sessionScope.launch {
+                                    checkAppUpdate()
+                                }
+                            }
+                        }
+                        lifecycleOwner.lifecycle.addObserver(observer)
+                        onDispose {
+                            lifecycleOwner.lifecycle.removeObserver(observer)
+                        }
+                    }
                     // Para cerrar la sesión de verdad al salir al login: limpiar sólo el estado de la
                     // pantalla dejaría el token vivo en el dispositivo.
-                    val sessionScope = rememberCoroutineScope()
 
                     fun endSession() {
                         profileOpen = false
