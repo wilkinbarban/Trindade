@@ -16,13 +16,13 @@ Quita el prefijo `MASSA ` de los productos en la sección de massas del texto de
 
 ## Tasks
 
-- [ ] T1 → S1, S2, S4 — Backend `export.service.ts`: helper de prefijo y líneas de `Por Operário:` / `Resumo Coletivo:`. Commit `fix(reports): strip the massas prefix from report product names`.
-- [ ] T2 → S1-S4 — Tests de backend (`export.service.test.ts`, `reports.routes.test.ts`) y suite completa.
-- [ ] T3 → S5 — Verificación de paridad Web/Android sobre el endpoint.
-- [ ] T4 → S6 — `versionCode` 508 y docs/changelog. Commit `chore(release): bump android build to 508`.
-- [ ] T5 → S7 — Build firmado, verificación y publicación de assets + Desktop. Commit `chore(release): publish android build 508`.
-- [ ] T6 → S8 — Rebuild de producción y reinicio de `trindade-api` / `trindade-web`.
-- [ ] T7 → S9 — Push a `main` y purga de Docker.
+- [x] T1 → S1, S2, S4 — Backend `export.service.ts`: helper de prefijo y líneas de `Por Operário:` / `Resumo Coletivo:`. Commit `fix(reports): strip the massas prefix from report product names`.
+- [x] T2 → S1-S4 — Tests de backend (`export.service.test.ts`, `reports.routes.test.ts`) y suite completa.
+- [x] T3 → S5 — Verificación de paridad Web/Android sobre el endpoint.
+- [x] T4 → S6 — `versionCode` 508 y docs/changelog. Commit `chore(release): bump android build to 508`.
+- [x] T5 → S7 — Build firmado, verificación y publicación de assets + Desktop. Commit `chore(release): publish android build 508`.
+- [x] T6 → S8 — Rebuild de producción y reinicio de `trindade-api` / `trindade-web`.
+- [x] T7 → S9 — Push a `main` y purga de Docker.
 
 ## Log
 
@@ -46,3 +46,6 @@ Quita el prefijo `MASSA ` de los productos en la sección de massas del texto de
   > - REGLA DE ORO: PROHIBIDO adb install en el emulador.
 
 - **L2** (decisión de implementación): la regex del backend es `^MASSAS?\s+(?:DE\s+)?` en modo insensible, es decir la del pedido (`massa(?:s)?\s+`) más el `DE` opcional que ya recortan `packages/frontend/src/lib/massas.ts` y `MassasLogic.kt`. Para los nombres del catálogo actual el resultado es idéntico en las tres capas; solo agrega robustez ante plurales y `MASSA DE`.
+
+- **L3** (evidencia): RED en `node --test --import tsx "src/modules/reports/*.test.ts"` (`does not provide an export named 'stripMassasPrefix'` y `the exported section strips the MASSA prefix`), GREEN tras el helper; suite backend completa `514/514`. Un fallo previo de `src/db/index.test.ts` («serves login through existing-install startup») fue un timeout de arranque de servidor bajo carga: pasó aislado (7/7) y en el rerun completo (514/514).
+- **L4** (evidencia): APK 508 `versionCode='508'`, v2 `true`, un firmante, `CN=Trindade Massas Operacoes`, `10,814,264` bytes, `sha256 091f5cf7be05b3214fedf75ec29b8c56cda0d2da27608d3e894734301522ae19`; assets `trindade-0.5.1.apk`, `.sha256` y `app-release.apk` con el mismo digest; copia en Desktop idéntica (`cmp` OK). Producción: `docker compose build api web` + `up -d`, `trindade-api-1` y `trindade-web-1` healthy, y `dist/modules/reports/export.service.js` dentro del contenedor contiene el helper.
