@@ -53,13 +53,13 @@ S9: Purga de Docker y reporte de `df -h`.
 
 ## Tasks
 
-- T1 → S1 — Cabecera limpia sin badge en `MassasLaunchScreen.kt` y retiro de la cadena huérfana. Commit `fix(massas): remove read-only badge from launch header`
-- T2 → S2 — Bump a 506 en `build.gradle.kts`, `CHANGELOG.md` y `docs/release-android.md`. Commit `chore(release): bump android versionCode to 506`
-- T3 → S3 — Suite `testDebugUnitTest` en Docker SDK 35 (evidencia en T2)
-- T4 → S4 — `assembleRelease` firmado, badging y firma v2 (evidencia en T2)
-- T5 → S5, S6, S7 — Publicación en GitHub Release, copia a Desktop y ausencia total de `adb install`
-- T6 → S8 — Commit y push a `main`
-- T7 → S9 — Purga Docker y `df -h`
+- [x] T1 → S1 — Cabecera limpia sin badge en `MassasLaunchScreen.kt` y retiro de la cadena huérfana. Commit `ed60fc7` — `fix(massas): remove read-only badge from launch header`
+- [x] T2 → S2 — Bump a 506 en `build.gradle.kts`, `CHANGELOG.md` y `docs/release-android.md`. Commit `9fb5cac` — `chore(release): bump android versionCode to 506`
+- [x] T3 → S3 — Suite `testDebugUnitTest` en Docker SDK 35: `tests=965 failures=0 errors=0 skipped=0`, `BUILD SUCCESSFUL in 16m 54s` (job-67)
+- [x] T4 → S4 — `assembleRelease` firmado con `-PversionCode=506`; `aapt2` reporta `versionCode='506'` / `versionName='0.5.1'`; `apksigner` `Verifies` con v2 (`CN=Trindade Massas Operacoes`, SHA-256 `ee0e404b...c431f6`). Tamaño `10,814,260` bytes, `sha256 0d0912a9...c3a670b`
+- [x] T5 → S5, S6, S7 — Assets `--clobber` en GitHub Release `v0.5.1` (`app-release.apk`, `trindade-0.5.1.apk`, `.sha256`) con digest verificado; copia en `/home/wilkin/Desktop/trindade-0.5.1.apk` (mismo sha256); **ningún `adb` ejecutado en todo el ciclo**
+- [x] T6 → S8 — `ed60fc7` + `9fb5cac` en `main`, sin `Co-Authored-By`, push a `origin main` (`6ae4e37..9fb5cac`)
+- [x] T7 → S9 — `docker container prune` + `docker builder prune` (0B recuperables: los contenedores se autodestruyen con `--rm`) y `df -h`: `/` 64G/96G (67%), 32G disponibles
 
 ## Log
 
@@ -99,3 +99,9 @@ L2 (orquestador, evidencia de exploración): `massas_read_only_badge` sólo se c
 L3 (orquestador, evidencia de T1+T2): `MassasLaunchScreen.kt` ya no referencia `R.string.massas_read_only_badge` ni `labelSmall`; la cabecera quedó idéntica a S1 (botón `report_back`, `titleLarge` bold con elipse, subtítulo único con elipse). La cadena se retiró de `values/strings.xml` y `values-es/strings.xml`. `background` y `RoundedCornerShape` siguen importados porque se usan en otras tarjetas del mismo archivo (líneas ~283 y ~555), así que no hay imports huérfanos. Fallback de `versionCode` en `506`, y `CHANGELOG.md` / `docs/release-android.md` actualizados.
 
 L4 (orquestador, verificación estructural de S2): `git diff --stat` reporta 6 archivos, 15 inserciones y 37 deleciones; no quedan referencias a `massas_read_only_badge` en `src/`.
+
+L5 (orquestador, evidencia de S4): `apksigner verify --verbose` → `Verifies`, `v2 scheme: true`, un único firmante `CN=Trindade Massas Operacoes`. `aapt2 dump badging` → `versionCode='506' versionName='0.5.1'`. `aapt2 dump resources | grep -c massas_read_only_badge` → `0`: la cadena eliminada tampoco viaja en el binario.
+
+L6 (orquestador, incidente menor): el primer `gh release upload` falló con `fatal: not a git repository` porque se ejecutó tras `cd /tmp`; se repitió desde la raíz del repositorio y completó con `--clobber`. Ninguna otra consecuencia.
+
+L7 (orquestador, cierre): assets del release verificados por `gh release view --json assets` — `app-release.apk` y `trindade-0.5.1.apk` con `sha256:0d0912a9...c3a670b`, igual al APK local y al de Desktop. Tarea cerrada sin pasos pendientes.
