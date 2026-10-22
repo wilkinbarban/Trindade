@@ -1,5 +1,6 @@
 package com.trindade.app.auth
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.trindade.app.BuildConfig
@@ -9,11 +10,13 @@ import com.trindade.app.update.ApkInstaller
 import com.trindade.app.update.Clock
 import com.trindade.app.update.DownloadState
 import com.trindade.app.update.GitHubReleaseApi
+import com.trindade.app.update.InstalledAppInfo
 import com.trindade.app.update.ReleaseVersion
 import com.trindade.app.update.UpdateDetector
 import com.trindade.app.update.UpdateDownloader
 import com.trindade.app.update.UpdateType
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -50,6 +53,7 @@ class ProfileViewModel @Inject constructor(
     private val clock: Clock,
     private val downloader: UpdateDownloader? = null,
     private val installer: ApkInstaller? = null,
+    @ApplicationContext private val context: Context? = null,
 ) : ViewModel() {
 
     data class UiState(
@@ -414,6 +418,8 @@ class ProfileViewModel @Inject constructor(
             release = release,
             currentVersionName = BuildConfig.APP_VERSION_NAME,
             currentBuildTimeMillis = BuildConfig.BUILD_TIME,
+            installedSha256 = context?.let { InstalledAppInfo.getInstalledApkSha256(it) },
+            installedSizeBytes = context?.let { InstalledAppInfo.getInstalledApkSize(it) } ?: -1L,
         )
 
         return when (availability.type) {

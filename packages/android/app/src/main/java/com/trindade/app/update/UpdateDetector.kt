@@ -21,15 +21,20 @@ object UpdateDetector {
      * Checks if a GitHub release represents an update compared to the installed build.
      *
      * Detects:
-     * 1. New release if tagName > currentVersionName (e.g. v0.6.0 > 0.5.0)
-     * 2. Same-release patch if tagName == currentVersionName and remote APK asset updated_at
-     *    is strictly newer than currentBuildTimeMillis.
+     * 1. New release if tagName > currentVersionName (e.g. v0.6.0 > 0.5.0).
+     * 2. If tagName == currentVersionName and an APK asset is present:
+     *    - If both remote digest and installed SHA-256 are available: returns NONE if matching,
+     *      or SAME_RELEASE_PATCH if different.
+     *    - If size is available: returns NONE if sizes match, or SAME_RELEASE_PATCH if different.
+     *    - Fallback: compares remote asset updated_at strictly against currentBuildTimeMillis.
      * 3. Undetermined if version tag cannot be parsed.
      */
     fun checkUpdate(
         release: GitHubRelease,
         currentVersionName: String,
         currentBuildTimeMillis: Long,
+        installedSha256: String? = null,
+        installedSizeBytes: Long = -1L,
     ): UpdateAvailability {
         val apkAsset = release.assets.firstOrNull { it.name.endsWith(".apk") }
         val comparison = ReleaseVersion.compare(release.tagName, currentVersionName)
@@ -43,6 +48,25 @@ object UpdateDetector {
         }
 
         if (comparison is ReleaseVersion.Comparison.UpToDate && apkAsset != null) {
+            val remoteDigest = apkAsset.digest?.removePrefix("sha256:")?.trim()
+            val localDigest = installedSha256?.removePrefix("sha256:")?.trim()
+
+            if (!remoteDigest.isNullOrBlank() && !localDigest.isNullOrBlank()) {
+                return if (remoteDigest.equals(localDigest, ignoreCase = true)) {
+                    UpdateAvailability(UpdateType.NONE, release, apkAsset)
+                } else {
+                    UpdateAvailability(UpdateType.SAME_RELEASE_PATCH, release, apkAsset)
+                }
+            }
+
+            if (installedSizeBytes > 0L && apkAsset.size > 0L) {
+                return if (apkAsset.size == installedSizeBytes) {
+                    UpdateAvailability(UpdateType.NONE, release, apkAsset)
+                } else {
+                    UpdateAvailability(UpdateType.SAME_RELEASE_PATCH, release, apkAsset)
+                }
+            }
+
             val assetMillis = runCatching {
                 java.time.Instant.parse(apkAsset.updatedAt).toEpochMilli()
             }.getOrDefault(0L)

@@ -12,13 +12,17 @@ class UpdateDetectorTest {
         tagName: String,
         assetUpdatedAt: String? = null,
         assetName: String = "trindade.apk",
+        assetDigest: String? = null,
+        assetSize: Long = 0L,
     ): GitHubRelease {
-        val assets = if (assetUpdatedAt != null) {
+        val assets = if (assetUpdatedAt != null || assetDigest != null || assetSize > 0L) {
             listOf(
                 GitHubAsset(
                     name = assetName,
                     browserDownloadUrl = "https://github.com/trindade/releases/download/$tagName/$assetName",
-                    updatedAt = assetUpdatedAt,
+                    updatedAt = assetUpdatedAt ?: "2026-05-18T12:00:00Z",
+                    size = assetSize,
+                    digest = assetDigest,
                 )
             )
         } else {
@@ -122,5 +126,93 @@ class UpdateDetectorTest {
 
         assertEquals(UpdateType.NONE, availability.type)
         assertFalse(availability.isUpdateAvailable)
+    }
+
+    @Test
+    fun checkUpdate_withSameVersionAndMatchingDigest_returnsNone() {
+        val currentBuildTime = Instant.parse("2026-05-18T10:00:00Z").toEpochMilli()
+        val assetTime = "2026-05-18T12:00:00Z" // Newer timestamp on GitHub
+        val sha = "1cd5d57485e85d9bc21c2869c4f336ce37fe5af4c652b09a5ec7f860a2f49b43"
+        val release = createRelease(
+            tagName = "v0.5.1",
+            assetUpdatedAt = assetTime,
+            assetDigest = "sha256:$sha",
+        )
+
+        val availability = UpdateDetector.checkUpdate(
+            release = release,
+            currentVersionName = "0.5.1",
+            currentBuildTimeMillis = currentBuildTime,
+            installedSha256 = sha,
+        )
+
+        assertEquals(UpdateType.NONE, availability.type)
+        assertFalse(availability.isUpdateAvailable)
+    }
+
+    @Test
+    fun checkUpdate_withSameVersionAndDifferentDigest_returnsSameReleasePatch() {
+        val currentBuildTime = Instant.parse("2026-05-18T10:00:00Z").toEpochMilli()
+        val assetTime = "2026-05-18T12:00:00Z"
+        val remoteSha = "aaaa5d57485e85d9bc21c2869c4f336ce37fe5af4c652b09a5ec7f860a2f49b43"
+        val localSha = "bbbb5d57485e85d9bc21c2869c4f336ce37fe5af4c652b09a5ec7f860a2f49b43"
+        val release = createRelease(
+            tagName = "v0.5.1",
+            assetUpdatedAt = assetTime,
+            assetDigest = "sha256:$remoteSha",
+        )
+
+        val availability = UpdateDetector.checkUpdate(
+            release = release,
+            currentVersionName = "0.5.1",
+            currentBuildTimeMillis = currentBuildTime,
+            installedSha256 = localSha,
+        )
+
+        assertEquals(UpdateType.SAME_RELEASE_PATCH, availability.type)
+        assertTrue(availability.isUpdateAvailable)
+    }
+
+    @Test
+    fun checkUpdate_withSameVersionAndMatchingSize_returnsNone() {
+        val currentBuildTime = Instant.parse("2026-05-18T10:00:00Z").toEpochMilli()
+        val assetTime = "2026-05-18T12:00:00Z"
+        val size = 10774704L
+        val release = createRelease(
+            tagName = "v0.5.1",
+            assetUpdatedAt = assetTime,
+            assetSize = size,
+        )
+
+        val availability = UpdateDetector.checkUpdate(
+            release = release,
+            currentVersionName = "0.5.1",
+            currentBuildTimeMillis = currentBuildTime,
+            installedSizeBytes = size,
+        )
+
+        assertEquals(UpdateType.NONE, availability.type)
+        assertFalse(availability.isUpdateAvailable)
+    }
+
+    @Test
+    fun checkUpdate_withSameVersionAndDifferentSize_returnsSameReleasePatch() {
+        val currentBuildTime = Instant.parse("2026-05-18T10:00:00Z").toEpochMilli()
+        val assetTime = "2026-05-18T12:00:00Z"
+        val release = createRelease(
+            tagName = "v0.5.1",
+            assetUpdatedAt = assetTime,
+            assetSize = 10774704L,
+        )
+
+        val availability = UpdateDetector.checkUpdate(
+            release = release,
+            currentVersionName = "0.5.1",
+            currentBuildTimeMillis = currentBuildTime,
+            installedSizeBytes = 9999999L,
+        )
+
+        assertEquals(UpdateType.SAME_RELEASE_PATCH, availability.type)
+        assertTrue(availability.isUpdateAvailable)
     }
 }

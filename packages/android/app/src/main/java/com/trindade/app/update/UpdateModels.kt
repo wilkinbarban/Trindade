@@ -23,4 +23,5 @@ data class GitHubAsset(
     @SerialName("browser_download_url") val browserDownloadUrl: String = "",
     @SerialName("updated_at") val updatedAt: String = "",
     @SerialName("size") val size: Long = 0L,
+    @SerialName("digest") val digest: String? = null,
 )

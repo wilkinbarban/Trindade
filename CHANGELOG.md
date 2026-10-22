@@ -25,6 +25,9 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
   - Novo recurso `values-es/strings.xml` contendo todas as 463 chaves traduzidas fielmente para Espanhol (`es`) com paridade estrita de especificadores de formato posicional (`%1$s`, `%1$d`).
   - Refatoração de strings hardcoded em componentes Compose para uso de `stringResource(R.string.*)` em todas as telas operacionais.
   - Cobertura de testes unitários: `LocaleStringsParityTest` (validação de chaves e especificadores de formato XML) e `SpanishLocaleResolutionTest` (resolução em tempo de execução via Robolectric para locales `es` e `pt-rBR`).
+- **Remediação do Detector de Atualização Obrigatória**:
+  - Inspeção precisa do binário local instalado (`InstalledAppInfo`) com cálculo de hash SHA-256 em streaming com cache em memória e tamanho do `base.apk`.
+  - Comparação estrita de digest e tamanho contra os metadatos do GitHub Release (`GitHubAsset.digest`), eliminando falsos positivos e loops infinitos provocados pela discrepância de timestamps entre a compilação Gradle e o upload do release.
 - **Dashboard Operacional**:
   - Cartão "Lançamento de Massas" posicionado fixamente na 3ª posição (entre Cronograma Ativo e Calculador de Estoque), com ícone 🍝 e atalhos para lançamento e histórico.
 - **Distribuição Android v0.5.1 (Code 502)**:
