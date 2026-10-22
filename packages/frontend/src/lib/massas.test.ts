@@ -7,8 +7,11 @@ import {
   extractOperators,
   filterLaunchesByOperator,
   calculateOperatorSubtotal,
+  groupProductsFromLaunches,
+  productWorkerNames,
   type MassasLaunchDayView,
   type MassaIndividualLaunch,
+  type MassaProductTotal,
 } from './massas.js';
 
 describe('massas message formatting', () => {
@@ -85,15 +88,25 @@ describe('massas message formatting', () => {
     };
 
     const msg = massasMessage(view);
-    assert.match(msg, /🍝 \*Lançamento de Massas — 20\/10\/2026\*/);
-    assert.match(msg, /• MASSA CASEIRA: 80 un/);
-    assert.match(msg, /• MASSA DISCO 500G: 40 un/);
-    // Should NOT include products with 0 units
-    assert.doesNotMatch(msg, /MASSA DISCO 200G/);
-    // Should NOT have Total Geral
-    assert.doesNotMatch(msg, /\*Total Geral:/);
-    // Should list unique operators
-    assert.match(msg, /\*Lançado por:\* João Silva, Maria Oliveira/);
+    const expected = [
+      '🍝 *Lançamento de Massas — 20/10/2026*',
+      '',
+      '*Resumo Coletivo:*',
+      '• CASEIRA: 80 un (8 cx)',
+      '• DISCO 500G: 40 un (2 cx)',
+      '',
+      '*Por Trabalhador:*',
+      '👤 *João Silva:*',
+      '• CASEIRA: 50 un (5 cx)',
+      '• DISCO 500G: 40 un (2 cx)',
+      '',
+      '👤 *Maria Oliveira:*',
+      '• CASEIRA: 30 un (3 cx)',
+    ].join('\n');
+
+    assert.strictEqual(msg, expected);
+    assert.doesNotMatch(msg, /MASSA /);
+    assert.doesNotMatch(msg, /\*Lançado por:\*/);
   });
 });
 
@@ -237,3 +250,85 @@ describe('massas operator filtering and subtotal', () => {
 });
 
 
+
+describe('massas collective summary derived from filtered launches', () => {
+  const catalog: MassaProductTotal[] = [
+    { code: '1045', name: 'MASSA CASEIRA', unitsPerBox: 10, totalBoxes: 8, totalUnits: 80 },
+    { code: '84', name: 'MASSA DISCO 500G', unitsPerBox: 20, totalBoxes: 2, totalUnits: 40 },
+  ];
+
+  const launches: MassaIndividualLaunch[] = [
+    {
+      id: 1,
+      launch_date: '2026-10-20',
+      product_code: '1045',
+      product_name: 'MASSA CASEIRA',
+      boxes: 5,
+      units: 50,
+      user_id: 1,
+      username: 'joao',
+      display_name: 'João Silva',
+      created_at: '2026-10-20T10:00:00Z',
+      updated_at: '2026-10-20T10:00:00Z',
+    },
+    {
+      id: 2,
+      launch_date: '2026-10-20',
+      product_code: '1045',
+      product_name: 'MASSA CASEIRA',
+      boxes: 3,
+      units: 30,
+      user_id: 2,
+      username: 'maria',
+      display_name: 'Maria Oliveira',
+      created_at: '2026-10-20T10:30:00Z',
+      updated_at: '2026-10-20T10:30:00Z',
+    },
+    {
+      id: 3,
+      launch_date: '2026-10-20',
+      product_code: '84',
+      product_name: 'MASSA DISCO 500G',
+      boxes: 2,
+      units: 40,
+      user_id: 1,
+      username: 'joao',
+      display_name: 'João Silva',
+      created_at: '2026-10-20T11:00:00Z',
+      updated_at: '2026-10-20T11:00:00Z',
+    },
+  ];
+
+  it('consolidates every launch when all workers are selected', () => {
+    const products = groupProductsFromLaunches(launches, catalog);
+    assert.deepStrictEqual(
+      products.map((p) => [p.code, p.name, p.totalBoxes, p.totalUnits]),
+      [
+        ['1045', 'MASSA CASEIRA', 8, 80],
+        ['84', 'MASSA DISCO 500G', 2, 40],
+      ]
+    );
+    assert.deepStrictEqual(productWorkerNames(launches, '1045'), [
+      'João Silva',
+      'Maria Oliveira',
+    ]);
+  });
+
+  it('consolidates only the selected worker launches', () => {
+    const onlyMaria = filterLaunchesByOperator(launches, 2);
+    const products = groupProductsFromLaunches(onlyMaria, catalog);
+    assert.deepStrictEqual(
+      products.map((p) => [p.code, p.totalBoxes, p.totalUnits]),
+      [['1045', 3, 30]]
+    );
+    assert.deepStrictEqual(productWorkerNames(onlyMaria, '1045'), ['Maria Oliveira']);
+  });
+
+  it('drops products without units and keeps the catalog order', () => {
+    const products = groupProductsFromLaunches([launches[2], launches[0]], catalog);
+    assert.deepStrictEqual(
+      products.map((p) => p.code),
+      ['1045', '84']
+    );
+  });
+});

@@ -306,8 +306,6 @@ export function MassasLaunchPage() {
         <MassasCollectiveTable
           products={dayView.products}
           launches={dayView.launches}
-          totalBoxes={dayView.totalBoxes}
-          totalUnits={dayView.totalUnits}
           currentUserId={user?.id}
           editingLaunchId={editingLaunchId}
           editingBoxes={editingBoxes}

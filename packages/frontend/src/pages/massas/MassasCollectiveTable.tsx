@@ -8,6 +8,8 @@ import {
   extractOperators,
   filterLaunchesByOperator,
   calculateOperatorSubtotal,
+  groupProductsFromLaunches,
+  productWorkerNames,
   type MassaProductTotal,
   type MassaIndividualLaunch,
 } from '../../lib/massas';
@@ -15,8 +17,6 @@ import {
 interface MassasCollectiveTableProps {
   products: MassaProductTotal[];
   launches: MassaIndividualLaunch[];
-  totalBoxes: number;
-  totalUnits: number;
   currentUserId?: number;
   editingLaunchId: number | null;
   editingBoxes: string;
@@ -33,8 +33,6 @@ interface MassasCollectiveTableProps {
 export function MassasCollectiveTable({
   products,
   launches,
-  totalBoxes,
-  totalUnits,
   currentUserId,
   editingLaunchId,
   editingBoxes,
@@ -49,7 +47,6 @@ export function MassasCollectiveTable({
 }: MassasCollectiveTableProps) {
   const { t } = useTranslation();
   const [selectedOperatorId, setSelectedOperatorId] = useState<number | 'all'>('all');
-  const activeProducts = products.filter((p) => p.totalBoxes > 0);
 
   const operators = useMemo(() => extractOperators(launches), [launches]);
 
@@ -72,106 +69,22 @@ export function MassasCollectiveTable({
     return operators.find((o) => o.id === selectedOperatorId)?.name || '';
   }, [operators, selectedOperatorId]);
 
+  // El resumen colectivo sigue al filtro de trabajador: se consolidan los lanzamientos
+  // visibles, usando el catálogo sólo como fuente de nombres, unidades por caja y orden.
+  const activeProducts = useMemo(() => {
+    return groupProductsFromLaunches(displayedLaunches, products);
+  }, [displayedLaunches, products]);
+
+  const workersByProduct = useMemo(() => {
+    const map = new Map<string, string[]>();
+    for (const product of activeProducts) {
+      map.set(product.code, productWorkerNames(displayedLaunches, product.code));
+    }
+    return map;
+  }, [activeProducts, displayedLaunches]);
+
   return (
     <div className="space-y-6">
-      {/* Resumen Colectivo de Productos con Lançamentos */}
-      <Card className="border-gray-200 shadow-sm">
-        <CardContent className="pt-6">
-          <div className="mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">{t('massas.collectiveTitle')}</h2>
-            <p className="text-xs text-gray-500">{t('massas.collectiveSubtitle')}</p>
-          </div>
-
-          {activeProducts.length === 0 ? (
-            <div className="py-8 px-4 text-center text-gray-500 bg-gray-50/50 rounded-lg border border-dashed border-gray-200">
-              <p className="text-sm font-medium">{t('massas.noProductsLaunched', 'Nenhum produto lançado nesta data')}</p>
-            </div>
-          ) : (
-            <>
-              {/* VISTA ESCRITORIO (sm en adelante): Tabla Tabular Tradicional */}
-              <div className="hidden sm:block overflow-x-auto rounded-lg border border-gray-200">
-                <table className="w-full text-left text-sm border-collapse">
-                  <thead>
-                    <tr className="bg-gray-100 text-gray-700 text-xs font-semibold uppercase">
-                      <th className="py-3 px-4">{t('massas.product')}</th>
-                      <th className="py-3 px-4 text-center">Un/Cx</th>
-                      <th className="py-3 px-4 text-right">{t('massas.boxes')}</th>
-                      <th className="py-3 px-4 text-right">{t('massas.units')}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 bg-white">
-                    {activeProducts.map((p) => (
-                      <tr
-                        key={p.code}
-                        className="bg-amber-50/20 font-medium"
-                      >
-                        <td className="py-2.5 px-4 text-gray-900">{p.name}</td>
-                        <td className="py-2.5 px-4 text-center text-xs text-gray-500">{p.unitsPerBox}</td>
-                        <td className="py-2.5 px-4 text-right font-semibold text-gray-900">
-                          {p.totalBoxes} cx
-                        </td>
-                        <td className="py-2.5 px-4 text-right font-bold text-amber-800">
-                          {p.totalUnits} un
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr className="bg-gray-100 text-gray-900 font-bold border-t-2 border-gray-300">
-                      <td colSpan={2} className="py-3 px-4 text-base">
-                        Total Geral
-                      </td>
-                      <td className="py-3 px-4 text-right text-base text-gray-900">
-                        {totalBoxes} cx
-                      </td>
-                      <td className="py-3 px-4 text-right text-base text-amber-900">
-                        {totalUnits} un
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-
-              {/* VISTA MÓVIL (< sm / 640px): Tarjetas/Filas Apiladas Compactas y Fluidas */}
-              <div className="block sm:hidden space-y-2">
-                {activeProducts.map((p) => (
-                  <div
-                    key={p.code}
-                    className="p-3 rounded-lg border flex items-center justify-between gap-3 bg-amber-50/30 border-amber-200/80 shadow-xs"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold truncate text-gray-900">
-                        {p.name}
-                      </p>
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        {p.unitsPerBox} un/cx
-                      </p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <div className="text-xs text-gray-600 font-medium">
-                        {p.totalBoxes} cx
-                      </div>
-                      <div className="text-sm font-bold text-amber-800">
-                        {p.totalUnits} un
-                      </div>
-                    </div>
-                  </div>
-                ))}
-
-                {/* Total Geral Móvil */}
-                <div className="mt-3 p-3.5 bg-amber-100/70 border border-amber-300 rounded-lg flex items-center justify-between">
-                  <span className="font-bold text-gray-900 text-sm">Total Geral</span>
-                  <div className="text-right">
-                    <span className="text-xs font-semibold text-gray-700 mr-2">{totalBoxes} cx</span>
-                    <span className="text-base font-extrabold text-amber-900">{totalUnits} un</span>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
-
       {/* Desglose Individual de Lanzamientos por Operario con RBAC */}
       <Card className="border-gray-200 shadow-sm">
         <CardContent className="pt-6">
@@ -350,6 +263,97 @@ export function MassasCollectiveTable({
                 );
               })}
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Resumen Colectivo de Productos con Lançamentos */}
+      <Card className="border-gray-200 shadow-sm">
+        <CardContent className="pt-6">
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">{t('massas.collectiveTitle')}</h2>
+            <p className="text-xs text-gray-500">{t('massas.collectiveSubtitle')}</p>
+          </div>
+
+          {activeProducts.length === 0 ? (
+            <div className="py-8 px-4 text-center text-gray-500 bg-gray-50/50 rounded-lg border border-dashed border-gray-200">
+              <p className="text-sm font-medium">{t('massas.noProductsLaunched', 'Nenhum produto lançado nesta data')}</p>
+            </div>
+          ) : (
+            <>
+              {/* VISTA ESCRITORIO (sm en adelante): Tabla Tabular Tradicional */}
+              <div className="hidden sm:block overflow-x-auto rounded-lg border border-gray-200">
+                <table className="w-full text-left text-sm border-collapse">
+                  <thead>
+                    <tr className="bg-gray-100 text-gray-700 text-xs font-semibold uppercase">
+                      <th className="py-3 px-4">{t('massas.product')}</th>
+                      <th className="py-3 px-4 text-center">Un/Cx</th>
+                      <th className="py-3 px-4 text-right">{t('massas.boxes')}</th>
+                      <th className="py-3 px-4 text-right">{t('massas.units')}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 bg-white">
+                    {activeProducts.map((p) => {
+                      const workers = workersByProduct.get(p.code) ?? [];
+                      return (
+                        <tr key={p.code} className="bg-amber-50/20 font-medium">
+                          <td className="py-2.5 px-4 text-gray-900">
+                            <div className="font-bold">{p.name}</div>
+                            {workers.length > 0 && (
+                              <div className="text-[11px] font-normal text-amber-800 mt-0.5">
+                                👤 {workers.join(', ')}
+                              </div>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-4 text-center text-xs text-gray-500">{p.unitsPerBox}</td>
+                          <td className="py-2.5 px-4 text-right">
+                            <span className="inline-flex items-center rounded-md bg-gray-900/5 px-2 py-0.5 text-xs font-bold text-gray-900 tabular-nums">
+                              {p.totalBoxes} cx
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-4 text-right">
+                            <span className="inline-flex items-center rounded-md bg-amber-600 px-2 py-0.5 text-xs font-extrabold text-white tabular-nums">
+                              {p.totalUnits} un
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* VISTA MÓVIL (< sm / 640px): Tarjetas/Filas Apiladas Compactas y Fluidas */}
+              <div className="block sm:hidden space-y-2" data-testid="massas-collective-mobile">
+                {activeProducts.map((p) => {
+                  const workers = workersByProduct.get(p.code) ?? [];
+                  return (
+                    <div
+                      key={p.code}
+                      className="p-3 rounded-lg border border-amber-200/80 bg-amber-50/40 shadow-xs"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-bold truncate text-gray-900">{p.name}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">{p.unitsPerBox} un/cx</p>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="inline-flex items-center rounded-md bg-gray-900/5 px-2 py-0.5 text-xs font-bold text-gray-900 tabular-nums">
+                            {p.totalBoxes} cx
+                          </span>
+                          <span className="inline-flex items-center rounded-md bg-amber-600 px-2 py-0.5 text-sm font-extrabold text-white tabular-nums">
+                            {p.totalUnits} un
+                          </span>
+                        </div>
+                      </div>
+                      {workers.length > 0 && (
+                        <p className="text-[11px] text-amber-800 mt-1.5">👤 {workers.join(', ')}</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
