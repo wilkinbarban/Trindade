@@ -28,6 +28,20 @@ import retrofit2.converter.kotlinx.serialization.asConverterFactory
  */
 class AdminApiPayloadTest {
 
+    private companion object {
+        /**
+         * A guard against a hung request, not a latency budget.
+         *
+         * The claim these tests make is about what travels on the wire, so the only thing a tighter
+         * timeout can produce is a red gate on a slow machine: five seconds was under what a round trip
+         * takes when the whole suite runs in one container, and it failed that way twice before the
+         * payload ever got a chance to be wrong. Thirty seconds still fails a real hang, and fails slowly
+         * enough to be obviously a hang.
+         */
+        const val HANG_GUARD_MS = 30_000L
+        const val TASK_ID = 42
+    }
+
     private val appJson: Json = NetworkModule.provideJson()
     private val client = OkHttpClient()
 
@@ -37,7 +51,7 @@ class AdminApiPayloadTest {
         client.connectionPool.evictAll()
     }
 
-    @Test(timeout = 5000L)
+    @Test(timeout = HANG_GUARD_MS)
     fun `updateTask transports numeric is_active 1 JsonObject on wire`() {
         val server = MockWebServer()
         server.start()
@@ -57,7 +71,7 @@ class AdminApiPayloadTest {
                 )
             }
 
-            val sent = checkNotNull(server.takeRequest(5, TimeUnit.SECONDS)) { "Timed out waiting for request" }
+            val sent = checkNotNull(server.takeRequest(HANG_GUARD_MS, TimeUnit.MILLISECONDS)) { "Timed out waiting for request" }
 
             assertEquals("PATCH", sent.method)
             assertEquals("/api/admin/tasks/$TASK_ID", sent.path)
@@ -72,7 +86,7 @@ class AdminApiPayloadTest {
         }
     }
 
-    @Test(timeout = 5000L)
+    @Test(timeout = HANG_GUARD_MS)
     fun `updateTask transports numeric is_active 0 JsonObject on wire`() {
         val server = MockWebServer()
         server.start()
@@ -92,7 +106,7 @@ class AdminApiPayloadTest {
                 )
             }
 
-            val sent = checkNotNull(server.takeRequest(5, TimeUnit.SECONDS)) { "Timed out waiting for request" }
+            val sent = checkNotNull(server.takeRequest(HANG_GUARD_MS, TimeUnit.MILLISECONDS)) { "Timed out waiting for request" }
 
             assertEquals("PATCH", sent.method)
             assertEquals("/api/admin/tasks/$TASK_ID", sent.path)
@@ -118,7 +132,4 @@ class AdminApiPayloadTest {
     private fun taskAnswer(taskId: Int, isActive: Int): String =
         """{"task":{"id":$taskId,"category_id":1,"name_pt":"Higienização","name_es":"Higienización","temperature_readings":1,"is_active":$isActive,"created_by_user_id":null,"created_at":"2026-01-01T00:00:00Z","task_type":"check"}}"""
 
-    private companion object {
-        const val TASK_ID = 42
-    }
 }
