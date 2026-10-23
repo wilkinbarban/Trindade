@@ -233,11 +233,13 @@ export function StockCalculatorPage() {
               <div className="w-full sm:w-auto sm:flex-1 min-w-0">
                 <span className="block text-xs text-gray-500 sm:mb-1">{t('stock.history')}</span>
                 <div className="flex items-center gap-2 overflow-x-auto pb-1 max-w-full scrollbar-none" data-testid="stock-history-days">
-                  {history.slice(0, 6).map((entry) => (
+                  {/* Tres en un teléfono y cinco en una pantalla ancha: el resto sigue alcanzable por
+                      la fecha, y así la fila no se lleva media pantalla del contador. */}
+                  {history.slice(0, 5).map((entry, idx) => (
                     <button
                       key={entry.date}
                       onClick={() => setDate(entry.date)}
-                      className={`shrink-0 text-xs px-2.5 py-1 rounded-md border font-medium ${entry.date === date ? 'bg-gray-800 border-gray-800 text-white' : 'bg-white border-gray-300 text-gray-700'}`}
+                      className={`${idx >= 3 ? 'hidden sm:inline-flex' : 'inline-flex'} shrink-0 text-xs px-2.5 py-1 rounded-md border font-medium ${entry.date === date ? 'bg-gray-800 border-gray-800 text-white' : 'bg-white border-gray-300 text-gray-700'}`}
                       data-testid={`stock-history-${entry.date}`}
                     >
                       {entry.date.slice(8, 10)}/{entry.date.slice(5, 7)} · {entry.boxes}
