@@ -20,6 +20,7 @@ import {
 import { formatPhoneMask, toWhatsAppNumber } from '../lib/phone';
 import { shareOrCopy, waMeLink } from '../lib/whatsapp';
 import { ModuleHelpModal } from '../components/ui/ModuleHelpModal';
+import { StockCollectiveSummary } from '../components/stock/StockCollectiveSummary';
 import { saoPauloToday } from '../lib/date';
 
 /**
@@ -416,87 +417,7 @@ export function StockCalculatorPage() {
         </CardContent>
       </Card>
 
-      {/*
-        O resumo coletivo do dia. Sem filtro por operador de propósito: no estoque a contagem é do
-        galpão, não de quem passou por ele, então o dia tem um resumo só. E os números vêm do que o
-        servidor já somou -- a cartela repete o total do dia em vez de calcular o seu.
-      */}
-      <Card>
-        <CardContent className="p-3 space-y-3">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">{t('stock.collectiveTitle')}</h2>
-            <p className="text-xs text-gray-500">{t('stock.collectiveSubtitle')}</p>
-          </div>
-
-          {summary.length === 0 ? (
-            <div
-              className="py-8 px-4 text-center text-gray-500 bg-gray-50/50 rounded-lg border border-dashed border-gray-200"
-              data-testid="stock-summary-empty"
-            >
-              <p className="text-sm font-medium">{t('stock.collectiveEmpty')}</p>
-            </div>
-          ) : (
-            <>
-              <div className="hidden sm:block overflow-x-auto rounded-lg border border-gray-200">
-                <table className="w-full text-left text-sm border-collapse">
-                  <thead>
-                    <tr className="bg-gray-100 text-gray-700 text-xs font-semibold uppercase">
-                      <th className="py-3 px-4">{t('stock.product')}</th>
-                      <th className="py-3 px-4 text-center">{t('stock.unitsPerBoxHeader')}</th>
-                      <th className="py-3 px-4 text-right">{t('stock.boxes')}</th>
-                      <th className="py-3 px-4 text-right">{t('stock.units')}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 bg-white">
-                    {summary.map((product) => (
-                      <tr key={product.code} className="bg-amber-50/20 font-medium" data-testid={`stock-summary-${product.code}`}>
-                        <td className="py-2.5 px-4 font-bold text-gray-900">{product.name}</td>
-                        <td className="py-2.5 px-4 text-center text-xs text-gray-500">{product.unitsPerBox}</td>
-                        <td className="py-2.5 px-4 text-right">
-                          <span className="inline-flex items-center rounded-md bg-gray-900/5 px-2 py-0.5 text-xs font-bold text-gray-900 tabular-nums">
-                            {product.boxes} {t('stock.boxesShort')}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-4 text-right">
-                          <span className="inline-flex items-center rounded-md bg-amber-600 px-2 py-0.5 text-xs font-extrabold text-white tabular-nums">
-                            {product.units} {t('stock.unitsShort')}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="block sm:hidden space-y-2" data-testid="stock-summary-mobile">
-                {summary.map((product) => (
-                  <div
-                    key={product.code}
-                    className="p-3 rounded-lg border border-amber-200/80 bg-amber-50/40 shadow-xs"
-                  >
-                    {/* Dos renglones: el nombre completo arriba y los números abajo. Con los badges
-                        al lado, "MASSA DISC..." era el nombre real que se leía en un teléfono. */}
-                    <p className="font-bold text-sm text-gray-900 leading-snug break-words">{product.name}</p>
-                    <div className="flex items-center justify-between gap-2 mt-1.5">
-                      <span className="text-xs text-gray-500 font-medium">
-                        {product.unitsPerBox} {t('stock.unitsPerBoxHeader')}
-                      </span>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <span className="inline-flex items-center rounded-md bg-gray-900/5 px-2 py-0.5 text-xs font-bold text-gray-900 tabular-nums">
-                          {product.boxes} {t('stock.boxesShort')}
-                        </span>
-                        <span className="inline-flex items-center rounded-md bg-amber-600 px-2 py-0.5 text-sm font-extrabold text-white tabular-nums">
-                          {product.units} {t('stock.unitsShort')}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
+      <StockCollectiveSummary products={summary} testIdPrefix="stock" />
 
       <Card>
         <CardContent className="p-3 space-y-3">
