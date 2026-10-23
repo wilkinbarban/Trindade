@@ -161,8 +161,8 @@ export function MassasCollectiveTable({
                     }`}
                   >
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-gray-900 text-sm truncate">{launch.product_name}</span>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold text-gray-900 text-sm break-words min-w-0">{launch.product_name}</span>
                         <span className="text-[11px] text-gray-400 shrink-0">#{launch.id}</span>
                       </div>
                       <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 mt-1">
@@ -332,11 +332,11 @@ export function MassasCollectiveTable({
                       key={p.code}
                       className="p-3 rounded-lg border border-amber-200/80 bg-amber-50/40 shadow-xs"
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-bold truncate text-gray-900">{p.name}</p>
-                          <p className="text-xs text-gray-400 mt-0.5">{p.unitsPerBox} un/cx</p>
-                        </div>
+                      {/* Mismo criterio que el resumen de stock: el nombre completo arriba, los
+                          números abajo. `truncate` aquí dejaba "MASSA DISC..." en un teléfono. */}
+                      <p className="font-bold text-sm text-gray-900 leading-snug break-words">{p.name}</p>
+                      <div className="flex items-center justify-between gap-2 mt-1.5">
+                        <span className="text-xs text-gray-500 font-medium">{p.unitsPerBox} un/cx</span>
                         <div className="flex items-center gap-1.5 shrink-0">
                           <span className="inline-flex items-center rounded-md bg-gray-900/5 px-2 py-0.5 text-xs font-bold text-gray-900 tabular-nums">
                             {p.totalBoxes} cx

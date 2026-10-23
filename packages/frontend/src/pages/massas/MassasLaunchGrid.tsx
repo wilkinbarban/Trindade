@@ -74,7 +74,9 @@ export function MassasLaunchGrid({
                 }`}
               >
                 <div className="flex justify-between items-start gap-1 mb-1">
-                  <span className="text-xs font-bold text-gray-800 leading-tight truncate" title={product.name}>
+                  {/* Sin `truncate`: en un teléfono el nombre quedaba "MASSA LASANHA TRADICIONAL ..." y el
+                      título del tooltip no existe en una pantalla táctil. Envuelve y se lee entero. */}
+                  <span className="text-xs font-bold text-gray-800 leading-snug break-words min-w-0" title={product.name}>
                     {product.name}
                   </span>
                   <span className="text-[11px] text-gray-500 font-medium shrink-0">
