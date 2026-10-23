@@ -1,9 +1,9 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
+import { saoPauloToday } from './date';
 import {
   mailtoLink,
   groupByCategory,
-  saopauloToday,
   stockAddDisabled,
   stockBoxesInvalid,
   stockEmailBody,
@@ -35,8 +35,8 @@ const day = {
 describe('the day that is being counted', () => {
   it('takes the date from São Paulo and not from the device clock', () => {
     // 02:00 UTC on the 15th is still 23:00 on the 14th in São Paulo.
-    assert.strictEqual(saopauloToday(new Date('2026-10-15T02:00:00Z')), '2026-10-14');
-    assert.strictEqual(saopauloToday(new Date('2026-10-15T12:00:00Z')), '2026-10-15');
+    assert.strictEqual(saoPauloToday(new Date('2026-10-15T02:00:00Z')), '2026-10-14');
+    assert.strictEqual(saoPauloToday(new Date('2026-10-15T12:00:00Z')), '2026-10-15');
   });
 });
 

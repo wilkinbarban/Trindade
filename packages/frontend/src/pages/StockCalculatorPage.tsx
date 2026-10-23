@@ -11,7 +11,6 @@ import {
   mailtoLink,
   stockAddDisabled,
   stockVisibleErrors,
-  saopauloToday,
   stockEmailBody,
   stockMessage,
   type StockDay,
@@ -20,6 +19,7 @@ import {
 import { formatPhoneMask, toWhatsAppNumber } from '../lib/phone';
 import { shareOrCopy, waMeLink } from '../lib/whatsapp';
 import { ModuleHelpModal } from '../components/ui/ModuleHelpModal';
+import { saoPauloToday } from '../lib/date';
 
 /**
  * The stock counter.
@@ -49,7 +49,7 @@ interface HistoryDay {
 export function StockCalculatorPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const [date, setDate] = useState(saopauloToday());
+  const [date, setDate] = useState(saoPauloToday());
   const [day, setDay] = useState<StockDay | null>(null);
   const [history, setHistory] = useState<HistoryDay[]>([]);
   const [freeNumber, setFreeNumber] = useState('');
@@ -210,7 +210,7 @@ export function StockCalculatorPage() {
           <div className="flex flex-wrap items-end gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-600">{t('stock.date')}</label>
-              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} data-testid="stock-date" />
+              <Input type="date" value={date} max={saoPauloToday()} onChange={(e) => setDate(e.target.value)} data-testid="stock-date" />
             </div>
             {history.length > 0 && (
               <div className="flex items-center gap-2 flex-wrap">

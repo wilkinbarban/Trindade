@@ -28,15 +28,6 @@ export interface MassasLaunchDayView {
   totalUnits: number;
 }
 
-export function saopauloToday(now: Date = new Date()): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Sao_Paulo',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(now);
-}
-
 export function brazilianDate(date: string): string {
   const [year, month, day] = date.split('-');
   return year && month && day ? `${day}/${month}/${year}` : date;

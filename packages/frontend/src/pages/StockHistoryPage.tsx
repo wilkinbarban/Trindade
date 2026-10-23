@@ -6,7 +6,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { mailtoLink, saopauloToday, stockEmailBody, stockMessage, type StockDay, type StockProduct } from '../lib/stock';
+import { mailtoLink, stockEmailBody, stockMessage, type StockDay, type StockProduct } from '../lib/stock';
+import { saoPauloToday } from '../lib/date';
 import { formatPhoneMask, toWhatsAppNumber } from '../lib/phone';
 import { shareOrCopy, waMeLink } from '../lib/whatsapp';
 import { ModuleHelpModal } from '../components/ui/ModuleHelpModal';
@@ -32,7 +33,7 @@ interface HistoryDay {
 export function StockHistoryPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const [date, setDate] = useState(saopauloToday());
+  const [date, setDate] = useState(saoPauloToday());
   const [day, setDay] = useState<StockDay | null>(null);
   const [days, setDays] = useState<HistoryDay[]>([]);
   const [quantities, setQuantities] = useState<Record<string, string>>({});
@@ -164,7 +165,7 @@ export function StockHistoryPage() {
           <div className="flex flex-wrap items-end gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-600">{t('stock.date')}</label>
-              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} data-testid="stock-history-date" />
+              <Input type="date" value={date} max={saoPauloToday()} onChange={(e) => setDate(e.target.value)} data-testid="stock-history-date" />
             </div>
             {days.length > 0 && (
               <div className="flex items-center gap-2 flex-wrap">

@@ -72,6 +72,7 @@
     "whatsappExport": "Exportación WhatsApp"
   },
   "ui": {
+    "retry": "Intentar de nuevo",
     "closeSidebar": "Cerrar menú lateral",
     "openSidebar": "Abrir menú lateral",
     "close": "Cerrar",
@@ -154,6 +155,7 @@
     "retryPhotoUpload": "Reintentar envío de fotos"
   },
   "loading": {
+    "vehiclesError": "No se pudieron cargar los vehículos.",
     "title": "Cronograma de Carga",
     "description": "Organice las cargas del día por horario",
     "today": "Hoy",
@@ -636,6 +638,9 @@
       ]
     },
     "share": {
+    "releaseError": "No se pudo consultar la última versión de la aplicación.",
+    "qrError": "No se pudo generar el código QR.",
+    "usersError": "No se pudieron cargar los usuarios registrados.",
       "title": "Compartir Aplicación",
       "subtitle": "Distribución para operarios y choferes",
       "description": "Facilita el envío de enlaces oficiales de Trindade por WhatsApp para nuevos choferes o empleados.",

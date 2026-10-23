@@ -11,7 +11,6 @@ import { toWhatsAppNumber } from '../lib/phone';
 import { shareOrCopy, waMeLink } from '../lib/whatsapp';
 import {
   massasMessage,
-  saopauloToday,
   type MassasLaunchDayView,
   type MassaIndividualLaunch,
 } from '../lib/massas';
@@ -19,6 +18,7 @@ import { History, Calendar, ArrowLeft } from 'lucide-react';
 import { ModuleHelpModal } from '../components/ui/ModuleHelpModal';
 import { MassasCollectiveTable } from './massas/MassasCollectiveTable';
 import { MassasWhatsAppShare } from './massas/MassasWhatsAppShare';
+import { saoPauloToday } from '../lib/date';
 
 export interface MassaHistoryDay {
   date: string;
@@ -31,7 +31,7 @@ export interface MassaHistoryDay {
 export function MassasHistoryPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const [date, setDate] = useState(saopauloToday());
+  const [date, setDate] = useState(saoPauloToday());
   const [days, setDays] = useState<MassaHistoryDay[]>([]);
   const [dayView, setDayView] = useState<MassasLaunchDayView | null>(null);
   const [loading, setLoading] = useState(true);
@@ -199,12 +199,13 @@ export function MassasHistoryPage() {
               <Input
                 id="history-date"
                 type="date"
+                max={saoPauloToday()}
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 className="w-auto font-medium"
               />
             </div>
-            {date === saopauloToday() ? (
+            {date === saoPauloToday() ? (
               <span className="text-xs bg-amber-100 text-amber-800 font-semibold px-2.5 py-1 rounded-full self-start sm:self-auto">
                 {t('massas.today')}
               </span>
@@ -284,7 +285,7 @@ export function MassasHistoryPage() {
           onEditBoxesChange={setEditingBoxes}
           onDelete={handleDeleteLaunch}
           deletingId={deletingLaunchId}
-          readOnly={date !== saopauloToday()}
+          readOnly={date !== saoPauloToday()}
         />
       )}
 

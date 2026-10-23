@@ -81,16 +81,6 @@ export function stockVisibleErrors(quantities: Record<string, string>, state: St
     .sort();
 }
 
-/** The São Paulo day, as YYYY-MM-DD, whatever the device's clock is set to. */
-export function saopauloToday(now: Date = new Date()): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Sao_Paulo',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(now);
-}
-
 function counted(products: StockProduct[]): StockProduct[] {
   return products.filter((product) => product.units > 0);
 }

@@ -8,6 +8,7 @@ import { Input } from '../../components/ui/input';
 import { LoadingSpinner } from '../../components/ui/loading-spinner';
 import { passwordIssue, passwordIssueKey } from '../../lib/password-policy';
 import { cleanPhone, filterPhoneInput } from '../../lib/phone';
+import { ROLE_ID } from '../../lib/roles';
 
 /**
  * The hint under a new-password field.
@@ -232,7 +233,7 @@ export function AdminDashboard() {
   const [workerUsername, setWorkerUsername] = useState('');
   const [workerDisplayName, setWorkerDisplayName] = useState('');
   const [workerPassword, setWorkerPassword] = useState('');
-  const [workerRoleId, setWorkerRoleId] = useState('2'); // defaults to role 'Trabalhador' (role_id 2)
+  const [workerRoleId, setWorkerRoleId] = useState(String(ROLE_ID.worker));
   const [workerIsActive, setWorkerIsActive] = useState('1');
 
   // Profile form
@@ -657,7 +658,7 @@ export function AdminDashboard() {
         if (!isEditingOwnUser) {
           payload.username = trimmedUsername;
           const roleId = parseInt(workerRoleId, 10);
-          payload.role_id = isNaN(roleId) ? 2 : roleId;
+          payload.role_id = isNaN(roleId) ? ROLE_ID.worker : roleId;
           const isActive = parseInt(workerIsActive, 10);
           payload.is_active = isNaN(isActive) ? 1 : isActive;
         }
@@ -671,7 +672,7 @@ export function AdminDashboard() {
           username: trimmedUsername,
           display_name: trimmedDisplayName,
           password: workerPassword,
-          role_id: isNaN(roleId) ? 2 : roleId,
+          role_id: isNaN(roleId) ? ROLE_ID.worker : roleId,
         });
       }
       reloadData();
@@ -1036,8 +1037,8 @@ export function AdminDashboard() {
                 onChange={(e) => setWorkerRoleId(e.target.value)}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-white"
               >
-                <option value="2">{t('admin.workers.form.roleWorker')}</option>
-                <option value="1">{t('admin.workers.form.roleAdmin')}</option>
+                <option value={String(ROLE_ID.worker)}>{t('admin.workers.form.roleWorker')}</option>
+                <option value={String(ROLE_ID.admin)}>{t('admin.workers.form.roleAdmin')}</option>
               </select>
             </div>
           )}
@@ -1410,7 +1411,7 @@ export function AdminDashboard() {
                       <td className="py-2 pr-2">{w.username}</td>
                       <td className="py-2 pr-2">{w.display_name}</td>
                       <td className="py-2 pr-2">
-                        {w.role_id === 1 ? t('admin.workers.form.roleAdmin') : t('admin.workers.form.roleWorker')}
+                        {w.role_id === ROLE_ID.admin ? t('admin.workers.form.roleAdmin') : t('admin.workers.form.roleWorker')}
                       </td>
                       <td className="py-2 pr-2">
                         <Badge active={w.is_active} activeLabel={t('admin.statusActive')} inactiveLabel={t('admin.statusInactive')} />

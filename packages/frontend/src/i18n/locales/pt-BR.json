@@ -72,6 +72,7 @@
     "whatsappExport": "Exportação WhatsApp"
   },
   "ui": {
+    "retry": "Tentar de novo",
     "closeSidebar": "Fechar menu lateral",
     "openSidebar": "Abrir menu lateral",
     "close": "Fechar",
@@ -154,6 +155,7 @@
     "retryPhotoUpload": "Tentar enviar fotos novamente"
   },
   "loading": {
+    "vehiclesError": "Não foi possível carregar os veículos.",
     "title": "Cronograma de Carregamento",
     "description": "Organize os carregamentos do dia por horário",
     "today": "Hoje",
@@ -636,6 +638,9 @@
       ]
     },
     "share": {
+    "releaseError": "Não foi possível consultar a última versão do aplicativo.",
+    "qrError": "Não foi possível gerar o código QR.",
+    "usersError": "Não foi possível carregar os usuários cadastrados.",
       "title": "Compartilhar Aplicativo",
       "subtitle": "Distribuição para colaboradores e motoristas",
       "description": "Facilita o envio dos links oficiais da Trindade por WhatsApp para novos motoristas ou funcionários.",

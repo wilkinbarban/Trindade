@@ -63,9 +63,14 @@ export function ShareAppPage() {
   const [sharingApk, setSharingApk] = useState<boolean>(false);
   const [downloadedNotice, setDownloadedNotice] = useState<boolean>(false);
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
+  const [releaseError, setReleaseError] = useState(false);
+  const [qrError, setQrError] = useState(false);
+  const [usersError, setUsersError] = useState(false);
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     let active = true;
+    setReleaseError(false);
     void api.get<{ version: string; apkUrl: string; webUrl: string }>('/app/latest-release')
       .then((data) => {
         if (active && data?.apkUrl) {
@@ -76,9 +81,9 @@ export function ShareAppPage() {
           });
         }
       })
-      .catch(() => {});
+      .catch(() => { if (active) setReleaseError(true); });
     return () => { active = false; };
-  }, []);
+  }, [reloadToken]);
 
   useEffect(() => {
     let active = true;
@@ -95,9 +100,13 @@ export function ShareAppPage() {
         const res = await api.get<{ users: UserOptionItem[] }>('/users/options');
         if (active && Array.isArray(res?.users)) setUsers(res.users);
       } catch {
-        if (active) setUsers([]);
+        if (active) {
+          setUsers([]);
+          setUsersError(true);
+        }
       }
     };
+    setUsersError(false);
     void fetchUsers();
     return () => { active = false; };
   }, [isAdmin]);
@@ -137,11 +146,13 @@ export function ShareAppPage() {
   useEffect(() => {
     let active = true;
     const qrTarget = waLink || (platform === 'android' ? release.apkUrl : release.webUrl);
+    setQrError(false);
+    setQrDataUrl('');
     void QRCode.toDataURL(qrTarget, { width: 220, margin: 2 })
       .then((url) => { if (active) setQrDataUrl(url); })
-      .catch(() => { if (active) setQrDataUrl(''); });
+      .catch(() => { if (active) setQrError(true); });
     return () => { active = false; };
-  }, [waLink, platform, release]);
+  }, [waLink, platform, release, reloadToken]);
 
   const handleCopy = async () => {
     const outcome = await shareOrCopy(message);
@@ -217,6 +228,18 @@ export function ShareAppPage() {
           <span>{release.version}</span>
         </div>
       </div>
+
+      {releaseError && (
+        <div
+          role="alert"
+          className="flex items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+        >
+          <span>{t('share.releaseError')}</span>
+          <Button variant="outline" size="sm" onClick={() => setReloadToken((n) => n + 1)}>
+            {t('ui.retry')}
+          </Button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-7 space-y-6">
@@ -313,6 +336,11 @@ export function ShareAppPage() {
                         </option>
                       ))}
                     </select>
+                    {usersError && (
+                      <p className="mt-1 text-xs text-red-600" role="alert">
+                        {t('share.usersError')}
+                      </p>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -489,6 +517,13 @@ export function ShareAppPage() {
                     alt={t('share.qrCodeAlt', 'Código QR de Acesso')}
                     className="w-48 h-48 sm:w-52 sm:h-52 object-contain"
                   />
+                </div>
+              ) : qrError ? (
+                <div className="w-48 h-48 flex flex-col items-center justify-center gap-2 bg-red-50 rounded-xl border border-dashed border-red-300 text-xs text-red-600 px-3" role="alert">
+                  <span>{t('share.qrError')}</span>
+                  <Button variant="outline" size="sm" onClick={() => setReloadToken((n) => n + 1)}>
+                    {t('ui.retry')}
+                  </Button>
                 </div>
               ) : (
                 <div className="w-48 h-48 flex items-center justify-center bg-gray-50 rounded-xl border border-dashed border-gray-300 text-xs text-gray-400">

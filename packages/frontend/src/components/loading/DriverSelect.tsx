@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, ApiClientError } from '../../api/client';
 import { Button } from '../ui/button';
@@ -33,12 +33,20 @@ export function DriverSelect({
   const [selectedDriver, setSelectedDriver] = useState<DriverRow | null>(null);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>('');
   const [vehicles, setVehicles] = useState<{ id: number; description: string; license_plate: string }[]>([]);
+  const [vehiclesError, setVehiclesError] = useState(false);
 
-  useEffect(() => {
+  // A vehicle list that failed to load leaves the picker empty, which reads as "there are none". The
+  // failure is kept and shown with a retry instead of being swallowed into the console.
+  const loadVehicles = useCallback(() => {
+    setVehiclesError(false);
     api.get<{ vehicles: { id: number; description: string; license_plate: string }[] }>('/loading/vehicles')
       .then((data) => setVehicles(data.vehicles))
-      .catch((err) => console.error('Error fetching vehicles:', err));
+      .catch(() => setVehiclesError(true));
   }, []);
+
+  useEffect(() => {
+    loadVehicles();
+  }, [loadVehicles]);
 
   const available = drivers.filter((d) => !assignedIds.includes(d.id));
 
@@ -137,6 +145,14 @@ export function DriverSelect({
                 </option>
               ))}
           </select>
+          {vehiclesError && (
+            <div className="flex items-center gap-2 text-xs text-red-600 mb-3" role="alert">
+              <span>{t('loading.vehiclesError')}</span>
+              <Button type="button" variant="outline" size="sm" onClick={loadVehicles}>
+                {t('ui.retry')}
+              </Button>
+            </div>
+          )}
           <div className="flex gap-2">
             <Button
               type="button"

@@ -10,7 +10,6 @@ import { toWhatsAppNumber } from '../lib/phone';
 import { shareOrCopy, waMeLink } from '../lib/whatsapp';
 import {
   massasMessage,
-  saopauloToday,
   POLL_INTERVAL_MS,
   shouldPollMassas,
   type MassasLaunchDayView,
@@ -22,11 +21,12 @@ import { ModuleHelpModal } from '../components/ui/ModuleHelpModal';
 import { MassasLaunchGrid } from './massas/MassasLaunchGrid';
 import { MassasCollectiveTable } from './massas/MassasCollectiveTable';
 import { MassasWhatsAppShare } from './massas/MassasWhatsAppShare';
+import { saoPauloToday } from '../lib/date';
 
 export function MassasLaunchPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const [date, setDate] = useState(saopauloToday());
+  const [date, setDate] = useState(saoPauloToday());
   const [dayView, setDayView] = useState<MassasLaunchDayView | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -262,6 +262,7 @@ export function MassasLaunchPage() {
             <Input
               id="massa-date"
               type="date"
+              max={saoPauloToday()}
               value={date}
               onChange={(e) => setDate(e.target.value)}
               className="w-full sm:w-auto font-medium text-xs sm:text-sm px-2.5"
