@@ -629,6 +629,11 @@
     <string name="stock_count_day">Día del conteo</string>
     <string name="stock_failed_to_load_count_day">No fue posible cargar el día del conteo.</string>
     <string name="stock_no_products_counted">Ningún producto contado en este día.</string>
+    <string name="stock_collective_summary">Resumen Colectivo del Día</string>
+    <string name="stock_collective_subtitle">Las cajas y las unidades que el servidor sumó de cada producto contado.</string>
+    <string name="stock_units_per_box_short">%1$d un/cj</string>
+    <string name="stock_summary_boxes">%1$d cj</string>
+    <string name="stock_summary_units">%1$d un</string>
     <string name="stock_code_prefix">Cód: %1$s</string>
     <string name="stock_calculator_subtitle_edit">Cuente las cajas: el sistema acumula y calcula las unidades.</string>
     <string name="stock_calculator_subtitle_readonly">Modo de lectura: solo administradores pueden actualizar el stock.</string>

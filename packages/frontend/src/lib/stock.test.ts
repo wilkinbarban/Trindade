@@ -8,6 +8,7 @@ import {
   stockBoxesInvalid,
   stockEmailBody,
   stockMessage,
+  stockSummary,
   stockVisibleErrors,
 } from './stock';
 
@@ -73,6 +74,32 @@ describe('the message that leaves the plant', () => {
     const message = stockMessage(day);
     assert.match(message, /Terceirizados/i);
     assert.match(message, /Massas/i);
+  });
+});
+
+describe("the day's collective summary", () => {
+  it('lists every counted product once, with its boxes, its units and its un/cx', () => {
+    const summary = stockSummary(day);
+    assert.deepStrictEqual(summary.map((p) => p.name), ['CANUDO', 'MASSA ROLO 2KG'], 'solo lo contado, en el orden del catalogo');
+    assert.deepStrictEqual(
+      summary.map((p) => [p.boxes, p.units, p.unitsPerBox]),
+      [
+        [5, 150, 30],
+        [2, 12, 6],
+      ],
+      'cada producto con sus cajas, sus unidades y su un/cx'
+    );
+  });
+
+  it("shows the same numbers the server totalled, because the arithmetic is not the screen's", () => {
+    const summary = stockSummary(day);
+    assert.strictEqual(summary.reduce((sum, p) => sum + p.boxes, 0), day.totalBoxes);
+    assert.strictEqual(summary.reduce((sum, p) => sum + p.units, 0), day.totalUnits);
+  });
+
+  it('reads as empty when nothing was counted, so the section can say so instead of drawing nothing', () => {
+    const sinContar = { ...day, products: day.products.map((p) => ({ ...p, boxes: 0, units: 0 })), totalBoxes: 0, totalUnits: 0 };
+    assert.deepStrictEqual(stockSummary(sinContar), []);
   });
 });
 

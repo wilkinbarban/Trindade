@@ -94,6 +94,35 @@ class StockViewModelTest {
     }
 
     @Test
+    fun `the day's collective summary is every counted product, with the totals the server sent`() {
+        val day = com.trindade.app.contract.models.StockDay(
+            date = "2026-10-15", products = listOf(canudo, massa), totalBoxes = 7, totalUnits = 162
+        )
+
+        val resumo = stockCollectiveSummary(day)
+
+        assertEquals(listOf("CANUDO", "MASSA ROLO 2KG"), resumo.map { it.name })
+        assertEquals(listOf(5, 2), resumo.map { it.boxes })
+        assertEquals(listOf(150, 12), resumo.map { it.units })
+        assertEquals(listOf(30, 6), resumo.map { it.unitsPerBox })
+        // El resumen no hace su propia aritmetica: la suma de lo que muestra es el total del servidor.
+        assertEquals(day.totalBoxes, resumo.sumOf { it.boxes })
+        assertEquals(day.totalUnits, resumo.sumOf { it.units })
+    }
+
+    @Test
+    fun `a day with nothing counted has an empty summary, so the section can say so`() {
+        val nada = com.trindade.app.contract.models.StockDay(
+            date = "2026-10-15",
+            products = listOf(canudo.copy(boxes = 0, units = 0), massa.copy(boxes = 0, units = 0)),
+            totalBoxes = 0,
+            totalUnits = 0,
+        )
+
+        assertEquals(emptyList<StockDayProductsInner>(), stockCollectiveSummary(nada))
+    }
+
+    @Test
     fun `the destination is the plant and never the author`() {
         val link = viewModel.mailtoLink()
         assertTrue(link.startsWith("mailto:xmitrindade@hotmail.com"))
