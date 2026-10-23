@@ -231,14 +231,13 @@ export function MassasLaunchPage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-12">
-      {/* Top Title & Date Selection */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="p-2 bg-amber-100 text-amber-800 rounded-lg text-xl flex items-center justify-center w-10 h-10 select-none">
-              🍝
-            </span>
-            <h1 className="text-2xl font-bold text-gray-900">{t('massas.title')}</h1>
+      {/* Encabezado y Selección de Fecha. Sin el emoji: en un teléfono la placa del espagueti y el
+          botón se llevaban el ancho que el título necesitaba. Debajo de `sm` las acciones bajan a su
+          propio renglón y la fecha sigue alcanzable con el pulgar. */}
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{t('massas.title')}</h1>
             <ModuleHelpModal
               title={t('moduleHelp.massasLaunch.title')}
               subtitle={t('moduleHelp.massasLaunch.subtitle')}
@@ -248,15 +247,15 @@ export function MassasLaunchPage() {
           </div>
           <p className="text-sm text-gray-500 mt-1">{t('massas.subtitle')}</p>
         </div>
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <Link to="/massas-history" className="flex-1 sm:flex-initial">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto shrink-0">
+          <Link to="/massas-history" className="w-full sm:w-auto">
             <Button variant="outline" className="w-full sm:w-auto flex items-center justify-center gap-1.5 text-xs font-semibold px-2.5">
               <History className="h-4 w-4 shrink-0" />
-              <span className="truncate">{t('massas.viewHistory')}</span>
+              <span>{t('massas.viewHistory')}</span>
             </Button>
           </Link>
-          <div className="flex items-center gap-1.5 flex-1 sm:flex-initial">
-            <label htmlFor="massa-date" className="sr-only sm:not-sr-only text-sm font-medium text-gray-700 whitespace-nowrap">
+          <div className="flex items-center gap-1.5 w-full sm:w-auto">
+            <label htmlFor="massa-date" className="sr-only xl:not-sr-only text-sm font-medium text-gray-700 whitespace-nowrap">
               {t('massas.date')}:
             </label>
             <Input
@@ -265,7 +264,8 @@ export function MassasLaunchPage() {
               max={saoPauloToday()}
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full sm:w-auto font-medium text-xs sm:text-sm px-2.5"
+              className="w-full sm:w-auto font-medium text-sm px-2.5"
+              data-testid="massas-launch-date"
             />
           </div>
         </div>
