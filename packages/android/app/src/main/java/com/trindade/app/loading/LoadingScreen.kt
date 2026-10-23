@@ -21,6 +21,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -83,6 +84,7 @@ fun LoadingScreen(
     onOpenWhatsApp: (DriversResponseDriversInner) -> Unit = {},
     onCopyExport: (String) -> Unit = {},
     onQuickAdd: (String, String?, String?) -> Unit = { _, _, _ -> },
+    onRetry: () -> Unit = {},
 ) {
     val clipboard = LocalClipboardManager.current
     var showHelpDialog by remember { mutableStateOf(false) }
@@ -135,11 +137,21 @@ fun LoadingScreen(
 
         state.message?.let { message ->
             item {
-                Text(
-                    text = message,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
+                // A failure the operator can only read is a dead end: the read that failed is the one
+                // that fills the grid, so the message carries the way to ask again.
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = message,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    TextButton(onClick = onRetry, enabled = !state.loading) {
+                        Text(stringResource(R.string.loading_retry))
+                    }
+                }
             }
         }
 
@@ -600,5 +612,6 @@ fun LoadingRoute(
         onSharePdf = viewModel::sharePdf,
         onOpenWhatsApp = viewModel::openWhatsAppFor,
         onQuickAdd = viewModel::quickAddDriver,
+        onRetry = { viewModel.load() },
     )
 }

@@ -18,7 +18,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.trindade.app.R
 import com.trindade.app.ui.components.NavigationActionButton
 
 /** Time-slot catalog UI. Consumes ViewModel state and callbacks directly; role gating fails closed for non-admin. */
@@ -43,13 +45,13 @@ fun TimeSlotsScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            NavigationActionButton(onClick = onBack) { Text("Voltar") }
-            Text("Horários", style = MaterialTheme.typography.titleLarge)
+            NavigationActionButton(onClick = onBack) { Text(stringResource(R.string.admin_back)) }
+            Text(stringResource(R.string.admin_time_slots_title), style = MaterialTheme.typography.titleLarge)
             TextButton(
                 onClick = onRefresh,
                 enabled = !state.loading && !state.saving,
             ) {
-                Text("Atualizar")
+                Text(stringResource(R.string.admin_refresh))
             }
         }
 
@@ -59,12 +61,17 @@ fun TimeSlotsScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 CircularProgressIndicator()
-                Text("Carregando…")
+                Text(stringResource(R.string.admin_loading))
             }
         }
 
         state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        state.refusedStatus?.let { Text("Status: $it", color = MaterialTheme.colorScheme.error) }
+        state.refusedStatus?.let {
+            Text(
+                stringResource(R.string.admin_time_slots_refused_status, it),
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
 
         if (state.canAdd()) {
             Row(
@@ -75,7 +82,7 @@ fun TimeSlotsScreen(
                 OutlinedTextField(
                     value = state.input,
                     onValueChange = onInputChange,
-                    label = { Text("Novo horário") },
+                    label = { Text(stringResource(R.string.admin_time_slots_new)) },
                     placeholder = { Text("HH:MM") },
                     enabled = !state.saving,
                     modifier = Modifier.weight(1f),
@@ -87,9 +94,9 @@ fun TimeSlotsScreen(
                 ) {
                     if (state.saving) {
                         CircularProgressIndicator()
-                        Text("Salvando…")
+                        Text(stringResource(R.string.admin_action_saving))
                     } else {
-                        Text("Adicionar")
+                        Text(stringResource(R.string.admin_time_slots_add))
                     }
                 }
             }
@@ -110,11 +117,11 @@ fun TimeSlotsScreen(
                             onClick = { onRemoveTimeSlot(slot) },
                             enabled = !state.saving,
                         ) {
-                            Text("Remover")
+                            Text(stringResource(R.string.admin_time_slots_remove))
                         }
                     } else {
                         Text(
-                            "Somente leitura",
+                            stringResource(R.string.admin_read_only),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
@@ -123,7 +130,7 @@ fun TimeSlotsScreen(
         }
 
         if (!state.loading && state.timeSlots.isEmpty()) {
-            Text("Nenhum horário configurado")
+            Text(stringResource(R.string.admin_time_slots_empty))
         }
     }
 }

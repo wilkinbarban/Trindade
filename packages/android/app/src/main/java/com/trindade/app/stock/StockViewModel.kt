@@ -1,9 +1,12 @@
 package com.trindade.app.stock
 
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.trindade.app.R
 import com.trindade.app.contract.models.StockDay
 import com.trindade.app.contract.models.StockDayProductsInner
+import com.trindade.app.ui.UiText
 import com.trindade.app.ui.waMeLink
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.text.SimpleDateFormat
@@ -52,7 +55,7 @@ class StockViewModel @Inject constructor(private val repository: StockRepository
         val blurred: Set<String> = emptySet(),
         val focused: String? = null,
         val number: String = "",
-        val note: String = "",
+        val note: UiText? = null,
         val loading: Boolean = false,
         val failed: Boolean = false,
     )
@@ -115,8 +118,8 @@ class StockViewModel @Inject constructor(private val repository: StockRepository
         _state.value = _state.value.copy(number = value)
     }
 
-    fun onNote(text: String) {
-        _state.value = _state.value.copy(note = text)
+    fun onNote(@StringRes resId: Int, vararg args: Any) {
+        _state.value = _state.value.copy(note = UiText.of(resId, *args))
     }
 
     fun load() {
@@ -135,12 +138,12 @@ class StockViewModel @Inject constructor(private val repository: StockRepository
 
     fun addEntry(product: StockDayProductsInner) {
         if (!canEdit()) {
-            onNote("Apenas administradores podem atualizar o estoque.")
+            onNote(R.string.stock_note_not_admin)
             return
         }
         val raw = _state.value.quantities[product.code] ?: ""
         if (addDisabled(raw)) {
-            onNote("Digite uma quantidade inteira de caixas maior que zero.")
+            onNote(R.string.stock_note_invalid_boxes)
             return
         }
         val boxes = raw.trim().toInt()
@@ -148,28 +151,28 @@ class StockViewModel @Inject constructor(private val repository: StockRepository
             when (repository.addEntry(_state.value.date, product.code, boxes)) {
                 is StockRepository.WriteResult.Saved -> {
                     _state.value = _state.value.copy(quantities = _state.value.quantities + (product.code to ""))
-                    onNote("Caixas somadas ao total.")
+                    onNote(R.string.stock_note_boxes_added)
                     load()
                 }
-                StockRepository.WriteResult.Refused -> onNote("O servidor recusou: revise a quantidade.")
-                StockRepository.WriteResult.Unreachable -> onNote("Não foi possível falar com o servidor.")
+                StockRepository.WriteResult.Refused -> onNote(R.string.stock_note_server_refused)
+                StockRepository.WriteResult.Unreachable -> onNote(R.string.stock_note_offline)
             }
         }
     }
 
     fun resetProduct(product: StockDayProductsInner) {
         if (!canEdit()) {
-            onNote("Apenas administradores podem atualizar o estoque.")
+            onNote(R.string.stock_note_not_admin)
             return
         }
         viewModelScope.launch {
             when (repository.resetProduct(_state.value.date, product.code)) {
                 is StockRepository.WriteResult.Saved -> {
-                    onNote("Produto zerado.")
+                    onNote(R.string.stock_note_reset_done)
                     load()
                 }
-                StockRepository.WriteResult.Refused -> onNote("O servidor recusou o reset.")
-                StockRepository.WriteResult.Unreachable -> onNote("Não foi possível falar com o servidor.")
+                StockRepository.WriteResult.Refused -> onNote(R.string.stock_note_reset_refused)
+                StockRepository.WriteResult.Unreachable -> onNote(R.string.stock_note_offline)
             }
         }
     }

@@ -233,11 +233,9 @@ fun shouldPollMassas(
 fun canEditOrDeleteLaunch(
     launchUserId: Int,
     currentUserId: Int?,
-    isAdmin: Boolean,
     isToday: Boolean = true,
 ): Boolean {
     if (!isToday) return false
-    if (isAdmin) return true
     if (currentUserId == null) return false
     return launchUserId == currentUserId
 }

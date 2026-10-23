@@ -41,7 +41,9 @@ import com.trindade.app.ui.BrazilianPhoneVisualTransformation
 import com.trindade.app.ui.components.HelpSection
 import com.trindade.app.ui.components.ModuleHelpButton
 import com.trindade.app.ui.components.ModuleHelpDialog
+import com.trindade.app.ui.resolve
 import com.trindade.app.ui.filterPhoneDigits
+import com.trindade.app.ui.saoPauloLocalDate
 import java.time.LocalDate
 import java.util.Locale
 
@@ -71,9 +73,6 @@ fun StockCalculatorScreen(
     val active = shown?.let { groups[it] } ?: groups.values.firstOrNull()
     var showHelpDialog by remember { mutableStateOf(false) }
 
-    val invalidPhoneNote = stringResource(R.string.stock_whatsapp_invalid_phone)
-    val openingWhatsappNote = stringResource(R.string.stock_whatsapp_opening)
-    val openingEmailNote = stringResource(R.string.stock_email_opening)
 
     LaunchedEffect(role) { viewModel.onRoleKnown(role) }
     LaunchedEffect(Unit) { viewModel.load() }
@@ -248,10 +247,10 @@ fun StockCalculatorScreen(
             onClick = {
                 val target = viewModel.whatsappLink()
                 if (target == null) {
-                    viewModel.onNote(invalidPhoneNote)
+                    viewModel.onNote(R.string.stock_whatsapp_invalid_phone)
                 } else {
                     context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(target)))
-                    viewModel.onNote(openingWhatsappNote)
+                    viewModel.onNote(R.string.stock_whatsapp_opening)
                 }
             },
             enabled = viewModel.hasSomethingToSend() && state.number.isNotBlank(),
@@ -264,15 +263,15 @@ fun StockCalculatorScreen(
             onClick = {
                 // El destino es el buzon de la planta; el correo del autor no se usa aca.
                 context.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse(viewModel.mailtoLink())))
-                viewModel.onNote(openingEmailNote)
+                viewModel.onNote(R.string.stock_email_opening)
             },
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(stringResource(R.string.stock_send_email_button))
         }
 
-        if (state.note.isNotEmpty()) {
-            Text(state.note, style = MaterialTheme.typography.bodySmall)
+        state.note?.let { note ->
+            Text(note.resolve(), style = MaterialTheme.typography.bodySmall)
         }
 
         if (showHelpDialog) {
@@ -296,7 +295,7 @@ fun StockCalculatorScreen(
 }
 
 private fun openDayPicker(context: Context, selected: String?, onPick: (String) -> Unit) {
-    val initial = selected?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: LocalDate.now()
+    val initial = selected?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: saoPauloLocalDate()
 
     DatePickerDialog(
         context,

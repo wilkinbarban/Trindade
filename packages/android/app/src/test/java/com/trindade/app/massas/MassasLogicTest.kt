@@ -212,18 +212,15 @@ class MassasLogicTest {
     }
 
     @Test
-    fun canEditOrDeleteLaunch_enforcesRbac() {
-        // Admin can edit any
-        assertTrue(canEditOrDeleteLaunch(launchUserId = 10, currentUserId = 5, isAdmin = true))
-        // Author can edit own
-        assertTrue(canEditOrDeleteLaunch(launchUserId = 5, currentUserId = 5, isAdmin = false))
-        // Non-author cannot edit
-        assertFalse(canEditOrDeleteLaunch(launchUserId = 10, currentUserId = 5, isAdmin = false))
+    fun canEditOrDeleteLaunch_onlyAllowsTheAuthor() {
+        // The author can edit their own launch, which is the contract the server enforces.
+        assertTrue(canEditOrDeleteLaunch(launchUserId = 5, currentUserId = 5))
+        // Nobody else can, administrators included: the backend compares user_id, not a role.
+        assertFalse(canEditOrDeleteLaunch(launchUserId = 10, currentUserId = 5))
         // Unauthenticated cannot edit
-        assertFalse(canEditOrDeleteLaunch(launchUserId = 10, currentUserId = null, isAdmin = false))
-        // Past dates strictly forbid edits even for admin or author
-        assertFalse(canEditOrDeleteLaunch(launchUserId = 10, currentUserId = 5, isAdmin = true, isToday = false))
-        assertFalse(canEditOrDeleteLaunch(launchUserId = 5, currentUserId = 5, isAdmin = false, isToday = false))
+        assertFalse(canEditOrDeleteLaunch(launchUserId = 10, currentUserId = null))
+        // Past dates strictly forbid edits even for the author
+        assertFalse(canEditOrDeleteLaunch(launchUserId = 5, currentUserId = 5, isToday = false))
     }
 
     @Test

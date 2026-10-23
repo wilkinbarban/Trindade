@@ -22,7 +22,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.trindade.app.R
 import com.trindade.app.contract.models.AdminVehicleResponseVehicle
 import com.trindade.app.ui.components.AdminDestructiveButton
 import com.trindade.app.ui.components.AdminDestructiveConfirmButton
@@ -58,20 +60,20 @@ fun VehiclesScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
         ) {
-            NavigationActionButton(onClick = onBack) { Text("Voltar") }
-            Text("Veículos", style = MaterialTheme.typography.titleLarge)
+            NavigationActionButton(onClick = onBack) { Text(stringResource(R.string.admin_back)) }
+            Text(stringResource(R.string.admin_section_vehicles), style = MaterialTheme.typography.titleLarge)
             NavigationActionButton(
                 onClick = onRefresh,
                 enabled = !state.loading && !state.saving,
             ) {
-                Text("Atualizar")
+                Text(stringResource(R.string.admin_refresh))
             }
         }
 
         if (state.loading) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 CircularProgressIndicator()
-                Text("Carregando…")
+                Text(stringResource(R.string.admin_loading))
             }
         }
 
@@ -81,7 +83,7 @@ fun VehiclesScreen(
             AdminPrimaryButton(
                 onClick = { showForm = true },
                 enabled = !state.saving,
-                text = "Novo veículo",
+                text = stringResource(R.string.admin_new_vehicle),
             )
         }
 
@@ -89,14 +91,14 @@ fun VehiclesScreen(
             OutlinedTextField(
                 value = state.description,
                 onValueChange = onDescriptionChange,
-                label = { Text("Descrição") },
+                label = { Text(stringResource(R.string.admin_field_description)) },
                 enabled = !state.saving,
                 modifier = Modifier.fillMaxWidth(),
             )
             OutlinedTextField(
                 value = state.licensePlate,
                 onValueChange = onLicensePlateChange,
-                label = { Text("Placa") },
+                label = { Text(stringResource(R.string.admin_field_plate)) },
                 enabled = !state.saving,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -106,7 +108,7 @@ fun VehiclesScreen(
                     onClick = onSave,
                     enabled = !state.saving && !state.loading,
                     loading = state.saving,
-                    text = if (state.saving) "Salvando…" else if (state.editingId == null) "Criar" else "Salvar",
+                    text = if (state.saving) stringResource(R.string.admin_action_saving) else if (state.editingId == null) stringResource(R.string.admin_action_create) else stringResource(R.string.admin_action_save),
                 )
                 AdminSecondaryButton(
                     onClick = {
@@ -114,7 +116,7 @@ fun VehiclesScreen(
                         onCancel()
                     },
                     enabled = !state.saving,
-                    text = "Cancelar",
+                    text = stringResource(R.string.admin_action_cancel),
                 )
             }
         }
@@ -124,21 +126,21 @@ fun VehiclesScreen(
                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(vehicle.description, style = MaterialTheme.typography.titleMedium)
                     Text(vehicle.licensePlate)
-                    Text(if (vehicle.isActive == 1) "Ativo" else "Inativo")
+                    Text(if (vehicle.isActive == 1) stringResource(R.string.admin_status_active) else stringResource(R.string.admin_status_inactive))
 
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
                     ) {
                         if (state.canEdit(vehicle)) {
-                            AdminSecondaryButton(onClick = { onEdit(vehicle) }, text = "Editar")
+                            AdminSecondaryButton(onClick = { onEdit(vehicle) }, text = stringResource(R.string.admin_action_edit))
                         } else {
-                            Text("Somente leitura", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(stringResource(R.string.admin_read_only), color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         if (state.canToggle(vehicle)) {
                             AdminSecondaryButton(
                                 onClick = { onToggle(vehicle) },
-                                text = if (vehicle.isActive == 1) "Desativar" else "Ativar",
+                                text = if (vehicle.isActive == 1) stringResource(R.string.admin_action_deactivate) else stringResource(R.string.admin_action_activate),
                             )
                         }
                         if (state.canDelete(vehicle)) {
@@ -148,7 +150,7 @@ fun VehiclesScreen(
                                     localDeleteTarget = vehicle
                                 },
                                 enabled = !state.saving,
-                                text = "Excluir",
+                                text = stringResource(R.string.admin_action_delete),
                             )
                         }
                     }
@@ -157,7 +159,7 @@ fun VehiclesScreen(
         }
 
         if (!state.loading && state.vehicles.isEmpty()) {
-            Text("Nenhum veículo")
+            Text(stringResource(R.string.admin_no_vehicles))
         }
     }
 
@@ -169,15 +171,15 @@ fun VehiclesScreen(
                     localDeleteTarget = null
                     onDismissDelete()
                 },
-                title = { Text("Confirmar exclusão") },
-                text = { Text("Excluir ${vehicle.description}?") },
+                title = { Text(stringResource(R.string.admin_confirm_delete)) },
+                text = { Text(stringResource(R.string.admin_delete_question, vehicle.description)) },
                 confirmButton = {
                     AdminDestructiveConfirmButton(
                         onClick = {
                             localDeleteTarget = null
                             onConfirmDelete()
                         },
-                        text = "Confirmar",
+                        text = stringResource(R.string.admin_action_confirm),
                     )
                 },
                 dismissButton = {
@@ -186,7 +188,7 @@ fun VehiclesScreen(
                             localDeleteTarget = null
                             onDismissDelete()
                         },
-                        text = "Cancelar",
+                        text = stringResource(R.string.admin_action_cancel),
                     )
                 },
             )

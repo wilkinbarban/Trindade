@@ -22,7 +22,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.trindade.app.R
 import com.trindade.app.contract.models.AdminCategoryResponseCategory
 import com.trindade.app.ui.components.AdminChoiceChip
 import com.trindade.app.ui.components.AdminDestructiveButton
@@ -62,20 +64,20 @@ fun CategoriesScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
         ) {
-            NavigationActionButton(onClick = onBack) { Text("Voltar") }
-            Text("Categorias", style = MaterialTheme.typography.titleLarge)
+            NavigationActionButton(onClick = onBack) { Text(stringResource(R.string.admin_back)) }
+            Text(stringResource(R.string.admin_section_categories), style = MaterialTheme.typography.titleLarge)
             NavigationActionButton(
                 onClick = onRefresh,
                 enabled = !state.loading && !state.saving,
             ) {
-                Text("Atualizar")
+                Text(stringResource(R.string.admin_refresh))
             }
         }
 
         if (state.loading) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 CircularProgressIndicator()
-                Text("Carregando…")
+                Text(stringResource(R.string.admin_loading))
             }
         }
 
@@ -85,7 +87,7 @@ fun CategoriesScreen(
             AdminPrimaryButton(
                 onClick = { showForm = true },
                 enabled = !state.saving,
-                text = "Nova categoria",
+                text = stringResource(R.string.admin_new_category),
             )
         }
 
@@ -95,7 +97,7 @@ fun CategoriesScreen(
                     OutlinedTextField(
                         value = state.nameEs,
                         onValueChange = onNameChange,
-                        label = { Text("Español") },
+                        label = { Text(stringResource(R.string.admin_language_spanish)) },
                         enabled = !state.saving,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -103,7 +105,7 @@ fun CategoriesScreen(
                     OutlinedTextField(
                         value = state.namePt,
                         onValueChange = onNameChange,
-                        label = { Text("Português") },
+                        label = { Text(stringResource(R.string.admin_language_portuguese)) },
                         enabled = !state.saving,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -112,32 +114,32 @@ fun CategoriesScreen(
                 OutlinedTextField(
                     value = state.namePt,
                     onValueChange = onNamePtChange,
-                    label = { Text("Português") },
+                    label = { Text(stringResource(R.string.admin_language_portuguese)) },
                     enabled = !state.saving,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
                     value = state.nameEs,
                     onValueChange = onNameEsChange,
-                    label = { Text("Español") },
+                    label = { Text(stringResource(R.string.admin_language_spanish)) },
                     enabled = !state.saving,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
 
-            Text("Tipo", style = MaterialTheme.typography.labelLarge)
+            Text(stringResource(R.string.admin_field_type), style = MaterialTheme.typography.labelLarge)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 AdminChoiceChip(
                     selected = state.categoryType == CategoriesViewModel.CHECK,
                     onClick = { onCategoryTypeChange(CategoriesViewModel.CHECK) },
                     enabled = !state.saving,
-                    label = if (state.categoryType == CategoriesViewModel.CHECK) "Check ✓" else "Check",
+                    label = if (state.categoryType == CategoriesViewModel.CHECK) "${stringResource(R.string.admin_type_check)} ✓" else stringResource(R.string.admin_type_check),
                 )
                 AdminChoiceChip(
                     selected = state.categoryType == CategoriesViewModel.TEMPERATURE,
                     onClick = { onCategoryTypeChange(CategoriesViewModel.TEMPERATURE) },
                     enabled = !state.saving,
-                    label = if (state.categoryType == CategoriesViewModel.TEMPERATURE) "Temperatura ✓" else "Temperatura",
+                    label = if (state.categoryType == CategoriesViewModel.TEMPERATURE) "${stringResource(R.string.admin_type_temperature)} ✓" else stringResource(R.string.admin_type_temperature),
                 )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -145,20 +147,20 @@ fun CategoriesScreen(
                     selected = state.categoryType == CategoriesViewModel.CHECK_ASSAI,
                     onClick = { onCategoryTypeChange(CategoriesViewModel.CHECK_ASSAI) },
                     enabled = !state.saving,
-                    label = if (state.categoryType == CategoriesViewModel.CHECK_ASSAI) "Check Assaí ✓" else "Check Assaí",
+                    label = if (state.categoryType == CategoriesViewModel.CHECK_ASSAI) "${stringResource(R.string.admin_type_check_assai)} ✓" else stringResource(R.string.admin_type_check_assai),
                 )
                 AdminChoiceChip(
                     selected = state.categoryType == CategoriesViewModel.CHECK_NORMAL,
                     onClick = { onCategoryTypeChange(CategoriesViewModel.CHECK_NORMAL) },
                     enabled = !state.saving,
-                    label = if (state.categoryType == CategoriesViewModel.CHECK_NORMAL) "Check Normal ✓" else "Check Normal",
+                    label = if (state.categoryType == CategoriesViewModel.CHECK_NORMAL) "${stringResource(R.string.admin_type_check_normal)} ✓" else stringResource(R.string.admin_type_check_normal),
                 )
             }
 
             OutlinedTextField(
                 value = state.sortOrder,
                 onValueChange = onSortOrderChange,
-                label = { Text("Ordem") },
+                label = { Text(stringResource(R.string.admin_field_order)) },
                 enabled = !state.saving,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -168,7 +170,7 @@ fun CategoriesScreen(
                     onClick = onSave,
                     enabled = !state.saving && !state.loading,
                     loading = state.saving,
-                    text = if (state.saving) "Salvando…" else if (state.editingId == null) "Criar" else "Salvar",
+                    text = if (state.saving) stringResource(R.string.admin_action_saving) else if (state.editingId == null) stringResource(R.string.admin_action_create) else stringResource(R.string.admin_action_save),
                 )
                 AdminSecondaryButton(
                     onClick = {
@@ -176,7 +178,7 @@ fun CategoriesScreen(
                         onCancel()
                     },
                     enabled = !state.saving,
-                    text = "Cancelar",
+                    text = stringResource(R.string.admin_action_cancel),
                 )
             }
         }
@@ -194,23 +196,23 @@ fun CategoriesScreen(
                         val secondaryName = if (state.isSpanish) category.namePt else category.nameEs
                         Text(secondaryName, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Text(category.categoryType.label())
-                    Text("Ordem: ${category.sortOrder}")
-                    Text(if (category.isActive == 1) "Ativa" else "Inativa")
+                    Text(categoryTypeLabel(category.categoryType))
+                    Text(stringResource(R.string.admin_category_order, category.sortOrder))
+                    Text(if (category.isActive == 1) stringResource(R.string.admin_status_active_fem) else stringResource(R.string.admin_status_inactive_fem))
 
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
                     ) {
                         if (state.canEdit(category)) {
-                            AdminSecondaryButton(onClick = { onEdit(category) }, text = "Editar")
+                            AdminSecondaryButton(onClick = { onEdit(category) }, text = stringResource(R.string.admin_action_edit))
                         } else {
-                            Text("Somente leitura", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(stringResource(R.string.admin_read_only), color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         if (state.canToggle(category)) {
                             AdminSecondaryButton(
                                 onClick = { onToggle(category) },
-                                text = if (category.isActive == 1) "Desativar" else "Ativar",
+                                text = if (category.isActive == 1) stringResource(R.string.admin_action_deactivate) else stringResource(R.string.admin_action_activate),
                             )
                         }
                         if (state.canDelete(category)) {
@@ -220,7 +222,7 @@ fun CategoriesScreen(
                                     localDeleteTarget = category
                                 },
                                 enabled = !state.saving,
-                                text = "Excluir",
+                                text = stringResource(R.string.admin_action_delete),
                             )
                         }
                     }
@@ -229,7 +231,7 @@ fun CategoriesScreen(
         }
 
         if (!state.loading && state.categories.isEmpty()) {
-            Text("Nenhuma categoria")
+            Text(stringResource(R.string.admin_no_categories))
         }
     }
 
@@ -245,15 +247,15 @@ fun CategoriesScreen(
                 localDeleteTarget = null
                 onDismissDelete()
             },
-            title = { Text("Confirmar exclusão") },
-            text = { Text("Excluir $categoryName?") },
+            title = { Text(stringResource(R.string.admin_confirm_delete)) },
+            text = { Text(stringResource(R.string.admin_delete_question, categoryName)) },
             confirmButton = {
                 AdminDestructiveConfirmButton(
                     onClick = {
                         localDeleteTarget = null
                         onConfirmDelete()
                     },
-                    text = "Confirmar",
+                    text = stringResource(R.string.admin_action_confirm),
                 )
             },
             dismissButton = {
@@ -262,7 +264,7 @@ fun CategoriesScreen(
                         localDeleteTarget = null
                         onDismissDelete()
                     },
-                    text = "Cancelar",
+                    text = stringResource(R.string.admin_action_cancel),
                 )
             },
         )
@@ -300,9 +302,10 @@ fun CategoriesRoute(
 }
 
 
-private fun AdminCategoryResponseCategory.CategoryType.label(): String = when (this) {
-    AdminCategoryResponseCategory.CategoryType.temperature -> "Temperatura"
-    AdminCategoryResponseCategory.CategoryType.check_assai -> "Check Assaí"
-    AdminCategoryResponseCategory.CategoryType.check_normal -> "Check Normal"
-    AdminCategoryResponseCategory.CategoryType.check -> "Check"
+@Composable
+private fun categoryTypeLabel(type: AdminCategoryResponseCategory.CategoryType): String = when (type) {
+    AdminCategoryResponseCategory.CategoryType.temperature -> stringResource(R.string.admin_type_temperature)
+    AdminCategoryResponseCategory.CategoryType.check_assai -> stringResource(R.string.admin_type_check_assai)
+    AdminCategoryResponseCategory.CategoryType.check_normal -> stringResource(R.string.admin_type_check_normal)
+    AdminCategoryResponseCategory.CategoryType.check -> stringResource(R.string.admin_type_check)
 }

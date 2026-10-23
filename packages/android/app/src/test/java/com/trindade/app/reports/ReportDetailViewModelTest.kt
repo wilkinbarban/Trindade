@@ -1,5 +1,6 @@
 package com.trindade.app.reports
 
+import com.trindade.app.R
 import com.trindade.app.contract.models.PhotoResponse
 import com.trindade.app.contract.models.ReportResponse
 import com.trindade.app.contract.models.ReportResponseReport
@@ -166,7 +167,7 @@ class ReportDetailViewModelTest {
 
         model.attachPhoto("/tmp/capture.jpg")
 
-        assertTrue(model.state.value.message!!.lowercase().contains("grande"))
+        assertEquals(R.string.report_error_photo_too_large, model.state.value.message?.resId)
     }
 
     @Test

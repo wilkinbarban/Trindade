@@ -43,6 +43,7 @@ import com.trindade.app.ui.displayDate
 import com.trindade.app.ui.displayMonth
 import com.trindade.app.ui.notesPreview
 import com.trindade.app.ui.recentMonths
+import com.trindade.app.ui.saoPauloLocalDate
 import java.time.LocalDate
 import java.util.Locale
 
@@ -363,7 +364,7 @@ private fun ReportRow(
  * when there is none.
  */
 private fun openDayPicker(context: Context, selected: String?, onPick: (String) -> Unit) {
-    val initial = selected?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: LocalDate.now()
+    val initial = selected?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: saoPauloLocalDate()
 
     DatePickerDialog(
         context,

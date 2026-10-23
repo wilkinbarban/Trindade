@@ -1,5 +1,6 @@
 package com.trindade.app.stock
 
+import com.trindade.app.R
 import com.trindade.app.contract.models.StockDayProductsInner
 import com.trindade.app.network.StockApi
 import kotlinx.serialization.json.Json
@@ -117,10 +118,10 @@ class StockViewModelTest {
 
         viewModel.onQuantityChange("787", "5")
         viewModel.addEntry(canudo)
-        assertEquals("Apenas administradores podem atualizar o estoque.", viewModel.state.value.note)
+        assertEquals(R.string.stock_note_not_admin, viewModel.state.value.note?.resId)
 
         viewModel.resetProduct(canudo)
-        assertEquals("Apenas administradores podem atualizar o estoque.", viewModel.state.value.note)
+        assertEquals(R.string.stock_note_not_admin, viewModel.state.value.note?.resId)
 
         viewModel.onRoleKnown("Administrador")
         assertEquals(true, viewModel.canEdit())

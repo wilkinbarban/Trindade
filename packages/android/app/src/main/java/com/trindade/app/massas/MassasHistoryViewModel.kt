@@ -1,8 +1,10 @@
 package com.trindade.app.massas
 
+import com.trindade.app.R
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.trindade.app.network.MassaHistoryDay
+import com.trindade.app.ui.UiText
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,7 +20,7 @@ class MassasHistoryViewModel @Inject constructor(
     data class UiState(
         val days: List<MassaHistoryDay> = emptyList(),
         val isLoading: Boolean = false,
-        val errorMessage: String? = null,
+        val errorMessage: UiText? = null,
         val showHelpDialog: Boolean = false,
     )
 
@@ -36,7 +38,7 @@ class MassasHistoryViewModel @Inject constructor(
             _state.value = _state.value.copy(
                 isLoading = false,
                 days = result ?: emptyList(),
-                errorMessage = if (result == null) "Não foi possível carregar o histórico de massas." else null,
+                errorMessage = if (result == null) UiText.of(R.string.massas_history_error_load) else null,
             )
         }
     }

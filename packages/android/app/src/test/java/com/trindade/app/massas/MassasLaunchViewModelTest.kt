@@ -1,5 +1,6 @@
 package com.trindade.app.massas
 
+import com.trindade.app.R
 import com.trindade.app.auth.AuthRepository
 import com.trindade.app.auth.TokenStore
 import com.trindade.app.network.AuthApi
@@ -202,7 +203,7 @@ class MassasLaunchViewModelTest {
 
         assertTrue(testVm.state.value.quantities.isEmpty())
         assertFalse(testVm.state.value.isSubmitting)
-        assertEquals("Lançamento registrado com sucesso!", testVm.state.value.noticeMessage)
+        assertEquals(R.string.massas_success, testVm.state.value.noticeMessage?.resId)
         assertEquals(30, testVm.state.value.dayView?.totalUnits)
         assertEquals(1, fakeRepo.lastCreatedItems?.size)
         assertEquals("1045", fakeRepo.lastCreatedItems?.first()?.productCode)
@@ -237,7 +238,7 @@ class MassasLaunchViewModelTest {
         assertFalse(testVm.state.value.showConfirmLaunchDialog)
         assertTrue(testVm.state.value.quantities.isEmpty())
         assertTrue(testVm.state.value.resultDialogIsSuccess)
-        assertEquals("Lançamento registrado com sucesso!", testVm.state.value.resultDialogMessage)
+        assertEquals(R.string.massas_success, testVm.state.value.resultDialogMessage?.resId)
 
         testVm.dismissResultDialog()
         assertNull(testVm.state.value.resultDialogMessage)
@@ -258,7 +259,8 @@ class MassasLaunchViewModelTest {
         // Quantities MUST NOT be cleared on failure, so operator can retry or correct
         assertEquals("5", testVm.state.value.quantities["1045"])
         assertFalse(testVm.state.value.resultDialogIsSuccess)
-        assertTrue(testVm.state.value.resultDialogMessage?.contains("400") == true)
+        assertEquals(R.string.massas_error_create_refused, testVm.state.value.resultDialogMessage?.resId)
+        assertEquals(listOf(400), testVm.state.value.resultDialogMessage?.args)
     }
 
     @Test

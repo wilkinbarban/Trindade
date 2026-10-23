@@ -43,6 +43,7 @@ import com.trindade.app.R
 import com.trindade.app.ui.components.AdminDestructiveButton
 import com.trindade.app.ui.components.AdminPrimaryButton
 import com.trindade.app.ui.components.NavigationActionButton
+import com.trindade.app.ui.resolve
 import java.io.File
 
 /**
@@ -122,7 +123,7 @@ fun ReportDetailScreen(
         state.message?.let { message ->
             item {
                 Text(
-                    text = message,
+                    text = message.resolve(),
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodyMedium,
                 )

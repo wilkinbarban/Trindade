@@ -26,10 +26,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.trindade.app.R
 import com.trindade.app.contract.models.AdminUserResponseUser
 import com.trindade.app.ui.components.AdminDestructiveButton
 import com.trindade.app.ui.components.AdminDestructiveConfirmButton
@@ -77,20 +79,20 @@ fun UsersScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            NavigationActionButton(onClick = onBack) { Text("Voltar") }
-            Text("Usuários", style = MaterialTheme.typography.titleLarge)
+            NavigationActionButton(onClick = onBack) { Text(stringResource(R.string.admin_back)) }
+            Text(stringResource(R.string.admin_section_users), style = MaterialTheme.typography.titleLarge)
             NavigationActionButton(
                 onClick = onRefresh,
                 enabled = !state.loading && !state.saving,
             ) {
-                Text("Atualizar")
+                Text(stringResource(R.string.admin_refresh))
             }
         }
 
         if (state.loading) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 CircularProgressIndicator()
-                Text("Carregando…")
+                Text(stringResource(R.string.admin_loading))
             }
         }
 
@@ -100,7 +102,7 @@ fun UsersScreen(
             AdminPrimaryButton(
                 onClick = { showForm = true },
                 enabled = !state.saving,
-                text = "Novo usuário",
+                text = stringResource(R.string.admin_new_user),
             )
         }
 
@@ -108,7 +110,7 @@ fun UsersScreen(
             OutlinedTextField(
                 value = state.username,
                 onValueChange = onUsernameChange,
-                label = { Text("Nome de usuário") },
+                label = { Text(stringResource(R.string.admin_field_username)) },
                 enabled = !state.saving && !state.isSelfEditing,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -116,7 +118,7 @@ fun UsersScreen(
             OutlinedTextField(
                 value = state.displayName,
                 onValueChange = onDisplayNameChange,
-                label = { Text("Nome de exibição") },
+                label = { Text(stringResource(R.string.admin_field_display_name)) },
                 enabled = !state.saving,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -124,7 +126,7 @@ fun UsersScreen(
             OutlinedTextField(
                 value = password,
                 onValueChange = onPasswordChange,
-                label = { Text("Senha") },
+                label = { Text(stringResource(R.string.admin_field_password)) },
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 enabled = !state.saving,
@@ -140,7 +142,7 @@ fun UsersScreen(
             }
 
             if (!state.isSelfEditing) {
-                Text("Função", style = MaterialTheme.typography.labelLarge)
+                Text(stringResource(R.string.admin_field_role), style = MaterialTheme.typography.labelLarge)
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     Row(
                         modifier = Modifier.selectable(
@@ -156,7 +158,7 @@ fun UsersScreen(
                             onClick = null,
                             enabled = !state.saving,
                         )
-                        Text("Administrador")
+                        Text(stringResource(R.string.admin_role_admin))
                     }
                     Row(
                         modifier = Modifier.selectable(
@@ -172,13 +174,13 @@ fun UsersScreen(
                             onClick = null,
                             enabled = !state.saving,
                         )
-                        Text("Trabalhador")
+                        Text(stringResource(R.string.admin_role_worker))
                     }
                 }
             }
 
             if (state.editingId != null && !state.isSelfEditing) {
-                Text("Status", style = MaterialTheme.typography.labelLarge)
+                Text(stringResource(R.string.admin_field_status), style = MaterialTheme.typography.labelLarge)
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     Row(
                         modifier = Modifier.selectable(
@@ -194,7 +196,7 @@ fun UsersScreen(
                             onClick = null,
                             enabled = !state.saving,
                         )
-                        Text("Ativo")
+                        Text(stringResource(R.string.admin_status_active))
                     }
                     Row(
                         modifier = Modifier.selectable(
@@ -210,7 +212,7 @@ fun UsersScreen(
                             onClick = null,
                             enabled = !state.saving,
                         )
-                        Text("Inativo")
+                        Text(stringResource(R.string.admin_status_inactive))
                     }
                 }
             }
@@ -220,7 +222,7 @@ fun UsersScreen(
                     onClick = onSave,
                     enabled = !state.saving && !state.loading,
                     loading = state.saving,
-                    text = if (state.saving) "Salvando…" else if (state.editingId == null) "Criar" else "Salvar",
+                    text = if (state.saving) stringResource(R.string.admin_action_saving) else if (state.editingId == null) stringResource(R.string.admin_action_create) else stringResource(R.string.admin_action_save),
                 )
                 AdminSecondaryButton(
                     onClick = {
@@ -228,7 +230,7 @@ fun UsersScreen(
                         onCancel()
                     },
                     enabled = !state.saving,
-                    text = "Cancelar",
+                    text = stringResource(R.string.admin_action_cancel),
                 )
             }
         }
@@ -241,26 +243,26 @@ fun UsersScreen(
                         Text(user.displayName)
                     }
                     val roleText = when (user.roleId) {
-                        1 -> "Administrador"
-                        2 -> "Trabalhador"
-                        else -> user.roleName.ifBlank { "Função ${user.roleId}" }
+                        1 -> stringResource(R.string.admin_role_admin)
+                        2 -> stringResource(R.string.admin_role_worker)
+                        else -> user.roleName.ifBlank { stringResource(R.string.admin_role_unknown, user.roleId) }
                     }
                     Text(roleText)
-                    Text(if (user.isActive == 1) "Ativo" else "Inativo")
+                    Text(if (user.isActive == 1) stringResource(R.string.admin_status_active) else stringResource(R.string.admin_status_inactive))
 
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         if (state.canEdit(user)) {
-                            AdminSecondaryButton(onClick = { onEdit(user) }, text = "Editar")
+                            AdminSecondaryButton(onClick = { onEdit(user) }, text = stringResource(R.string.admin_action_edit))
                         } else {
-                            Text("Somente leitura", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(stringResource(R.string.admin_read_only), color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         if (state.canToggle(user)) {
                             AdminSecondaryButton(
                                 onClick = { onToggle(user) },
-                                text = if (user.isActive == 1) "Desativar" else "Ativar",
+                                text = if (user.isActive == 1) stringResource(R.string.admin_action_deactivate) else stringResource(R.string.admin_action_activate),
                             )
                         }
                         if (state.canDelete(user)) {
@@ -270,7 +272,7 @@ fun UsersScreen(
                                     localDeleteTarget = user
                                 },
                                 enabled = !state.saving,
-                                text = "Excluir",
+                                text = stringResource(R.string.admin_action_delete),
                             )
                         }
                     }
@@ -279,7 +281,7 @@ fun UsersScreen(
         }
 
         if (!state.loading && state.users.isEmpty()) {
-            Text("Nenhum usuário")
+            Text(stringResource(R.string.admin_no_users))
         }
     }
 
@@ -291,15 +293,15 @@ fun UsersScreen(
                     localDeleteTarget = null
                     onDismissDelete()
                 },
-                title = { Text("Confirmar exclusão") },
-                text = { Text("Excluir ${user.username}?") },
+                title = { Text(stringResource(R.string.admin_confirm_delete)) },
+                text = { Text(stringResource(R.string.admin_delete_question, user.username)) },
                 confirmButton = {
                     AdminDestructiveConfirmButton(
                         onClick = {
                             localDeleteTarget = null
                             onConfirmDelete()
                         },
-                        text = "Confirmar",
+                        text = stringResource(R.string.admin_action_confirm),
                     )
                 },
                 dismissButton = {
@@ -308,7 +310,7 @@ fun UsersScreen(
                             localDeleteTarget = null
                             onDismissDelete()
                         },
-                        text = "Cancelar",
+                        text = stringResource(R.string.admin_action_cancel),
                     )
                 },
             )

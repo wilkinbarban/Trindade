@@ -57,6 +57,7 @@ import com.trindade.app.ui.components.HelpSection
 import com.trindade.app.ui.components.ModuleHelpButton
 import com.trindade.app.ui.components.ModuleHelpDialog
 import com.trindade.app.ui.components.NavigationActionButton
+import com.trindade.app.ui.resolve
 import com.trindade.app.ui.filterPhoneDigits
 
 @Composable
@@ -180,7 +181,7 @@ fun MassasLaunchScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "✓ " + (state.noticeMessage ?: ""),
+                        text = "✓ " + (state.noticeMessage?.resolve() ?: ""),
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                         color = Color(0xFF166534),
                         modifier = Modifier.weight(1f),
@@ -207,7 +208,7 @@ fun MassasLaunchScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "⚠ " + (state.errorMessage ?: ""),
+                        text = "⚠ " + (state.errorMessage?.resolve() ?: ""),
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                         color = Color(0xFF991B1B),
                         modifier = Modifier.weight(1f),
@@ -895,7 +896,7 @@ fun MassasLaunchScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                             ) {
                                 Text(
-                                    text = "📦 ${item.productName}",
+                                    text = "📦 ${item.productName ?: stringResource(R.string.massas_product_fallback, item.productCode)}",
                                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                                     modifier = Modifier.weight(1f),
                                 )
@@ -961,7 +962,7 @@ fun MassasLaunchScreen(
             },
             text = {
                 Text(
-                    text = state.resultDialogMessage ?: "",
+                    text = state.resultDialogMessage?.resolve() ?: "",
                     style = MaterialTheme.typography.bodyMedium,
                 )
             },

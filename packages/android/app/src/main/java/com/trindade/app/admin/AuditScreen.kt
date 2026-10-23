@@ -32,8 +32,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.trindade.app.R
 import com.trindade.app.contract.models.AuditResponseLogsInner
 import com.trindade.app.ui.components.NavigationActionButton
 import java.time.Instant
@@ -43,27 +45,29 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 
-private val ACTION_OPTIONS = listOf(
-    "" to "Todos",
-    "login" to "Login",
-    "logout" to "Logout",
-    "create" to "Criação",
-    "update" to "Atualização",
-    "delete" to "Exclusão",
-    "upload" to "Upload",
+@Composable
+private fun auditActionOptions(): List<Pair<String, String>> = listOf(
+    "" to stringResource(R.string.admin_audit_all),
+    "login" to stringResource(R.string.admin_audit_action_login),
+    "logout" to stringResource(R.string.admin_audit_action_logout),
+    "create" to stringResource(R.string.admin_audit_action_create),
+    "update" to stringResource(R.string.admin_audit_action_update),
+    "delete" to stringResource(R.string.admin_audit_action_delete),
+    "upload" to stringResource(R.string.admin_audit_action_upload),
 )
 
-private val ENTITY_OPTIONS = listOf(
-    "" to "Todos",
-    "auth" to "Autenticação",
-    "report" to "Relatório",
-    "photo" to "Foto",
-    "loading" to "Carregamento",
-    "category" to "Categoria",
-    "task" to "Tarefa",
-    "product" to "Produto",
-    "driver" to "Motorista",
-    "vehicle" to "Veículo",
+@Composable
+private fun auditEntityOptions(): List<Pair<String, String>> = listOf(
+    "" to stringResource(R.string.admin_audit_all),
+    "auth" to stringResource(R.string.admin_audit_entity_auth),
+    "report" to stringResource(R.string.admin_audit_entity_report),
+    "photo" to stringResource(R.string.admin_audit_entity_photo),
+    "loading" to stringResource(R.string.admin_audit_entity_loading),
+    "category" to stringResource(R.string.admin_audit_entity_category),
+    "task" to stringResource(R.string.admin_audit_entity_task),
+    "product" to stringResource(R.string.admin_audit_entity_product),
+    "driver" to stringResource(R.string.admin_audit_entity_driver),
+    "vehicle" to stringResource(R.string.admin_audit_entity_vehicle),
 )
 
 /**
@@ -91,6 +95,8 @@ fun AuditScreen(
     var actionMenuExpanded by remember { mutableStateOf(false) }
     var entityMenuExpanded by remember { mutableStateOf(false) }
     val expandedLogIds = remember { mutableStateMapOf<Int, Boolean>() }
+    val actionOptions = auditActionOptions()
+    val entityOptions = auditEntityOptions()
 
     Column(
         modifier = modifier
@@ -108,15 +114,15 @@ fun AuditScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                NavigationActionButton(onClick = onBack) { Text("Voltar") }
-                Text("Auditoria", style = MaterialTheme.typography.titleLarge)
+                NavigationActionButton(onClick = onBack) { Text(stringResource(R.string.admin_back)) }
+                Text(stringResource(R.string.admin_section_audit), style = MaterialTheme.typography.titleLarge)
             }
             TextButton(
                 onClick = onRefresh,
                 enabled = !state.loading,
                 modifier = Modifier.defaultMinSize(minHeight = 48.dp, minWidth = 48.dp),
             ) {
-                Text("Atualizar")
+                Text(stringResource(R.string.admin_refresh))
             }
         }
 
@@ -126,7 +132,7 @@ fun AuditScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 CircularProgressIndicator()
-                Text("Carregando…")
+                Text(stringResource(R.string.admin_loading))
             }
         }
 
@@ -143,12 +149,12 @@ fun AuditScreen(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(
-                    "Acesso Restrito",
+                    stringResource(R.string.admin_audit_restricted_title),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.error,
                 )
                 Text(
-                    "Esta área é exclusiva para administradores.",
+                    stringResource(R.string.admin_audit_admin_only),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -164,8 +170,8 @@ fun AuditScreen(
                         .padding(12.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    val currentActionLabel = ACTION_OPTIONS.firstOrNull { it.first == state.actionInput }?.second
-                        ?: state.actionInput.ifEmpty { "Todos" }
+                    val currentActionLabel = actionOptions.firstOrNull { it.first == state.actionInput }?.second
+                        ?: state.actionInput.ifEmpty { stringResource(R.string.admin_audit_all) }
                     Box(modifier = Modifier.fillMaxWidth()) {
                         OutlinedButton(
                             onClick = { actionMenuExpanded = true },
@@ -178,7 +184,7 @@ fun AuditScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Text("Ação: $currentActionLabel")
+                                Text(stringResource(R.string.admin_audit_action_label, currentActionLabel))
                                 Text("▼", style = MaterialTheme.typography.labelSmall)
                             }
                         }
@@ -186,7 +192,7 @@ fun AuditScreen(
                             expanded = actionMenuExpanded,
                             onDismissRequest = { actionMenuExpanded = false },
                         ) {
-                            ACTION_OPTIONS.forEach { (value, label) ->
+                            actionOptions.forEach { (value, label) ->
                                 DropdownMenuItem(
                                     text = { Text(label) },
                                     onClick = {
@@ -198,8 +204,8 @@ fun AuditScreen(
                         }
                     }
 
-                    val currentEntityLabel = ENTITY_OPTIONS.firstOrNull { it.first == state.entityTypeInput }?.second
-                        ?: state.entityTypeInput.ifEmpty { "Todos" }
+                    val currentEntityLabel = entityOptions.firstOrNull { it.first == state.entityTypeInput }?.second
+                        ?: state.entityTypeInput.ifEmpty { stringResource(R.string.admin_audit_all) }
                     Box(modifier = Modifier.fillMaxWidth()) {
                         OutlinedButton(
                             onClick = { entityMenuExpanded = true },
@@ -212,7 +218,7 @@ fun AuditScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Text("Entidade: $currentEntityLabel")
+                                Text(stringResource(R.string.admin_audit_entity_label, currentEntityLabel))
                                 Text("▼", style = MaterialTheme.typography.labelSmall)
                             }
                         }
@@ -220,7 +226,7 @@ fun AuditScreen(
                             expanded = entityMenuExpanded,
                             onDismissRequest = { entityMenuExpanded = false },
                         ) {
-                            ENTITY_OPTIONS.forEach { (value, label) ->
+                            entityOptions.forEach { (value, label) ->
                                 DropdownMenuItem(
                                     text = { Text(label) },
                                     onClick = {
@@ -235,8 +241,8 @@ fun AuditScreen(
                     OutlinedTextField(
                         value = state.userIdInput,
                         onValueChange = onUserIdChange,
-                        label = { Text("ID Usuário") },
-                        placeholder = { Text("Ex: 1") },
+                        label = { Text(stringResource(R.string.admin_audit_user_id)) },
+                        placeholder = { Text(stringResource(R.string.admin_audit_user_id_placeholder)) },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.fillMaxWidth(),
@@ -252,7 +258,7 @@ fun AuditScreen(
                                 .weight(1f)
                                 .defaultMinSize(minHeight = 48.dp),
                         ) {
-                            Text("Filtrar")
+                            Text(stringResource(R.string.admin_audit_filter))
                         }
                         OutlinedButton(
                             onClick = onClearFilters,
@@ -260,7 +266,7 @@ fun AuditScreen(
                                 .weight(1f)
                                 .defaultMinSize(minHeight = 48.dp),
                         ) {
-                            Text("Limpar")
+                            Text(stringResource(R.string.admin_audit_clear))
                         }
                     }
                 }
@@ -276,7 +282,7 @@ fun AuditScreen(
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            text = "Nenhum log de auditoria encontrado.",
+                            text = stringResource(R.string.admin_audit_empty),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -302,7 +308,7 @@ fun AuditScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                                 Text(
-                                    text = formatAuditActor(log.displayName, log.userId),
+                                    text = formatAuditActor(log.displayName, log.userId, stringResource(R.string.admin_audit_actor_unknown)),
                                     style = MaterialTheme.typography.titleSmall,
                                 )
                             }
@@ -313,15 +319,15 @@ fun AuditScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text(
-                                    text = formatAuditAction(log.action),
+                                    text = auditActionLabel(log.action),
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.primary,
                                 )
                                 Text("•", color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 val entityText = if (log.entityId != null) {
-                                    "${formatAuditEntity(log.entityType)} #${log.entityId}"
+                                    "${auditEntityLabel(log.entityType)} #${log.entityId}"
                                 } else {
-                                    formatAuditEntity(log.entityType)
+                                    auditEntityLabel(log.entityType)
                                 }
                                 Text(
                                     text = entityText,
@@ -334,7 +340,7 @@ fun AuditScreen(
                             val isTruncated = isAuditDetailsTruncated(log.details)
 
                             Text(
-                                text = "Detalhes: $detailsSummary",
+                                text = stringResource(R.string.admin_audit_details, detailsSummary),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -356,13 +362,13 @@ fun AuditScreen(
                                     onClick = { expandedLogIds[log.id] = !isExpanded },
                                     modifier = Modifier.defaultMinSize(minHeight = 48.dp, minWidth = 48.dp),
                                 ) {
-                                    Text(if (isExpanded) "Ocultar detalhes" else "Ver detalhes")
+                                    Text(if (isExpanded) stringResource(R.string.admin_audit_hide_details) else stringResource(R.string.admin_audit_show_details))
                                 }
                             }
 
                             log.ipAddress?.let { ip ->
                                 Text(
-                                    text = "IP: $ip",
+                                    text = stringResource(R.string.admin_audit_ip, ip),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -379,9 +385,13 @@ fun AuditScreen(
                     .padding(top = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                val recordWord = if (state.total == 1) "registro" else "registros"
+                val recordLabel = if (state.total == 1) {
+                    stringResource(R.string.admin_audit_record_one, state.total)
+                } else {
+                    stringResource(R.string.admin_audit_record_other, state.total)
+                }
                 Text(
-                    text = "${state.total} $recordWord — Página ${state.page} de ${state.totalPages}",
+                    text = "$recordLabel — ${stringResource(R.string.admin_audit_page, state.page, state.totalPages)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -396,7 +406,7 @@ fun AuditScreen(
                             .weight(1f)
                             .defaultMinSize(minHeight = 48.dp),
                     ) {
-                        Text("Anterior")
+                        Text(stringResource(R.string.admin_audit_previous))
                     }
                     OutlinedButton(
                         onClick = onNextPage,
@@ -405,7 +415,7 @@ fun AuditScreen(
                             .weight(1f)
                             .defaultMinSize(minHeight = 48.dp),
                     ) {
-                        Text("Próximo")
+                        Text(stringResource(R.string.admin_audit_next))
                     }
                 }
             }
@@ -428,34 +438,40 @@ internal fun formatAuditTimestamp(
     }.getOrElse { iso }
 }
 
-internal fun formatAuditActor(displayName: String?, userId: Int?): String {
+internal fun formatAuditActor(
+    displayName: String?,
+    userId: Int?,
+    unknownLabel: String = "Sem usuário",
+): String {
     return when {
         !displayName.isNullOrBlank() -> displayName
         userId != null -> "#$userId"
-        else -> "Sem usuário"
+        else -> unknownLabel
     }
 }
 
-internal fun formatAuditAction(action: String): String = when (action.lowercase()) {
-    "login" -> "Login"
-    "logout" -> "Logout"
-    "create" -> "Criação"
-    "update" -> "Atualização"
-    "delete" -> "Exclusão"
-    "upload" -> "Upload"
+@Composable
+internal fun auditActionLabel(action: String): String = when (action.lowercase()) {
+    "login" -> stringResource(R.string.admin_audit_action_login)
+    "logout" -> stringResource(R.string.admin_audit_action_logout)
+    "create" -> stringResource(R.string.admin_audit_action_create)
+    "update" -> stringResource(R.string.admin_audit_action_update)
+    "delete" -> stringResource(R.string.admin_audit_action_delete)
+    "upload" -> stringResource(R.string.admin_audit_action_upload)
     else -> action
 }
 
-internal fun formatAuditEntity(entityType: String): String = when (entityType.lowercase()) {
-    "auth" -> "Autenticação"
-    "report" -> "Relatório"
-    "photo" -> "Foto"
-    "loading" -> "Carregamento"
-    "category" -> "Categoria"
-    "task" -> "Tarefa"
-    "product" -> "Produto"
-    "driver" -> "Motorista"
-    "vehicle" -> "Veículo"
+@Composable
+internal fun auditEntityLabel(entityType: String): String = when (entityType.lowercase()) {
+    "auth" -> stringResource(R.string.admin_audit_entity_auth)
+    "report" -> stringResource(R.string.admin_audit_entity_report)
+    "photo" -> stringResource(R.string.admin_audit_entity_photo)
+    "loading" -> stringResource(R.string.admin_audit_entity_loading)
+    "category" -> stringResource(R.string.admin_audit_entity_category)
+    "task" -> stringResource(R.string.admin_audit_entity_task)
+    "product" -> stringResource(R.string.admin_audit_entity_product)
+    "driver" -> stringResource(R.string.admin_audit_entity_driver)
+    "vehicle" -> stringResource(R.string.admin_audit_entity_vehicle)
     else -> entityType
 }
 

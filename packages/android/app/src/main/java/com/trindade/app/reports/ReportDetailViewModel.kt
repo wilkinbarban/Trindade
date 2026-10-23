@@ -1,11 +1,13 @@
 package com.trindade.app.reports
 
+import com.trindade.app.R
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.trindade.app.contract.models.PhotosResponsePhotosInner
 import com.trindade.app.contract.models.ReportResponseReport
 import com.trindade.app.export.NoOpShareManager
 import com.trindade.app.export.ShareManager
+import com.trindade.app.ui.UiText
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,7 +44,7 @@ class ReportDetailViewModel @Inject constructor(
         val uploadingPhoto: Boolean = false,
         val exportText: String? = null,
         val loadingExport: Boolean = false,
-        val message: String? = null,
+        val message: UiText? = null,
         val includeMassas: Boolean = false,
     ) {
         /** Five is the server's limit, and the add action is withheld rather than refused at the door. */
@@ -174,24 +176,26 @@ class ReportDetailViewModel @Inject constructor(
         shareManager.shareText(text)
     }
 
-    private fun deleteRefusal(state: UiState): String =
+    private fun deleteRefusal(state: UiState): UiText =
         if (state.report?.canEdit == false) OUTSIDE_EDIT_WINDOW else GENERIC
 
-    private fun attachRefusal(statusCode: Int): String = when (statusCode) {
-        413 -> "A foto ficou grande demais. Tente novamente."
-        415 -> "O arquivo não é uma imagem aceita."
-        409 -> "O relatório já tem $MAX_PHOTOS fotos. Remova uma antes."
+    private fun attachRefusal(statusCode: Int): UiText = when (statusCode) {
+        413 -> PHOTO_TOO_LARGE
+        415 -> PHOTO_NOT_IMAGE
+        409 -> UiText.of(R.string.report_error_photo_limit, MAX_PHOTOS)
         403 -> OUTSIDE_EDIT_WINDOW
         else -> GENERIC
     }
 
     private companion object {
         const val MAX_PHOTOS = 5
-        const val NOT_FOUND = "Relatório não encontrado."
-        const val UNREADABLE_PHOTO = "Não foi possível ler a foto."
-        const val OUTSIDE_EDIT_WINDOW = "Fora do prazo de edição: este relatório é somente leitura."
-        const val INCOMPLETE_REPORT = "Falta preencher todas as temperaturas para gerar o texto."
-        const val UNREACHABLE = "Sem conexão com o servidor. Verifique a rede e tente de novo."
-        const val GENERIC = "Não foi possível concluir. Tente de novo."
+        val NOT_FOUND = UiText.of(R.string.report_error_not_found)
+        val UNREADABLE_PHOTO = UiText.of(R.string.report_error_unreadable_photo)
+        val OUTSIDE_EDIT_WINDOW = UiText.of(R.string.report_error_outside_window)
+        val INCOMPLETE_REPORT = UiText.of(R.string.report_error_incomplete)
+        val UNREACHABLE = UiText.of(R.string.report_error_offline)
+        val GENERIC = UiText.of(R.string.report_error_generic)
+        val PHOTO_TOO_LARGE = UiText.of(R.string.report_error_photo_too_large)
+        val PHOTO_NOT_IMAGE = UiText.of(R.string.report_error_photo_type)
     }
 }

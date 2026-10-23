@@ -85,6 +85,14 @@ class FakeLoadingApi(
     private val timeSlotsToReturn: List<String>? = listOf("04:00", "04:30", "05:00"),
     private val driversToReturn: List<DriversResponseDriversInner> = defaultDrivers(),
     private val vehiclesToReturn: List<VehiclesResponseVehiclesInner> = defaultVehicles(),
+    /**
+     * When true, the vehicle read answers 500 instead of the list.
+     *
+     * The web's vehicle picker showed an empty list for a failed read and said nothing, and this screen
+     * draws that same picker; the read has to be failable here for the claim that the operator is told
+     * about it to be checkable at all.
+     */
+    var vehiclesFail: Boolean = false,
     private val createResponse: Response<ScheduleResponse>? = null,
     /**
      * What an update answers. Null is the server taking the body and echoing the row, which is what it does;
@@ -296,7 +304,8 @@ class FakeLoadingApi(
 
     override suspend fun drivers(): Response<DriversResponse> = Response.success(DriversResponse(drivers = driversToReturn))
 
-    override suspend fun vehicles(): Response<VehiclesResponse> = Response.success(VehiclesResponse(vehicles = vehiclesToReturn))
+    override suspend fun vehicles(): Response<VehiclesResponse> =
+        if (vehiclesFail) Response.error(500, EMPTY_BODY) else Response.success(VehiclesResponse(vehicles = vehiclesToReturn))
     override suspend fun createDriver(body: CreateDriverRequest): Response<DriverResponse> =
         Response.success(DriverResponse(driver = DriversResponseDriversInner(id = 99, name = body.name, licensePlate = body.licensePlate, phone = body.phone, driverType = DriversResponseDriversInner.DriverType.fletero)))
 

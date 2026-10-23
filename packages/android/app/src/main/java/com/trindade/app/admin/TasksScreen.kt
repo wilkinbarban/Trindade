@@ -24,7 +24,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.trindade.app.R
 import com.trindade.app.contract.models.AdminTasksResponseTasksInner
 import com.trindade.app.ui.components.AdminDestructiveButton
 import com.trindade.app.ui.components.AdminDestructiveConfirmButton
@@ -60,13 +62,13 @@ fun TasksScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
         ) {
-            NavigationActionButton(onClick = onBack) { Text("Voltar") }
-            Text("Tarefas", style = MaterialTheme.typography.titleLarge)
+            NavigationActionButton(onClick = onBack) { Text(stringResource(R.string.admin_back)) }
+            Text(stringResource(R.string.admin_tasks_title), style = MaterialTheme.typography.titleLarge)
             NavigationActionButton(
                 onClick = onRefresh,
                 enabled = !state.loading && !state.saving,
             ) {
-                Text("Atualizar")
+                Text(stringResource(R.string.admin_refresh))
             }
         }
         if (state.loading) CircularProgressIndicator()
@@ -76,7 +78,7 @@ fun TasksScreen(
             AdminPrimaryButton(
                 onClick = { showForm = true },
                 enabled = !state.saving,
-                text = "Nova tarefa",
+                text = stringResource(R.string.admin_new_task),
             )
         }
         if (showForm || state.editingId != null) {
@@ -86,12 +88,12 @@ fun TasksScreen(
                     onClick = onSave,
                     enabled = !state.saving,
                     loading = state.saving,
-                    text = if (state.saving) "Salvando…" else if (state.editingId == null) "Criar" else "Salvar",
+                    text = if (state.saving) stringResource(R.string.admin_action_saving) else if (state.editingId == null) stringResource(R.string.admin_action_create) else stringResource(R.string.admin_action_save),
                 )
                 AdminSecondaryButton(
                     onClick = { showForm = false; onCancel() },
                     enabled = !state.saving,
-                    text = "Cancelar",
+                    text = stringResource(R.string.admin_action_cancel),
                 )
             }
         }
@@ -102,56 +104,56 @@ fun TasksScreen(
                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(task.categoryName, style = MaterialTheme.typography.labelMedium)
                     Text(task.namePt.ifBlank { task.nameEs }, style = MaterialTheme.typography.titleMedium)
-                    Text(task.taskType.label())
+                    Text(taskTypeLabel(task.taskType))
                     if (task.taskType == AdminTasksResponseTasksInner.TaskType.temperature) {
-                        Text("${task.temperatureReadings} leituras")
+                        Text(stringResource(R.string.admin_task_readings, task.temperatureReadings))
                     }
-                    Text(if (task.isActive == 1) "Ativa" else "Inativa")
+                    Text(if (task.isActive == 1) stringResource(R.string.admin_status_active_fem) else stringResource(R.string.admin_status_inactive_fem))
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
                     ) {
                         if (editable) {
-                            AdminSecondaryButton(onClick = { onEdit(task) }, text = "Editar")
+                            AdminSecondaryButton(onClick = { onEdit(task) }, text = stringResource(R.string.admin_action_edit))
                         } else {
-                            Text("Somente leitura", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(stringResource(R.string.admin_read_only), color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         if (state.canToggle(task)) {
                             AdminSecondaryButton(
                                 onClick = { onToggle(task) },
-                                text = if (task.isActive == 1) "Desativar" else "Ativar",
+                                text = if (task.isActive == 1) stringResource(R.string.admin_action_deactivate) else stringResource(R.string.admin_action_activate),
                             )
                         }
                         if (state.canDelete(task)) {
                             AdminDestructiveButton(
                                 onClick = { onRequestDelete(task) },
                                 enabled = !state.saving,
-                                text = "Excluir",
+                                text = stringResource(R.string.admin_action_delete),
                             )
                         }
                     }
                 }
             }
         }
-        if (!state.loading && state.tasks.isEmpty()) Text("Nenhuma tarefa")
+        if (!state.loading && state.tasks.isEmpty()) Text(stringResource(R.string.admin_no_tasks))
     }
 
     state.deleteTarget?.let { task ->
         val taskName = task.namePt.ifBlank { task.nameEs }
         AlertDialog(
             onDismissRequest = onDismissDelete,
-            title = { Text("Confirmar exclusão") },
-            text = { Text("Excluir $taskName?") },
+            title = { Text(stringResource(R.string.admin_confirm_delete)) },
+            text = { Text(stringResource(R.string.admin_delete_question, taskName)) },
             confirmButton = {
                 AdminDestructiveConfirmButton(
                     onClick = onConfirmDelete,
-                    text = "Confirmar",
+                    text = stringResource(R.string.admin_action_confirm),
                 )
             },
             dismissButton = {
                 AdminSecondaryButton(
                     onClick = onDismissDelete,
-                    text = "Cancelar",
+                    text = stringResource(R.string.admin_action_cancel),
                 )
             },
         )
@@ -170,10 +172,10 @@ private fun TaskForm(
     var readingsOpen by remember { mutableStateOf(false) }
     val selected = state.categories.firstOrNull { it.id.toString() == state.categoryId }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Categoria", style = MaterialTheme.typography.labelLarge)
+        Text(stringResource(R.string.admin_field_category), style = MaterialTheme.typography.labelLarge)
         AdminSecondaryButton(
             onClick = { categoriesOpen = true },
-            text = selected?.namePt ?: "Selecione uma categoria",
+            text = selected?.namePt ?: stringResource(R.string.admin_select_category),
         )
         DropdownMenu(expanded = categoriesOpen, onDismissRequest = { categoriesOpen = false }) {
             state.categories.forEach { category ->
@@ -183,10 +185,10 @@ private fun TaskForm(
                 )
             }
         }
-        OutlinedTextField(state.namePt, onNamePtChange, label = { Text("Português") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(state.nameEs, onNameEsChange, label = { Text("Español") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(state.namePt, onNamePtChange, label = { Text(stringResource(R.string.admin_language_portuguese)) }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(state.nameEs, onNameEsChange, label = { Text(stringResource(R.string.admin_language_spanish)) }, modifier = Modifier.fillMaxWidth())
         if (selected?.categoryType == com.trindade.app.contract.models.AdminCategoryResponseCategory.CategoryType.temperature) {
-            Text("Leituras de temperatura", style = MaterialTheme.typography.labelLarge)
+            Text(stringResource(R.string.admin_temperature_readings), style = MaterialTheme.typography.labelLarge)
             AdminSecondaryButton(
                 onClick = { readingsOpen = true },
                 text = state.temperatureReadings,
@@ -202,11 +204,12 @@ private fun TaskForm(
     }
 }
 
-private fun AdminTasksResponseTasksInner.TaskType.label(): String = when (this) {
-    AdminTasksResponseTasksInner.TaskType.temperature -> "Temperatura"
-    AdminTasksResponseTasksInner.TaskType.check_assai -> "Check Assaí"
-    AdminTasksResponseTasksInner.TaskType.check_normal -> "Check Normal"
-    AdminTasksResponseTasksInner.TaskType.check -> "Check"
+@Composable
+private fun taskTypeLabel(type: AdminTasksResponseTasksInner.TaskType): String = when (type) {
+    AdminTasksResponseTasksInner.TaskType.temperature -> stringResource(R.string.admin_type_temperature)
+    AdminTasksResponseTasksInner.TaskType.check_assai -> stringResource(R.string.admin_type_check_assai)
+    AdminTasksResponseTasksInner.TaskType.check_normal -> stringResource(R.string.admin_type_check_normal)
+    AdminTasksResponseTasksInner.TaskType.check -> stringResource(R.string.admin_type_check)
 }
 
 @Composable

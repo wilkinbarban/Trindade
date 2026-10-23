@@ -38,6 +38,7 @@ import com.trindade.app.R
 import com.trindade.app.ui.BrazilianPhoneVisualTransformation
 import com.trindade.app.ui.components.NavigationActionButton
 import com.trindade.app.ui.filterPhoneDigits
+import com.trindade.app.ui.saoPauloLocalDate
 import java.time.LocalDate
 import java.util.Locale
 
@@ -269,7 +270,7 @@ private fun formatDayLabel(isoDate: String): String {
 }
 
 private fun openDayPicker(context: Context, selected: String?, onPick: (String) -> Unit) {
-    val initial = selected?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: LocalDate.now()
+    val initial = selected?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: saoPauloLocalDate()
 
     DatePickerDialog(
         context,

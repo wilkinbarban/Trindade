@@ -1,5 +1,6 @@
 package com.trindade.app.massas
 
+import com.trindade.app.R
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.trindade.app.auth.AuthRepository
@@ -7,6 +8,7 @@ import com.trindade.app.contract.models.ProfileResponseUser
 import com.trindade.app.network.CreateMassasLaunchItem
 import com.trindade.app.network.MassaIndividualLaunch
 import com.trindade.app.network.MassasLaunchDayView
+import com.trindade.app.ui.UiText
 import com.trindade.app.ui.filterPhoneDigits
 import com.trindade.app.ui.waMeLink
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -24,7 +26,7 @@ import kotlinx.coroutines.launch
 
 data class MassaConfirmItem(
     val productCode: String,
-    val productName: String,
+    val productName: String?,
     val boxes: Int,
     val units: Int,
 )
@@ -55,12 +57,12 @@ class MassasLaunchViewModel @Inject constructor(
         val deleteConfirmLaunchId: Int? = null,
         val currentUser: ProfileResponseUser? = null,
         val phone: String = "",
-        val noticeMessage: String? = null,
-        val errorMessage: String? = null,
+        val noticeMessage: UiText? = null,
+        val errorMessage: UiText? = null,
         val showHelpDialog: Boolean = false,
         val showConfirmLaunchDialog: Boolean = false,
         val confirmItems: List<MassaConfirmItem> = emptyList(),
-        val resultDialogMessage: String? = null,
+        val resultDialogMessage: UiText? = null,
         val resultDialogIsSuccess: Boolean = false,
         val selectedOperatorId: Int? = null,
         val isReadOnly: Boolean = false,
@@ -136,7 +138,7 @@ class MassasLaunchViewModel @Inject constructor(
             _state.value = _state.value.copy(
                 isLoading = false,
                 dayView = result,
-                errorMessage = if (result == null) "Não foi possível carregar os lançamentos de massas." else null,
+                errorMessage = if (result == null) UiText.of(R.string.massas_error_load) else null,
             )
         }
     }
@@ -181,7 +183,7 @@ class MassasLaunchViewModel @Inject constructor(
         val items = quantities.mapNotNull { (code, boxStr) ->
             val boxes = boxStr.toIntOrNull()
             if (boxes != null && boxes > 0) {
-                val name = dayProducts[code]?.name ?: standardMap[code]?.name ?: "Produto $code"
+                val name = dayProducts[code]?.name ?: standardMap[code]?.name
                 val unitsPerBox = dayProducts[code]?.unitsPerBox ?: standardMap[code]?.unitsPerBox ?: 10
                 MassaConfirmItem(
                     productCode = code,
@@ -228,21 +230,21 @@ class MassasLaunchViewModel @Inject constructor(
                         isSubmitting = false,
                         dayView = result.view,
                         quantities = emptyMap(),
-                        resultDialogMessage = "Lançamento registrado com sucesso!",
+                        resultDialogMessage = UiText.of(R.string.massas_success),
                         resultDialogIsSuccess = true,
                     )
                 }
                 is MassasWriteResult.Refused -> {
                     _state.value = _state.value.copy(
                         isSubmitting = false,
-                        resultDialogMessage = "O servidor recusou o lançamento (código ${result.statusCode}).",
+                        resultDialogMessage = UiText.of(R.string.massas_error_create_refused, result.statusCode),
                         resultDialogIsSuccess = false,
                     )
                 }
                 is MassasWriteResult.Unreachable -> {
                     _state.value = _state.value.copy(
                         isSubmitting = false,
-                        resultDialogMessage = "Sem conexão com o servidor. Tente de novo.",
+                        resultDialogMessage = UiText.of(R.string.massas_error_offline),
                         resultDialogIsSuccess = false,
                     )
                 }
@@ -277,19 +279,19 @@ class MassasLaunchViewModel @Inject constructor(
                         isSubmitting = false,
                         dayView = result.view,
                         quantities = emptyMap(),
-                        noticeMessage = "Lançamento registrado com sucesso!",
+                        noticeMessage = UiText.of(R.string.massas_success),
                     )
                 }
                 is MassasWriteResult.Refused -> {
                     _state.value = _state.value.copy(
                         isSubmitting = false,
-                        errorMessage = "O servidor recusou o lançamento (código ${result.statusCode}).",
+                        errorMessage = UiText.of(R.string.massas_error_create_refused, result.statusCode),
                     )
                 }
                 is MassasWriteResult.Unreachable -> {
                     _state.value = _state.value.copy(
                         isSubmitting = false,
-                        errorMessage = "Sem conexão com o servidor. Tente de novo.",
+                        errorMessage = UiText.of(R.string.massas_error_offline),
                     )
                 }
             }
@@ -299,8 +301,7 @@ class MassasLaunchViewModel @Inject constructor(
     fun canEdit(launch: MassaIndividualLaunch): Boolean {
         if (state.value.isReadOnly) return false
         val user = state.value.currentUser ?: return false
-        val isAdmin = user.role == "admin"
-        return canEditOrDeleteLaunch(launch.userId, user.id, isAdmin, !state.value.isReadOnly)
+        return canEditOrDeleteLaunch(launch.userId, user.id, isToday = !state.value.isReadOnly)
     }
 
     fun startEdit(launch: MassaIndividualLaunch) {
@@ -339,19 +340,19 @@ class MassasLaunchViewModel @Inject constructor(
                         dayView = result.view,
                         editingLaunchId = null,
                         editingBoxes = "",
-                        noticeMessage = "Lançamento alterado com sucesso!",
+                        noticeMessage = UiText.of(R.string.massas_notice_updated),
                     )
                 }
                 is MassasWriteResult.Refused -> {
                     _state.value = _state.value.copy(
                         isSubmitting = false,
-                        errorMessage = "Não foi possível alterar este lançamento.",
+                        errorMessage = UiText.of(R.string.massas_error_update),
                     )
                 }
                 is MassasWriteResult.Unreachable -> {
                     _state.value = _state.value.copy(
                         isSubmitting = false,
-                        errorMessage = "Sem conexão com o servidor. Tente de novo.",
+                        errorMessage = UiText.of(R.string.massas_error_offline),
                     )
                 }
             }
@@ -382,19 +383,19 @@ class MassasLaunchViewModel @Inject constructor(
                     _state.value = _state.value.copy(
                         isSubmitting = false,
                         dayView = result.view,
-                        noticeMessage = "Lançamento excluído com sucesso!",
+                        noticeMessage = UiText.of(R.string.massas_notice_deleted),
                     )
                 }
                 is MassasWriteResult.Refused -> {
                     _state.value = _state.value.copy(
                         isSubmitting = false,
-                        errorMessage = "Não foi possível excluir este lançamento.",
+                        errorMessage = UiText.of(R.string.massas_error_delete),
                     )
                 }
                 is MassasWriteResult.Unreachable -> {
                     _state.value = _state.value.copy(
                         isSubmitting = false,
-                        errorMessage = "Sem conexão com o servidor. Tente de novo.",
+                        errorMessage = UiText.of(R.string.massas_error_offline),
                     )
                 }
             }

@@ -32,6 +32,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.trindade.app.R
+import com.trindade.app.ui.resolve
 import com.trindade.app.ui.components.HelpSection
 import com.trindade.app.ui.components.ModuleHelpButton
 import com.trindade.app.ui.components.ModuleHelpDialog
@@ -119,7 +120,7 @@ fun MassasHistoryScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = state.errorMessage ?: "",
+                        text = state.errorMessage?.resolve() ?: "",
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color(0xFF991B1B),
                         modifier = Modifier.weight(1f),

@@ -109,6 +109,23 @@ class LoadingViewModelTest {
     }
 
     @Test
+    fun `a failed vehicle read is reported and the next read retries it`() = runTest {
+        // A company driver cannot be added without a vehicle, so an empty picker that says nothing
+        // leaves the operator with a form that refuses to confirm and no reason why.
+        val api = FakeLoadingApi(vehiclesFail = true)
+        val model = viewModel(api)
+
+        assertNotNull("the operator is told the list could not be read", model.state.value.message)
+        assertTrue(model.state.value.vehicles.isEmpty())
+
+        api.vehiclesFail = false
+        model.load().await()
+
+        assertEquals("a later read clears the failure", null, model.state.value.message)
+        assertEquals(1, model.state.value.vehicles.size)
+    }
+
+    @Test
     fun `still shows the entries when the slot list cannot be fetched`() {
         // The slots are a convenience; the entries are the point. Failing the whole screen over a
         // missing list would hide work that is on the server.

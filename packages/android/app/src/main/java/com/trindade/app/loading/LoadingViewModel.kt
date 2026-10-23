@@ -225,9 +225,12 @@ class LoadingViewModel @Inject constructor(
                     timeSlots = slots.orEmpty(),
                     drivers = drivers.orEmpty(),
                     vehicles = vehicles.orEmpty(),
-                    // Only the schedules are worth refusing over: without them the grid is empty, while
-                    // a missing slot list still leaves the day's entries visible in their own slots.
-                    message = if (schedules == null) UNREACHABLE else null,
+                    // The schedules, the drivers and the vehicles all decide whether the operator can
+                    // work: without the schedule the grid is empty, and without a vehicle a company
+                    // driver cannot be added at all. The slot list is the exception the screen already
+                    // handles -- a missing one still leaves the day's entries in their own slots -- and
+                    // a failure that said nothing left the picker silently empty.
+                    message = if (schedules == null || drivers == null || vehicles == null) UNREACHABLE else null,
                 )
             }
             schedules != null
