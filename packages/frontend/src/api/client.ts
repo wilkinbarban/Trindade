@@ -2,7 +2,7 @@ import i18n from '../i18n/config';
 import { GUEST_READONLY_MESSAGE, isGuestMutationRefusal } from '../lib/guest-readonly';
 import { resolveApiErrorKey, isNetworkError } from '../lib/api-error-normalizer';
 
-const APP_BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
+const APP_BASE = (import.meta.env?.BASE_URL ?? '').replace(/\/$/, '');
 export const API_BASE = `${APP_BASE}/api`;
 
 export function apiUrl(path: string): string {
@@ -65,21 +65,101 @@ export function consumeGuestReadonlyNotice(): string | null {
   return value;
 }
 
+export const AUTH_SESSION_REFRESHED_EVENT = 'auth-session-refreshed';
+
 export function clearStoredSession(): void {
   localStorage.removeItem('auth_token');
+  localStorage.removeItem('auth_refresh_token');
   localStorage.removeItem('auth_user');
 }
 
 export function handleUnauthorizedRedirect(): void {
   clearStoredSession();
   markSessionExpiredNotice();
-  if (window.location.pathname !== appUrl('/login')) {
+  if (typeof window !== 'undefined' && window.location && window.location.pathname !== appUrl('/login')) {
     window.location.href = appUrl('/login');
   }
 }
 
 function isLoginRequest(path: string): boolean {
   return path === '/auth/login' || path === '/api/auth/login';
+}
+
+function isTokenlessPath(path: string): boolean {
+  return (
+    path === '/auth/login' ||
+    path === '/api/auth/login' ||
+    path === '/auth/refresh' ||
+    path === '/api/auth/refresh' ||
+    path === '/auth/setup' ||
+    path === '/api/auth/setup' ||
+    path === '/auth/register' ||
+    path === '/api/auth/register'
+  );
+}
+
+let inFlightRefresh: Promise<boolean> | null = null;
+
+export async function refreshTokenOnce(attemptedToken: string): Promise<boolean> {
+  const currentToken = localStorage.getItem('auth_token');
+  if (currentToken && currentToken !== attemptedToken) {
+    return true;
+  }
+
+  const refreshToken = localStorage.getItem('auth_refresh_token');
+  if (!refreshToken) {
+    return false;
+  }
+
+  if (inFlightRefresh) {
+    return inFlightRefresh;
+  }
+
+  let refreshPromise: Promise<boolean> | null = null;
+  refreshPromise = (async () => {
+    try {
+      const lang = localStorage.getItem('i18nextLng') || 'pt-BR';
+      const response = await fetch(apiUrl('/auth/refresh'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept-Language': lang,
+        },
+        body: JSON.stringify({ refreshToken }),
+      });
+
+      if (!response.ok) {
+        return false;
+      }
+
+      const data = await response.json();
+      if (!data || typeof data !== 'object' || !data.token || !data.refreshToken) {
+        return false;
+      }
+
+      localStorage.setItem('auth_token', data.token);
+      localStorage.setItem('auth_refresh_token', data.refreshToken);
+
+      if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+        window.dispatchEvent(
+          new CustomEvent(AUTH_SESSION_REFRESHED_EVENT, {
+            detail: { token: data.token, refreshToken: data.refreshToken },
+          })
+        );
+      }
+
+      return true;
+    } catch {
+      return false;
+    } finally {
+      if (inFlightRefresh === refreshPromise) {
+        inFlightRefresh = null;
+      }
+    }
+  })();
+
+  inFlightRefresh = refreshPromise;
+  return inFlightRefresh;
 }
 
 export class ApiClientError extends Error {
@@ -95,7 +175,8 @@ export class ApiClientError extends Error {
 
 async function request<T>(
   path: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  isRetry = false
 ): Promise<T> {
   const token = localStorage.getItem('auth_token');
   const lang = localStorage.getItem('i18nextLng') || 'pt-BR';
@@ -123,7 +204,7 @@ async function request<T>(
     }
   }
 
-  if (token) {
+  if (token && !isTokenlessPath(path)) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
@@ -146,8 +227,26 @@ async function request<T>(
     data = await response.json();
   }
 
+  // Store refresh token and access token if returned on login
+  if (response.ok && isLoginRequest(path) && data && typeof data === 'object') {
+    if (data.token) {
+      localStorage.setItem('auth_token', data.token);
+    }
+    if (data.refreshToken) {
+      localStorage.setItem('auth_refresh_token', data.refreshToken);
+    }
+  }
+
   if (response.status === 401) {
-    if (token && !isLoginRequest(path)) {
+    if (token && !isTokenlessPath(path)) {
+      // A 401 with a token in hand means the session expired, whatever sentence the server chose
+      // to wrap it in: the renewal is attempted once and the original request retried.
+      if (!isRetry) {
+        const renewed = await refreshTokenOnce(token);
+        if (renewed) {
+          return request<T>(path, options, true);
+        }
+      }
       handleUnauthorizedRedirect();
       throw new ApiClientError(401, i18n.t('api.sessionExpired'));
     }
@@ -211,14 +310,14 @@ export const api = {
    * Upload a file via multipart/form-data.
    * Does NOT set Content-Type so the browser sets it with the correct boundary.
    */
-  async upload<T>(path: string, formData: FormData): Promise<T> {
+  async upload<T>(path: string, formData: FormData, isRetry = false): Promise<T> {
     const token = localStorage.getItem('auth_token');
     const lang = localStorage.getItem('i18nextLng') || 'pt-BR';
 
     const headers: Record<string, string> = {
       'Accept-Language': lang,
     };
-    if (token) {
+    if (token && !isTokenlessPath(path)) {
       headers['Authorization'] = `Bearer ${token}`;
     }
     // Do NOT set Content-Type — browser adds multipart boundary
@@ -244,7 +343,13 @@ export const api = {
     }
 
     if (response.status === 401) {
-      if (token) {
+      if (token && !isTokenlessPath(path)) {
+        if (!isRetry) {
+          const renewed = await refreshTokenOnce(token);
+          if (renewed) {
+            return api.upload<T>(path, formData, true);
+          }
+        }
         handleUnauthorizedRedirect();
         throw new ApiClientError(401, i18n.t('api.sessionExpired'));
       }
