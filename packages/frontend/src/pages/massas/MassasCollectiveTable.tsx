@@ -18,15 +18,19 @@ interface MassasCollectiveTableProps {
   products: MassaProductTotal[];
   launches: MassaIndividualLaunch[];
   currentUserId?: number;
-  editingLaunchId: number | null;
-  editingBoxes: string;
-  editingBusy: boolean;
-  onStartEdit: (launch: MassaIndividualLaunch) => void;
-  onCancelEdit: () => void;
-  onSaveEdit: (launchId: number) => void;
-  onEditBoxesChange: (val: string) => void;
-  onDelete: (launchId: number) => void;
-  deletingId: number | null;
+  /**
+   * Editing is optional on purpose: the history screen reads past days and has nothing to edit, so it
+   * passes none of these instead of inventing handlers that can never fire.
+   */
+  editingLaunchId?: number | null;
+  editingBoxes?: string;
+  editingBusy?: boolean;
+  onStartEdit?: (launch: MassaIndividualLaunch) => void;
+  onCancelEdit?: () => void;
+  onSaveEdit?: (launchId: number) => void;
+  onEditBoxesChange?: (val: string) => void;
+  onDelete?: (launchId: number) => void;
+  deletingId?: number | null;
   readOnly?: boolean;
 }
 
@@ -34,15 +38,15 @@ export function MassasCollectiveTable({
   products,
   launches,
   currentUserId,
-  editingLaunchId,
-  editingBoxes,
-  editingBusy,
+  editingLaunchId = null,
+  editingBoxes = '',
+  editingBusy = false,
   onStartEdit,
   onCancelEdit,
   onSaveEdit,
   onEditBoxesChange,
   onDelete,
-  deletingId,
+  deletingId = null,
   readOnly = false,
 }: MassasCollectiveTableProps) {
   const { t } = useTranslation();
@@ -186,13 +190,13 @@ export function MassasCollectiveTable({
                             step="1"
                             inputMode="numeric"
                             value={editingBoxes}
-                            onChange={(e) => onEditBoxesChange(e.target.value)}
+                            onChange={(e) => onEditBoxesChange?.(e.target.value)}
                             className="h-9 w-20 text-center font-bold"
                           />
                           <span className="text-xs text-gray-500">cx</span>
                           <Button
                             size="sm"
-                            onClick={() => onSaveEdit(launch.id)}
+                            onClick={() => onSaveEdit?.(launch.id)}
                             disabled={editingBusy || !editingBoxes || parseInt(editingBoxes, 10) <= 0}
                             className="h-9 px-3 bg-green-600 hover:bg-green-700 text-white"
                             title={t('massas.save')}
@@ -202,7 +206,7 @@ export function MassasCollectiveTable({
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={onCancelEdit}
+                            onClick={() => onCancelEdit?.()}
                             className="h-9 px-3"
                             title={t('massas.cancel')}
                           >
@@ -228,7 +232,7 @@ export function MassasCollectiveTable({
                                   <Button
                                     size="sm"
                                     variant="ghost"
-                                    onClick={() => onStartEdit(launch)}
+                                    onClick={() => onStartEdit?.(launch)}
                                     className="h-9 w-9 p-0 text-gray-600 hover:text-amber-700 active:bg-amber-100"
                                     title={t('massas.edit')}
                                   >
@@ -237,7 +241,7 @@ export function MassasCollectiveTable({
                                   <Button
                                     size="sm"
                                     variant="ghost"
-                                    onClick={() => onDelete(launch.id)}
+                                    onClick={() => onDelete?.(launch.id)}
                                     disabled={deletingId === launch.id}
                                     className="h-9 w-9 p-0 text-gray-600 hover:text-red-700 active:bg-red-50"
                                     title={t('massas.delete')}
