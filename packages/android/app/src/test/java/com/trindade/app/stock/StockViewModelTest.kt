@@ -80,13 +80,15 @@ class StockViewModelTest {
             date = "2026-10-15", products = listOf(canudo, massa), totalBoxes = 7, totalUnits = 162
         )
         val mensaje = stockMessage(day)
-        assertTrue(mensaje.contains("CANUDO (787) — 150 un"))
-        assertTrue(mensaje.contains("MASSA ROLO 2KG (1047) — 12 un"))
+        assertTrue("el producto y sus unidades, sin codigo", mensaje.contains("CANUDO — 150 un"))
+        assertTrue(mensaje.contains("MASSA ROLO 2KG — 12 un"))
+        assertTrue("el codigo ya no viaja", !mensaje.contains("787") && !mensaje.contains("1047"))
         assertTrue(mensaje.contains("Total: 7 caixas · 162 unidades"))
 
         val cuerpo = stockEmailBody(day)
-        assertTrue(cuerpo.contains("Categoria | Código | Produto | Unidades").not())
         assertTrue("las columnas van medidas", cuerpo.contains("Categoria") && cuerpo.contains("Unidades"))
+        assertTrue("la columna de codigo se fue", !cuerpo.contains("Código"))
+        assertTrue("y con ella los codigos", !cuerpo.contains("787") && !cuerpo.contains("1047"))
         assertTrue("el total cae bajo las unidades", Regex("""Total\s*\|.*\|\s+162""").containsMatchIn(cuerpo))
         assertTrue("sin la columna de bultos", !cuerpo.contains("Caixas"))
     }

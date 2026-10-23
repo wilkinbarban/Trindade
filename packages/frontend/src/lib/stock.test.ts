@@ -52,10 +52,11 @@ describe('the catalogue as it arrives from the API', () => {
 describe('the message that leaves the plant', () => {
   it('lists only what was counted, with its boxes and its units, and closes with the totals', () => {
     const message = stockMessage(day);
-    assert.ok(message.includes('787') && message.includes('CANUDO'), 'el código y el nombre');
-    assert.ok(message.includes('  • CANUDO (787) — 150 un'), 'la fila lleva el producto y sus unidades');
+    assert.ok(message.includes('CANUDO'), 'el nombre');
+    assert.ok(!message.includes('787'), 'el código ya no viaja: la vista queda limpia');
+    assert.ok(message.includes('  • CANUDO — 150 un'), 'la fila lleva el producto y sus unidades');
     assert.ok(!message.includes(' cx'), 'los bultos no viajan en el detalle');
-    assert.ok(message.includes('  • MASSA ROLO 2KG (1047) — 12 un'), 'la línea de Massas');
+    assert.ok(message.includes('  • MASSA ROLO 2KG — 12 un'), 'la línea de Massas, también sin código');
     assert.ok(!message.includes('PIZZA BROTINHO'), 'un producto sin contar no ensucia el mensaje');
     assert.ok(!message.includes('MASSA TOKO'), 'ni el otro');
     assert.ok(message.includes('7') && message.includes('162'), 'los totales');
@@ -78,10 +79,13 @@ describe('the message that leaves the plant', () => {
 describe('the email that leaves the plant', () => {
   it('carries a plain table of what was counted, addressed to the plant', () => {
     const body = stockEmailBody(day);
-    assert.ok(body.includes('787') && body.includes('CANUDO'));
+    assert.ok(body.includes('CANUDO'), 'el nombre del producto contado');
     assert.ok(!body.includes('MASSA TOKO'), 'solo lo contado');
     assert.ok(body.includes('Categoria') && body.includes('Unidades'), 'las columnas del correo');
-    assert.ok(/^-+\+-+\+-+\+-+$/m.test(body), 'una linea separadora entre la cabecera y las filas');
+    assert.ok(!body.includes('Código'), 'la columna de código se fue del correo');
+    assert.ok(!body.includes('787') && !body.includes('1047'), 'y con ella los códigos de cada fila');
+    assert.ok(/CANUDO\s*\|/.test(body) && body.includes('MASSA ROLO 2KG'), 'las filas conservan el nombre');
+    assert.ok(/^-+\+-+\+-+$/m.test(body), 'una linea separadora entre la cabecera y las filas, con las tres columnas');
     assert.ok(!body.includes('Caixas'), 'el correo ya no lleva la columna de bultos');
     // La alineacion es la propiedad que se pide: las barras caen siempre en la misma columna.
     const lineas = body.split('\n').filter((l) => l.includes('|'));

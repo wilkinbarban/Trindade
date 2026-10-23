@@ -25,7 +25,7 @@ fun stockMessage(day: StockDay): String {
         val emoji = if (category == "Massas") "🍝" else "📦"
         lines += "$emoji *$category*"
         products.filter { it.category == category }.forEach {
-            lines += "  • ${it.name} (${it.code}) — ${it.units} un"
+            lines += "  • ${it.name} — ${it.units} un"
         }
         lines += ""
     }
@@ -43,9 +43,9 @@ fun stockEmailBody(day: StockDay): String {
     if (products.isEmpty()) {
         return "Contagem de estoque — ${day.date}\n\nNenhuma caixa contada até agora."
     }
-    val headers = listOf("Categoria", "Código", "Produto", "Unidades")
-    val rows = products.map { listOf(it.category, it.code, it.name, it.units.toString()) }
-    val totals = listOf("Total", "", "", day.totalUnits.toString())
+    val headers = listOf("Categoria", "Produto", "Unidades")
+    val rows = products.map { listOf(it.category, it.name, it.units.toString()) }
+    val totals = listOf("Total", "", day.totalUnits.toString())
     val widths = headers.indices.map { index ->
         maxOf(headers[index].length, rows.maxOf { it[index].length }, totals[index].length)
     }

@@ -108,7 +108,7 @@ export function stockMessage(day: StockDay): string {
     const emoji = EMOJI_BY_CATEGORY[group.category] ?? '•';
     lines.push(`${emoji} *${group.category}*`);
     for (const product of group.products) {
-      lines.push(`  • ${product.name} (${product.code}) — ${product.units} un`);
+      lines.push(`  • ${product.name} — ${product.units} un`);
     }
     lines.push('');
   }
@@ -130,9 +130,9 @@ export function stockEmailBody(day: StockDay): string {
   // is and a table that wraps inside a mail client is worse than one that is merely wide. The last
   // column is padded from the left so the quantities line up under each other, which is the only
   // column anybody reads down.
-  const headers = ['Categoria', 'Código', 'Produto', 'Unidades'];
-  const rows = countedProducts.map((product) => [product.category, product.code, product.name, String(product.units)]);
-  const totals = ['Total', '', '', String(day.totalUnits)];
+  const headers = ['Categoria', 'Produto', 'Unidades'];
+  const rows = countedProducts.map((product) => [product.category, product.name, String(product.units)]);
+  const totals = ['Total', '', String(day.totalUnits)];
   const widths = headers.map((header, index) =>
     Math.max(header.length, ...rows.map((row) => row[index].length), totals[index].length)
   );
