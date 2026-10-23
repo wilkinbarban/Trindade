@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import Fastify from 'fastify';
 import multipart from '@fastify/multipart';
@@ -14,6 +14,8 @@ test('all real photo download routes prohibit public caching and preserve bytes 
   t.after(async () => { await app.close(); closeReportDatabases(); });
   const db = setupReportsDb();
   const photosDir = mkdtempSync(resolve(process.cwd(), '../../.t08-photo-fixtures-'));
+  // A fixture directory that outlives the test is litter in the repository root, one more with every run.
+  t.after(() => rmSync(photosDir, { recursive: true, force: true }));
   const bytes = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
   writeFileSync(join(photosDir, 'fixture.jpg'), bytes);
   const publicToken = '0123456789abcdef0123456789abcdef';
