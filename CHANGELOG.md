@@ -6,6 +6,17 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [0.5.1+510] — 2026-10-23
+
+### ✨ Melhorado (mensagens administrativas no idioma ativo)
+- **Android — ViewModels de administração traduzidos**: `Usuários`, `Veículos`, `Categorias`, `Motoristas`, `Tarefas`, `Faixas horárias` e `Auditoria` deixam de guardar frases prontas em português. Cada mensagem viaja como recurso (`UiText`) e a tela resolve no idioma ativo, igual ao já feito em Massas, Estoque e Relatório — inclui validações de formulário, aviso de senha e as mensagens embutidas de Faixas horárias.
+- **Catálogos**: 12 chaves novas por idioma, com paridade exata `pt`/`es` (634 chaves em cada) e frases em português byte a byte iguais às publicadas.
+
+### 🔧 Manutenção
+- **Distribuição Android v0.5.1 (Code 510)**: `versionCode=510`, `versionName=0.5.1`, binário assinado sob APK Signature Scheme v2 (`CN=Trindade Massas Operacoes`), `aapt2` com `versionCode='510'`, `10,885,848` bytes, `sha256 4d8440dbc66ee17adee22916406ca9497b66a2a428031bd440194cf58bb94b55`, publicado em GitHub Release `v0.5.1` (`trindade-0.5.1.apk`, `.sha256` e `app-release.apk` com os mesmos bytes) e copiado para o Desktop.
+
+---
+
 ## [0.5.1+509] — 2026-10-22
 
 ### ✨ Melhorado (segurança de sessão, i18n e datas)

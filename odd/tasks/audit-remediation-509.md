@@ -26,6 +26,8 @@ S10 — Release 509. `versionCode=509`, `versionName="0.5.1"`; backend `pnpm tes
 
 S11 — Production. Rebuild `docker compose build api web && docker compose up -d api web` and validate health checks on ports 3005 and 8085. Trunk-based commits on `main` with conventional messages, zero AI attribution, `git push origin main`; clean orphan containers/build.
 
+S12 — Administration view-model messages. The seven administration view models (`UsersViewModel`, `VehiclesViewModel`, `CategoriesViewModel`, `DriversViewModel`, `TasksViewModel`, `TimeSlotsViewModel`, `AuditViewModel`) and `TimeSlotsAdminViewModel` stop holding finished Portuguese sentences. Every message that reaches the UI travels as `UiText` (`ui/UiText.kt`) and the screen resolves it with `stringResource`, exactly like the Massas, Stock and Report view models of S3. Portuguese text stays byte-identical; `values/` and `values-es/` keep identical key sets. Closes the gap L2 declared. Versions and artefacts are untouched: `versionCode` stays 509 and no APK is built.
+
 ## Tasks
 
 - [x] T1 (S1) Web refresh-token rotation — `packages/frontend/src/api/client.ts`, `contexts/AuthContext.tsx` — commit `178d03b` (`feat(web): rotate the session with the refresh token`). 146 frontend tests, tsc clean.
@@ -36,6 +38,8 @@ S11 — Production. Rebuild `docker compose build api web && docker compose up -
 - [x] T6 (S6) Android São Paulo date pickers — `stock/*`, `reports/*`, `loading/*` — commit `7044abc`.
 - [x] T7 (S10) versionCode 509, changelog and release docs — `build.gradle.kts`, `CHANGELOG.md`, `docs/release-android.md`.
 - [x] T8 (S10, S11) Tests, signed APK, GitHub assets, Desktop copy, Docker rebuild, push — see the Log.
+- [x] T9 (S12) Administration view-model messages as resources — `admin/*ViewModel.kt`, `admin/*Screen.kt`, `res/values*/strings.xml`, `admin/*ViewModelTest.kt`, `testDebug/.../admin/*ScreenTest.kt` — commit `refactor(android): carry admin messages as resources`. 12 keys per locale, 634/634.
+- [x] T10 (S10) Release 510 — `build.gradle.kts`, `CHANGELOG.md`, `docs/release-android.md` — 969 tests, v2 signature, `10,885,848` bytes, `sha256 4d8440db…94b55`.
 
 ## Log
 
@@ -97,3 +101,15 @@ El arquitecto revisó tu informe de auditoría y validó la exactitud técnica d
 - **GitHub** — assets clobbered on `v0.5.1`; the three assets report `sha256:1545739f…` (GitHub digest), so the updater cannot hand out the 508 binary under `app-release.apk`.
 - **Production** — `docker compose build api web && docker compose up -d api web`: both containers `healthy`; `/api/health` → `{"status":"ok"}`; web 200 on 8085 and the served bundle contains `auth_refresh_token`, so the new build is live.
 - **RED evidence** — T1: `a 401 whose message names no token still renews once` failed before the heuristic was removed and passed after. S7 Android: the rule was proven mechanically from the diff (old `message = if (schedules == null) UNREACHABLE else null` leaves the vehicle failure silent, and the new test asserts a message) after two attempts were blocked by test-compile errors, not by the assertion; the GREEN is the 969-test run above.
+
+### L4 — User directive after the 509 release
+
+> Ya podés delegar.
+
+Asked which front to delegate, the user chose: close the remaining gap of the audit (the administration view models that still hold Portuguese sentences). That is T9 / S12. The published 509 APK does not contain T9: shipping it requires a new `versionCode`, which is the user's decision and has not been requested.
+
+### L5 — Release 510 (user directive, after the 509 publication)
+
+> Directiva confirmada: al terminar el unit T9/S12 y pasar el gate de tests en SDK 35, no te detengas a consultar. Procedé directamente con todo el ciclo de release: bump a versionCode 510, compilá y firmá el APK release en SDK 35, verificá firma v2 y sha256, reemplazá los assets en el release v0.5.1 de GitHub (--clobber), actualizá la copia en /home/wilkin/Desktop/trindade-0.5.1.apk, reconstruí la imagen de producción en Docker, sincronizá todo a main y hacé limpieza. Cero adb install.
+
+Executed as T10. Two gate runs failed before the third passed, both on the test source set, not on the rule: the first because the newly converted Robolectric screen tests called `composeRule.activity` on a `ComposeContentTestRule` (v2 `createComposeRule` exposes no activity), which the parent fixed by adopting the `ApplicationProvider` + `copy(id, …)` helper the loading screen tests already use; the second because the parent had authorized no `src/testDebug/` surface in the first launch, so the worker stopped instead of editing those tests. The screens now assert the text the screen displays, resolved through the resource, and the state fixtures are built from the view model's own `UiText`.
