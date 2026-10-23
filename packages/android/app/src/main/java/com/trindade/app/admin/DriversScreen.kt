@@ -32,6 +32,7 @@ import com.trindade.app.ui.components.AdminPrimaryButton
 import com.trindade.app.ui.components.AdminSecondaryButton
 import com.trindade.app.ui.components.NavigationActionButton
 import com.trindade.app.ui.filterPhoneDigits
+import com.trindade.app.ui.resolve
 
 /** Driver catalog UI. The ViewModel state supplies role and ownership policy. */
 @Composable
@@ -83,7 +84,7 @@ fun DriversScreen(
                 Text(stringResource(R.string.admin_loading))
             }
         }
-        state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        state.error?.let { Text(it.resolve(), color = MaterialTheme.colorScheme.error) }
 
         if (canCreate) {
             AdminPrimaryButton(

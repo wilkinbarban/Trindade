@@ -2,7 +2,9 @@ package com.trindade.app.admin
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.trindade.app.R
 import com.trindade.app.auth.AuthRepository
+import com.trindade.app.ui.UiText
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.Job
@@ -24,7 +26,7 @@ class TimeSlotsViewModel @Inject constructor(
         val input: String = "",
         val role: String? = null,
         val currentUserId: Int? = null,
-        val error: String? = null,
+        val error: UiText? = null,
         val refusedStatus: Int? = null,
     ) {
         val isAdmin: Boolean get() = role == ADMIN
@@ -139,10 +141,10 @@ class TimeSlotsViewModel @Inject constructor(
     companion object {
         const val ADMIN = "Administrador"
         const val WORKER = "Trabalhador"
-        const val AT_LEAST_ONE_SLOT = "Pelo menos um horário é obrigatório."
-        const val LAST_SLOT_REMOVAL = AT_LEAST_ONE_SLOT
-        const val CANNOT_REMOVE_LAST = AT_LEAST_ONE_SLOT
-        const val REFUSED = "O servidor recusou esta operação de horário."
-        const val UNREACHABLE = "Sem conexão com o servidor. Verifique a rede e tente de novo."
+        val AT_LEAST_ONE_SLOT = UiText.of(R.string.time_slots_error_at_least_one)
+        val LAST_SLOT_REMOVAL = AT_LEAST_ONE_SLOT
+        val CANNOT_REMOVE_LAST = AT_LEAST_ONE_SLOT
+        val REFUSED = UiText.of(R.string.time_slots_error_refused)
+        val UNREACHABLE = UiText.of(R.string.admin_error_unreachable)
     }
 }

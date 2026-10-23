@@ -78,7 +78,7 @@ class TasksViewModelTest {
         assertNull(model.state.value.error)
         val failed = model(CatalogApi().apply { refuseCategories = true })
         failed.load()
-        assertEquals(TasksViewModel.UNREACHABLE, failed.state.value.error)
+        assertEquals(TasksViewModel.UNREACHABLE.resId, failed.state.value.error?.resId)
         assertFalse(failed.state.value.loading)
     }
 
@@ -128,19 +128,19 @@ class TasksViewModelTest {
         model.onCategoryChange("999")
         model.onNamePtChange("Nova")
         model.save()
-        assertEquals(TasksViewModel.CATEGORY, model.state.value.error)
+        assertEquals(TasksViewModel.CATEGORY.resId, model.state.value.error?.resId)
         assertEquals(0, api.creates)
 
         model.onCategoryChange("3")
         model.onNamePtChange(" ")
         model.save()
-        assertEquals(TasksViewModel.NAME, model.state.value.error)
+        assertEquals(TasksViewModel.NAME.resId, model.state.value.error?.resId)
         assertEquals(0, api.creates)
 
         model.onNamePtChange("Nova")
         model.onTemperatureReadingsChange("4")
         model.save()
-        assertEquals(TasksViewModel.TEMPERATURE_READINGS, model.state.value.error)
+        assertEquals(TasksViewModel.TEMPERATURE_READINGS.resId, model.state.value.error?.resId)
         assertEquals(0, api.creates)
     }
 
@@ -167,12 +167,12 @@ class TasksViewModelTest {
         api.writeResult = TaskWriteResult.Refused(403)
         model.save()
         assertEquals(403, model.state.value.refusedStatus)
-        assertEquals(TasksViewModel.REFUSED, model.state.value.error)
+        assertEquals(TasksViewModel.REFUSED.resId, model.state.value.error?.resId)
         assertEquals(1, api.taskReads)
 
         api.writeResult = TaskWriteResult.Unreachable
         model.save()
-        assertEquals(TasksViewModel.UNREACHABLE, model.state.value.error)
+        assertEquals(TasksViewModel.UNREACHABLE.resId, model.state.value.error?.resId)
         assertEquals(1, api.taskReads)
 
         api.writeResult = TaskWriteResult.Saved(AdminTaskResponseTask(10, 3, "Task10", "Tarea10", 1, 1, 42, "now", AdminTaskResponseTask.TaskType.temperature))
@@ -206,7 +206,7 @@ class TasksViewModelTest {
         model.load()
         assertNull(model.state.value.role)
         assertNull(model.state.value.currentUserId)
-        assertEquals(TasksViewModel.UNREACHABLE, model.state.value.error)
+        assertEquals(TasksViewModel.UNREACHABLE.resId, model.state.value.error?.resId)
 
         // Save fails closed for cleared/missing role
         model.onCategoryChange("3")
@@ -277,7 +277,7 @@ class TasksViewModelTest {
         // Failed reload clears deleteTarget, role, and permissions
         api.refuseCategories = true
         model.load()
-        assertEquals(TasksViewModel.UNREACHABLE, model.state.value.error)
+        assertEquals(TasksViewModel.UNREACHABLE.resId, model.state.value.error?.resId)
         assertNull(model.state.value.deleteTarget)
         assertNull(model.state.value.role)
         assertFalse(model.state.value.canDelete(target))

@@ -2,10 +2,12 @@ package com.trindade.app.admin
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.trindade.app.R
 import com.trindade.app.auth.AuthRepository
 import com.trindade.app.contract.models.AdminCategoryResponseCategory
 import com.trindade.app.contract.models.CreateAdminCategoryRequest
 import com.trindade.app.contract.models.UpdateAdminCategoryRequest
+import com.trindade.app.ui.UiText
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.Locale
 import javax.inject.Inject
@@ -46,7 +48,7 @@ class CategoriesViewModel @Inject constructor(
         val sortOrder: String = "0",
         val deleteTarget: AdminCategoryResponseCategory? = null,
         val isSpanish: Boolean = false,
-        val error: String? = null,
+        val error: UiText? = null,
         val refusedStatus: Int? = null,
     ) {
         val isAdmin: Boolean get() = role == ADMIN
@@ -254,7 +256,7 @@ class CategoriesViewModel @Inject constructor(
     }
 
     private fun changeForm(change: UiState.() -> UiState) = _state.update { it.change().copy(error = null, refusedStatus = null) }
-    private fun validation(message: String) = _state.update { it.copy(error = message, refusedStatus = null) }
+    private fun validation(message: UiText) = _state.update { it.copy(error = message, refusedStatus = null) }
 
     companion object {
         const val ADMIN = "Administrador"
@@ -263,10 +265,10 @@ class CategoriesViewModel @Inject constructor(
         const val TEMPERATURE = "temperature"
         const val CHECK_ASSAI = "check_assai"
         const val CHECK_NORMAL = "check_normal"
-        const val NAME = "Informe o nome da categoria em português ou espanhol."
-        const val CATEGORY_TYPE = "Selecione um tipo de categoria válido."
-        const val SORT_ORDER = "A ordem de exibição deve ser um número inteiro não negativo."
-        const val REFUSED = "O servidor recusou esta operação de categoria."
-        const val UNREACHABLE = "Sem conexão com o servidor. Verifique a rede e tente de novo."
+        val NAME = UiText.of(R.string.categories_error_name)
+        val CATEGORY_TYPE = UiText.of(R.string.categories_error_type)
+        val SORT_ORDER = UiText.of(R.string.categories_error_sort_order)
+        val REFUSED = UiText.of(R.string.categories_error_refused)
+        val UNREACHABLE = UiText.of(R.string.admin_error_unreachable)
     }
 }

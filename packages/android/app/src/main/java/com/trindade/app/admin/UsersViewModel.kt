@@ -2,11 +2,13 @@ package com.trindade.app.admin
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.trindade.app.R
 import com.trindade.app.auth.AuthRepository
 import com.trindade.app.auth.PasswordPolicy
 import com.trindade.app.contract.models.AdminUserResponseUser
 import com.trindade.app.contract.models.CreateAdminUserRequest
 import com.trindade.app.contract.models.UpdateAdminUserRequest
+import com.trindade.app.ui.UiText
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.Job
@@ -33,7 +35,7 @@ class UsersViewModel @Inject constructor(
         val roleId: Int = DEFAULT_ROLE_ID,
         val isActive: Int = 1,
         val deleteTarget: AdminUserResponseUser? = null,
-        val error: String? = null,
+        val error: UiText? = null,
         val refusedStatus: Int? = null,
         val hasPasswordWarning: Boolean = false,
     ) {
@@ -47,7 +49,7 @@ class UsersViewModel @Inject constructor(
         val canChangeStatus: Boolean get() = !isSelfEditing
 
         val passwordStrengthWarning: Boolean get() = hasPasswordWarning
-        val passwordWarning: String? get() = if (hasPasswordWarning) PASSWORD_WARNING else null
+        val passwordWarning: UiText? get() = if (hasPasswordWarning) PASSWORD_WARNING else null
 
         fun canEdit(user: AdminUserResponseUser): Boolean = isAdmin
         fun canToggle(user: AdminUserResponseUser): Boolean = isAdmin && user.id != currentUserId
@@ -304,7 +306,7 @@ class UsersViewModel @Inject constructor(
         value.isNotEmpty() && !(value.length >= 8 && value.any { it in 'A'..'Z' } && value.any { it in '0'..'9' })
 
     private fun changeForm(change: UiState.() -> UiState) = _state.update { it.change().copy(error = null, refusedStatus = null) }
-    private fun validation(message: String) = _state.update { it.copy(error = message, refusedStatus = null) }
+    private fun validation(message: UiText) = _state.update { it.copy(error = message, refusedStatus = null) }
 
     /**
      * The message for a password the server would refuse, or null when it would accept it.
@@ -313,7 +315,7 @@ class UsersViewModel @Inject constructor(
      * admin panel cannot save a user whose password the server refuses on the strength of a rule the
      * other two screens no longer state that way.
      */
-    private fun passwordViolation(pwd: String): String? = when (PasswordPolicy.violationOf(pwd)) {
+    private fun passwordViolation(pwd: String): UiText? = when (PasswordPolicy.violationOf(pwd)) {
         PasswordPolicy.Violation.TOO_FEW_GRAPHEMES -> PASSWORD_TOO_SHORT
         PasswordPolicy.Violation.TOO_MANY_BYTES -> PASSWORD_TOO_MANY_BYTES
         null -> null
@@ -324,13 +326,13 @@ class UsersViewModel @Inject constructor(
         const val WORKER = "Trabalhador"
         const val DEFAULT_ROLE_ID = 2
         const val MIN_PASSWORD_LENGTH = PasswordPolicy.MIN_GRAPHEMES
-        const val USERNAME = "Informe o nome de usuário."
-        const val DISPLAY_NAME = "Informe o nome de exibição."
-        const val PASSWORD = "Informe a senha."
-        const val PASSWORD_TOO_SHORT = "A senha deve ter pelo menos 15 caracteres visíveis."
-        const val PASSWORD_TOO_MANY_BYTES = "A senha não deve ultrapassar 72 bytes."
-        const val PASSWORD_WARNING = "Recomendamos uma senha de pelo menos 15 caracteres com letras maiúsculas e números"
-        const val REFUSED = "O servidor recusou esta operação de usuário."
-        const val UNREACHABLE = "Sem conexão com o servidor. Verifique a rede e tente de novo."
+        val USERNAME = UiText.of(R.string.users_error_username)
+        val DISPLAY_NAME = UiText.of(R.string.users_error_display_name)
+        val PASSWORD = UiText.of(R.string.users_error_password)
+        val PASSWORD_TOO_SHORT = UiText.of(R.string.users_error_password_too_short)
+        val PASSWORD_TOO_MANY_BYTES = UiText.of(R.string.users_error_password_too_many_bytes)
+        val PASSWORD_WARNING = UiText.of(R.string.admin_users_password_warning)
+        val REFUSED = UiText.of(R.string.users_error_refused)
+        val UNREACHABLE = UiText.of(R.string.admin_error_unreachable)
     }
 }

@@ -38,6 +38,7 @@ import com.trindade.app.ui.components.AdminDestructiveConfirmButton
 import com.trindade.app.ui.components.AdminPrimaryButton
 import com.trindade.app.ui.components.AdminSecondaryButton
 import com.trindade.app.ui.components.NavigationActionButton
+import com.trindade.app.ui.resolve
 
 /**
  * Renders the user management administration UI driven strictly by [UsersViewModel.UiState].
@@ -96,7 +97,7 @@ fun UsersScreen(
             }
         }
 
-        state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        state.error?.let { Text(it.resolve(), color = MaterialTheme.colorScheme.error) }
 
         if (state.isAdmin) {
             AdminPrimaryButton(
@@ -135,7 +136,7 @@ fun UsersScreen(
 
             if (state.hasPasswordWarning) {
                 Text(
-                    text = UsersViewModel.PASSWORD_WARNING,
+                    text = UsersViewModel.PASSWORD_WARNING.resolve(),
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall,
                 )

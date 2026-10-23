@@ -33,6 +33,7 @@ import com.trindade.app.ui.components.AdminDestructiveConfirmButton
 import com.trindade.app.ui.components.AdminPrimaryButton
 import com.trindade.app.ui.components.AdminSecondaryButton
 import com.trindade.app.ui.components.NavigationActionButton
+import com.trindade.app.ui.resolve
 
 /** Task catalog UI. Role checks come from the server-backed ViewModel state, never from navigation. */
 @Composable
@@ -72,7 +73,7 @@ fun TasksScreen(
             }
         }
         if (state.loading) CircularProgressIndicator()
-        state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        state.error?.let { Text(it.resolve(), color = MaterialTheme.colorScheme.error) }
 
         if (state.role == TasksViewModel.ADMIN || state.role == TasksViewModel.WORKER) {
             AdminPrimaryButton(

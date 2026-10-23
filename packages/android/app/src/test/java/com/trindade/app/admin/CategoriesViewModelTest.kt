@@ -140,24 +140,24 @@ class CategoriesViewModelTest {
         model.onNamePtChange("   ")
         model.onNameEsChange("")
         model.save()
-        assertEquals(CategoriesViewModel.NAME, model.state.value.error)
+        assertEquals(CategoriesViewModel.NAME.resId, model.state.value.error?.resId)
         assertEquals(0, api.creates)
 
         model.onNamePtChange("Nova Categoria")
         model.onCategoryTypeChange("invalid_type")
         model.save()
-        assertEquals(CategoriesViewModel.CATEGORY_TYPE, model.state.value.error)
+        assertEquals(CategoriesViewModel.CATEGORY_TYPE.resId, model.state.value.error?.resId)
         assertEquals(0, api.creates)
 
         model.onCategoryTypeChange("check")
         model.onSortOrderChange("-1")
         model.save()
-        assertEquals(CategoriesViewModel.SORT_ORDER, model.state.value.error)
+        assertEquals(CategoriesViewModel.SORT_ORDER.resId, model.state.value.error?.resId)
         assertEquals(0, api.creates)
 
         model.onSortOrderChange("abc")
         model.save()
-        assertEquals(CategoriesViewModel.SORT_ORDER, model.state.value.error)
+        assertEquals(CategoriesViewModel.SORT_ORDER.resId, model.state.value.error?.resId)
         assertEquals(0, api.creates)
     }
 
@@ -255,12 +255,12 @@ class CategoriesViewModelTest {
         api.writeResult = CategoryWriteResult.Refused(400)
         model.save()
         assertEquals(400, model.state.value.refusedStatus)
-        assertEquals(CategoriesViewModel.REFUSED, model.state.value.error)
+        assertEquals(CategoriesViewModel.REFUSED.resId, model.state.value.error?.resId)
         assertEquals(1, api.reads)
 
         api.writeResult = CategoryWriteResult.Unreachable
         model.save()
-        assertEquals(CategoriesViewModel.UNREACHABLE, model.state.value.error)
+        assertEquals(CategoriesViewModel.UNREACHABLE.resId, model.state.value.error?.resId)
         assertNull(model.state.value.refusedStatus)
         assertEquals(1, api.reads)
 
@@ -300,7 +300,7 @@ class CategoriesViewModelTest {
         assertEquals(row, model.state.value.deleteTarget)
         profileApi.failProfile = true
         model.load()
-        assertEquals(CategoriesViewModel.UNREACHABLE, model.state.value.error)
+        assertEquals(CategoriesViewModel.UNREACHABLE.resId, model.state.value.error?.resId)
         assertNull(model.state.value.deleteTarget)
         assertNull(model.state.value.role)
         assertNull(model.state.value.currentUserId)
@@ -319,7 +319,7 @@ class CategoriesViewModelTest {
         model.requestDelete(row)
         api.failCategories = true
         model.load()
-        assertEquals(CategoriesViewModel.UNREACHABLE, model.state.value.error)
+        assertEquals(CategoriesViewModel.UNREACHABLE.resId, model.state.value.error?.resId)
         assertNull(model.state.value.role)
         assertNull(model.state.value.currentUserId)
         assertFalse(model.state.value.isAdmin)

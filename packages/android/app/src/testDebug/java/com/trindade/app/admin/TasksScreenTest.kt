@@ -1,5 +1,6 @@
 package com.trindade.app.admin
 
+import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -14,9 +15,12 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.dp
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.trindade.app.R
 import com.trindade.app.contract.models.AdminCategoryResponseCategory
 import com.trindade.app.contract.models.AdminTasksResponseTasksInner
+import com.trindade.app.ui.UiText
 import com.trindade.app.ui.theme.TrindadeTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -32,6 +36,12 @@ import org.junit.Assert.assertEquals
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class TasksScreenTest {
     @get:Rule val composeRule = createComposeRule()
+
+    private val context: Context
+        get() = ApplicationProvider.getApplicationContext()
+
+    /** One string this screen draws, looked up rather than typed. */
+    private fun copy(id: Int, vararg formatArgs: Any): String = context.getString(id, *formatArgs)
 
     private val category = AdminCategoryResponseCategory(
         id = 3, parentCategoryId = null, namePt = "Temperatura", nameEs = "Temperatura",
@@ -49,7 +59,7 @@ class TasksScreenTest {
         role: String = TasksViewModel.ADMIN,
         tasks: List<AdminTasksResponseTasksInner> = listOf(task(1, 7), task(2, 8, active = 0)),
         saving: Boolean = false,
-        error: String? = null,
+        error: UiText? = null,
         editingId: Int? = null,
         deleteTarget: AdminTasksResponseTasksInner? = null,
     ) = TasksViewModel.UiState(
@@ -134,7 +144,8 @@ class TasksScreenTest {
         composeRule.onNodeWithText("Português").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Español").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Leituras de temperatura").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText(TasksViewModel.TEMPERATURE_READINGS).performScrollTo().assertIsDisplayed()
+        val expectedMsg = copy(R.string.tasks_error_readings)
+        composeRule.onNodeWithText(expectedMsg).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Salvando…").performScrollTo().assertIsDisplayed().assertIsNotEnabled()
     }
 

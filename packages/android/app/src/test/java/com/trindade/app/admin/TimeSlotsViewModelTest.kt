@@ -161,7 +161,7 @@ class TimeSlotsViewModelTest {
 
         model.removeTimeSlot("08:00")
         assertEquals(0, api.updates)
-        assertEquals(TimeSlotsViewModel.AT_LEAST_ONE_SLOT, model.state.value.error)
+        assertEquals(TimeSlotsViewModel.AT_LEAST_ONE_SLOT.resId, model.state.value.error?.resId)
         assertNull(model.state.value.refusedStatus)
 
         val api2 = TimeSlotApi(slots = listOf("08:00", "08:00"))
@@ -170,7 +170,7 @@ class TimeSlotsViewModelTest {
 
         model2.removeTimeSlot("08:00")
         assertEquals(0, api2.updates)
-        assertEquals(TimeSlotsViewModel.AT_LEAST_ONE_SLOT, model2.state.value.error)
+        assertEquals(TimeSlotsViewModel.AT_LEAST_ONE_SLOT.resId, model2.state.value.error?.resId)
         assertNull(model2.state.value.refusedStatus)
     }
 
@@ -181,18 +181,18 @@ class TimeSlotsViewModelTest {
 
         api.writeResult = TimeSlotWriteResult.Refused(400)
         model.removeTimeSlot("08:00")
-        assertEquals(TimeSlotsViewModel.REFUSED, model.state.value.error)
+        assertEquals(TimeSlotsViewModel.REFUSED.resId, model.state.value.error?.resId)
         assertEquals(400, model.state.value.refusedStatus)
         assertFalse(model.state.value.saving)
 
         api.writeResult = TimeSlotWriteResult.Refused(403)
         model.removeTimeSlot("08:00")
-        assertEquals(TimeSlotsViewModel.REFUSED, model.state.value.error)
+        assertEquals(TimeSlotsViewModel.REFUSED.resId, model.state.value.error?.resId)
         assertEquals(403, model.state.value.refusedStatus)
 
         api.writeResult = TimeSlotWriteResult.Unreachable
         model.removeTimeSlot("08:00")
-        assertEquals(TimeSlotsViewModel.UNREACHABLE, model.state.value.error)
+        assertEquals(TimeSlotsViewModel.UNREACHABLE.resId, model.state.value.error?.resId)
         assertNull(model.state.value.refusedStatus)
     }
 
@@ -202,14 +202,14 @@ class TimeSlotsViewModelTest {
         model.load()
 
         assertFalse(model.state.value.loading)
-        assertEquals(TimeSlotsViewModel.UNREACHABLE, model.state.value.error)
+        assertEquals(TimeSlotsViewModel.UNREACHABLE.resId, model.state.value.error?.resId)
         assertEquals(emptyList<String>(), model.state.value.timeSlots)
 
         val okApi = TimeSlotApi(slots = fixtureSlots)
         val profileFailModel = viewModel(okApi, role = "Administrador", profileSucceeds = false)
         profileFailModel.load()
         assertFalse(profileFailModel.state.value.loading)
-        assertEquals(TimeSlotsViewModel.UNREACHABLE, profileFailModel.state.value.error)
+        assertEquals(TimeSlotsViewModel.UNREACHABLE.resId, profileFailModel.state.value.error?.resId)
         assertEquals(emptyList<String>(), profileFailModel.state.value.timeSlots)
     }
 
@@ -242,7 +242,7 @@ class TimeSlotsViewModelTest {
         api.writeResult = TimeSlotWriteResult.Refused(400)
         model.removeTimeSlot("08:00")
         assertEquals(400, model.state.value.refusedStatus)
-        assertEquals(TimeSlotsViewModel.REFUSED, model.state.value.error)
+        assertEquals(TimeSlotsViewModel.REFUSED.resId, model.state.value.error?.resId)
 
         model.onInputChange("07:00")
         assertNull(model.state.value.error)

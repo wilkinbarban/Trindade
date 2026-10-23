@@ -1,5 +1,6 @@
 package com.trindade.app.admin
 
+import android.content.Context
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.CompositionLocalProvider
@@ -18,8 +19,11 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.trindade.app.R
 import com.trindade.app.contract.models.AuditResponseLogsInner
+import com.trindade.app.ui.UiText
 import com.trindade.app.ui.theme.TrindadeTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -35,6 +39,12 @@ import org.robolectric.annotation.GraphicsMode
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class AuditScreenTest {
     @get:Rule val composeRule = createComposeRule()
+
+    private val context: Context
+        get() = ApplicationProvider.getApplicationContext()
+
+    /** One string this screen draws, looked up rather than typed. */
+    private fun copy(id: Int, vararg formatArgs: Any): String = context.getString(id, *formatArgs)
 
     private fun logEntry(
         id: Int = 1,
@@ -65,7 +75,7 @@ class AuditScreenTest {
         totalPages: Int = 1,
         total: Int = logs.size,
         role: String? = AuditViewModel.ADMIN,
-        error: String? = null,
+        error: UiText? = null,
         actionInput: String = "",
         entityTypeInput: String = "",
         userIdInput: String = "",
@@ -535,9 +545,10 @@ class AuditScreenTest {
 
     @Test
     fun `explicit error state displayed when state carries error`() {
-        render(state(error = "User ID must be a positive integer."))
+        render(state(error = AuditViewModel.INVALID_USER_ID))
 
-        composeRule.onNodeWithText("User ID must be a positive integer.").assertIsDisplayed()
+        val expectedError = copy(R.string.audit_error_invalid_user_id)
+        composeRule.onNodeWithText(expectedError).assertIsDisplayed()
     }
 
     @Test

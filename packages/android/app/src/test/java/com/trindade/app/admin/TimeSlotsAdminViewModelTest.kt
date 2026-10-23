@@ -221,7 +221,7 @@ class TimeSlotsAdminViewModelTest {
         assertEquals(RolePolicy.WORKER, state.role)
         assertTrue(state.timeSlots.isEmpty())
         assertTrue(state.isError)
-        assertEquals("Acesso restrito a administradores.", state.message)
+        assertEquals(TimeSlotsAdminViewModel.ERROR_ADMIN_ONLY.resId, state.message?.resId)
         assertEquals(0, adminApi.timeSlotsCallCount)
     }
 
@@ -243,7 +243,7 @@ class TimeSlotsAdminViewModelTest {
         assertNull(state.role)
         assertTrue(state.timeSlots.isEmpty())
         assertTrue(state.isError)
-        assertEquals("Não foi possível carregar os horários. Tente de novo.", state.message)
+        assertEquals(TimeSlotsAdminViewModel.ERROR_LOAD.resId, state.message?.resId)
         assertEquals(0, adminApi.timeSlotsCallCount)
     }
 
@@ -270,7 +270,7 @@ class TimeSlotsAdminViewModelTest {
         assertTrue(state.timeSlots.isEmpty())
         assertNull(state.form)
         assertTrue(state.isError)
-        assertEquals("Acesso restrito a administradores.", state.message)
+        assertEquals(TimeSlotsAdminViewModel.ERROR_ADMIN_ONLY.resId, state.message?.resId)
     }
 
     @Test
@@ -297,7 +297,7 @@ class TimeSlotsAdminViewModelTest {
         assertNull(state.deleteConfirmSlot)
         assertFalse(state.deleting)
         assertTrue(state.isError)
-        assertEquals("Acesso restrito a administradores.", state.message)
+        assertEquals(TimeSlotsAdminViewModel.ERROR_ADMIN_ONLY.resId, state.message?.resId)
     }
 
     @Test
@@ -388,7 +388,7 @@ class TimeSlotsAdminViewModelTest {
         assertFalse(state.loading)
         assertTrue("Stale time slots must be cleared on failed read", state.timeSlots.isEmpty())
         assertTrue(state.isError)
-        assertEquals("Não foi possível carregar os horários. Tente de novo.", state.message)
+        assertEquals(TimeSlotsAdminViewModel.ERROR_LOAD.resId, state.message?.resId)
     }
 
     @Test
@@ -412,7 +412,7 @@ class TimeSlotsAdminViewModelTest {
         assertNull(state.role)
         assertTrue(state.timeSlots.isEmpty())
         assertTrue(state.isError)
-        assertEquals("Acesso restrito a administradores.", state.message)
+        assertEquals(TimeSlotsAdminViewModel.ERROR_ADMIN_ONLY.resId, state.message?.resId)
     }
 
     @Test
@@ -453,7 +453,7 @@ class TimeSlotsAdminViewModelTest {
         assertNull("Delete confirmation must be cleared on role revocation", stateAfter.deleteConfirmSlot)
         assertTrue(stateAfter.timeSlots.isEmpty())
         assertTrue(stateAfter.isError)
-        assertEquals("Acesso restrito a administradores.", stateAfter.message)
+        assertEquals(TimeSlotsAdminViewModel.ERROR_ADMIN_ONLY.resId, stateAfter.message?.resId)
     }
 
     @Test

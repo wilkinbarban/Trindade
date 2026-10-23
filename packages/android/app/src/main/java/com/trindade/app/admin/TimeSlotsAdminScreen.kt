@@ -35,6 +35,7 @@ import com.trindade.app.ui.components.AdminDestructiveConfirmButton
 import com.trindade.app.ui.components.AdminPrimaryButton
 import com.trindade.app.ui.components.AdminSecondaryButton
 import com.trindade.app.ui.components.NavigationActionButton
+import com.trindade.app.ui.resolve
 
 @Composable
 fun TimeSlotsAdminScreen(
@@ -93,7 +94,7 @@ fun TimeSlotsAdminScreen(
 
         state.message?.let { message ->
             Text(
-                text = message,
+                text = message.resolve(),
                 color = if (state.isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                 modifier = Modifier.semantics {
                     liveRegion = LiveRegionMode.Polite
@@ -216,7 +217,7 @@ private fun TimeSlotForm(
                 placeholder = { Text(stringResource(R.string.time_slots_slot_placeholder)) },
                 isError = form.validationError != null,
                 supportingText = form.validationError?.let { err ->
-                    { Text(err, color = MaterialTheme.colorScheme.error) }
+                    { Text(err.resolve(), color = MaterialTheme.colorScheme.error) }
                 },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),

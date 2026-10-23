@@ -2,10 +2,12 @@ package com.trindade.app.admin
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.trindade.app.R
 import com.trindade.app.auth.AuthRepository
 import com.trindade.app.contract.models.AdminDriverResponseDriver
 import com.trindade.app.contract.models.CreateAdminDriverRequest
 import com.trindade.app.contract.models.UpdateAdminDriverRequest
+import com.trindade.app.ui.UiText
 import com.trindade.app.ui.cleanPhone
 import com.trindade.app.ui.filterPhoneInput
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -32,7 +34,7 @@ class DriversViewModel @Inject constructor(
         val name: String = "",
         val phone: String = "",
         val driverType: String = "fletero",
-        val error: String? = null,
+        val error: UiText? = null,
         val refusedStatus: Int? = null,
     ) {
         val isAdmin: Boolean get() = role == ADMIN
@@ -152,16 +154,16 @@ class DriversViewModel @Inject constructor(
     }
 
     private fun changeForm(change: UiState.() -> UiState) = _state.update { it.change().copy(error = null, refusedStatus = null) }
-    private fun validation(message: String) = _state.update { it.copy(error = message, refusedStatus = null) }
+    private fun validation(message: UiText) = _state.update { it.copy(error = message, refusedStatus = null) }
 
     companion object {
         const val ADMIN = "Administrador"
         const val WORKER = "Trabalhador"
         const val CASA = "casa"
         const val FLETERO = "fletero"
-        const val NAME = "Informe o nome do motorista."
-        const val DRIVER_TYPE = "Selecione um tipo de motorista válido."
-        const val REFUSED = "O servidor recusou esta operação de motorista."
-        const val UNREACHABLE = "Sem conexão com o servidor. Verifique a rede e tente de novo."
+        val NAME = UiText.of(R.string.drivers_error_name)
+        val DRIVER_TYPE = UiText.of(R.string.drivers_error_type)
+        val REFUSED = UiText.of(R.string.drivers_error_refused)
+        val UNREACHABLE = UiText.of(R.string.admin_error_unreachable)
     }
 }

@@ -1,5 +1,6 @@
 package com.trindade.app.admin
 
+import android.content.Context
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -11,8 +12,11 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.unit.dp
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.trindade.app.R
 import com.trindade.app.contract.models.AdminCategoryResponseCategory
+import com.trindade.app.ui.UiText
 import com.trindade.app.ui.theme.TrindadeTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -27,6 +31,12 @@ import org.robolectric.annotation.GraphicsMode
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class CategoriesScreenTest {
     @get:Rule val composeRule = createComposeRule()
+
+    private val context: Context
+        get() = ApplicationProvider.getApplicationContext()
+
+    /** One string this screen draws, looked up rather than typed. */
+    private fun copy(id: Int, vararg formatArgs: Any): String = context.getString(id, *formatArgs)
 
     private fun category(
         id: Int,
@@ -54,7 +64,7 @@ class CategoriesScreenTest {
         ),
         loading: Boolean = false,
         saving: Boolean = false,
-        error: String? = null,
+        error: UiText? = null,
         refusedStatus: Int? = null,
         editingId: Int? = null,
         isSpanish: Boolean = false,
@@ -286,7 +296,8 @@ class CategoriesScreenTest {
         ))
 
         composeRule.onNodeWithText("Carregando", substring = true).assertIsDisplayed()
-        composeRule.onNodeWithText(CategoriesViewModel.REFUSED).assertIsDisplayed()
+        val expectedRefused = copy(R.string.categories_error_refused)
+        composeRule.onNodeWithText(expectedRefused).assertIsDisplayed()
         composeRule.onNodeWithText("Status: 400").assertDoesNotExist()
         composeRule.onNodeWithText("Salvando…").assertIsDisplayed().assertIsNotEnabled()
         composeRule.onNodeWithText("Atualizar").assertIsNotEnabled()

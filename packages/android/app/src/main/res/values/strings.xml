@@ -507,6 +507,18 @@
 
     <string name="audit_error_invalid_user_id">O ID do usuário deve ser um número inteiro positivo.</string>
     <string name="admin_error_unreachable">Sem conexão com o servidor. Verifique a rede e tente de novo.</string>
+    <string name="admin_users_password_warning">Recomendamos uma senha de pelo menos 15 caracteres com letras maiúsculas e números</string>
+    <string name="admin_time_slots_error_load">Não foi possível carregar os horários. Tente de novo.</string>
+    <string name="admin_time_slots_error_admin_only">Acesso restrito a administradores.</string>
+    <string name="admin_time_slots_validate_required">Horário é obrigatório.</string>
+    <string name="admin_time_slots_validate_format">Formato inválido. Use HH:MM (ex: 08:00).</string>
+    <string name="admin_time_slots_validate_duplicate">Horário já cadastrado.</string>
+    <string name="admin_time_slots_added_success">Horário adicionado com sucesso.</string>
+    <string name="admin_time_slots_error_save">Não foi possível salvar os horários.</string>
+    <string name="admin_time_slots_error_unreachable">Sem conexão com o servidor. Tente de novo.</string>
+    <string name="admin_time_slots_error_at_least_one">É necessário manter pelo menos um horário.</string>
+    <string name="admin_time_slots_removed_success">Horário removido com sucesso.</string>
+    <string name="admin_time_slots_error_remove">Não foi possível remover o horário.</string>
 
     <!-- General Help Component Strings -->
     <string name="help_button_label">Ajuda</string>

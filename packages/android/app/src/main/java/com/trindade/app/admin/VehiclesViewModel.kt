@@ -2,10 +2,12 @@ package com.trindade.app.admin
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.trindade.app.R
 import com.trindade.app.auth.AuthRepository
 import com.trindade.app.contract.models.AdminVehicleResponseVehicle
 import com.trindade.app.contract.models.CreateAdminVehicleRequest
 import com.trindade.app.contract.models.UpdateAdminVehicleRequest
+import com.trindade.app.ui.UiText
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.Job
@@ -30,7 +32,7 @@ class VehiclesViewModel @Inject constructor(
         val description: String = "",
         val licensePlate: String = "",
         val deleteTarget: AdminVehicleResponseVehicle? = null,
-        val error: String? = null,
+        val error: UiText? = null,
         val refusedStatus: Int? = null,
     ) {
         val isAdmin: Boolean get() = role == ADMIN
@@ -198,14 +200,14 @@ class VehiclesViewModel @Inject constructor(
     }
 
     private fun changeForm(change: UiState.() -> UiState) = _state.update { it.change().copy(error = null, refusedStatus = null) }
-    private fun validation(message: String) = _state.update { it.copy(error = message, refusedStatus = null) }
+    private fun validation(message: UiText) = _state.update { it.copy(error = message, refusedStatus = null) }
 
     companion object {
         const val ADMIN = "Administrador"
         const val WORKER = "Trabalhador"
-        const val DESCRIPTION = "Informe a descrição do veículo."
-        const val LICENSE_PLATE = "Informe a placa do veículo."
-        const val REFUSED = "O servidor recusou esta operação de veículo."
-        const val UNREACHABLE = "Sem conexão com o servidor. Verifique a rede e tente de novo."
+        val DESCRIPTION = UiText.of(R.string.vehicles_error_description)
+        val LICENSE_PLATE = UiText.of(R.string.vehicles_error_license_plate)
+        val REFUSED = UiText.of(R.string.vehicles_error_refused)
+        val UNREACHABLE = UiText.of(R.string.admin_error_unreachable)
     }
 }

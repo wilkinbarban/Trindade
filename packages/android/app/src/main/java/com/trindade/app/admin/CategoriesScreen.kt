@@ -32,6 +32,7 @@ import com.trindade.app.ui.components.AdminDestructiveConfirmButton
 import com.trindade.app.ui.components.AdminPrimaryButton
 import com.trindade.app.ui.components.AdminSecondaryButton
 import com.trindade.app.ui.components.NavigationActionButton
+import com.trindade.app.ui.resolve
 
 /** Category catalog UI. Accepts ViewModel state and callbacks directly; role gating fails closed for non-admin. */
 @Composable
@@ -81,7 +82,7 @@ fun CategoriesScreen(
             }
         }
 
-        state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        state.error?.let { Text(it.resolve(), color = MaterialTheme.colorScheme.error) }
 
         if (state.isAdmin) {
             AdminPrimaryButton(

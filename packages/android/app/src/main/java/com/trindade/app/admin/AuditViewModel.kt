@@ -2,8 +2,10 @@ package com.trindade.app.admin
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.trindade.app.R
 import com.trindade.app.auth.AuthRepository
 import com.trindade.app.contract.models.AuditResponseLogsInner
+import com.trindade.app.ui.UiText
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.Job
@@ -26,7 +28,7 @@ class AuditViewModel @Inject constructor(
         val totalPages: Int = 1,
         val total: Int = 0,
         val role: String? = null,
-        val error: String? = null,
+        val error: UiText? = null,
         val actionInput: String = "",
         val entityTypeInput: String = "",
         val userIdInput: String = "",
@@ -220,7 +222,7 @@ class AuditViewModel @Inject constructor(
 
     companion object {
         const val ADMIN = "Administrador"
-        const val UNREACHABLE = "Sem conexão com o servidor. Verifique a rede e tente de novo."
-        const val INVALID_USER_ID = "O ID do usuário deve ser um número inteiro positivo."
+        val UNREACHABLE = UiText.of(R.string.admin_error_unreachable)
+        val INVALID_USER_ID = UiText.of(R.string.audit_error_invalid_user_id)
     }
 }

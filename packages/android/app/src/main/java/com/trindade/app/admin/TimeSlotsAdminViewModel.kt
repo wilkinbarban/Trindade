@@ -2,8 +2,10 @@ package com.trindade.app.admin
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.trindade.app.R
 import com.trindade.app.auth.AuthRepository
 import com.trindade.app.auth.RolePolicy
+import com.trindade.app.ui.UiText
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.Job
@@ -31,7 +33,7 @@ class TimeSlotsAdminViewModel @Inject constructor(
     data class FormState(
         val slotInput: String = "",
         val saving: Boolean = false,
-        val validationError: String? = null,
+        val validationError: UiText? = null,
     ) {
         val canSubmit: Boolean
             get() = !saving
@@ -42,7 +44,7 @@ class TimeSlotsAdminViewModel @Inject constructor(
         val timeSlots: List<String> = emptyList(),
         val form: FormState? = null,
         val role: String? = null,
-        val message: String? = null,
+        val message: UiText? = null,
         val isError: Boolean = false,
         val deleteConfirmSlot: String? = null,
         val deleting: Boolean = false,
@@ -73,7 +75,7 @@ class TimeSlotsAdminViewModel @Inject constructor(
                         timeSlots = emptyList(),
                         form = null,
                         deleteConfirmSlot = null,
-                        message = "Não foi possível carregar os horários. Tente de novo.",
+                        message = ERROR_LOAD,
                         isError = true,
                     )
                 }
@@ -89,7 +91,7 @@ class TimeSlotsAdminViewModel @Inject constructor(
                         timeSlots = emptyList(),
                         form = null,
                         deleteConfirmSlot = null,
-                        message = "Acesso restrito a administradores.",
+                        message = ERROR_ADMIN_ONLY,
                         isError = true,
                     )
                 }
@@ -119,7 +121,7 @@ class TimeSlotsAdminViewModel @Inject constructor(
                                 timeSlots = emptyList(),
                                 form = null,
                                 deleteConfirmSlot = null,
-                                message = "Acesso restrito a administradores.",
+                                message = ERROR_ADMIN_ONLY,
                                 isError = true,
                             )
                         }
@@ -130,7 +132,7 @@ class TimeSlotsAdminViewModel @Inject constructor(
                                 timeSlots = emptyList(),
                                 form = null,
                                 deleteConfirmSlot = null,
-                                message = "Não foi possível carregar os horários. Tente de novo.",
+                                message = ERROR_LOAD,
                                 isError = true,
                             )
                         }
@@ -144,7 +146,7 @@ class TimeSlotsAdminViewModel @Inject constructor(
                             timeSlots = emptyList(),
                             form = null,
                             deleteConfirmSlot = null,
-                            message = "Não foi possível carregar os horários. Tente de novo.",
+                            message = ERROR_LOAD,
                             isError = true,
                         )
                     }
@@ -189,14 +191,14 @@ class TimeSlotsAdminViewModel @Inject constructor(
         val raw = form.slotInput.trim()
         if (raw.isEmpty()) {
             _uiState.update {
-                it.copy(form = form.copy(validationError = "Horário é obrigatório."))
+                it.copy(form = form.copy(validationError = VALIDATION_REQUIRED))
             }
             return
         }
 
         if (!isValidTimeSlot(raw)) {
             _uiState.update {
-                it.copy(form = form.copy(validationError = "Formato inválido. Use HH:MM (ex: 08:00)."))
+                it.copy(form = form.copy(validationError = VALIDATION_FORMAT))
             }
             return
         }
@@ -204,7 +206,7 @@ class TimeSlotsAdminViewModel @Inject constructor(
         val normalized = normalizeTimeSlot(raw)
         if (current.timeSlots.contains(normalized)) {
             _uiState.update {
-                it.copy(form = form.copy(validationError = "Horário já cadastrado."))
+                it.copy(form = form.copy(validationError = VALIDATION_DUPLICATE))
             }
             return
         }
@@ -220,7 +222,7 @@ class TimeSlotsAdminViewModel @Inject constructor(
                         it.copy(
                             form = null,
                             timeSlots = result.timeSlots.sorted(),
-                            message = "Horário adicionado com sucesso.",
+                            message = ADDED_SUCCESS,
                             isError = false,
                         )
                     }
@@ -233,7 +235,7 @@ class TimeSlotsAdminViewModel @Inject constructor(
                                 deleteConfirmSlot = null,
                                 role = null,
                                 timeSlots = emptyList(),
-                                message = "Acesso restrito a administradores.",
+                                message = ERROR_ADMIN_ONLY,
                                 isError = true,
                             )
                         }
@@ -241,7 +243,7 @@ class TimeSlotsAdminViewModel @Inject constructor(
                         _uiState.update {
                             it.copy(
                                 form = form.copy(saving = false),
-                                message = "Não foi possível salvar os horários.",
+                                message = ERROR_SAVE,
                                 isError = true,
                             )
                         }
@@ -251,7 +253,7 @@ class TimeSlotsAdminViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             form = form.copy(saving = false),
-                            message = "Sem conexão com o servidor. Tente de novo.",
+                            message = ERROR_UNREACHABLE,
                             isError = true,
                         )
                     }
@@ -266,7 +268,7 @@ class TimeSlotsAdminViewModel @Inject constructor(
         if (current.timeSlots.size <= 1) {
             _uiState.update {
                 it.copy(
-                    message = "É necessário manter pelo menos um horário.",
+                    message = ERROR_AT_LEAST_ONE,
                     isError = true,
                 )
             }
@@ -295,7 +297,7 @@ class TimeSlotsAdminViewModel @Inject constructor(
             _uiState.update {
                 it.copy(
                     deleteConfirmSlot = null,
-                    message = "É necessário manter pelo menos um horário.",
+                    message = ERROR_AT_LEAST_ONE,
                     isError = true,
                 )
             }
@@ -312,7 +314,7 @@ class TimeSlotsAdminViewModel @Inject constructor(
             _uiState.update {
                 it.copy(
                     deleteConfirmSlot = null,
-                    message = "É necessário manter pelo menos um horário.",
+                    message = ERROR_AT_LEAST_ONE,
                     isError = true,
                 )
             }
@@ -329,7 +331,7 @@ class TimeSlotsAdminViewModel @Inject constructor(
                             deleting = false,
                             deleteConfirmSlot = null,
                             timeSlots = result.timeSlots.sorted(),
-                            message = "Horário removido com sucesso.",
+                            message = REMOVED_SUCCESS,
                             isError = false,
                         )
                     }
@@ -343,7 +345,7 @@ class TimeSlotsAdminViewModel @Inject constructor(
                                 role = null,
                                 timeSlots = emptyList(),
                                 form = null,
-                                message = "Acesso restrito a administradores.",
+                                message = ERROR_ADMIN_ONLY,
                                 isError = true,
                             )
                         }
@@ -352,7 +354,7 @@ class TimeSlotsAdminViewModel @Inject constructor(
                             it.copy(
                                 deleting = false,
                                 deleteConfirmSlot = null,
-                                message = "Não foi possível remover o horário.",
+                                message = ERROR_REMOVE,
                                 isError = true,
                             )
                         }
@@ -363,7 +365,7 @@ class TimeSlotsAdminViewModel @Inject constructor(
                         it.copy(
                             deleting = false,
                             deleteConfirmSlot = null,
-                            message = "Sem conexão com o servidor. Tente de novo.",
+                            message = ERROR_UNREACHABLE,
                             isError = true,
                         )
                     }
@@ -397,5 +399,17 @@ class TimeSlotsAdminViewModel @Inject constructor(
             val parts = trimmed.split(":")
             return "${parts[0].padStart(2, '0')}:${parts[1]}"
         }
+
+        val ERROR_LOAD = UiText.of(R.string.admin_time_slots_error_load)
+        val ERROR_ADMIN_ONLY = UiText.of(R.string.admin_time_slots_error_admin_only)
+        val VALIDATION_REQUIRED = UiText.of(R.string.admin_time_slots_validate_required)
+        val VALIDATION_FORMAT = UiText.of(R.string.admin_time_slots_validate_format)
+        val VALIDATION_DUPLICATE = UiText.of(R.string.admin_time_slots_validate_duplicate)
+        val ADDED_SUCCESS = UiText.of(R.string.admin_time_slots_added_success)
+        val ERROR_SAVE = UiText.of(R.string.admin_time_slots_error_save)
+        val ERROR_UNREACHABLE = UiText.of(R.string.admin_time_slots_error_unreachable)
+        val ERROR_AT_LEAST_ONE = UiText.of(R.string.admin_time_slots_error_at_least_one)
+        val REMOVED_SUCCESS = UiText.of(R.string.admin_time_slots_removed_success)
+        val ERROR_REMOVE = UiText.of(R.string.admin_time_slots_error_remove)
     }
 }

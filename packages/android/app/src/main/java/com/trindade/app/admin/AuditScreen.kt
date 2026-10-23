@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import com.trindade.app.R
 import com.trindade.app.contract.models.AuditResponseLogsInner
 import com.trindade.app.ui.components.NavigationActionButton
+import com.trindade.app.ui.resolve
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -137,7 +138,7 @@ fun AuditScreen(
         }
 
         state.error?.let {
-            Text(it, color = MaterialTheme.colorScheme.error)
+            Text(it.resolve(), color = MaterialTheme.colorScheme.error)
         }
 
         if (!state.isAdmin && !state.loading) {

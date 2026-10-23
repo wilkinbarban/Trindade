@@ -22,6 +22,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.trindade.app.R
 import com.trindade.app.ui.components.NavigationActionButton
+import com.trindade.app.ui.resolve
 
 /** Time-slot catalog UI. Consumes ViewModel state and callbacks directly; role gating fails closed for non-admin. */
 @Composable
@@ -65,7 +66,7 @@ fun TimeSlotsScreen(
             }
         }
 
-        state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        state.error?.let { Text(it.resolve(), color = MaterialTheme.colorScheme.error) }
         state.refusedStatus?.let {
             Text(
                 stringResource(R.string.admin_time_slots_refused_status, it),

@@ -57,7 +57,7 @@ class DriversViewModelTest {
         model.load()
         model.onNameChange("   ")
         model.save()
-        assertEquals(DriversViewModel.NAME, model.state.value.error)
+        assertEquals(DriversViewModel.NAME.resId, model.state.value.error?.resId)
         assertEquals(0, api.creates)
 
         model.onNameChange(" Ana ")
@@ -192,11 +192,11 @@ class DriversViewModelTest {
         api.writeResult = DriverWriteResult.Refused(403)
         model.save()
         assertEquals(403, model.state.value.refusedStatus)
-        assertEquals(DriversViewModel.REFUSED, model.state.value.error)
+        assertEquals(DriversViewModel.REFUSED.resId, model.state.value.error?.resId)
         assertEquals(1, api.reads)
         api.writeResult = DriverWriteResult.Unreachable
         model.save()
-        assertEquals(DriversViewModel.UNREACHABLE, model.state.value.error)
+        assertEquals(DriversViewModel.UNREACHABLE.resId, model.state.value.error?.resId)
         assertEquals(1, api.reads)
         api.writeResult = DriverWriteResult.Saved(driver(5, 42))
         model.save()
@@ -235,7 +235,7 @@ class DriversViewModelTest {
 
         profileApi.failProfile = true
         model.load()
-        assertEquals(DriversViewModel.UNREACHABLE, model.state.value.error)
+        assertEquals(DriversViewModel.UNREACHABLE.resId, model.state.value.error?.resId)
         assertNull(model.state.value.role)
         assertNull(model.state.value.currentUserId)
         assertFalse(model.state.value.isAdmin)
@@ -249,7 +249,7 @@ class DriversViewModelTest {
 
         api.failDrivers = true
         model.load()
-        assertEquals(DriversViewModel.UNREACHABLE, model.state.value.error)
+        assertEquals(DriversViewModel.UNREACHABLE.resId, model.state.value.error?.resId)
         assertNull(model.state.value.role)
         assertNull(model.state.value.currentUserId)
         assertFalse(model.state.value.isAdmin)

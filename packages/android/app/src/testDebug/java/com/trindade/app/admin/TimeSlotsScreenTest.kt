@@ -1,5 +1,6 @@
 package com.trindade.app.admin
 
+import android.content.Context
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -9,7 +10,10 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.trindade.app.R
+import com.trindade.app.ui.UiText
 import com.trindade.app.ui.theme.TrindadeTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -24,13 +28,19 @@ import org.robolectric.annotation.GraphicsMode
 class TimeSlotsScreenTest {
     @get:Rule val composeRule = createComposeRule()
 
+    private val context: Context
+        get() = ApplicationProvider.getApplicationContext()
+
+    /** One string this screen draws, looked up rather than typed. */
+    private fun copy(id: Int, vararg formatArgs: Any): String = context.getString(id, *formatArgs)
+
     private fun state(
         role: String? = TimeSlotsViewModel.ADMIN,
         timeSlots: List<String> = listOf("08:00", "10:00", "12:00"),
         input: String = "",
         loading: Boolean = false,
         saving: Boolean = false,
-        error: String? = null,
+        error: UiText? = null,
         refusedStatus: Int? = null,
     ) = TimeSlotsViewModel.UiState(
         loading = loading,
@@ -154,7 +164,8 @@ class TimeSlotsScreenTest {
             ),
         )
 
-        composeRule.onNodeWithText(TimeSlotsViewModel.REFUSED).assertIsDisplayed()
+        val expectedRefused = copy(R.string.time_slots_error_refused)
+        composeRule.onNodeWithText(expectedRefused).assertIsDisplayed()
         composeRule.onNodeWithText("Status: 400").assertIsDisplayed()
         composeRule.onNodeWithText("Salvando…").assertIsDisplayed().assertIsNotEnabled()
         composeRule.onNodeWithText("Atualizar").assertIsNotEnabled()
@@ -170,7 +181,8 @@ class TimeSlotsScreenTest {
     @Test fun `error state renders error text`() {
         render(state(error = TimeSlotsViewModel.AT_LEAST_ONE_SLOT))
 
-        composeRule.onNodeWithText(TimeSlotsViewModel.AT_LEAST_ONE_SLOT).assertIsDisplayed()
+        val expectedAtLeastOne = copy(R.string.time_slots_error_at_least_one)
+        composeRule.onNodeWithText(expectedAtLeastOne).assertIsDisplayed()
     }
 
     @Test fun `refused status renders refusal status text`() {

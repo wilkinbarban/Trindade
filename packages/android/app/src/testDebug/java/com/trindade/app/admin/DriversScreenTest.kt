@@ -1,5 +1,6 @@
 package com.trindade.app.admin
 
+import android.content.Context
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -10,8 +11,11 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.dp
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.trindade.app.R
 import com.trindade.app.contract.models.AdminDriverResponseDriver
+import com.trindade.app.ui.UiText
 import com.trindade.app.ui.theme.TrindadeTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -27,6 +31,12 @@ import org.robolectric.annotation.GraphicsMode
 class DriversScreenTest {
     @get:Rule val composeRule = createComposeRule()
 
+    private val context: Context
+        get() = ApplicationProvider.getApplicationContext()
+
+    /** One string this screen draws, looked up rather than typed. */
+    private fun copy(id: Int, vararg formatArgs: Any): String = context.getString(id, *formatArgs)
+
     private fun driver(
         id: Int,
         owner: Int?,
@@ -39,7 +49,7 @@ class DriversScreenTest {
         drivers: List<AdminDriverResponseDriver> = listOf(driver(1, 7), driver(2, 8, active = 0)),
         loading: Boolean = false,
         saving: Boolean = false,
-        error: String? = null,
+        error: UiText? = null,
         editingId: Int? = null,
     ) = DriversViewModel.UiState(
         loading = loading, saving = saving, drivers = drivers, role = role,
@@ -154,10 +164,11 @@ class DriversScreenTest {
     }
 
     @Test fun `loading error and saving states are rendered`() {
-        render(state(loading = true, saving = true, error = "Could not reach the server.", editingId = 1))
+        render(state(loading = true, saving = true, error = DriversViewModel.UNREACHABLE, editingId = 1))
 
         composeRule.onNodeWithText("Carregando", substring = true).assertIsDisplayed()
-        composeRule.onNodeWithText("Could not reach the server.").assertIsDisplayed()
+        val expectedError = copy(R.string.admin_error_unreachable)
+        composeRule.onNodeWithText(expectedError).assertIsDisplayed()
         composeRule.onNodeWithText("Salvando…").assertIsDisplayed().assertIsNotEnabled()
         composeRule.onNodeWithText("Atualizar").assertIsNotEnabled()
     }

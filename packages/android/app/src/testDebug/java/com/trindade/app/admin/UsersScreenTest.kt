@@ -1,5 +1,6 @@
 package com.trindade.app.admin
 
+import android.content.Context
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
@@ -16,8 +17,11 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.unit.dp
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.trindade.app.R
 import com.trindade.app.contract.models.AdminUserResponseUser
+import com.trindade.app.ui.UiText
 import com.trindade.app.ui.theme.TrindadeTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -34,6 +38,12 @@ import org.robolectric.annotation.GraphicsMode
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class UsersScreenTest {
     @get:Rule val composeRule = createComposeRule()
+
+    private val context: Context
+        get() = ApplicationProvider.getApplicationContext()
+
+    /** One string this screen draws, looked up rather than typed. */
+    private fun copy(id: Int, vararg formatArgs: Any): String = context.getString(id, *formatArgs)
 
     private fun user(
         id: Int,
@@ -62,7 +72,7 @@ class UsersScreenTest {
         ),
         loading: Boolean = false,
         saving: Boolean = false,
-        error: String? = null,
+        error: UiText? = null,
         refusedStatus: Int? = null,
         editingId: Int? = null,
         username: String = "novousuario",
@@ -271,7 +281,8 @@ class UsersScreenTest {
 
         composeRule.onNodeWithText("Novo usuário").performClick()
         // Warning is rendered
-        composeRule.onNodeWithText(UsersViewModel.PASSWORD_WARNING).assertIsDisplayed()
+        val expectedWarning = copy(R.string.admin_users_password_warning)
+        composeRule.onNodeWithText(expectedWarning).assertIsDisplayed()
         // Save button remains enabled and clickable (warning is advisory only, non-blocking)
         composeRule.onNodeWithText("Criar").assertIsEnabled().performClick()
         assertEquals(1, saved)
@@ -284,7 +295,8 @@ class UsersScreenTest {
         )
 
         composeRule.onNodeWithText("Novo usuário").performClick()
-        composeRule.onNodeWithText(UsersViewModel.PASSWORD_WARNING).assertDoesNotExist()
+        val expectedWarning = copy(R.string.admin_users_password_warning)
+        composeRule.onNodeWithText(expectedWarning).assertDoesNotExist()
     }
 
     @Test fun `worker sees read-only catalog with somente leitura and no admin controls`() {
@@ -441,7 +453,8 @@ class UsersScreenTest {
         )
 
         composeRule.onNodeWithText("Carregando", substring = true).assertIsDisplayed()
-        composeRule.onNodeWithText(UsersViewModel.REFUSED).assertIsDisplayed()
+        val expectedRefused = copy(R.string.users_error_refused)
+        composeRule.onNodeWithText(expectedRefused).assertIsDisplayed()
         composeRule.onNodeWithText("Status: 400").assertDoesNotExist()
         composeRule.onNodeWithText("Salvando…").assertIsDisplayed().assertIsNotEnabled()
         composeRule.onNodeWithText("Atualizar").assertIsNotEnabled()

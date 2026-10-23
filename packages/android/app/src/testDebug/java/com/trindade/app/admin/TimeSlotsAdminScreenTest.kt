@@ -20,6 +20,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.trindade.app.R
 import com.trindade.app.auth.RolePolicy
+import com.trindade.app.ui.UiText
 import com.trindade.app.ui.theme.TrindadeTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -44,7 +45,7 @@ class TimeSlotsAdminScreenTest {
         role: String = RolePolicy.ADMIN,
         timeSlots: List<String> = listOf("06:00", "08:00"),
         form: TimeSlotsAdminViewModel.FormState? = null,
-        message: String? = null,
+        message: UiText? = null,
         isError: Boolean = false,
         deleteConfirmSlot: String? = null,
         deleting: Boolean = false,
@@ -171,12 +172,12 @@ class TimeSlotsAdminScreenTest {
             state(
                 form = TimeSlotsAdminViewModel.FormState(
                     slotInput = "invalid",
-                    validationError = "Formato inválido. Use HH:MM (ex: 08:00).",
+                    validationError = TimeSlotsAdminViewModel.VALIDATION_FORMAT,
                 ),
             ),
         )
 
-        composeRule.onNodeWithText("Formato inválido. Use HH:MM (ex: 08:00).").assertIsDisplayed()
+        composeRule.onNodeWithText(copy(R.string.admin_time_slots_validate_format)).assertIsDisplayed()
     }
 
     @Test

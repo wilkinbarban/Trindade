@@ -2,12 +2,14 @@ package com.trindade.app.admin
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.trindade.app.R
 import com.trindade.app.auth.AuthRepository
 import com.trindade.app.contract.models.AdminCategoryResponseCategory
 import com.trindade.app.contract.models.AdminTaskResponseTask
 import com.trindade.app.contract.models.AdminTasksResponseTasksInner
 import com.trindade.app.contract.models.CreateAdminTaskRequest
 import com.trindade.app.contract.models.UpdateAdminTaskRequest
+import com.trindade.app.ui.UiText
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.Job
@@ -35,7 +37,7 @@ class TasksViewModel @Inject constructor(
         val nameEs: String = "",
         val temperatureReadings: String = "1",
         val deleteTarget: AdminTasksResponseTasksInner? = null,
-        val error: String? = null,
+        val error: UiText? = null,
         val refusedStatus: Int? = null,
     ) {
         val isAdmin: Boolean get() = role == ADMIN
@@ -199,17 +201,17 @@ class TasksViewModel @Inject constructor(
 
     private fun changeForm(change: UiState.() -> UiState) = _state.update { it.changeForm(change) }
     private fun UiState.changeForm(change: UiState.() -> UiState) = change().copy(error = null, refusedStatus = null)
-    private fun validation(message: String) = _state.update { it.copy(error = message, refusedStatus = null) }
+    private fun validation(message: UiText) = _state.update { it.copy(error = message, refusedStatus = null) }
 
     companion object {
         const val ADMIN = "Administrador"
         const val WORKER = "Trabalhador"
         const val MIN_READINGS = 1
         const val MAX_READINGS = 3
-        const val CATEGORY = "Selecione uma categoria válida."
-        const val NAME = "Informe o nome em português ou espanhol."
-        const val TEMPERATURE_READINGS = "Tarefas de temperatura requerem de 1 a 3 medições."
-        const val REFUSED = "O servidor recusou esta operação de tarefa."
-        const val UNREACHABLE = "Sem conexão com o servidor. Verifique a rede e tente de novo."
+        val CATEGORY = UiText.of(R.string.tasks_error_category)
+        val NAME = UiText.of(R.string.tasks_error_name)
+        val TEMPERATURE_READINGS = UiText.of(R.string.tasks_error_readings)
+        val REFUSED = UiText.of(R.string.tasks_error_refused)
+        val UNREACHABLE = UiText.of(R.string.admin_error_unreachable)
     }
 }

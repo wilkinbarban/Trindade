@@ -109,7 +109,7 @@ class AuditViewModelTest {
         assertEquals(0, viewModel.state.value.total)
         assertFalse(viewModel.state.value.canGoPrevious)
         assertFalse(viewModel.state.value.canGoNext)
-        assertEquals(AuditViewModel.UNREACHABLE, viewModel.state.value.error)
+        assertEquals(AuditViewModel.UNREACHABLE.resId, viewModel.state.value.error?.resId)
         assertEquals(0, auditApi.reads)
     }
 
@@ -190,20 +190,20 @@ class AuditViewModelTest {
         // Negative userId
         viewModel.onUserIdChange("-5")
         viewModel.applyFilters()
-        assertEquals(AuditViewModel.INVALID_USER_ID, viewModel.state.value.error)
+        assertEquals(AuditViewModel.INVALID_USER_ID.resId, viewModel.state.value.error?.resId)
         assertNull(viewModel.state.value.appliedUserId)
         assertEquals(1, auditApi.reads)
 
         // Zero userId
         viewModel.onUserIdChange("0")
         viewModel.applyFilters()
-        assertEquals(AuditViewModel.INVALID_USER_ID, viewModel.state.value.error)
+        assertEquals(AuditViewModel.INVALID_USER_ID.resId, viewModel.state.value.error?.resId)
         assertEquals(1, auditApi.reads)
 
         // Non-numeric userId
         viewModel.onUserIdChange("abc")
         viewModel.applyFilters()
-        assertEquals(AuditViewModel.INVALID_USER_ID, viewModel.state.value.error)
+        assertEquals(AuditViewModel.INVALID_USER_ID.resId, viewModel.state.value.error?.resId)
         assertEquals(1, auditApi.reads)
 
         // Valid empty userId clears filter and proceeds
@@ -297,7 +297,7 @@ class AuditViewModelTest {
         assertEquals(0, viewModel.state.value.total)
         assertFalse(viewModel.state.value.canGoPrevious)
         assertFalse(viewModel.state.value.canGoNext)
-        assertEquals(AuditViewModel.UNREACHABLE, viewModel.state.value.error)
+        assertEquals(AuditViewModel.UNREACHABLE.resId, viewModel.state.value.error?.resId)
         assertTrue(viewModel.state.value.isAdmin)
 
         // Block navigation after failure
@@ -379,7 +379,7 @@ class AuditViewModelTest {
         assertFalse(viewModel.state.value.isAdmin)
         assertNull(viewModel.state.value.role)
         assertTrue(viewModel.state.value.logs.isEmpty())
-        assertEquals(AuditViewModel.UNREACHABLE, viewModel.state.value.error)
+        assertEquals(AuditViewModel.UNREACHABLE.resId, viewModel.state.value.error?.resId)
     }
 
     @Test

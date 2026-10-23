@@ -112,13 +112,13 @@ class VehiclesViewModelTest {
         model.onDescriptionChange("   ")
         model.onLicensePlateChange("ABC-1234")
         model.save()
-        assertEquals(VehiclesViewModel.DESCRIPTION, model.state.value.error)
+        assertEquals(VehiclesViewModel.DESCRIPTION.resId, model.state.value.error?.resId)
         assertEquals(0, api.creates)
 
         model.onDescriptionChange("Furgão")
         model.onLicensePlateChange("   ")
         model.save()
-        assertEquals(VehiclesViewModel.LICENSE_PLATE, model.state.value.error)
+        assertEquals(VehiclesViewModel.LICENSE_PLATE.resId, model.state.value.error?.resId)
         assertEquals(0, api.creates)
 
         model.onDescriptionChange("  Furgão Entrega  ")
@@ -170,7 +170,7 @@ class VehiclesViewModelTest {
         model.onLicensePlateChange("   ")
         model.save()
         assertEquals(3, api.updates)
-        assertEquals(VehiclesViewModel.DESCRIPTION, model.state.value.error)
+        assertEquals(VehiclesViewModel.DESCRIPTION.resId, model.state.value.error?.resId)
 
         model.edit(target)
         model.cancelEdit()
@@ -231,12 +231,12 @@ class VehiclesViewModelTest {
         api.writeResult = VehicleWriteResult.Refused(400)
         model.save()
         assertEquals(400, model.state.value.refusedStatus)
-        assertEquals(VehiclesViewModel.REFUSED, model.state.value.error)
+        assertEquals(VehiclesViewModel.REFUSED.resId, model.state.value.error?.resId)
         assertEquals(1, api.reads)
 
         api.writeResult = VehicleWriteResult.Unreachable
         model.save()
-        assertEquals(VehiclesViewModel.UNREACHABLE, model.state.value.error)
+        assertEquals(VehiclesViewModel.UNREACHABLE.resId, model.state.value.error?.resId)
         assertNull(model.state.value.refusedStatus)
         assertEquals(1, api.reads)
 
@@ -268,7 +268,7 @@ class VehiclesViewModelTest {
         api.writeResult = VehicleWriteResult.Refused(403)
         model.save()
         assertEquals(403, model.state.value.refusedStatus)
-        assertEquals(VehiclesViewModel.REFUSED, model.state.value.error)
+        assertEquals(VehiclesViewModel.REFUSED.resId, model.state.value.error?.resId)
 
         model.onDescriptionChange("Van Atualizada")
         assertNull(model.state.value.error)
@@ -300,7 +300,7 @@ class VehiclesViewModelTest {
         assertEquals(target, model.state.value.deleteTarget)
         profileApi.failProfile = true
         model.load()
-        assertEquals(VehiclesViewModel.UNREACHABLE, model.state.value.error)
+        assertEquals(VehiclesViewModel.UNREACHABLE.resId, model.state.value.error?.resId)
         assertNull(model.state.value.deleteTarget)
         assertNull(model.state.value.role)
         assertNull(model.state.value.currentUserId)
@@ -320,7 +320,7 @@ class VehiclesViewModelTest {
         assertEquals(target, model.state.value.deleteTarget)
         api.failVehicles = true
         model.load()
-        assertEquals(VehiclesViewModel.UNREACHABLE, model.state.value.error)
+        assertEquals(VehiclesViewModel.UNREACHABLE.resId, model.state.value.error?.resId)
         assertNull(model.state.value.role)
         assertNull(model.state.value.currentUserId)
         assertFalse(model.state.value.isAdmin)

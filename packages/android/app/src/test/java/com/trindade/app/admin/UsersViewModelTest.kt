@@ -133,7 +133,7 @@ class UsersViewModelTest {
         assertEquals(0, nullProfileApi.reads)
         assertEquals(emptyList<AdminUserResponseUser>(), nullSession.state.value.users)
         assertFalse(nullSession.state.value.isAdmin)
-        assertEquals(UsersViewModel.UNREACHABLE, nullSession.state.value.error)
+        assertEquals(UsersViewModel.UNREACHABLE.resId, nullSession.state.value.error?.resId)
         nullSession.save()
         assertEquals(0, nullProfileApi.creates + nullProfileApi.updates + nullProfileApi.deletes)
     }
@@ -162,7 +162,7 @@ class UsersViewModelTest {
         assertNull(model.state.value.role)
         assertNull(model.state.value.currentUserId)
         assertFalse(model.state.value.isAdmin)
-        assertEquals(UsersViewModel.UNREACHABLE, model.state.value.error)
+        assertEquals(UsersViewModel.UNREACHABLE.resId, model.state.value.error?.resId)
         assertEquals(emptyList<AdminUserResponseUser>(), model.state.value.users)
 
         // 3. Mutation attempts issue NO repository calls
@@ -277,32 +277,32 @@ class UsersViewModelTest {
         model.onDisplayNameChange("Novo Usuário")
         model.onPasswordChange("senha1234567890")
         model.save()
-        assertEquals(UsersViewModel.USERNAME, model.state.value.error)
+        assertEquals(UsersViewModel.USERNAME.resId, model.state.value.error?.resId)
         assertEquals(0, api.creates)
 
         // Missing display name
         model.onUsernameChange("novousuario")
         model.onDisplayNameChange("   ")
         model.save()
-        assertEquals(UsersViewModel.DISPLAY_NAME, model.state.value.error)
+        assertEquals(UsersViewModel.DISPLAY_NAME.resId, model.state.value.error?.resId)
         assertEquals(0, api.creates)
 
         // Missing password on create
         model.onDisplayNameChange("Novo Usuário")
         model.onPasswordChange("")
         model.save()
-        assertEquals(UsersViewModel.PASSWORD, model.state.value.error)
+        assertEquals(UsersViewModel.PASSWORD.resId, model.state.value.error?.resId)
         assertEquals(0, api.creates)
 
         // Password below the server's fifteen visible graphemes
         model.onPasswordChange("123")
         model.save()
-        assertEquals(UsersViewModel.PASSWORD_TOO_SHORT, model.state.value.error)
+        assertEquals(UsersViewModel.PASSWORD_TOO_SHORT.resId, model.state.value.error?.resId)
         assertEquals(0, api.creates)
 
         model.onPasswordChange("12345678901234")
         model.save()
-        assertEquals(UsersViewModel.PASSWORD_TOO_SHORT, model.state.value.error)
+        assertEquals(UsersViewModel.PASSWORD_TOO_SHORT.resId, model.state.value.error?.resId)
         assertEquals(0, api.creates)
 
         // Valid create: fifteen visible characters are the server's minimum
@@ -328,12 +328,12 @@ class UsersViewModelTest {
         model.onDisplayNameChange("Admin")
         model.onPasswordChange("123")
         model.save()
-        assertEquals(UsersViewModel.PASSWORD_TOO_SHORT, model.state.value.error)
+        assertEquals(UsersViewModel.PASSWORD_TOO_SHORT.resId, model.state.value.error?.resId)
         assertEquals(0, api.updates)
 
         model.onPasswordChange("12345678901234")
         model.save()
-        assertEquals(UsersViewModel.PASSWORD_TOO_SHORT, model.state.value.error)
+        assertEquals(UsersViewModel.PASSWORD_TOO_SHORT.resId, model.state.value.error?.resId)
         assertEquals(0, api.updates)
 
         // Self edit with exactly fifteen visible characters succeeds
@@ -347,7 +347,7 @@ class UsersViewModelTest {
         model.edit(workerUser)
         model.onPasswordChange("e\u0301".repeat(8))
         model.save()
-        assertEquals(UsersViewModel.PASSWORD_TOO_SHORT, model.state.value.error)
+        assertEquals(UsersViewModel.PASSWORD_TOO_SHORT.resId, model.state.value.error?.resId)
         assertEquals(1, api.updates) // No new update issued
 
         // Edit other user with fifteen visible characters succeeds
@@ -483,9 +483,9 @@ class UsersViewModelTest {
         // 2. Below the server's minimum: warning active AND save is blocked
         model.onPasswordChange("abc")
         assertTrue(model.state.value.hasPasswordWarning)
-        assertEquals(UsersViewModel.PASSWORD_WARNING, model.state.value.passwordWarning)
+        assertEquals(UsersViewModel.PASSWORD_WARNING.resId, model.state.value.passwordWarning?.resId)
         model.save()
-        assertEquals(UsersViewModel.PASSWORD_TOO_SHORT, model.state.value.error)
+        assertEquals(UsersViewModel.PASSWORD_TOO_SHORT.resId, model.state.value.error?.resId)
         assertEquals(0, api.creates)
 
         // 3. Fifteen visible characters, all lowercase: meets the server's minimum, the advisory stays
@@ -555,7 +555,7 @@ class UsersViewModelTest {
         api.writeResult = UserWriteResult.Refused(403)
         model.save()
         assertFalse(model.state.value.saving)
-        assertEquals(UsersViewModel.REFUSED, model.state.value.error)
+        assertEquals(UsersViewModel.REFUSED.resId, model.state.value.error?.resId)
         assertEquals(403, model.state.value.refusedStatus)
 
         // Unreachable transport
@@ -563,7 +563,7 @@ class UsersViewModelTest {
         model.onDisplayNameChange("Nome 2")
         model.save()
         assertFalse(model.state.value.saving)
-        assertEquals(UsersViewModel.UNREACHABLE, model.state.value.error)
+        assertEquals(UsersViewModel.UNREACHABLE.resId, model.state.value.error?.resId)
         assertNull(model.state.value.refusedStatus)
 
         // Successful write reloads catalog
@@ -623,7 +623,7 @@ class UsersViewModelTest {
         api.writeResult = UserWriteResult.Refused(400)
         model.save()
         assertEquals(400, model.state.value.refusedStatus)
-        assertEquals(UsersViewModel.REFUSED, model.state.value.error)
+        assertEquals(UsersViewModel.REFUSED.resId, model.state.value.error?.resId)
 
         model.onDisplayNameChange("Name Updated")
         assertNull(model.state.value.error)
@@ -637,7 +637,7 @@ class UsersViewModelTest {
         model.load()
 
         assertFalse(model.state.value.loading)
-        assertEquals(UsersViewModel.UNREACHABLE, model.state.value.error)
+        assertEquals(UsersViewModel.UNREACHABLE.resId, model.state.value.error?.resId)
         assertEquals(emptyList<AdminUserResponseUser>(), model.state.value.users)
     }
 
