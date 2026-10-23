@@ -187,9 +187,13 @@ export function StockCalculatorPage() {
 
   return (
     <div className="p-4 space-y-4" data-testid="stock-calculator">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
+      {/* En un teléfono el título, la ayuda y el botón de histórico no entran en una fila: con el
+          botón forzado al lado, "Calculador de Estoque" se partía en tres renglones y la ayuda
+          quedaba colgada entre ellos. Debajo de `sm` el encabezado se apila, el botón ocupa el ancho
+          y el título conserva su renglón. */}
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-xl font-semibold text-gray-800">{t('stock.title')}</h1>
             <ModuleHelpModal
               title={t('moduleHelp.stock.title')}
@@ -200,8 +204,8 @@ export function StockCalculatorPage() {
           </div>
           <p className="text-sm text-gray-500">{canEdit ? t('stock.subtitle') : t('stock.readOnly')}</p>
         </div>
-        <Link to="/stock-history">
-          <Button variant="outline" data-testid="stock-open-history">
+        <Link to="/stock-history" className="w-full sm:w-auto shrink-0">
+          <Button variant="outline" className="w-full sm:w-auto" data-testid="stock-open-history">
             {t('stock.goToHistory')}
           </Button>
         </Link>
@@ -209,24 +213,36 @@ export function StockCalculatorPage() {
 
       <Card>
         <CardContent className="p-3 space-y-3">
-          <div className="flex flex-wrap items-end gap-3">
-            <div>
+          {/* La fecha y los días ya contados son dos cosas distintas y en un teléfono se separan:
+              el campo arriba a todo el ancho, y los chips en una sola fila con scroll horizontal en
+              lugar de partirse en renglones quebrados de dos botones. */}
+          <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+            <div className="w-full sm:w-auto">
               <label className="block text-xs font-medium text-gray-600">{t('stock.date')}</label>
-              <Input type="date" value={date} max={saoPauloToday()} onChange={(e) => setDate(e.target.value)} data-testid="stock-date" />
+              <Input
+                type="date"
+                value={date}
+                max={saoPauloToday()}
+                onChange={(e) => setDate(e.target.value)}
+                className="w-full sm:w-auto"
+                data-testid="stock-date"
+              />
             </div>
             {history.length > 0 && (
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs text-gray-500">{t('stock.history')}</span>
-                {history.slice(0, 6).map((entry) => (
-                  <button
-                    key={entry.date}
-                    onClick={() => setDate(entry.date)}
-                    className={`text-xs px-2 py-1 rounded border ${entry.date === date ? 'bg-gray-800 text-white' : 'bg-white text-gray-700'}`}
-                    data-testid={`stock-history-${entry.date}`}
-                  >
-                    {entry.date.slice(8, 10)}/{entry.date.slice(5, 7)} · {entry.boxes}
-                  </button>
-                ))}
+              <div className="w-full sm:w-auto sm:flex-1 min-w-0">
+                <span className="block text-xs text-gray-500 sm:mb-1">{t('stock.history')}</span>
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 max-w-full scrollbar-none" data-testid="stock-history-days">
+                  {history.slice(0, 6).map((entry) => (
+                    <button
+                      key={entry.date}
+                      onClick={() => setDate(entry.date)}
+                      className={`shrink-0 text-xs px-2.5 py-1 rounded-md border font-medium ${entry.date === date ? 'bg-gray-800 border-gray-800 text-white' : 'bg-white border-gray-300 text-gray-700'}`}
+                      data-testid={`stock-history-${entry.date}`}
+                    >
+                      {entry.date.slice(8, 10)}/{entry.date.slice(5, 7)} · {entry.boxes}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -458,13 +474,13 @@ export function StockCalculatorPage() {
                     key={product.code}
                     className="p-3 rounded-lg border border-amber-200/80 bg-amber-50/40 shadow-xs"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-bold truncate text-gray-900">{product.name}</p>
-                        <p className="text-xs text-gray-400 mt-0.5">
-                          {product.unitsPerBox} {t('stock.unitsPerBoxHeader')}
-                        </p>
-                      </div>
+                    {/* Dos renglones: el nombre completo arriba y los números abajo. Con los badges
+                        al lado, "MASSA DISC..." era el nombre real que se leía en un teléfono. */}
+                    <p className="font-bold text-sm text-gray-900 leading-snug break-words">{product.name}</p>
+                    <div className="flex items-center justify-between gap-2 mt-1.5">
+                      <span className="text-xs text-gray-500 font-medium">
+                        {product.unitsPerBox} {t('stock.unitsPerBoxHeader')}
+                      </span>
                       <div className="flex items-center gap-1.5 shrink-0">
                         <span className="inline-flex items-center rounded-md bg-gray-900/5 px-2 py-0.5 text-xs font-bold text-gray-900 tabular-nums">
                           {product.boxes} {t('stock.boxesShort')}
