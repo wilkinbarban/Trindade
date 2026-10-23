@@ -6,6 +6,22 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [0.5.1+509] — 2026-10-22
+
+### ✨ Melhorado (segurança de sessão, i18n e datas)
+- **Web — renovação transparente da sessão**: o cliente guarda o refresh token, renova o access token expirado contra `/api/auth/refresh` e repete a requisição original uma única vez; renovações concorrentes compartilham uma só chamada e a sessão só é encerrada quando a renovação falha.
+- **Android — telas administrativas traduzidas**: `Usuários`, `Veículos`, `Categorias`, `Motoristas`, `Tarefas`, `Faixas horárias` e `Auditoria` passam a ler todo o texto de `strings.xml`, com paridade `pt`/`es`. Nenhum texto em português fica fixo no código dessas telas.
+- **Android — mensagens de erro modeladas**: os ViewModels de Massas, Estoque e Relatório deixam de emitir frases prontas e passam a carregar o recurso a ser resolvido na tela, no idioma ativo.
+- **Android — permissões de lançamento iguais ao servidor**: editar e excluir um lançamento de massas fica restrito ao próprio autor na data corrente; a rama de administrador que nunca podia ser satisfeita foi removida.
+- **Datas**: o backend recusa lançamentos de massas com data futura (`MASSAS_FUTURE_DATE`), os inputs de data da Web limitam-se a hoje em São Paulo e todos os seletores de data do Android abrem no fuso `America/Sao_Paulo`, não no fuso do aparelho.
+- **Falhas visíveis**: o carregamento de veículos do cronograma e a consulta de versão/QR da tela de compartilhamento passam a mostrar o erro com ação de tentar de novo em vez de falharem em silêncio.
+
+### 🔧 Manutenção
+- **Contrato de erros**: as rotas de Massas respondem `{ error, code }` com um código semântico estável; o backend não lê `Accept-Language` nem traduz, e cada cliente resolve o texto no seu próprio catálogo.
+- **Distribuição Android v0.5.1 (Code 509)**: `versionCode=509`, `versionName=0.5.1`, binário assinado sob APK Signature Scheme v2 (`CN=Trindade Massas Operacoes`).
+
+---
+
 ## [0.5.1+508] — 2026-10-22
 
 ### 🐛 Corrigido (Relatório — seção de massas)
