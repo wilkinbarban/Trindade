@@ -89,3 +89,12 @@ export const MassasHistoryResponseSchema = z
   })
   .strict();
 
+export const MassasErrorResponseSchema = z
+  .object({
+    error: z.string(),
+    code: z.string(),
+    details: z.unknown().optional(),
+  })
+  .strict();
+
+

@@ -10,6 +10,7 @@ import { createAuthenticate } from '../auth/auth.middleware.js';
 import { AuthAdmissionLimiter } from '../auth/auth.admission-limiter.js';
 import { authRoutes } from '../auth/auth.routes.js';
 import { REFERENCE_DATASET, verifyReferencePrerequisites } from '../../db/reference-data.js';
+import { getSaoPauloDateString } from '../../utils/date.js';
 import { massasRoutes } from './massas.routes.js';
 import type { MassasLaunchDayView, MassaIndividualLaunch } from './massas.service.js';
 
@@ -248,6 +249,262 @@ describe('massas routes', () => {
     assert.equal(day18.totalBoxes, 3);
     assert.equal(day18.totalUnits, 30);
     assert.equal(day18.operatorsCount, 1);
+  });
+
+  describe('S4 & S9: error codes, future dates and language neutrality', () => {
+    it('refuses future launch dates with 400 and MASSAS_FUTURE_DATE and persists nothing', async () => {
+      const futureDate = '2099-12-31';
+      const countBefore = (db.prepare('SELECT COUNT(*) as count FROM massa_launches WHERE launch_date = ?').get(futureDate) as { count: number }).count;
+      assert.equal(countBefore, 0);
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/massas-launch',
+        headers: { authorization: `Bearer ${tokenAlice}` },
+        payload: {
+          date: futureDate,
+          product_code: '1045',
+          boxes: 5,
+        },
+      });
+
+      assert.equal(res.statusCode, 400);
+      const body = JSON.parse(res.body);
+      assert.equal(body.error, 'Future launch dates are not allowed');
+      assert.equal(body.code, 'MASSAS_FUTURE_DATE');
+
+      const countAfter = (db.prepare('SELECT COUNT(*) as count FROM massa_launches WHERE launch_date = ?').get(futureDate) as { count: number }).count;
+      assert.equal(countAfter, 0);
+    });
+
+    it('accepts launches for today (São Paulo date)', async () => {
+      const today = getSaoPauloDateString();
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/massas-launch',
+        headers: { authorization: `Bearer ${tokenAlice}` },
+        payload: {
+          date: today,
+          product_code: '1045',
+          boxes: 2,
+        },
+      });
+
+      assert.equal(res.statusCode, 201);
+      const body = JSON.parse(res.body);
+      assert.equal(body.created.length, 1);
+      assert.equal(body.created[0].launch_date, today);
+    });
+
+    it('accepts launches for past dates and defaults omitted date to today', async () => {
+      // Past date
+      const pastDate = '2026-01-01';
+      const resPast = await app.inject({
+        method: 'POST',
+        url: '/api/massas-launch',
+        headers: { authorization: `Bearer ${tokenAlice}` },
+        payload: {
+          date: pastDate,
+          product_code: '1045',
+          boxes: 1,
+        },
+      });
+      assert.equal(resPast.statusCode, 201);
+      assert.equal(JSON.parse(resPast.body).created[0].launch_date, pastDate);
+
+      // Omitted date
+      const resOmitted = await app.inject({
+        method: 'POST',
+        url: '/api/massas-launch',
+        headers: { authorization: `Bearer ${tokenAlice}` },
+        payload: {
+          product_code: '1045',
+          boxes: 1,
+        },
+      });
+      assert.equal(resOmitted.statusCode, 201);
+      assert.equal(JSON.parse(resOmitted.body).created[0].launch_date, getSaoPauloDateString());
+    });
+
+    it('returns MASSAS_CREATE_FAILED when creation fails inside the service', async () => {
+      const resUnknownProduct = await app.inject({
+        method: 'POST',
+        url: '/api/massas-launch',
+        headers: { authorization: `Bearer ${tokenAlice}` },
+        payload: {
+          date: '2026-10-18',
+          items: [{ product_code: '999999', boxes: 1 }],
+        },
+      });
+      assert.equal(resUnknownProduct.statusCode, 400);
+      const body = JSON.parse(resUnknownProduct.body);
+      assert.equal(body.error, 'Unknown massa product code: 999999');
+      assert.equal(body.code, 'MASSAS_CREATE_FAILED');
+    });
+
+    it('returns stable semantic codes alongside byte-identical error strings across all routes', async () => {
+      // 1. GET / invalid date query
+      const resGetDate = await app.inject({
+        method: 'GET',
+        url: '/api/massas-launch?date=not-a-date',
+        headers: { authorization: `Bearer ${tokenAlice}` },
+      });
+      assert.equal(resGetDate.statusCode, 400);
+      const bodyGetDate = JSON.parse(resGetDate.body);
+      assert.equal(bodyGetDate.error, 'Invalid date format');
+      assert.equal(bodyGetDate.code, 'MASSAS_INVALID_DATE_FORMAT');
+
+      // 2. POST / invalid body schema
+      const resPostInvalid = await app.inject({
+        method: 'POST',
+        url: '/api/massas-launch',
+        headers: { authorization: `Bearer ${tokenAlice}` },
+        payload: { date: dateStr, boxes: -5 },
+      });
+      assert.equal(resPostInvalid.statusCode, 400);
+      const bodyPostInvalid = JSON.parse(resPostInvalid.body);
+      assert.equal(bodyPostInvalid.error, 'Invalid launch data');
+      assert.equal(bodyPostInvalid.code, 'MASSAS_INVALID_LAUNCH_DATA');
+      assert.ok(bodyPostInvalid.details);
+
+      // 3. POST / empty items and missing product_code/boxes
+      const resPostEmpty = await app.inject({
+        method: 'POST',
+        url: '/api/massas-launch',
+        headers: { authorization: `Bearer ${tokenAlice}` },
+        payload: { date: dateStr },
+      });
+      assert.equal(resPostEmpty.statusCode, 400);
+      const bodyPostEmpty = JSON.parse(resPostEmpty.body);
+      assert.equal(bodyPostEmpty.error, 'Must provide either items array or product_code and boxes');
+      assert.equal(bodyPostEmpty.code, 'MASSAS_EMPTY_ITEMS');
+
+      // 4. PUT /:id invalid param ID
+      const resPutBadId = await app.inject({
+        method: 'PUT',
+        url: '/api/massas-launch/abc',
+        headers: { authorization: `Bearer ${tokenAlice}` },
+        payload: { boxes: 2 },
+      });
+      assert.equal(resPutBadId.statusCode, 400);
+      const bodyPutBadId = JSON.parse(resPutBadId.body);
+      assert.equal(bodyPutBadId.error, 'Invalid launch ID');
+      assert.equal(bodyPutBadId.code, 'MASSAS_INVALID_ID');
+
+      // 5. PUT /:id invalid boxes count
+      const resPutBadBoxes = await app.inject({
+        method: 'PUT',
+        url: '/api/massas-launch/1',
+        headers: { authorization: `Bearer ${tokenAlice}` },
+        payload: { boxes: 0 },
+      });
+      assert.equal(resPutBadBoxes.statusCode, 400);
+      const bodyPutBadBoxes = JSON.parse(resPutBadBoxes.body);
+      assert.equal(bodyPutBadBoxes.error, 'Invalid boxes count');
+      assert.equal(bodyPutBadBoxes.code, 'MASSAS_INVALID_BOXES');
+      assert.ok(bodyPutBadBoxes.details);
+
+      // 6. PUT /:id not found
+      const resPutNotFound = await app.inject({
+        method: 'PUT',
+        url: '/api/massas-launch/999999',
+        headers: { authorization: `Bearer ${tokenAlice}` },
+        payload: { boxes: 5 },
+      });
+      assert.equal(resPutNotFound.statusCode, 404);
+      const bodyPutNotFound = JSON.parse(resPutNotFound.body);
+      assert.equal(bodyPutNotFound.error, 'Launch not found');
+      assert.equal(bodyPutNotFound.code, 'MASSAS_NOT_FOUND');
+
+      // Create a launch by Alice for ownership testing
+      const createRes = await app.inject({
+        method: 'POST',
+        url: '/api/massas-launch',
+        headers: { authorization: `Bearer ${tokenAlice}` },
+        payload: { date: dateStr, product_code: '1045', boxes: 3 },
+      });
+      const aliceLaunchId = JSON.parse(createRes.body).created[0].id;
+
+      // 7. PUT /:id forbidden for another user
+      const resPutForbidden = await app.inject({
+        method: 'PUT',
+        url: `/api/massas-launch/${aliceLaunchId}`,
+        headers: { authorization: `Bearer ${tokenBob}` },
+        payload: { boxes: 6 },
+      });
+      assert.equal(resPutForbidden.statusCode, 403);
+      const bodyPutForbidden = JSON.parse(resPutForbidden.body);
+      assert.equal(bodyPutForbidden.error, 'Forbidden: cannot edit launches belonging to another user');
+      assert.equal(bodyPutForbidden.code, 'MASSAS_FORBIDDEN');
+
+      // 8. DELETE /:id invalid param ID
+      const resDelBadId = await app.inject({
+        method: 'DELETE',
+        url: '/api/massas-launch/abc',
+        headers: { authorization: `Bearer ${tokenAlice}` },
+      });
+      assert.equal(resDelBadId.statusCode, 400);
+      const bodyDelBadId = JSON.parse(resDelBadId.body);
+      assert.equal(bodyDelBadId.error, 'Invalid launch ID');
+      assert.equal(bodyDelBadId.code, 'MASSAS_INVALID_ID');
+
+      // 9. DELETE /:id not found
+      const resDelNotFound = await app.inject({
+        method: 'DELETE',
+        url: '/api/massas-launch/999999',
+        headers: { authorization: `Bearer ${tokenAlice}` },
+      });
+      assert.equal(resDelNotFound.statusCode, 404);
+      const bodyDelNotFound = JSON.parse(resDelNotFound.body);
+      assert.equal(bodyDelNotFound.error, 'Launch not found');
+      assert.equal(bodyDelNotFound.code, 'MASSAS_NOT_FOUND');
+
+      // 10. DELETE /:id forbidden for another user
+      const resDelForbidden = await app.inject({
+        method: 'DELETE',
+        url: `/api/massas-launch/${aliceLaunchId}`,
+        headers: { authorization: `Bearer ${tokenBob}` },
+      });
+      assert.equal(resDelForbidden.statusCode, 403);
+      const bodyDelForbidden = JSON.parse(resDelForbidden.body);
+      assert.equal(bodyDelForbidden.error, 'Forbidden: cannot delete launches belonging to another user');
+      assert.equal(bodyDelForbidden.code, 'MASSAS_FORBIDDEN');
+    });
+
+    it('ignores Accept-Language and returns identical English error responses', async () => {
+      const resWithoutLang = await app.inject({
+        method: 'GET',
+        url: '/api/massas-launch?date=invalid',
+        headers: { authorization: `Bearer ${tokenAlice}` },
+      });
+
+      const resWithEs = await app.inject({
+        method: 'GET',
+        url: '/api/massas-launch?date=invalid',
+        headers: {
+          authorization: `Bearer ${tokenAlice}`,
+          'accept-language': 'es-ES,es;q=0.9',
+        },
+      });
+
+      const resWithPt = await app.inject({
+        method: 'GET',
+        url: '/api/massas-launch?date=invalid',
+        headers: {
+          authorization: `Bearer ${tokenAlice}`,
+          'accept-language': 'pt-BR,pt;q=0.9',
+        },
+      });
+
+      assert.equal(resWithoutLang.statusCode, 400);
+      assert.equal(resWithEs.statusCode, 400);
+      assert.equal(resWithPt.statusCode, 400);
+
+      assert.deepEqual(JSON.parse(resWithEs.body), JSON.parse(resWithoutLang.body));
+      assert.deepEqual(JSON.parse(resWithPt.body), JSON.parse(resWithoutLang.body));
+      assert.equal(JSON.parse(resWithEs.body).error, 'Invalid date format');
+      assert.equal(JSON.parse(resWithEs.body).code, 'MASSAS_INVALID_DATE_FORMAT');
+    });
   });
 });
 

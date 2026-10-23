@@ -117,6 +117,7 @@ import {
   MassasLaunchDayViewSchema,
   MassasLaunchDeleteResponseSchema,
   MassasLaunchUpdateBodySchema,
+  MassasErrorResponseSchema,
 } from '../modules/massas/massas.schema.js';
 import {
   HealthResponseSchema,
@@ -275,6 +276,7 @@ function buildRegistry(): OpenAPIRegistry {
   // Registered as named components so a generated client gets named models instead of
   // anonymous inline objects repeated at every reference.
   registerComponent(registry, 'ErrorEnvelope', ErrorEnvelopeSchema);
+  registerComponent(registry, 'MassasErrorResponse', MassasErrorResponseSchema);
   registerComponent(registry, 'AuthUser', AuthUserSchema);
   registerComponent(registry, 'AuthProfile', AuthProfileSchema);
   registerComponent(registry, 'LoginResponse', LoginResponseSchema);
@@ -402,6 +404,11 @@ registerComponent(registry, 'StockHistory', StockHistorySchema);
   const UNAUTHORIZED = errorResponse('Missing, invalid, or expired credentials');
   const INVALID_INPUT = errorResponse('The request body failed validation');
   const USER_NOT_FOUND = errorResponse('The authenticated user no longer exists');
+
+  /** Error response carrying a stable semantic code alongside the English error message. */
+  function massasErrorResponse(description: string): ResponseConfig {
+    return jsonResponse(description, MassasErrorResponseSchema);
+  }
 
   registry.registerPath({
     method: 'post',
@@ -1461,6 +1468,7 @@ registerComponent(registry, 'StockHistory', StockHistorySchema);
     tags: ['massas'],
     responses: {
       200: jsonResponse('The day view with collective totals and individual launches', MassasLaunchDayViewSchema),
+      400: massasErrorResponse('The query parameters failed validation'),
       401: UNAUTHORIZED,
     },
   });
@@ -1485,7 +1493,7 @@ registerComponent(registry, 'StockHistory', StockHistorySchema);
     request: jsonRequest(MassasLaunchCreateBodySchema),
     responses: {
       201: jsonResponse('The created launches', MassasLaunchCreateResponseSchema),
-      400: INVALID_INPUT,
+      400: massasErrorResponse('The request body failed validation, empty items, or future date'),
       401: UNAUTHORIZED,
     },
   });
@@ -1502,10 +1510,10 @@ registerComponent(registry, 'StockHistory', StockHistorySchema);
     },
     responses: {
       200: jsonResponse('The updated launch', MassaIndividualLaunchSchema),
-      400: INVALID_INPUT,
+      400: massasErrorResponse('The identifier is not a number, or the body failed validation'),
       401: UNAUTHORIZED,
-      403: errorResponse('The launch belongs to another user'),
-      404: errorResponse('The launch does not exist'),
+      403: massasErrorResponse('The launch belongs to another user'),
+      404: massasErrorResponse('The launch does not exist'),
     },
   });
 
@@ -1520,10 +1528,10 @@ registerComponent(registry, 'StockHistory', StockHistorySchema);
     },
     responses: {
       200: jsonResponse('Deletion confirmation', MassasLaunchDeleteResponseSchema),
-      400: INVALID_INPUT,
+      400: massasErrorResponse('The identifier is not a number'),
       401: UNAUTHORIZED,
-      403: errorResponse('The launch belongs to another user'),
-      404: errorResponse('The launch does not exist'),
+      403: massasErrorResponse('The launch belongs to another user'),
+      404: massasErrorResponse('The launch does not exist'),
     },
   });
 
