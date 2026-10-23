@@ -6,6 +6,18 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [0.5.1+511] — 2026-10-23
+
+### ✨ Melhorado (estoque mais limpo e com o resumo do dia)
+- **Calculador de Estoque — mensagem e e-mail sem o código do produto**: o texto que sai da planta deixa de carregar o código (`CANUDO (787) — 150 un` virou `CANUDO — 150 un`) e o corpo do e-mail perde a coluna `Código`, passando a `Categoria | Produto | Unidades`. Paridade exata entre Web (`stock.ts`) e Android (`StockMessages.kt`), com os testes dos dois lados afirmando a ausência do código em vez da presença.
+- **Resumo Coletivo do Dia no estoque**: nova seção logo abaixo da calculadora, com o mesmo desenho do resumo de massas — cartelas âmbar com nome, `un/cx` e as etiquetas de caixas e unidades — e **sem** filtro por operador, porque uma contagem de estoque é do galpão e não de quem passou por ele. Os números vêm do que o servidor já somou; a tela não recalcula nada. Web (`StockCalculatorPage.tsx`) e Android (`StockCalculatorScreen.kt`), 6 chaves novas por idioma com paridade `pt`/`es` (639 em cada) e o curto espanhol `cj`/`un`.
+
+### 🔧 Manutenção
+- **Gate de testes**: 520 testes de backend, 149 de frontend e 974 de Android, todos verdes. O teste de payload `AdminApiPayloadTest` trocou um `timeout` de 5 s por um guarda de 30 s: aquele prazo estourava com a suíte inteira no mesmo contêiner (o mesmo teste passa sozinho e levou 8,2 s na corrida que falhou), e o que ele afirma é o conteúdo do payload, não a latência.
+- **Distribuição Android v0.5.1 (Code 511)**: `versionCode=511`, `versionName=0.5.1`, binário assinado sob APK Signature Scheme v2 (`CN=Trindade Massas Operacoes`), `aapt2` com `versionCode='511'`, `10,888,124` bytes, `sha256 04f3848bc2194fda7262bb3ce916122cb74942a96dba3fa6174995bd2554f593`, publicado em GitHub Release `v0.5.1` (`app-release.apk`, `trindade-0.5.1.apk` e `.sha256` com os mesmos bytes) e copiado para o Desktop.
+
+---
+
 ## [0.5.1+510] — 2026-10-23
 
 ### ✨ Melhorado (mensagens administrativas no idioma ativo)
