@@ -99,17 +99,9 @@ export function StockHistoryPage() {
           </div>
           <p className="text-sm text-gray-500">{t('stock.historySubtitle')}</p>
         </div>
-        <Link to="/stock-calculator" className="w-full sm:w-auto shrink-0">
-          <Button variant="outline" className="w-full sm:w-auto" data-testid="stock-history-back">
-            {t('stock.backToCounter')}
-          </Button>
-        </Link>
-      </div>
-
-      <Card>
-        <CardContent className="p-3 space-y-3">
-          {/* Una sola fecha y dos topes: la última noche cerrada hacia atrás y treinta días de archivo.
-              Los botones de días contados se fueron con la calculadora. */}
+        {/* La fecha y la vuelta al contador comparten fila, como en el calculador. Una sola fecha y
+            dos topes: la última noche cerrada hacia atrás y treinta días de archivo. */}
+        <div className="grid grid-cols-2 items-end gap-2 w-full sm:flex sm:items-end sm:gap-2 sm:w-auto shrink-0">
           <div className="w-full sm:w-auto">
             <label className="block text-xs font-medium text-gray-600" htmlFor="stock-history-date">
               {t('stock.date')}
@@ -125,10 +117,19 @@ export function StockHistoryPage() {
               data-testid="stock-history-date"
             />
           </div>
+          <Link to="/stock-calculator" className="w-full sm:w-auto">
+            <Button variant="outline" className="w-full sm:w-auto" data-testid="stock-history-back">
+              {t('stock.backToCounter')}
+            </Button>
+          </Link>
+        </div>
+      </div>
 
-          {error !== '' && <p className="text-sm text-red-600">{error}</p>}
-        </CardContent>
-      </Card>
+      {error !== '' && (
+        <p role="alert" className="p-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg">
+          {error}
+        </p>
+      )}
 
       <StockCollectiveSummary
         products={summary}
