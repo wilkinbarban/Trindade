@@ -105,10 +105,12 @@ export function AppShell({ children }: { children: ReactNode }) {
             label={t('nav.loadingSchedule')}
             excludedActivePrefixes={['/loading/reports-history', '/loading/history']}
           />
+          {/* Cada calculadora queda pegada a su propio histórico: el menú sigue el orden en que se
+              usa cada módulo, y el del lanzamiento deja de estar en medio. */}
           <NavItem href="/massas-launch" icon={<Layers className="h-4 w-4" />} label={t('nav.massasLaunch')} />
-          <NavItem href="/massas-history" icon={<History className="h-4 w-4" />} label={t('nav.massasHistory')} />
           <NavItem href="/assai-calculator" icon={<ClipboardList className="h-4 w-4" />} label={t('nav.assai')} />
           <NavItem href="/stock-calculator" icon={<ClipboardList className="h-4 w-4" />} label={t('nav.stock')} />
+          <NavItem href="/massas-history" icon={<History className="h-4 w-4" />} label={t('nav.massasHistory')} />
           <NavItem href="/stock-history" icon={<ClipboardList className="h-4 w-4" />} label={t('nav.stockHistory')} />
           <NavItem href="/loading/reports-history" icon={<History className="h-4 w-4" />} label={t('nav.reportHistory')} />
           <NavItem href="/loading/history" icon={<Truck className="h-4 w-4" />} label={t('nav.loadingHistory')} />
