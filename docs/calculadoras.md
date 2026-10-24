@@ -1,4 +1,4 @@
-# Calculadoras e Lançamentos Operacionais (v0.5.1)
+# Calculadoras e Lançamentos Operacionais (v0.5.2)
 
 Quatro ferramentas operacionais para a planta, disponíveis na web e no Android. As duas plataformas partilham a
 **mesma regra de negócio**, escrita uma vez em cada linguagem num módulo puro com os seus testes, e o **mesmo
@@ -52,6 +52,9 @@ pantalla não tenha de os inventar.
   reset zera os totais sem apagar o que já se tinha contado.
 - Um dia que não se pôde ler é **nada** e não um dia vazio: mostrar zero caixas para um servidor inalcançável é
   mentir sobre a estante.
+- A calculadora opera **sempre sobre hoje** em São Paulo e não oferece escolha de data: um campo de data ali
+  permitia contar sem olhar para o dia, e a contagem caía num dia que ninguém tinha escolhido. Corrigir um dia
+  passado é trabalho do Histórico de Estoque (`/stock-history`), que abre a data que se escolheu.
 
 ## Histórico de Estoque
 
@@ -86,7 +89,7 @@ segurança preventiva verificada antes de tocar na base.
 ./gradlew :app:testDebugUnitTest --tests "com.trindade.app.assai.*"
 
 # O emulador: o APK de debug é o que Android assina sozinho
-./gradlew :app:assembleDebug -PversionName=0.5.1 -PversionCode=502
+./gradlew :app:assembleDebug -PversionName=0.5.2 -PversionCode=512
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb exec-out screencap -p > pantalla.png
 ```
@@ -96,7 +99,7 @@ O APK de **release** exige três parâmetros e não tem valores por defeito, de 
 ```bash
 ./gradlew :app:assembleRelease --no-daemon \
   -PapiBaseUrl=https://trindademasas.duckdns.org/ \
-  -PversionName=0.5.1 -PversionCode=502
+  -PversionName=0.5.2 -PversionCode=512
 ```
 
 Um release não pode apontar em silêncio para o loopback de desenvolvimento nem sair com uma versão que o build

@@ -6,6 +6,24 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [0.5.2+512] — 2026-10-24
+
+### ✨ Melhorado (navegação, ícones e cabeçalhos do Android como na Web)
+- **Ícones vetoriais próprios**: dezessete recursos XML novos (`ic_menu`, `ic_profile`, `ic_dashboard`, `ic_reports`, `ic_truck`, `ic_layers`, `ic_calculator`, `ic_boxes`, `ic_calendar`, `ic_archive`, `ic_file_clock`, `ic_history`, `ic_share`, `ic_admin`, `ic_audit`, `ic_tasks`, `ic_drivers`) substituem os glifos emprestados do Material por formas equivalentes às do Lucide na Web. Antes quatro telas dividiam a mesma área de transferência e dois históricos o mesmo relógio, e o menu só se lia pelo texto.
+- **Cabeçalho sem texto**: a barra superior fica com o botão de menu (`ic_menu`) à esquerda, a marca ao centro e o perfil (`ic_profile`, com o indicador de atualização quando há uma) à direita, todos com alvo de toque de 48dp e descrição de acessibilidade.
+- **Fila de abas reduzida a oito módulos raiz**: Dashboard, Relatórios, Horários, Lançamento de Massas, Calculadora de Assaí, Calculador de Estoque, Painel Admin e Compartilhar App. Os históricos e os catálogos secundários saem da fila e continuam a um toque no menu.
+- **Menu lateral em treze entradas com ícone**, agrupadas em `OPERAÇÕES` e `ADMINISTRAÇÃO`, na ordem da barra lateral da Web. `Painel Admin` aparece para Administrador e Trabalhador, cada um com as seções do seu papel; `Auditoria` continua exclusiva do Administrador.
+- **Painel Admin com Tarefas e Motoristas**: as duas seções passam a ser cartões do painel para os dois papéis (respeitando `CATALOG_TASKS` e `CATALOG_DRIVERS`), em vez de abas próprias. As cinco seções de administração seguem exclusivas do Administrador, e o backend não mudou.
+- **Módulos sem título repetido nem "Voltar" na raiz**: Assaí, Estoque, Carregamento, Massas, Relatórios e Compartilhar App perdem o `titleLarge` que repetia o nome da aba e o botão que voltava ao Dashboard; no lugar entra uma barra de ações com `Histórico` (nos módulos que têm um) e `Ajuda`. "Voltar" fica onde há subpantalla de verdade: os históricos.
+- **Calculador de Estoque conta só o dia de hoje**: o campo de data e o seletor de dia saem da calculadora, que passa a operar sempre sobre o dia corrente em São Paulo. Corrigir um dia anterior é trabalho do Histórico de Estoque, que abre a data que se escolheu — antes um campo de data permitia contar sem olhar para o dia.
+- **Frase do módulo de massas inteira**: a legenda do Lançamento de Massas dividia a linha com os dois botões e aparecia cortada a meio; passa a ocupar duas linhas e a ser lida por completo.
+
+### 🔧 Manutenção
+- **Gate de testes**: 975 testes de unidade do cliente Android, 0 falhas. Os testes de navegação e do painel foram reescritos para as novas regras: a fila de abas e sua ordem, as treze entradas do menu com os históricos fora da fila, os overlays que um histórico abre, o papel que vê `Auditoria`, e Tarefas/Motoristas como cartões do painel para o Trabalhador.
+- **Distribuição Android v0.5.2 (Code 512)**: `versionCode=512`, `versionName=0.5.2`, binário assinado sob APK Signature Scheme v2 (`CN=Trindade Massas Operacoes`), `aapt2` com `versionCode='512'` e `versionName='0.5.2'`, `10,900,292` bytes, `sha256 f302cf5dc33e0e82fad0341df2689c4bc5c7cda70b00c6ca8009294d9e26811a`, publicado em GitHub Release `v0.5.2` e copiado para o Desktop.
+
+---
+
 ## [0.5.1+511] — 2026-10-23
 
 ### ✨ Melhorado (estoque mais limpo e com o resumo do dia)
