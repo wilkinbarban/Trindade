@@ -52,10 +52,18 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Derive the version from the tag or repair branch
-        # The standard tag encoding is major * 10000 + minor * 100 + patch, which is why it is checked
-        # here rather than assumed: 1.100.0 and 2.0.0 would both encode to 20000, so a tag whose minor or
-        # patch is above 99 has to be refused instead of silently producing an APK Android treats as an
+        # The encoding is major * 1000000 + minor * 1000 + patch, and the digit budget is checked here
+        # rather than assumed: 1.1000.0 and 2.0.0 would both encode to 2000000, so a tag whose minor or
+        # patch is above 999 has to be refused instead of silently producing an APK Android treats as an
         # update to a version it is not.
+        #
+        # The narrower `major * 10000 + minor * 100 + patch` is the common one and it is wrong for this
+        # project, for a reason that only shows up on the 0.x line: with a major of 0 the tag contributes
+        # nothing above the minor, so v0.5.2 encoded to 502 while v0.5.1 had already been published by hand
+        # as versionCode 511. Android compares that number to decide what is an update, so the release built
+        # from the tag was one no 0.5.1 install would accept: a downgrade. The wider factors put every 0.x
+        # tag above the codes already in the field (v0.5.2 is 5002, v0.5.3 is 5003) without inventing a
+        # second source of truth, since the tag still decides both the name and the code.
         #
         # Ref agreement contract:
         # - Tags strictly require GITHUB_REF="refs/tags/<GITHUB_REF_NAME>" and GITHUB_REF_TYPE="tag".
@@ -96,12 +104,12 @@ jobs:
             major="${BASH_REMATCH[1]}"
             minor="${BASH_REMATCH[2]}"
             patch="${BASH_REMATCH[3]}"
-            if (( minor > 99 || patch > 99 )); then
-              printf 'The tag %s carries a minor or patch above 99, which the versionCode encoding cannot hold without colliding with the next major version.\n' "$tag_name" >&2
+            if (( minor > 999 || patch > 999 )); then
+              printf 'The tag %s carries a minor or patch above 999, which the versionCode encoding cannot hold without colliding with the next major version.\n' "$tag_name" >&2
               exit 1
             fi
             version_name="${major}.${minor}.${patch}"
-            version_code=$(( major * 10000 + minor * 100 + patch ))
+            version_code=$(( major * 1000000 + minor * 1000 + patch ))
             printf 'Tag %s -> versionName %s, versionCode %s\n' "$tag_name" "$version_name" "$version_code"
           else
             printf 'Ref "%s" is neither the allowed repair branch (refs/heads/feature/android-v0.3.0-ux-repair) nor a tag under refs/tags/. The ref fails closed.\n' "$ref" >&2
@@ -293,6 +301,28 @@ jobs:
           name: android-release
           path: release-assets
 
+      - name: Write the checksum next to the APK
+        # The sidecar is derived here, from the bytes this job is about to publish, and never carried over
+        # from the build. The alternative was tried: an operator who built and verified an APK by hand and
+        # uploaded it to a release got a checksum that described a file the release no longer held, because
+        # pushing the tag made this workflow replace the APK with its own build. A checksum that does not
+        # match the download is worse than no checksum, since the careful operator is the one it misleads.
+        # Generating it in the publishing job makes the pair inseparable: no path through this workflow
+        # uploads one without the other, and re-running the job repairs a release where they disagree.
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          apks=(release-assets/*.apk)
+          if (( ${#apks[@]} != 1 )); then
+            printf 'Expected exactly one verified APK to checksum, found %d.\n' "${#apks[@]}" >&2
+            exit 1
+          fi
+          cd release-assets
+          # The name is the APK's own plus `.sha256`, which is the shape every previous release used, so
+          # `sha256sum -c` on the two downloaded files works without an argument to rename anything.
+          sha256sum "$(basename "${apks[0]}")" > "$(basename "${apks[0]}").sha256"
+          cat "$(basename "${apks[0]}").sha256"
+
       - name: Create the release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -302,9 +332,9 @@ jobs:
         run: |
           set -euo pipefail
           shopt -s nullglob
-          assets=(release-assets/*.apk)
-          if (( ${#assets[@]} != 1 )); then
-            printf 'Expected exactly one verified APK to publish, found %d.\n' "${#assets[@]}" >&2
+          assets=(release-assets/*.apk release-assets/*.apk.sha256)
+          if (( ${#assets[@]} != 2 )); then
+            printf 'Expected the verified APK and its checksum to publish, found %d file(s).\n' "${#assets[@]}" >&2
             exit 1
           fi
           # Re-running a failed publish is a normal operator action, so an existing release for the tag is

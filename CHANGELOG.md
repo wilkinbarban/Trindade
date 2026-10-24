@@ -21,6 +21,8 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ### 🔧 Manutenção
 - **Gate de testes**: 975 testes de unidade do cliente Android, 0 falhas. Os testes de navegação e do painel foram reescritos para as novas regras: a fila de abas e sua ordem, as treze entradas do menu com os históricos fora da fila, os overlays que um histórico abre, o papel que vê `Auditoria`, e Tarefas/Motoristas como cartões do painel para o Trabalhador.
 - **Distribuição Android v0.5.2 (Code 512)**: `versionCode=512`, `versionName=0.5.2`, binário assinado sob APK Signature Scheme v2 (`CN=Trindade Massas Operacoes`), `aapt2` com `versionCode='512'` e `versionName='0.5.2'`, `10,900,292` bytes, `sha256 f302cf5dc33e0e82fad0341df2689c4bc5c7cda70b00c6ca8009294d9e26811a`, publicado em GitHub Release `v0.5.2` e copiado para o Desktop.
+- **Entrega que se pode instalar por cima da anterior**: o workflow da tag derivava `versionCode=502` para `v0.5.2`, porque na linha 0.x o major não rende dígito acima do minor, enquanto `v0.5.1` já estava publicado como 511. O Android compara esse número para decidir o que é atualização, então a build de 502 seria recusada como downgrade em quem tem 0.5.1. A release carrega a build 512 e a derivação passou a `major*1000000 + minor*1000 + patch` (`v0.5.3` → 5003, `v0.6.0` → 6000), verificada contra uma tabela de tags que inclui os casos que devem falhar.
+- **Checksum gerado por quem publica**: o `trindade-0.5.2.apk.sha256` agora sai do próprio job de publicação, sobre os bytes que ele envia. Antes era um arquivo enviado à mão e, nesta tag, ele descrevia o APK que o workflow tinha acabado de substituir: a release anunciava um digest que nenhum download podia conferir.
 
 ---
 
