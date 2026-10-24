@@ -175,6 +175,8 @@
     <string name="nav_loading">Horarios</string>
     <!-- The branded header title for the top-level app shell. -->
     <string name="nav_brand_title">Trindade Massas</string>
+    <string name="nav_section_operations">OPERACIONES</string>
+    <string name="nav_section_administration">ADMINISTRACIÓN</string>
     <string name="nav_menu">Menú</string>
     <string name="nav_tasks">Tareas</string>
     <string name="nav_drivers">Choferes</string>
@@ -331,6 +333,10 @@
 
     <string name="admin_panel_title">Panel Admin</string>
     <string name="admin_panel_description">Gestión y configuraciones administrativas</string>
+    <string name="admin_section_tasks">Tareas</string>
+    <string name="admin_section_tasks_desc">Tipos de tarea usados en los informes</string>
+    <string name="admin_section_drivers">Conductores</string>
+    <string name="admin_section_drivers_desc">Registro de los conductores que firman los informes</string>
     <string name="admin_section_categories">Categorías</string>
     <string name="admin_section_categories_desc">Gestión de tipos y agrupamientos de tareas</string>
     <string name="admin_section_vehicles">Vehículos</string>

@@ -12,11 +12,15 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.trindade.app.network.GuestReadonlyNotice
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.ui.res.painterResource
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.foundation.layout.Arrangement
@@ -59,8 +63,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.trindade.app.admin.AdminPanelRoute
-import com.trindade.app.admin.DriversRoute
-import com.trindade.app.admin.TasksRoute
 import com.trindade.app.auth.AuthRepository
 import com.trindade.app.auth.LoginRoute
 import com.trindade.app.auth.ProfileRoute
@@ -74,7 +76,6 @@ import com.trindade.app.reports.ReportDetailRoute
 import com.trindade.app.reports.ReportEditRoute
 import com.trindade.app.reports.ReportGeneratorRoute
 import com.trindade.app.reports.ReportsHistoryRoute
-import com.trindade.app.ui.components.NavigationActionButton
 import com.trindade.app.ui.theme.TrindadeTheme
 import com.trindade.app.assai.AssaiCalculatorScreen
 import com.trindade.app.share.ShareAppScreen
@@ -88,15 +89,19 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
-    /** The six top-level surfaces this build can draw. */
+    /**
+     * The surfaces this build can draw.
+     *
+     * A tab is a screen, not a place in the menu: the histories and the two catalog surfaces live inside
+     * the tab that owns them, so several of these are reached from a drawer entry or a module action rather
+     * than from the tab row. [TAB_DESTINATIONS] is what the row shows and [DRAWER_ENTRIES] is what the
+     * drawer lists; neither is the whole enum.
+     */
     enum class Tab(@StringRes val label: Int) {
         DASHBOARD(R.string.nav_dashboard),
         REPORTS(R.string.nav_reports),
         LOADING(R.string.nav_loading),
         MASSAS_LAUNCH(R.string.massas_title),
-        MASSAS_HISTORY(R.string.massas_history_title),
-        TASKS(R.string.tasks_title),
-        DRIVERS(R.string.drivers_title),
         ADMIN(R.string.admin_panel_title),
         ASSAI(R.string.nav_assai),
         STOCK_COUNTER(R.string.nav_stock_counter),
@@ -104,30 +109,111 @@ class MainActivity : ComponentActivity() {
         SHARE(R.string.nav_share),
     }
 
-    companion object {
-        /**
-         * What this build can draw, in the order the row shows them.
-         *
-         * What the app *has* is this list; whether a role may see one is `RolePolicy`'s answer, asked in the shell
-         * below. The admin surfaces are integrated here and the role policy decides who gets them.
-         */
-        val DEFAULT_DESTINATIONS = listOf(
-            RolePolicy.EntryPoint.DASHBOARD to Tab.DASHBOARD,
-            RolePolicy.EntryPoint.REPORTS to Tab.REPORTS,
-            RolePolicy.EntryPoint.LOADING to Tab.LOADING,
-            RolePolicy.EntryPoint.MASSAS_LAUNCH to Tab.MASSAS_LAUNCH,
-            RolePolicy.EntryPoint.MASSAS_HISTORY to Tab.MASSAS_HISTORY,
-            RolePolicy.EntryPoint.CATALOG_TASKS to Tab.TASKS,
-            RolePolicy.EntryPoint.CATALOG_DRIVERS to Tab.DRIVERS,
-            RolePolicy.EntryPoint.CATEGORIES to Tab.ADMIN,
-            RolePolicy.EntryPoint.ASSAI_ORDER to Tab.ASSAI,
-            RolePolicy.EntryPoint.STOCK_COUNTER to Tab.STOCK_COUNTER,
-            RolePolicy.EntryPoint.STOCK_HISTORY to Tab.STOCK_HISTORY,
-            RolePolicy.EntryPoint.SHARE_APP to Tab.SHARE,
-        )
+    /**
+     * The screens that live *inside* a tab rather than beside it.
+     *
+     * The three histories of massas, reports and loading are the same tab's surface in another state, so a
+     * drawer entry that opens one says so with an overlay instead of pretending the history is a tab of its
+     * own -- which is exactly how the row filled up with destinations nobody navigates to from a row.
+     */
+    enum class Overlay {
+        MASSAS_HISTORY,
+        REPORTS_HISTORY,
+        LOADING_HISTORY,
+        ADMIN_AUDIT,
     }
 
-    private val destinations = DEFAULT_DESTINATIONS
+    /** One tab, and the overlay the visit opens on top of it. */
+    data class NavTarget(val tab: Tab, val overlay: Overlay? = null)
+
+    /** A labelled, icon-bearing navigation destination and the [NavTarget] it leads to. */
+    data class Destination(
+        val entryPoint: RolePolicy.EntryPoint,
+        @StringRes val label: Int,
+        @DrawableRes val icon: Int,
+        val target: NavTarget,
+    )
+
+    /** A drawer row: either a destination or the heading of the group under it. */
+    sealed interface DrawerEntry {
+        data class Link(val destination: Destination) : DrawerEntry
+
+        data class Section(@StringRes val label: Int) : DrawerEntry
+    }
+
+    companion object {
+        /**
+         * The tab row, in the order it shows them.
+         *
+         * What the app *has* is this list; whether a role may see one is `RolePolicy`'s answer, asked in the shell
+         * below. The histories and the two catalog surfaces are deliberately absent: they hang off the module
+         * that owns them, so a row of eight stays readable on a phone.
+         */
+        val TAB_DESTINATIONS = listOf(
+            Destination(RolePolicy.EntryPoint.DASHBOARD, R.string.nav_dashboard, R.drawable.ic_dashboard, NavTarget(Tab.DASHBOARD)),
+            Destination(RolePolicy.EntryPoint.REPORTS, R.string.nav_reports, R.drawable.ic_reports, NavTarget(Tab.REPORTS)),
+            Destination(RolePolicy.EntryPoint.LOADING, R.string.nav_loading, R.drawable.ic_truck, NavTarget(Tab.LOADING)),
+            Destination(RolePolicy.EntryPoint.MASSAS_LAUNCH, R.string.massas_title, R.drawable.ic_layers, NavTarget(Tab.MASSAS_LAUNCH)),
+            Destination(RolePolicy.EntryPoint.ASSAI_ORDER, R.string.nav_assai, R.drawable.ic_calculator, NavTarget(Tab.ASSAI)),
+            Destination(RolePolicy.EntryPoint.STOCK_COUNTER, R.string.nav_stock_counter, R.drawable.ic_boxes, NavTarget(Tab.STOCK_COUNTER)),
+            Destination(RolePolicy.EntryPoint.ADMIN_PANEL, R.string.admin_panel_title, R.drawable.ic_admin, NavTarget(Tab.ADMIN)),
+            Destination(RolePolicy.EntryPoint.SHARE_APP, R.string.nav_share, R.drawable.ic_share, NavTarget(Tab.SHARE)),
+        )
+
+        /**
+         * The drawer, in the web application's order and with its icons.
+         *
+         * The drawer is the directory and the row is the shortcut bar: this is where every surface appears,
+         * including the four histories the row no longer carries. The role filter runs over the links, and a
+         * section heading whose links all filtered out disappears with them -- which is how a worker gets
+         * `Painel Admin` without an empty `Administração` group above nothing.
+         */
+        val DRAWER_ENTRIES = listOf(
+            DrawerEntry.Link(Destination(RolePolicy.EntryPoint.DASHBOARD, R.string.nav_dashboard, R.drawable.ic_dashboard, NavTarget(Tab.DASHBOARD))),
+            DrawerEntry.Section(R.string.nav_section_operations),
+            DrawerEntry.Link(Destination(RolePolicy.EntryPoint.REPORTS, R.string.nav_reports, R.drawable.ic_reports, NavTarget(Tab.REPORTS))),
+            DrawerEntry.Link(Destination(RolePolicy.EntryPoint.LOADING, R.string.nav_loading, R.drawable.ic_truck, NavTarget(Tab.LOADING))),
+            DrawerEntry.Link(Destination(RolePolicy.EntryPoint.MASSAS_LAUNCH, R.string.massas_title, R.drawable.ic_layers, NavTarget(Tab.MASSAS_LAUNCH))),
+            DrawerEntry.Link(Destination(RolePolicy.EntryPoint.ASSAI_ORDER, R.string.nav_assai, R.drawable.ic_calculator, NavTarget(Tab.ASSAI))),
+            DrawerEntry.Link(Destination(RolePolicy.EntryPoint.STOCK_COUNTER, R.string.nav_stock_counter, R.drawable.ic_boxes, NavTarget(Tab.STOCK_COUNTER))),
+            DrawerEntry.Link(
+                Destination(
+                    RolePolicy.EntryPoint.MASSAS_HISTORY,
+                    R.string.massas_history_title,
+                    R.drawable.ic_calendar,
+                    NavTarget(Tab.MASSAS_LAUNCH, Overlay.MASSAS_HISTORY),
+                ),
+            ),
+            DrawerEntry.Link(Destination(RolePolicy.EntryPoint.STOCK_HISTORY, R.string.nav_stock_history, R.drawable.ic_archive, NavTarget(Tab.STOCK_HISTORY))),
+            DrawerEntry.Link(
+                Destination(
+                    RolePolicy.EntryPoint.REPORTS,
+                    R.string.history_title,
+                    R.drawable.ic_file_clock,
+                    NavTarget(Tab.REPORTS, Overlay.REPORTS_HISTORY),
+                ),
+            ),
+            DrawerEntry.Link(
+                Destination(
+                    RolePolicy.EntryPoint.LOADING,
+                    R.string.loading_history_title,
+                    R.drawable.ic_history,
+                    NavTarget(Tab.LOADING, Overlay.LOADING_HISTORY),
+                ),
+            ),
+            DrawerEntry.Link(Destination(RolePolicy.EntryPoint.SHARE_APP, R.string.nav_share, R.drawable.ic_share, NavTarget(Tab.SHARE))),
+            DrawerEntry.Section(R.string.nav_section_administration),
+            DrawerEntry.Link(Destination(RolePolicy.EntryPoint.ADMIN_PANEL, R.string.admin_panel_title, R.drawable.ic_admin, NavTarget(Tab.ADMIN))),
+            DrawerEntry.Link(
+                Destination(
+                    RolePolicy.EntryPoint.AUDIT,
+                    R.string.admin_section_audit,
+                    R.drawable.ic_audit,
+                    NavTarget(Tab.ADMIN, Overlay.ADMIN_AUDIT),
+                ),
+            ),
+        )
+    }
 
     @Inject
     lateinit var authRepository: AuthRepository
@@ -159,6 +245,10 @@ class MainActivity : ComponentActivity() {
                     var loadingDay by remember { mutableStateOf<String?>(null) }
                     var loadingDayFromHistory by remember { mutableStateOf(false) }
                     var tab by remember { mutableStateOf(Tab.DASHBOARD) }
+                    // La sección del panel que el cajón pidió abrir (Auditoria llega así). Vive acá y no en
+                    // AdminPanelRoute porque el pedido nace fuera del panel: el cajón lo deja hecho y el
+                    // panel lo consume una sola vez.
+                    var adminRequestedSection by remember { mutableStateOf<com.trindade.app.admin.AdminSection?>(null) }
                     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
                     val role = remember(signedIn) { authRepository.sessionRole() }
                     val sessionKey = remember(signedIn) { authRepository.sessionGeneration.toString() }
@@ -219,6 +309,7 @@ class MainActivity : ComponentActivity() {
                         massasDayFromHistory = false
                         loadingDay = null
                         loadingDayFromHistory = false
+                        adminRequestedSection = null
                         tab = Tab.DASHBOARD
                         signedIn = false
                         updateAvailable = false
@@ -256,8 +347,6 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                     val onBackReportsTab = { tab = Tab.DASHBOARD }
-                    val onBackTasksTab = { tab = Tab.DASHBOARD }
-                    val onBackDriversTab = { tab = Tab.DASHBOARD }
                     val onBackAdminTab = { tab = Tab.DASHBOARD }
                     val onBackRegister = { registerOpen = false }
 
@@ -374,6 +463,12 @@ class MainActivity : ComponentActivity() {
                         else -> MainAppShell(
                             role = role,
                             currentTab = tab,
+                            currentOverlay = when {
+                                massasHistoryOpen -> Overlay.MASSAS_HISTORY
+                                historyOpen -> Overlay.REPORTS_HISTORY
+                                loadingHistoryOpen -> Overlay.LOADING_HISTORY
+                                else -> null
+                            },
                             onSelectTab = { tab = it },
                             onOpenProfile = { profileOpen = true },
                             onGoToLogin = {
@@ -384,13 +479,40 @@ class MainActivity : ComponentActivity() {
                                 sessionScope.launch { authRepository.logout() }
                             },
                             updateAvailable = updateAvailable,
-                            destinations = destinations,
+                            tabDestinations = TAB_DESTINATIONS,
+                            drawerEntries = DRAWER_ENTRIES,
+                            onSelectDrawerEntry = { entry ->
+                                val target = entry.target
+                                // Salir de toda superposición antes de pintar el destino nuevo: un histórico
+                                // que sobreviviera a su visita taparía la pantalla que se acaba de pedir.
+                                massasHistoryOpen = false
+                                historyOpen = false
+                                loadingHistoryOpen = false
+                                adminRequestedSection = null
+                                if (target.tab != Tab.LOADING) {
+                                    loadingDay = null
+                                    loadingDayFromHistory = false
+                                }
+                                if (target.tab != Tab.MASSAS_LAUNCH) {
+                                    massasLaunchDay = null
+                                    massasDayFromHistory = false
+                                }
+                                when (target.overlay) {
+                                    Overlay.MASSAS_HISTORY -> massasHistoryOpen = true
+                                    Overlay.REPORTS_HISTORY -> historyOpen = true
+                                    Overlay.LOADING_HISTORY -> loadingHistoryOpen = true
+                                    Overlay.ADMIN_AUDIT -> adminRequestedSection =
+                                        com.trindade.app.admin.AdminSection.AUDIT
+                                    null -> Unit
+                                }
+                                tab = target.tab
+                            },
                             drawerState = drawerState,
                         ) {
                             when (tab) {
                                 Tab.ASSAI -> {
                                     BackHandler(enabled = !drawerState.isOpen, onBack = onBackAssaiTab)
-                                    AssaiCalculatorScreen(onBack = onBackAssaiTab)
+                                    AssaiCalculatorScreen()
                                 }
                                 Tab.SHARE -> {
                                     BackHandler(enabled = !drawerState.isOpen, onBack = onBackShareTab)
@@ -412,21 +534,6 @@ class MainActivity : ComponentActivity() {
                                         onBackToHistory = if (massasDayFromHistory) onBackMassasLaunchTab else null,
                                     )
                                 }
-                                Tab.MASSAS_HISTORY -> {
-                                    val onBackMassasHistoryTab = { tab = Tab.MASSAS_LAUNCH }
-                                    BackHandler(enabled = !drawerState.isOpen, onBack = onBackMassasHistoryTab)
-                                    val historyViewModel: com.trindade.app.massas.MassasHistoryViewModel = hiltViewModel()
-                                    com.trindade.app.massas.MassasHistoryScreen(
-                                        viewModel = historyViewModel,
-                                        onBack = onBackMassasHistoryTab,
-                                        onSelectDate = { selectedDate ->
-                                            massasLaunchDay = selectedDate
-                                            val isToday = selectedDate == com.trindade.app.massas.MassasLaunchViewModel.saopauloToday()
-                                            massasDayFromHistory = !isToday
-                                            tab = Tab.MASSAS_LAUNCH
-                                        },
-                                    )
-                                }
                                 // El histórico propaga el rol resuelto de sesión para que el
                                 // Administrador pueda realizar correcciones sobre días anteriores.
                                 Tab.STOCK_HISTORY -> {
@@ -439,7 +546,10 @@ class MainActivity : ComponentActivity() {
                                 }
                                 Tab.STOCK_COUNTER -> {
                                     BackHandler(enabled = !drawerState.isOpen) { tab = Tab.DASHBOARD }
-                                    StockCalculatorScreen(role = role)
+                                    StockCalculatorScreen(
+                                        role = role,
+                                        onOpenHistory = { tab = Tab.STOCK_HISTORY },
+                                    )
                                 }
                                 Tab.DASHBOARD -> DashboardRoute(
                                     sessionKey = sessionKey,
@@ -491,25 +601,13 @@ class MainActivity : ComponentActivity() {
                                         onStaleRead = { loadingStale = false },
                                     )
                                 }
-                                Tab.TASKS -> {
-                                    BackHandler(enabled = !drawerState.isOpen, onBack = onBackTasksTab)
-                                    TasksRoute(
-                                        sessionKey = sessionKey,
-                                        onBack = onBackTasksTab,
-                                    )
-                                }
-                                Tab.DRIVERS -> {
-                                    BackHandler(enabled = !drawerState.isOpen, onBack = onBackDriversTab)
-                                    DriversRoute(
-                                        sessionKey = sessionKey,
-                                        onBack = onBackDriversTab,
-                                    )
-                                }
                                 Tab.ADMIN -> {
                                     BackHandler(enabled = !drawerState.isOpen, onBack = onBackAdminTab)
                                     AdminPanelRoute(
                                         sessionKey = sessionKey,
                                         onBack = onBackAdminTab,
+                                        openSection = adminRequestedSection,
+                                        onOpenSectionHandled = { adminRequestedSection = null },
                                     )
                                 }
                             }
@@ -584,9 +682,9 @@ fun AppRoot(
  * verify tab indicator semantics, header actions, and role-based destination filtering without an
  * activity or dependency container.
  *
- * The shell keeps the branded header with the profile action at the top, followed by an active
- * Material3 [PrimaryScrollableTabRow] showing the destinations permitted for [role] by [RolePolicy], and renders
- * [content] in the remaining body space.
+ * The shell keeps the branded header with the menu and profile actions at the top, followed by an active
+ * Material3 [PrimaryScrollableTabRow] showing the destinations permitted for [role] by [RolePolicy] and a
+ * drawer listing every surface the role may open, and renders [content] in the remaining body space.
  */
 @Composable
 fun MainAppShell(
@@ -599,7 +697,15 @@ fun MainAppShell(
     onGoToLogin: () -> Unit = {},
     updateAvailable: Boolean = false,
     modifier: Modifier = Modifier,
-    destinations: List<Pair<RolePolicy.EntryPoint, MainActivity.Tab>> = MainActivity.DEFAULT_DESTINATIONS,
+    // La superposición que ocupa la pantalla, si hay una: sin esto el cajón marcaría como elegido el
+    // módulo padre del histórico que se está leyendo, y dos filas quedarían encendidas a la vez.
+    currentOverlay: MainActivity.Overlay? = null,
+    tabDestinations: List<MainActivity.Destination> = MainActivity.TAB_DESTINATIONS,
+    drawerEntries: List<MainActivity.DrawerEntry> = MainActivity.DRAWER_ENTRIES,
+    // El cajón llega a superficies que no son pestañas -- tres históricos y la auditoría --, así que el
+    // armazón avisa el destino entero y deja a la actividad decidir cómo se abre. El default sirve a las
+    // pruebas que sólo quieren ver la fila moverse.
+    onSelectDrawerEntry: (MainActivity.Destination) -> Unit = { onSelectTab(it.target.tab) },
     drawerState: DrawerState = rememberDrawerState(initialValue = DrawerValue.Closed),
     content: @Composable () -> Unit,
 ) {
@@ -673,12 +779,32 @@ fun MainAppShell(
         )
     }
 
-    val visibleTabs = remember(role, destinations) {
-        RolePolicy.visibleDestinations(role, destinations)
+    val visibleTabs = remember(role, tabDestinations) {
+        val allowed = RolePolicy.visibleEntryPoints(role)
+        tabDestinations.filter { it.entryPoint in allowed }
     }
-    val selectedIndex = if (visibleTabs.isEmpty()) 0 else {
-        visibleTabs.indexOf(currentTab).let { if (it >= 0) it else 0 }
+    val visibleDrawer = remember(role, drawerEntries) {
+        val allowed = RolePolicy.visibleEntryPoints(role)
+        val shown = mutableListOf<MainActivity.DrawerEntry>()
+        // Un encabezado se dibuja sólo si alguna fila lo sigue: el filtro por rol puede vaciar un grupo
+        // entero, y un título sobre nada es una promesa que la pantalla no cumple.
+        var pendingSection: MainActivity.DrawerEntry.Section? = null
+        drawerEntries.forEach { entry ->
+            when (entry) {
+                is MainActivity.DrawerEntry.Section -> pendingSection = entry
+                is MainActivity.DrawerEntry.Link -> if (entry.destination.entryPoint in allowed) {
+                    pendingSection?.let {
+                        shown += it
+                        pendingSection = null
+                    }
+                    shown += entry
+                }
+            }
+        }
+        shown
     }
+    val selectedIndex = visibleTabs.indexOfFirst { it.target.tab == currentTab }.coerceAtLeast(0)
+    val activeTarget = MainActivity.NavTarget(currentTab, currentOverlay)
     val scope = rememberCoroutineScope()
 
     ModalNavigationDrawer(
@@ -700,23 +826,42 @@ fun MainAppShell(
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
                         )
-                        visibleTabs.forEach { destination ->
-                            NavigationDrawerItem(
-                                label = {
-                                    Text(
-                                        text = stringResource(destination.label),
-                                        style = MaterialTheme.typography.labelLarge,
+                        visibleDrawer.forEach { entry ->
+                            when (entry) {
+                                is MainActivity.DrawerEntry.Section -> Text(
+                                    text = stringResource(entry.label),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.padding(start = 28.dp, top = 16.dp, bottom = 8.dp),
+                                )
+                                is MainActivity.DrawerEntry.Link -> {
+                                    val destination = entry.destination
+                                    NavigationDrawerItem(
+                                        label = {
+                                            Text(
+                                                text = stringResource(destination.label),
+                                                style = MaterialTheme.typography.labelLarge,
+                                            )
+                                        },
+                                        icon = {
+                                            Icon(
+                                                painter = painterResource(destination.icon),
+                                                contentDescription = null,
+                                                modifier = Modifier.size(24.dp),
+                                            )
+                                        },
+                                        selected = destination.target == activeTarget,
+                                        onClick = {
+                                            onSelectDrawerEntry(destination)
+                                            scope.launch { drawerState.close() }
+                                        },
+                                        modifier = Modifier
+                                            .padding(NavigationDrawerItemDefaults.ItemPadding)
+                                            .defaultMinSize(minHeight = 48.dp),
                                     )
-                                },
-                                selected = currentTab == destination,
-                                onClick = {
-                                    onSelectTab(destination)
-                                    scope.launch { drawerState.close() }
-                                },
-                                modifier = Modifier
-                                    .padding(NavigationDrawerItemDefaults.ItemPadding)
-                                    .defaultMinSize(minHeight = 48.dp),
-                            )
+                                }
+                            }
                         }
                         Spacer(Modifier.height(16.dp))
                         // El credito va al pie del cajon desplegable: ahi no estorba a ninguna pantalla y no hay
@@ -742,10 +887,18 @@ fun MainAppShell(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        NavigationActionButton(
+                        IconButton(
                             onClick = { scope.launch { drawerState.open() } },
-                            text = stringResource(R.string.nav_menu),
-                        )
+                            modifier = Modifier
+                                .testTag("header_menu_button")
+                                .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp),
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_menu),
+                                contentDescription = stringResource(R.string.nav_menu),
+                                modifier = Modifier.size(24.dp),
+                            )
+                        }
                         Text(
                             text = stringResource(R.string.nav_brand_title),
                             style = MaterialTheme.typography.titleLarge,
@@ -757,10 +910,30 @@ fun MainAppShell(
                                 .weight(1f, fill = false)
                                 .padding(horizontal = 8.dp),
                         )
-                        NavigationActionButton(
+                        IconButton(
                             onClick = onOpenProfile,
-                            text = if (updateAvailable) "${stringResource(R.string.profile_title)} •" else stringResource(R.string.profile_title),
-                        )
+                            modifier = Modifier
+                                .testTag("header_profile_button")
+                                .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp),
+                        ) {
+                            Box {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_profile),
+                                    contentDescription = stringResource(R.string.profile_title),
+                                    modifier = Modifier.size(24.dp),
+                                )
+                                // El punto de la actualización disponible: el perfil es donde se descarga,
+                                // y el ícono lo avisa sin agregar una palabra al encabezado.
+                                if (updateAvailable) {
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .size(8.dp)
+                                            .background(MaterialTheme.colorScheme.error, CircleShape),
+                                    )
+                                }
+                            }
+                        }
                     }
 
                     if (visibleTabs.isNotEmpty()) {
@@ -774,19 +947,19 @@ fun MainAppShell(
                         ) {
                             visibleTabs.forEach { destination ->
                                 Tab(
-                                    selected = currentTab == destination,
-                                    onClick = { onSelectTab(destination) },
+                                    selected = currentTab == destination.target.tab,
+                                    onClick = { onSelectTab(destination.target.tab) },
                                     modifier = Modifier.defaultMinSize(minHeight = 48.dp),
                                     text = {
                                         Text(
                                             text = stringResource(destination.label),
                                             maxLines = 1,
-                                            style = if (currentTab == destination) {
+                                            style = if (currentTab == destination.target.tab) {
                                                 MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
                                             } else {
                                                 MaterialTheme.typography.labelLarge
                                             },
-                                            color = if (currentTab == destination) {
+                                            color = if (currentTab == destination.target.tab) {
                                                 MaterialTheme.colorScheme.primary
                                             } else {
                                                 MaterialTheme.colorScheme.onSurfaceVariant

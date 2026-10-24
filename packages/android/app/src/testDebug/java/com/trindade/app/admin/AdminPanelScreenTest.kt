@@ -82,14 +82,12 @@ class AdminPanelScreenTest {
     private fun copy(id: Int, vararg args: Any): String = context.getString(id, *args)
 
     private fun render(
-        onBack: () -> Unit = {},
         onOpenSection: (AdminSection) -> Unit = {},
         isAdmin: Boolean = true,
     ) {
         composeRule.setContent {
             TrindadeTheme {
                 AdminPanelScreen(
-                    onBack = onBack,
                     onOpenSection = onOpenSection,
                     isAdmin = isAdmin,
                 )
@@ -98,11 +96,13 @@ class AdminPanelScreenTest {
     }
 
     @Test
-    fun `admin panel renders header title and description`() {
+    fun `admin panel renders its description and no section of its own title`() {
         render()
 
-        composeRule.onNodeWithText(copy(R.string.admin_panel_title)).assertIsDisplayed()
         composeRule.onNodeWithText(copy(R.string.admin_panel_description)).assertIsDisplayed()
+        // La raíz no repite el nombre de la pestaña ni ofrece volver a ninguna parte.
+        composeRule.onAllNodesWithText(copy(R.string.admin_panel_title)).assertCountEquals(0)
+        composeRule.onAllNodesWithText(copy(R.string.report_back)).assertCountEquals(0)
     }
 
     @Test
@@ -113,7 +113,7 @@ class AdminPanelScreenTest {
         composeRule.onNodeWithText(copy(R.string.admin_section_categories)).assertIsDisplayed()
         composeRule.onNodeWithText(copy(R.string.admin_section_categories_desc)).assertIsDisplayed()
 
-        composeRule.onAllNodesWithText(copy(R.string.admin_access_section))[0].performClick()
+        composeRule.onAllNodesWithText(copy(R.string.admin_access_section))[2].performClick()
         assertEquals(AdminSection.CATEGORIES, openedSection)
     }
 
@@ -125,7 +125,7 @@ class AdminPanelScreenTest {
         composeRule.onNodeWithText(copy(R.string.admin_section_vehicles)).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText(copy(R.string.admin_section_vehicles_desc)).performScrollTo().assertIsDisplayed()
 
-        composeRule.onAllNodesWithText(copy(R.string.admin_access_section))[1].performScrollTo().performClick()
+        composeRule.onAllNodesWithText(copy(R.string.admin_access_section))[3].performScrollTo().performClick()
         assertEquals(AdminSection.VEHICLES, openedSection)
     }
 
@@ -137,7 +137,7 @@ class AdminPanelScreenTest {
         composeRule.onNodeWithText(copy(R.string.admin_section_time_slots)).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText(copy(R.string.admin_section_time_slots_desc)).performScrollTo().assertIsDisplayed()
 
-        composeRule.onAllNodesWithText(copy(R.string.admin_access_section))[2].performScrollTo().performClick()
+        composeRule.onAllNodesWithText(copy(R.string.admin_access_section))[4].performScrollTo().performClick()
         assertEquals(AdminSection.TIME_SLOTS, openedSection)
     }
 
@@ -149,7 +149,7 @@ class AdminPanelScreenTest {
         composeRule.onNodeWithText(copy(R.string.admin_section_users)).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText(copy(R.string.admin_section_users_desc)).performScrollTo().assertIsDisplayed()
 
-        composeRule.onAllNodesWithText(copy(R.string.admin_access_section))[3].performScrollTo().performClick()
+        composeRule.onAllNodesWithText(copy(R.string.admin_access_section))[5].performScrollTo().performClick()
         assertEquals(AdminSection.USERS, openedSection)
     }
 
@@ -161,7 +161,7 @@ class AdminPanelScreenTest {
         composeRule.onNodeWithText(copy(R.string.admin_section_audit)).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText(copy(R.string.admin_section_audit_desc)).performScrollTo().assertIsDisplayed()
 
-        composeRule.onAllNodesWithText(copy(R.string.admin_access_section))[4].performScrollTo().performClick()
+        composeRule.onAllNodesWithText(copy(R.string.admin_access_section))[6].performScrollTo().performClick()
         assertEquals(AdminSection.AUDIT, openedSection)
     }
 
@@ -169,16 +169,18 @@ class AdminPanelScreenTest {
     fun `admin panel does not expose any admin cards to worker`() {
         render(isAdmin = false)
 
+        composeRule.onNodeWithText(copy(R.string.admin_section_tasks)).assertIsDisplayed()
+        composeRule.onNodeWithText(copy(R.string.admin_section_drivers)).performScrollTo().assertIsDisplayed()
         composeRule.onAllNodesWithText(copy(R.string.admin_section_categories)).assertCountEquals(0)
         composeRule.onAllNodesWithText(copy(R.string.admin_section_vehicles)).assertCountEquals(0)
         composeRule.onAllNodesWithText(copy(R.string.admin_section_time_slots)).assertCountEquals(0)
         composeRule.onAllNodesWithText(copy(R.string.admin_section_users)).assertCountEquals(0)
         composeRule.onAllNodesWithText(copy(R.string.admin_section_audit)).assertCountEquals(0)
-        composeRule.onAllNodesWithText(copy(R.string.admin_access_section)).assertCountEquals(0)
+        composeRule.onAllNodesWithText(copy(R.string.admin_access_section)).assertCountEquals(2)
     }
 
     @Test
-    fun `admin panel route with worker session role from authRepository hides all admin cards`() {
+    fun `admin panel route with worker session role shows tasks and drivers only`() {
         val authRepository = createAuthRepository(role = RolePolicy.WORKER)
         composeRule.setContent {
             TrindadeTheme {
@@ -190,12 +192,14 @@ class AdminPanelScreenTest {
             }
         }
 
+        composeRule.onNodeWithText(copy(R.string.admin_section_tasks)).assertIsDisplayed()
+        composeRule.onNodeWithText(copy(R.string.admin_section_drivers)).performScrollTo().assertIsDisplayed()
         composeRule.onAllNodesWithText(copy(R.string.admin_section_categories)).assertCountEquals(0)
         composeRule.onAllNodesWithText(copy(R.string.admin_section_vehicles)).assertCountEquals(0)
         composeRule.onAllNodesWithText(copy(R.string.admin_section_time_slots)).assertCountEquals(0)
         composeRule.onAllNodesWithText(copy(R.string.admin_section_users)).assertCountEquals(0)
         composeRule.onAllNodesWithText(copy(R.string.admin_section_audit)).assertCountEquals(0)
-        composeRule.onAllNodesWithText(copy(R.string.admin_access_section)).assertCountEquals(0)
+        composeRule.onAllNodesWithText(copy(R.string.admin_access_section)).assertCountEquals(2)
     }
 
     @Test
@@ -216,6 +220,48 @@ class AdminPanelScreenTest {
         composeRule.onNodeWithText(copy(R.string.admin_section_time_slots)).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText(copy(R.string.admin_section_users)).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText(copy(R.string.admin_section_audit)).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun `tasks and drivers open from the panel for a worker`() {
+        val authRepository = createAuthRepository(role = RolePolicy.WORKER)
+        composeRule.setContent {
+            TrindadeTheme {
+                AdminPanelRoute(
+                    sessionKey = "test-session",
+                    onBack = {},
+                    authRepository = authRepository,
+                    sectionContent = { section, onBack ->
+                        // El hook de prueba no navega: lo que se mira es qué sección se abre.
+                        Text("Active section: ${section.name}")
+                    },
+                )
+            }
+        }
+
+        composeRule.onAllNodesWithText(copy(R.string.admin_access_section))[0].performClick()
+        composeRule.onNodeWithText("Active section: TASKS").assertIsDisplayed()
+    }
+
+    @Test
+    fun `a section requested from the drawer opens once and is handed back`() {
+        val authRepository = createAuthRepository(role = RolePolicy.ADMIN)
+        var handled = 0
+        composeRule.setContent {
+            TrindadeTheme {
+                AdminPanelRoute(
+                    sessionKey = "test-session",
+                    onBack = {},
+                    authRepository = authRepository,
+                    openSection = AdminSection.AUDIT,
+                    onOpenSectionHandled = { handled++ },
+                    sectionContent = { section, _ -> Text("Active section: ${section.name}") },
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Active section: AUDIT").assertIsDisplayed()
+        assertEquals(1, handled)
     }
 
     @Test
@@ -245,15 +291,6 @@ class AdminPanelScreenTest {
     }
 
     @Test
-    fun `back button invokes onBack callback`() {
-        var backInvoked = false
-        render(onBack = { backInvoked = true })
-
-        composeRule.onNodeWithText(copy(R.string.report_back)).performClick()
-        assertEquals(true, backInvoked)
-    }
-
-    @Test
     fun `admin panel route preserves selected section across state restoration`() {
         val authRepository = createAuthRepository(role = RolePolicy.ADMIN)
         val restorationTester = StateRestorationTester(composeRule)
@@ -272,7 +309,7 @@ class AdminPanelScreenTest {
         }
 
         // Open Time Slots section
-        composeRule.onAllNodesWithText(copy(R.string.admin_access_section))[2].performScrollTo().performClick()
+        composeRule.onAllNodesWithText(copy(R.string.admin_access_section))[4].performScrollTo().performClick()
         composeRule.onNodeWithText("Active section: TIME_SLOTS").assertIsDisplayed()
 
         // Emulate state restoration (e.g. rotation / process recreation)
@@ -287,9 +324,9 @@ class AdminPanelScreenTest {
         render()
 
         val accessNodes = composeRule.onAllNodesWithText(copy(R.string.admin_access_section))
-        accessNodes.assertCountEquals(5)
+        accessNodes.assertCountEquals(7)
 
-        for (i in 0 until 5) {
+        for (i in 0 until 7) {
             val node = accessNodes[i]
             node.performScrollTo().assertIsDisplayed()
             val bounds = node.getUnclippedBoundsInRoot()

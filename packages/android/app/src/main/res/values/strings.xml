@@ -176,6 +176,9 @@
     <!-- The branded header title for the top-level app shell. -->
     <string name="nav_brand_title">Trindade Massas</string>
     <string name="nav_menu">Menu</string>
+    <!-- The two group headings of the navigation drawer, as the web sidebar writes them. -->
+    <string name="nav_section_operations">OPERAÇÕES</string>
+    <string name="nav_section_administration">ADMINISTRAÇÃO</string>
     <string name="nav_tasks">Tarefas</string>
     <string name="nav_drivers">Motoristas</string>
     <string name="nav_categories">Categorias</string>
@@ -331,6 +334,10 @@
 
     <string name="admin_panel_title">Painel Admin</string>
     <string name="admin_panel_description">Gerenciamento e configurações administrativas</string>
+    <string name="admin_section_tasks">Tarefas</string>
+    <string name="admin_section_tasks_desc">Tipos de tarefa usados nos relatórios</string>
+    <string name="admin_section_drivers">Motoristas</string>
+    <string name="admin_section_drivers_desc">Cadastro dos motoristas que assinam os relatórios</string>
     <string name="admin_section_categories">Categorias</string>
     <string name="admin_section_categories_desc">Gerenciamento de tipos e agrupamentos de tarefas</string>
     <string name="admin_section_vehicles">Veículos</string>

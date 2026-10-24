@@ -1,16 +1,17 @@
 package com.trindade.app.stock
 
-import android.app.DatePickerDialog
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -23,6 +24,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -50,9 +52,6 @@ import com.trindade.app.ui.components.ModuleHelpButton
 import com.trindade.app.ui.components.ModuleHelpDialog
 import com.trindade.app.ui.resolve
 import com.trindade.app.ui.filterPhoneDigits
-import com.trindade.app.ui.saoPauloLocalDate
-import java.time.LocalDate
-import java.util.Locale
 
 /**
  * The counter, held in one hand at a shelf.
@@ -67,6 +66,8 @@ import java.util.Locale
 @Composable
 fun StockCalculatorScreen(
     role: String? = null,
+    // El histórico dejó de ser una pestaña: es la acción de este módulo, igual que en la web.
+    onOpenHistory: () -> Unit = {},
     viewModel: StockViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -93,10 +94,22 @@ fun StockCalculatorScreen(
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.End,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(stringResource(R.string.nav_stock_counter), style = MaterialTheme.typography.titleLarge)
+            OutlinedButton(
+                onClick = onOpenHistory,
+                shape = RoundedCornerShape(8.dp),
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                modifier = Modifier
+                    .height(36.dp)
+                    .padding(end = 8.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.report_history),
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                )
+            }
             ModuleHelpButton(onClick = { showHelpDialog = true })
         }
         Text(
@@ -104,26 +117,6 @@ fun StockCalculatorScreen(
             else stringResource(R.string.stock_calculator_subtitle_readonly),
             style = MaterialTheme.typography.bodySmall,
         )
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            OutlinedTextField(
-                value = state.date,
-                onValueChange = { viewModel.onDateChange(it) },
-                label = { Text(stringResource(R.string.stock_count_day)) },
-                placeholder = { Text("AAAA-MM-DD") },
-                singleLine = true,
-                modifier = Modifier.weight(1f),
-            )
-            Button(
-                onClick = { openDayPicker(context, state.date) { viewModel.onDateChange(it) } },
-            ) {
-                Text(stringResource(R.string.stock_pick_date))
-            }
-        }
 
         if (state.loading) {
             Box(
@@ -408,18 +401,3 @@ internal fun StockCollectiveSummary(
         }
     }
 }
-
-private fun openDayPicker(context: Context, selected: String?, onPick: (String) -> Unit) {
-    val initial = selected?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: saoPauloLocalDate()
-
-    DatePickerDialog(
-        context,
-        { _, year, month, day -> onPick(isoDay(year, month + 1, day)) },
-        initial.year,
-        initial.monthValue - 1,
-        initial.dayOfMonth,
-    ).show()
-}
-
-private fun isoDay(year: Int, month: Int, day: Int): String =
-    String.format(Locale.ROOT, "%04d-%02d-%02d", year, month, day)

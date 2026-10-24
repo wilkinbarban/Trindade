@@ -49,10 +49,17 @@ object RolePolicy {
         CATALOG_DRIVERS,
 
         /**
-         * `adminGuard` on the tab, and this is the entry that shows why the guard alone is not the whole
-         * answer: a worker may *read* categories -- the report generator offers them -- while the admin
-         * tab's routes are the administrator's. The entry point is the tab, so the role that cannot open it
-         * does not get it.
+         * The panel's door, which both roles open: behind it sit the two `catalogGuard` surfaces a worker
+         * keeps current (tasks and drivers) and the `adminGuard` ones only the administrator sees. The
+         * door is shared and each card inside answers for itself, which is why this entry is not
+         * [CATEGORIES] -- a worker gets the door and not the administrator's cards.
+         */
+        ADMIN_PANEL,
+
+        /**
+         * `adminGuard` on the section, and this is the entry that shows why the guard alone is not the whole
+         * answer: a worker may *read* categories -- the report generator offers them -- while the panel's
+         * administrator sections are the administrator's.
          */
         CATEGORIES,
 
@@ -105,6 +112,7 @@ object RolePolicy {
         EntryPoint.LOADING,
         EntryPoint.CATALOG_TASKS,
         EntryPoint.CATALOG_DRIVERS,
+        EntryPoint.ADMIN_PANEL,
         EntryPoint.ASSAI_ORDER,
         EntryPoint.STOCK_COUNTER,
         EntryPoint.STOCK_HISTORY,

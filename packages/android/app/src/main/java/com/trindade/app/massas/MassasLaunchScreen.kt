@@ -109,43 +109,38 @@ fun MassasLaunchScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        // Encabezado con título y botones de acción
+        // Encabezado: sus acciones, sin repetir el título que la pestaña ya dice. El "Voltar" sólo
+        // aparece en el día leído desde el histórico, que es la subpantalla de este módulo.
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.End,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                modifier = Modifier.weight(1f),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                if (state.isReadOnly && onBackToHistory != null) {
-                    NavigationActionButton(
-                        onClick = onBackToHistory,
-                        text = stringResource(R.string.report_back),
-                    )
-                }
-                Column(modifier = Modifier.weight(1f, fill = false)) {
-                    Text(
-                        text = stringResource(R.string.massas_title),
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = if (state.isReadOnly) {
-                            stringResource(R.string.massas_production_date, state.date)
-                        } else {
-                            stringResource(R.string.massas_tagline)
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
+            if (state.isReadOnly && onBackToHistory != null) {
+                NavigationActionButton(
+                    onClick = onBackToHistory,
+                    text = stringResource(R.string.report_back),
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = stringResource(R.string.massas_production_date, state.date),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+            } else {
+                Text(
+                    text = stringResource(R.string.massas_tagline),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    // Dos líneas: la frase entera comparte la fila con los dos botones y en una sola
+                    // quedaba cortada a media palabra.
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (!state.isReadOnly) {
@@ -156,7 +151,7 @@ fun MassasLaunchScreen(
                         modifier = Modifier.height(36.dp),
                     ) {
                         Text(
-                            text = "Histórico",
+                            text = stringResource(R.string.report_history),
                             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
                         )
                     }

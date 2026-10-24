@@ -375,6 +375,7 @@ class LoadingScreenTest {
                 LoadingScreen(
                     state = state(),
                     onBack = { backed++ },
+                    showBack = true,
                     onOpenHistory = { openedHistory++ },
                     onStartAdding = {},
                     onCancelAdding = {},
@@ -503,9 +504,8 @@ class LoadingScreenTest {
             }
         }
 
-        // Header title and navigation action button
-        val titleNode = composeRule.onNodeWithText(copy(R.string.loading_title)).performScrollTo()
-        assertWithinViewport(titleNode)
+        // La raíz del módulo ya no repite el título que la pestaña dice: sólo quedan sus acciones.
+        composeRule.onAllNodesWithText(copy(R.string.loading_title)).assertCountEquals(0)
 
         val historyNode = composeRule.onNodeWithText(copy(R.string.report_history)).performScrollTo()
         assertWithinViewport(historyNode)
@@ -581,9 +581,8 @@ class LoadingScreenTest {
             }
         }
 
-        // Header title and navigation action button
-        val titleNode = composeRule.onNodeWithText(copy(R.string.loading_title)).performScrollTo()
-        assertWithinViewport(titleNode)
+        // La raíz del módulo ya no repite el título que la pestaña dice: sólo quedan sus acciones.
+        composeRule.onAllNodesWithText(copy(R.string.loading_title)).assertCountEquals(0)
 
         val historyNode = composeRule.onNodeWithText(copy(R.string.report_history)).performScrollTo()
         assertWithinViewport(historyNode)

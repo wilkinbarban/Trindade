@@ -37,7 +37,6 @@ import com.trindade.app.ui.BrazilianPhoneVisualTransformation
 import com.trindade.app.ui.components.HelpSection
 import com.trindade.app.ui.components.ModuleHelpButton
 import com.trindade.app.ui.components.ModuleHelpDialog
-import com.trindade.app.ui.components.NavigationActionButton
 import com.trindade.app.ui.filterPhoneDigits
 
 /**
@@ -50,7 +49,6 @@ import com.trindade.app.ui.filterPhoneDigits
  */
 @Composable
 fun AssaiCalculatorScreen(
-    onBack: () -> Unit = {},
     viewModel: AssaiViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -70,18 +68,12 @@ fun AssaiCalculatorScreen(
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
+        // La raíz del módulo no lleva "Voltar" ni el título que la pestaña ya dice: sólo sus acciones.
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.End,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                NavigationActionButton(onClick = onBack, text = stringResource(R.string.report_back))
-                Text(stringResource(R.string.assai_title), style = MaterialTheme.typography.titleLarge)
-            }
             ModuleHelpButton(onClick = { showHelpDialog = true })
         }
         Text(

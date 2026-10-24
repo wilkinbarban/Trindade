@@ -78,11 +78,11 @@ fun ReportGeneratorScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                ModuleHelpButton(onClick = { showHelpDialog = true })
                 NavigationActionButton(
                     onClick = onOpenHistory,
                     text = stringResource(R.string.report_history),
                 )
+                ModuleHelpButton(onClick = { showHelpDialog = true })
             }
         }
 

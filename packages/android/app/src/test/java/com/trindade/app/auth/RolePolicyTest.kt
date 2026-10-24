@@ -30,6 +30,7 @@ class RolePolicyTest {
                 EntryPoint.LOADING,
                 EntryPoint.CATALOG_TASKS,
                 EntryPoint.CATALOG_DRIVERS,
+                EntryPoint.ADMIN_PANEL,
                 EntryPoint.ASSAI_ORDER,
                 EntryPoint.STOCK_COUNTER,
                 EntryPoint.STOCK_HISTORY,

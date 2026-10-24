@@ -23,10 +23,12 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -53,12 +55,11 @@ import org.robolectric.annotation.GraphicsMode
 /**
  * Navigation shell tests for [MainAppShell] and [AppRoot].
  *
- * Verifies that the Hilt-free top-level navigation shell renders the branded header with
- * profile action, displays the active Material3 tab indicator across visible destinations
- * (Dashboard, Reports, Loading, Tasks, Drivers, and Admin), respects [RolePolicy] filtering,
- * properly dispatches tab selection and profile open events, confirms [AppRoot] hosts
- * application destinations with safe drawing insets, and verifies [NavigationActionButton]
- * provides minimum touch target size >= 48dp.
+ * Verifies that the Hilt-free top-level navigation shell renders the icon-only header (menu and
+ * profile), displays the active Material3 tab indicator across the eight row destinations, lists in
+ * the drawer every surface the web lists (histories included) with role filtering, dispatches tab,
+ * drawer and overlay selection, confirms [AppRoot] hosts application destinations with safe drawing
+ * insets, and verifies [NavigationActionButton] provides minimum touch target size >= 48dp.
  */
 @RunWith(AndroidJUnit4::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -77,7 +78,7 @@ class MainActivityNavigationTest {
         currentTab: MainActivity.Tab = MainActivity.Tab.DASHBOARD,
         onSelectTab: (MainActivity.Tab) -> Unit = {},
         onOpenProfile: () -> Unit = {},
-        destinations: List<Pair<RolePolicy.EntryPoint, MainActivity.Tab>> = MainActivity.DEFAULT_DESTINATIONS,
+        tabDestinations: List<MainActivity.Destination> = MainActivity.TAB_DESTINATIONS,
         content: @Composable () -> Unit = { Text("Destination Content") },
     ) {
         composeRule.setContent {
@@ -87,10 +88,35 @@ class MainActivityNavigationTest {
                     currentTab = currentTab,
                     onSelectTab = onSelectTab,
                     onOpenProfile = onOpenProfile,
-                    destinations = destinations,
+                    tabDestinations = tabDestinations,
                     content = content,
                 )
             }
+        }
+    }
+
+    private fun renderAtPhoneWidth(
+        role: String,
+        currentTab: () -> MainActivity.Tab = { MainActivity.Tab.DASHBOARD },
+        onSelectTab: (MainActivity.Tab) -> Unit = {},
+    ) {
+        composeRule.setContent {
+            TrindadeTheme {
+                Box(Modifier.width(411.dp)) {
+                    MainAppShell(role, currentTab(), onSelectTab, {}) { Text("Body") }
+                }
+            }
+        }
+    }
+
+    private fun assertReadableTabs(tabs: List<MainActivity.Destination>) {
+        tabs.forEach { destination ->
+            val label = composeRule.onNodeWithText(copy(destination.label))
+            label.performScrollTo()
+            label.assertIsDisplayed()
+            val bounds = label.getUnclippedBoundsInRoot()
+            assertTrue("${copy(destination.label)} must have room for its text", bounds.right - bounds.left >= 80.dp)
+            assertTrue(label.fetchSemanticsNode().config.contains(SemanticsProperties.Text))
         }
     }
 
@@ -100,29 +126,26 @@ class MainActivityNavigationTest {
         render(onOpenProfile = { profileOpened = true })
 
         composeRule.onNodeWithText(copy(R.string.nav_brand_title)).assertIsDisplayed()
-        composeRule.onNodeWithText(copy(R.string.profile_title)).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(copy(R.string.profile_title)).assertIsDisplayed()
 
-        composeRule.onNodeWithText(copy(R.string.profile_title)).performClick()
+        composeRule.onNodeWithContentDescription(copy(R.string.profile_title)).performClick()
         assertTrue(profileOpened)
     }
 
     @Test
-    fun `all five default tabs are displayed and only dashboard is selected by default`() {
+    fun `all eight default tabs are displayed and only dashboard is selected by default`() {
         render(currentTab = MainActivity.Tab.DASHBOARD)
 
-        // All 5 worker tabs are displayed; the scrollable row brings each one into view on narrow viewports
-        composeRule.onNodeWithText(copy(R.string.nav_dashboard)).assertIsDisplayed()
-        composeRule.onNodeWithText(copy(R.string.nav_reports)).assertIsDisplayed()
-        composeRule.onNodeWithText(copy(R.string.nav_loading)).assertIsDisplayed()
-        composeRule.onNodeWithText(copy(R.string.tasks_title)).performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText(copy(R.string.drivers_title)).performScrollTo().assertIsDisplayed()
+        // Las ocho de la fila, en el orden de la web: la fila deslizable trae cada una a la vista.
+        MainActivity.TAB_DESTINATIONS.forEach { destination ->
+            composeRule.onNodeWithText(copy(destination.label)).performScrollTo().assertIsDisplayed()
+        }
 
         // Dashboard is selected; exactly one tab is selected
         composeRule.onNodeWithText(copy(R.string.nav_dashboard)).assertIsSelected()
         composeRule.onAllNodes(SemanticsMatcher.expectValue(SemanticsProperties.Selected, true))
             .assertCountEquals(1)
     }
-
     @Test
     fun `reports tab is marked selected when active`() {
         render(currentTab = MainActivity.Tab.REPORTS)
@@ -142,23 +165,15 @@ class MainActivityNavigationTest {
     }
 
     @Test
-    fun `tasks tab is marked selected when active`() {
-        render(currentTab = MainActivity.Tab.TASKS)
+    fun `catalog surfaces are not tabs, they live inside the admin panel`() {
+        render(role = RolePolicy.WORKER)
 
-        composeRule.onNodeWithText(copy(R.string.tasks_title)).assertIsSelected()
-        composeRule.onAllNodes(SemanticsMatcher.expectValue(SemanticsProperties.Selected, true))
-            .assertCountEquals(1)
+        // Tarefas y Motoristas salieron de la fila: se llega a ellas desde el panel administrativo.
+        composeRule.onAllNodesWithText(copy(R.string.tasks_title)).assertCountEquals(0)
+        composeRule.onAllNodesWithText(copy(R.string.drivers_title)).assertCountEquals(0)
+        composeRule.onAllNodesWithText(copy(R.string.massas_history_title)).assertCountEquals(0)
+        composeRule.onAllNodesWithText(copy(R.string.nav_stock_history)).assertCountEquals(0)
     }
-
-    @Test
-    fun `drivers tab is marked selected when active`() {
-        render(currentTab = MainActivity.Tab.DRIVERS)
-
-        composeRule.onNodeWithText(copy(R.string.drivers_title)).assertIsSelected()
-        composeRule.onAllNodes(SemanticsMatcher.expectValue(SemanticsProperties.Selected, true))
-            .assertCountEquals(1)
-    }
-
     @Test
     fun `clicking each tab invokes onSelectTab with corresponding destination`() {
         var selectedDestination: MainActivity.Tab? = null
@@ -167,32 +182,31 @@ class MainActivityNavigationTest {
             onSelectTab = { selectedDestination = it },
         )
 
-        composeRule.onNodeWithText(copy(R.string.nav_reports)).performScrollTo().performClick()
-        assertEquals(MainActivity.Tab.REPORTS, selectedDestination)
-
-        composeRule.onNodeWithText(copy(R.string.nav_loading)).performScrollTo().performClick()
-        assertEquals(MainActivity.Tab.LOADING, selectedDestination)
-
-        composeRule.onNodeWithText(copy(R.string.tasks_title)).performScrollTo().performClick()
-        assertEquals(MainActivity.Tab.TASKS, selectedDestination)
-
-        composeRule.onNodeWithText(copy(R.string.drivers_title)).performScrollTo().performClick()
-        assertEquals(MainActivity.Tab.DRIVERS, selectedDestination)
-
-        composeRule.onNodeWithText(copy(R.string.nav_dashboard)).performScrollTo().performClick()
-        assertEquals(MainActivity.Tab.DASHBOARD, selectedDestination)
+        MainActivity.TAB_DESTINATIONS.forEach { destination ->
+            composeRule.onNodeWithText(copy(destination.label)).performScrollTo().performClick()
+            assertEquals(destination.target.tab, selectedDestination)
+        }
     }
-
     @Test
     fun `role policy filtering hides unauthorized destinations for worker`() {
         val testDestinations = listOf(
-            RolePolicy.EntryPoint.DASHBOARD to MainActivity.Tab.DASHBOARD,
-            RolePolicy.EntryPoint.AUDIT to MainActivity.Tab.TASKS,
+            MainActivity.Destination(
+                RolePolicy.EntryPoint.DASHBOARD,
+                R.string.nav_dashboard,
+                R.drawable.ic_dashboard,
+                MainActivity.NavTarget(MainActivity.Tab.DASHBOARD),
+            ),
+            MainActivity.Destination(
+                RolePolicy.EntryPoint.AUDIT,
+                R.string.tasks_title,
+                R.drawable.ic_tasks,
+                MainActivity.NavTarget(MainActivity.Tab.ADMIN),
+            ),
         )
 
         render(
             role = RolePolicy.WORKER,
-            destinations = testDestinations,
+            tabDestinations = testDestinations,
         )
 
         composeRule.onNodeWithText(copy(R.string.nav_dashboard)).assertIsDisplayed()
@@ -202,29 +216,27 @@ class MainActivityNavigationTest {
     @Test
     fun `role policy filtering displays authorized destinations for administrator`() {
         val testDestinations = listOf(
-            RolePolicy.EntryPoint.DASHBOARD to MainActivity.Tab.DASHBOARD,
-            RolePolicy.EntryPoint.AUDIT to MainActivity.Tab.TASKS,
+            MainActivity.Destination(
+                RolePolicy.EntryPoint.DASHBOARD,
+                R.string.nav_dashboard,
+                R.drawable.ic_dashboard,
+                MainActivity.NavTarget(MainActivity.Tab.DASHBOARD),
+            ),
+            MainActivity.Destination(
+                RolePolicy.EntryPoint.AUDIT,
+                R.string.tasks_title,
+                R.drawable.ic_tasks,
+                MainActivity.NavTarget(MainActivity.Tab.ADMIN),
+            ),
         )
 
         render(
             role = RolePolicy.ADMIN,
-            destinations = testDestinations,
+            tabDestinations = testDestinations,
         )
 
         composeRule.onNodeWithText(copy(R.string.nav_dashboard)).assertIsDisplayed()
         composeRule.onNodeWithText(copy(R.string.tasks_title)).assertIsDisplayed()
-    }
-
-    @Test
-    fun `drivers tab is visible for worker role in default destinations`() {
-        render(role = RolePolicy.WORKER)
-        composeRule.onNodeWithText(copy(R.string.drivers_title)).performScrollTo().assertIsDisplayed()
-    }
-
-    @Test
-    fun `drivers tab is visible for administrator role in default destinations`() {
-        render(role = RolePolicy.ADMIN)
-        composeRule.onNodeWithText(copy(R.string.drivers_title)).performScrollTo().assertIsDisplayed()
     }
 
     @Test
@@ -234,11 +246,28 @@ class MainActivityNavigationTest {
     }
 
     @Test
-    fun `admin tab is hidden for worker role in default destinations`() {
-        render(role = RolePolicy.WORKER)
-        composeRule.onNodeWithText(copy(R.string.admin_panel_title)).assertDoesNotExist()
+    fun `administrator sees auditoria in the drawer and the worker does not`() {
+        render(role = RolePolicy.ADMIN)
+        composeRule.onNodeWithContentDescription(copy(R.string.nav_menu)).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNode(
+            hasText(copy(R.string.admin_section_audit)).and(hasAnyAncestor(hasTestTag("navigation_drawer_sheet"))),
+        ).performScrollTo().assertIsDisplayed()
     }
 
+    @Test
+    fun `worker drawer offers the panel but no administrator-only section`() {
+        render(role = RolePolicy.WORKER)
+        composeRule.onNodeWithContentDescription(copy(R.string.nav_menu)).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNode(
+            hasText(copy(R.string.admin_panel_title)).and(hasAnyAncestor(hasTestTag("navigation_drawer_sheet"))),
+        ).performScrollTo().assertIsDisplayed()
+        composeRule.onNode(
+            hasText(copy(R.string.admin_section_audit)).and(hasAnyAncestor(hasTestTag("navigation_drawer_sheet"))),
+        ).assertDoesNotExist()
+    }
     @Test
     fun `clicking admin tab invokes onSelectTab with admin destination`() {
         var selectedDestination: MainActivity.Tab? = null
@@ -256,51 +285,23 @@ class MainActivityNavigationTest {
     }
 
     @Test
-    fun `worker tabs remain readable and admin is absent at Pixel 8 width`() {
+    fun `every tab is readable at Pixel 8 width`() {
         renderAtPhoneWidth(RolePolicy.WORKER)
-        composeRule.onNodeWithText(copy(R.string.admin_panel_title)).assertDoesNotExist()
-        assertReadableTabs(MainActivity.Tab.entries.filter { it != MainActivity.Tab.ADMIN })
+        assertReadableTabs(MainActivity.TAB_DESTINATIONS)
     }
-
     @Test
     fun `administrator can reach the last tab at Pixel 8 width`() {
         var selected by mutableStateOf(MainActivity.Tab.DASHBOARD)
         renderAtPhoneWidth(RolePolicy.ADMIN, { selected }) { selected = it }
-        assertReadableTabs(MainActivity.Tab.entries)
-        val admin = composeRule.onNodeWithText(copy(R.string.admin_panel_title))
-        admin.performScrollTo()
-        admin.assertIsDisplayed()
-        admin.performClick()
-        assertEquals(MainActivity.Tab.ADMIN, selected)
-        admin.assertIsSelected()
-        admin.assertIsDisplayed()
+        assertReadableTabs(MainActivity.TAB_DESTINATIONS)
+        val last = MainActivity.TAB_DESTINATIONS.last()
+        val node = composeRule.onNodeWithText(copy(last.label))
+        node.performScrollTo()
+        node.performClick()
+        assertEquals(last.target.tab, selected)
+        node.assertIsSelected()
+        node.assertIsDisplayed()
     }
-
-    private fun renderAtPhoneWidth(
-        role: String,
-        currentTab: () -> MainActivity.Tab = { MainActivity.Tab.DASHBOARD },
-        onSelectTab: (MainActivity.Tab) -> Unit = {},
-    ) {
-        composeRule.setContent {
-            TrindadeTheme {
-                Box(Modifier.width(411.dp)) {
-                    MainAppShell(role, currentTab(), onSelectTab, {}) { Text("Body") }
-                }
-            }
-        }
-    }
-
-    private fun assertReadableTabs(tabs: List<MainActivity.Tab>) {
-        tabs.forEach { tab ->
-            val label = composeRule.onNodeWithText(copy(tab.label))
-            label.performScrollTo()
-            label.assertIsDisplayed()
-            val bounds = label.getUnclippedBoundsInRoot()
-            assertTrue("${copy(tab.label)} must have room for its text", bounds.right - bounds.left >= 80.dp)
-            assertTrue(label.fetchSemanticsNode().config.contains(SemanticsProperties.Text))
-        }
-    }
-
     @Test
     fun `shell renders provided body content`() {
         render {
@@ -341,7 +342,7 @@ class MainActivityNavigationTest {
         }
 
         composeRule.onNodeWithText(copy(R.string.nav_brand_title)).assertIsDisplayed()
-        composeRule.onNodeWithText(copy(R.string.profile_title)).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(copy(R.string.profile_title)).assertIsDisplayed()
         composeRule.onNodeWithText("Dashboard Body Content").assertIsDisplayed()
     }
 
@@ -507,7 +508,7 @@ class MainActivityNavigationTest {
     fun `app shell header profile button has minimum touch target of at least 48dp`() {
         render(role = RolePolicy.WORKER)
 
-        val profileNode = composeRule.onNodeWithText(copy(R.string.profile_title))
+        val profileNode = composeRule.onNodeWithContentDescription(copy(R.string.profile_title))
         profileNode.assertIsDisplayed()
         val bounds = profileNode.getUnclippedBoundsInRoot()
         val width = bounds.right - bounds.left
@@ -554,13 +555,13 @@ class MainActivityNavigationTest {
     fun `branded header renders menu button alongside brand title and profile action with touch target of at least 48dp`() {
         render(role = RolePolicy.WORKER)
 
-        val menuNode = composeRule.onNodeWithText(copy(R.string.nav_menu))
+        val menuNode = composeRule.onNodeWithContentDescription(copy(R.string.nav_menu))
         menuNode.assertIsDisplayed()
         val menuBounds = menuNode.getUnclippedBoundsInRoot()
         assertTrue("Menu button width (${menuBounds.right - menuBounds.left}) must be >= 48dp", menuBounds.right - menuBounds.left >= 48.dp)
         assertTrue("Menu button height (${menuBounds.bottom - menuBounds.top}) must be >= 48dp", menuBounds.bottom - menuBounds.top >= 48.dp)
 
-        val profileNode = composeRule.onNodeWithText(copy(R.string.profile_title))
+        val profileNode = composeRule.onNodeWithContentDescription(copy(R.string.profile_title))
         profileNode.assertIsDisplayed()
         val profileBounds = profileNode.getUnclippedBoundsInRoot()
         assertTrue("Profile button width (${profileBounds.right - profileBounds.left}) must be >= 48dp", profileBounds.right - profileBounds.left >= 48.dp)
@@ -593,7 +594,7 @@ class MainActivityNavigationTest {
             }
         }
 
-        val menuNode = composeRule.onNodeWithText(copy(R.string.nav_menu))
+        val menuNode = composeRule.onNodeWithContentDescription(copy(R.string.nav_menu))
         menuNode.assertIsDisplayed()
         val menuBounds = menuNode.getUnclippedBoundsInRoot()
         assertTrue("Menu left (${menuBounds.left}) >= 0dp", menuBounds.left >= 0.dp)
@@ -601,7 +602,7 @@ class MainActivityNavigationTest {
         assertTrue("Menu width >= 48dp at 2x font", menuBounds.right - menuBounds.left >= 48.dp)
         assertTrue("Menu height >= 48dp at 2x font", menuBounds.bottom - menuBounds.top >= 48.dp)
 
-        val profileNode = composeRule.onNodeWithText(copy(R.string.profile_title))
+        val profileNode = composeRule.onNodeWithContentDescription(copy(R.string.profile_title))
         profileNode.assertIsDisplayed()
         val profileBounds = profileNode.getUnclippedBoundsInRoot()
         assertTrue("Profile left (${profileBounds.left}) >= 0dp", profileBounds.left >= 0.dp)
@@ -623,37 +624,127 @@ class MainActivityNavigationTest {
     }
 
     @Test
-    fun `tapping menu button opens modal navigation drawer showing role filtered destinations`() {
+    fun `the drawer lists every surface the web lists, with the panel open to both roles`() {
         render(role = RolePolicy.WORKER)
 
         composeRule.onNodeWithTag("navigation_drawer_sheet").assertDoesNotExist()
 
-        composeRule.onNodeWithText(copy(R.string.nav_menu)).performClick()
+        composeRule.onNodeWithContentDescription(copy(R.string.nav_menu)).performClick()
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag("navigation_drawer_sheet").assertIsDisplayed()
 
-        composeRule.onNode(hasText(copy(R.string.nav_dashboard)).and(hasAnyAncestor(hasTestTag("navigation_drawer_sheet")))).assertIsDisplayed()
-        composeRule.onNode(hasText(copy(R.string.nav_reports)).and(hasAnyAncestor(hasTestTag("navigation_drawer_sheet")))).assertIsDisplayed()
-        composeRule.onNode(hasText(copy(R.string.nav_loading)).and(hasAnyAncestor(hasTestTag("navigation_drawer_sheet")))).assertIsDisplayed()
-        composeRule.onNode(hasText(copy(R.string.tasks_title)).and(hasAnyAncestor(hasTestTag("navigation_drawer_sheet")))).assertIsDisplayed()
-        composeRule.onNode(hasText(copy(R.string.drivers_title)).and(hasAnyAncestor(hasTestTag("navigation_drawer_sheet")))).assertIsDisplayed()
+        // Las trece, en el orden de la web: los cuatro históricos viven acá aunque no estén en la fila.
+        listOf(
+            R.string.nav_dashboard,
+            R.string.nav_reports,
+            R.string.nav_loading,
+            R.string.massas_title,
+            R.string.nav_assai,
+            R.string.nav_stock_counter,
+            R.string.massas_history_title,
+            R.string.nav_stock_history,
+            R.string.history_title,
+            R.string.loading_history_title,
+            R.string.nav_share,
+            R.string.admin_panel_title,
+        ).forEach { label ->
+            composeRule.onNode(
+                hasText(copy(label)).and(hasAnyAncestor(hasTestTag("navigation_drawer_sheet"))),
+            ).assertExists()
+        }
 
-        composeRule.onNode(hasText(copy(R.string.admin_panel_title)).and(hasAnyAncestor(hasTestTag("navigation_drawer_sheet")))).assertDoesNotExist()
+        // Los dos encabezados de grupo, tal como los escribe la barra lateral de la web.
+        composeRule.onNode(hasText(copy(R.string.nav_section_operations)).and(hasAnyAncestor(hasTestTag("navigation_drawer_sheet")))).assertExists()
+        composeRule.onNode(hasText(copy(R.string.nav_section_administration)).and(hasAnyAncestor(hasTestTag("navigation_drawer_sheet")))).assertExists()
     }
 
+    @Test
+    fun `drawer entries follow the web order and keep the histories out of the tab row`() {
+        // La regla, sin pantalla: es la que dice qué es cada lista y en qué orden.
+        val drawerLabels = MainActivity.DRAWER_ENTRIES
+            .filterIsInstance<MainActivity.DrawerEntry.Link>()
+            .map { it.destination.label }
+        assertEquals(
+            listOf(
+                R.string.nav_dashboard,
+                R.string.nav_reports,
+                R.string.nav_loading,
+                R.string.massas_title,
+                R.string.nav_assai,
+                R.string.nav_stock_counter,
+                R.string.massas_history_title,
+                R.string.nav_stock_history,
+                R.string.history_title,
+                R.string.loading_history_title,
+                R.string.nav_share,
+                R.string.admin_panel_title,
+                R.string.admin_section_audit,
+            ),
+            drawerLabels,
+        )
+
+        val tabTabs = MainActivity.TAB_DESTINATIONS.map { it.target.tab }
+        assertEquals(
+            listOf(
+                MainActivity.Tab.DASHBOARD,
+                MainActivity.Tab.REPORTS,
+                MainActivity.Tab.LOADING,
+                MainActivity.Tab.MASSAS_LAUNCH,
+                MainActivity.Tab.ASSAI,
+                MainActivity.Tab.STOCK_COUNTER,
+                MainActivity.Tab.ADMIN,
+                MainActivity.Tab.SHARE,
+            ),
+            tabTabs,
+        )
+        assertTrue(
+            "La fila no lleva superposiciones: un histórico no es una pestaña",
+            MainActivity.TAB_DESTINATIONS.all { it.target.overlay == null },
+        )
+    }
+
+    @Test
+    fun `choosing a history in the drawer asks for the overlay, not for a tab of its own`() {
+        var chosen: MainActivity.Destination? = null
+        composeRule.setContent {
+            TrindadeTheme {
+                MainAppShell(
+                    role = RolePolicy.ADMIN,
+                    currentTab = MainActivity.Tab.DASHBOARD,
+                    onSelectTab = {},
+                    onOpenProfile = {},
+                    onSelectDrawerEntry = { chosen = it },
+                ) {
+                    Text("Body")
+                }
+            }
+        }
+
+        composeRule.onNodeWithContentDescription(copy(R.string.nav_menu)).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNode(
+            hasText(copy(R.string.massas_history_title)).and(hasAnyAncestor(hasTestTag("navigation_drawer_sheet"))),
+        ).performScrollTo().performClick()
+        composeRule.waitForIdle()
+
+        val destination = chosen
+        assertEquals(MainActivity.Tab.MASSAS_LAUNCH, destination?.target?.tab)
+        assertEquals(MainActivity.Overlay.MASSAS_HISTORY, destination?.target?.overlay)
+    }
     @Test
     fun `administrator sees admin destination in drawer without horizontal hunting`() {
         render(role = RolePolicy.ADMIN)
 
-        composeRule.onNodeWithText(copy(R.string.nav_menu)).performClick()
+        composeRule.onNodeWithContentDescription(copy(R.string.nav_menu)).performClick()
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag("navigation_drawer_sheet").assertIsDisplayed()
 
         val adminDrawerItem = composeRule.onNode(
-            hasText(copy(R.string.admin_panel_title)).and(hasAnyAncestor(hasTestTag("navigation_drawer_sheet")))
+            hasText(copy(R.string.admin_panel_title)).and(hasAnyAncestor(hasTestTag("navigation_drawer_sheet"))),
         )
+        adminDrawerItem.performScrollTo()
         adminDrawerItem.assertIsDisplayed()
         val bounds = adminDrawerItem.getUnclippedBoundsInRoot()
         assertTrue("Admin item left (${bounds.left}) >= 0dp", bounds.left >= 0.dp)
@@ -673,12 +764,13 @@ class MainActivityNavigationTest {
             },
         )
 
-        composeRule.onNodeWithText(copy(R.string.nav_menu)).performClick()
+        composeRule.onNodeWithContentDescription(copy(R.string.nav_menu)).performClick()
         composeRule.waitForIdle()
 
         val adminItem = composeRule.onNode(
-            hasText(copy(R.string.admin_panel_title)).and(hasAnyAncestor(hasTestTag("navigation_drawer_sheet")))
+            hasText(copy(R.string.admin_panel_title)).and(hasAnyAncestor(hasTestTag("navigation_drawer_sheet"))),
         )
+        adminItem.performScrollTo()
         adminItem.performClick()
         composeRule.mainClock.advanceTimeBy(1000)
         composeRule.waitForIdle()
@@ -687,7 +779,6 @@ class MainActivityNavigationTest {
         assertEquals(MainActivity.Tab.ADMIN, selectedDestination)
         composeRule.onNodeWithTag("navigation_drawer_sheet").assertDoesNotExist()
     }
-
     @Test
     fun `system back closes drawer when open before navigating out of current body`() {
         var backDispatcher: OnBackPressedDispatcher? = null
@@ -710,7 +801,7 @@ class MainActivityNavigationTest {
             }
         }
 
-        composeRule.onNodeWithText(copy(R.string.nav_menu)).performClick()
+        composeRule.onNodeWithContentDescription(copy(R.string.nav_menu)).performClick()
         composeRule.waitForIdle()
         composeRule.onNodeWithTag("navigation_drawer_sheet").assertIsDisplayed()
 
@@ -756,7 +847,7 @@ class MainActivityNavigationTest {
             }
         }
 
-        composeRule.onNodeWithText(copy(R.string.nav_menu)).performClick()
+        composeRule.onNodeWithContentDescription(copy(R.string.nav_menu)).performClick()
         composeRule.waitForIdle()
 
         val adminItem = composeRule.onNode(

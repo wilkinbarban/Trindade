@@ -67,10 +67,9 @@ fun ShareAppScreen(
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.End,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(stringResource(R.string.share_access_title), style = MaterialTheme.typography.titleLarge)
             ModuleHelpButton(onClick = { showHelpDialog = true })
         }
         Text(

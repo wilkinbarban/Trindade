@@ -15,6 +15,7 @@ import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,6 +43,23 @@ enum class AdminSection {
     TIME_SLOTS,
     USERS,
     AUDIT,
+
+    /**
+     * The two catalog surfaces the server's `catalogGuard` opens to both roles.
+     *
+     * They are here, and not in the tab row, because they are configuration of the operation rather than
+     * an operation of their own: a worker who keeps the task types current and the administrators who own
+     * the rest of the panel reach the same two screens from the same place.
+     */
+    TASKS,
+    DRIVERS,
+}
+
+/** The sections behind `adminGuard`, as opposed to the two `catalogGuard` shares. */
+fun AdminSection.isAdminOnly(): Boolean = when (this) {
+    AdminSection.CATEGORIES, AdminSection.VEHICLES, AdminSection.TIME_SLOTS,
+    AdminSection.USERS, AdminSection.AUDIT -> true
+    AdminSection.TASKS, AdminSection.DRIVERS -> false
 }
 
 @EntryPoint
@@ -50,9 +68,15 @@ interface AdminPanelEntryPoint {
     fun authRepository(): AuthRepository
 }
 
+/**
+ * The panel's door: one card per section, the two shared ones first.
+ *
+ * The cards are drawn from the same literal rule the server's guards use -- tasks and drivers for both
+ * roles, everything else for the administrator -- and this screen only decides what is *offered*. A
+ * hidden card is not authorization: every section still meets its own guard on the way in.
+ */
 @Composable
 fun AdminPanelScreen(
-    onBack: () -> Unit,
     onOpenSection: (AdminSection) -> Unit,
     modifier: Modifier = Modifier,
     isAdmin: Boolean = false,
@@ -64,180 +88,89 @@ fun AdminPanelScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            NavigationActionButton(onClick = onBack) {
-                Text(stringResource(R.string.report_back))
-            }
-            Text(
-                text = stringResource(R.string.admin_panel_title),
-                style = MaterialTheme.typography.titleLarge,
-            )
-        }
-
         Text(
             text = stringResource(R.string.admin_panel_description),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
+        // Tarefas e Motoristas: catálogo compartilhado (`catalogGuard`), así que ninguna de las dos se
+        // esconde por rol. Son también las que justifican que un trabajador tenga esta pestaña.
+        AdminSectionCard(
+            title = stringResource(R.string.admin_section_tasks),
+            description = stringResource(R.string.admin_section_tasks_desc),
+            onClick = { onOpenSection(AdminSection.TASKS) },
+        )
+        AdminSectionCard(
+            title = stringResource(R.string.admin_section_drivers),
+            description = stringResource(R.string.admin_section_drivers_desc),
+            onClick = { onOpenSection(AdminSection.DRIVERS) },
+        )
+
         if (isAdmin) {
-            // Categorias (Active)
-            Card(
-                modifier = Modifier.fillMaxWidth(),
+            AdminSectionCard(
+                title = stringResource(R.string.admin_section_categories),
+                description = stringResource(R.string.admin_section_categories_desc),
                 onClick = { onOpenSection(AdminSection.CATEGORIES) },
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = stringResource(R.string.admin_section_categories),
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                        AdminPrimaryButton(
-                            onClick = { onOpenSection(AdminSection.CATEGORIES) },
-                            text = stringResource(R.string.admin_access_section),
-                        )
-                    }
-                    Text(
-                        text = stringResource(R.string.admin_section_categories_desc),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-
-            // Veículos (Active)
-            Card(
-                modifier = Modifier.fillMaxWidth(),
+            )
+            AdminSectionCard(
+                title = stringResource(R.string.admin_section_vehicles),
+                description = stringResource(R.string.admin_section_vehicles_desc),
                 onClick = { onOpenSection(AdminSection.VEHICLES) },
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = stringResource(R.string.admin_section_vehicles),
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                        AdminPrimaryButton(
-                            onClick = { onOpenSection(AdminSection.VEHICLES) },
-                            text = stringResource(R.string.admin_access_section),
-                        )
-                    }
-                    Text(
-                        text = stringResource(R.string.admin_section_vehicles_desc),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-
-            // Horários de Carga (Active)
-            Card(
-                modifier = Modifier.fillMaxWidth(),
+            )
+            AdminSectionCard(
+                title = stringResource(R.string.admin_section_time_slots),
+                description = stringResource(R.string.admin_section_time_slots_desc),
                 onClick = { onOpenSection(AdminSection.TIME_SLOTS) },
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = stringResource(R.string.admin_section_time_slots),
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                        AdminPrimaryButton(
-                            onClick = { onOpenSection(AdminSection.TIME_SLOTS) },
-                            text = stringResource(R.string.admin_access_section),
-                        )
-                    }
-                    Text(
-                        text = stringResource(R.string.admin_section_time_slots_desc),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-
-            // Usuários (Active)
-            Card(
-                modifier = Modifier.fillMaxWidth(),
+            )
+            AdminSectionCard(
+                title = stringResource(R.string.admin_section_users),
+                description = stringResource(R.string.admin_section_users_desc),
                 onClick = { onOpenSection(AdminSection.USERS) },
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = stringResource(R.string.admin_section_users),
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                        AdminPrimaryButton(
-                            onClick = { onOpenSection(AdminSection.USERS) },
-                            text = stringResource(R.string.admin_access_section),
-                        )
-                    }
-                    Text(
-                        text = stringResource(R.string.admin_section_users_desc),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-
-            // Slice D: Auditoria (Active for Admin)
-            Card(
-                modifier = Modifier.fillMaxWidth(),
+            )
+            AdminSectionCard(
+                title = stringResource(R.string.admin_section_audit),
+                description = stringResource(R.string.admin_section_audit_desc),
                 onClick = { onOpenSection(AdminSection.AUDIT) },
+            )
+        }
+    }
+}
+
+/** One section of the panel: its name, what it is for, and the way in. */
+@Composable
+private fun AdminSectionCard(
+    title: String,
+    description: String,
+    onClick: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick,
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = stringResource(R.string.admin_section_audit),
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                        AdminPrimaryButton(
-                            onClick = { onOpenSection(AdminSection.AUDIT) },
-                            text = stringResource(R.string.admin_access_section),
-                        )
-                    }
-                    Text(
-                        text = stringResource(R.string.admin_section_audit_desc),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                AdminPrimaryButton(
+                    onClick = onClick,
+                    text = stringResource(R.string.admin_access_section),
+                )
             }
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
@@ -251,6 +184,10 @@ fun AdminPanelRoute(
     authRepository: AuthRepository? = null,
     isAdmin: Boolean? = null,
     sectionContent: (@Composable (section: AdminSection, onBack: () -> Unit) -> Unit)? = null,
+    // La sección que el cajón pidió abrir (hoy, Auditoria). Se consume una vez y se avisa, para que el
+    // pedido no vuelva a imponerse cuando el operador elige otra sección más tarde.
+    openSection: AdminSection? = null,
+    onOpenSectionHandled: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val effectiveIsAdmin = isAdmin ?: run {
@@ -272,7 +209,14 @@ fun AdminPanelRoute(
         mutableStateOf(if (effectiveIsAdmin) initialSection else null)
     }
 
-    if (!effectiveIsAdmin && selectedSection != null) {
+    LaunchedEffect(openSection) {
+        if (openSection != null) {
+            selectedSection = openSection
+            onOpenSectionHandled()
+        }
+    }
+
+    if (!effectiveIsAdmin && selectedSection?.isAdminOnly() == true) {
         selectedSection = null
     }
 
@@ -288,14 +232,7 @@ fun AdminPanelRoute(
         handleBack()
     }
 
-    if (!effectiveIsAdmin) {
-        AdminPanelScreen(
-            onBack = handleBack,
-            onOpenSection = { },
-            modifier = modifier,
-            isAdmin = false,
-        )
-    } else if (sectionContent != null && selectedSection != null) {
+    if (sectionContent != null && selectedSection != null) {
         sectionContent(selectedSection!!) { selectedSection = null }
     } else {
         when (selectedSection) {
@@ -334,12 +271,27 @@ fun AdminPanelRoute(
                     modifier = modifier,
                 )
             }
+            // Las dos del catálogo compartido: `catalogGuard` las abre a los dos roles, así que se
+            // dibujan para quien haya entrado, y la llamada sigue encontrando su propio guard al salir.
+            AdminSection.TASKS -> {
+                TasksRoute(
+                    sessionKey = sessionKey,
+                    onBack = { selectedSection = null },
+                    modifier = modifier,
+                )
+            }
+            AdminSection.DRIVERS -> {
+                DriversRoute(
+                    sessionKey = sessionKey,
+                    onBack = { selectedSection = null },
+                    modifier = modifier,
+                )
+            }
             else -> {
                 AdminPanelScreen(
-                    onBack = handleBack,
                     onOpenSection = { section -> selectedSection = section },
                     modifier = modifier,
-                    isAdmin = true,
+                    isAdmin = effectiveIsAdmin,
                 )
             }
         }
