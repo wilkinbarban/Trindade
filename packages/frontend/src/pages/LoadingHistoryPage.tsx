@@ -97,9 +97,10 @@ export function LoadingHistoryPage() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <div className="flex items-center gap-2">
+      {/* Apilado en un teléfono: en una fila rígida el botón le robaba el ancho al título. */}
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
             <h2 className="text-xl font-bold text-gray-800">{t('loading.historyTitle')}</h2>
             <ModuleHelpModal
               title={t('moduleHelp.loading.title')}
@@ -110,7 +111,7 @@ export function LoadingHistoryPage() {
           </div>
           <p className="text-sm text-gray-500">{t('loading.historyDesc')}</p>
         </div>
-        <Link to="/loading" data-testid="back-to-schedule-link"><Button variant="outline" size="sm">{t('loading.title')}</Button></Link>
+        <Link className="w-full sm:w-auto shrink-0" to="/loading" data-testid="back-to-schedule-link"><Button variant="outline" size="sm" className="w-full sm:w-auto">{t('loading.title')}</Button></Link>
       </div>
 
       <Card className="p-3 mb-4 grid grid-cols-1 sm:grid-cols-4 gap-2">
