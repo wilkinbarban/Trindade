@@ -10,7 +10,7 @@ import { LoadingSpinner } from '../components/ui/loading-spinner';
 import { toWhatsAppNumber } from '../lib/phone';
 import { shareOrCopy, waMeLink } from '../lib/whatsapp';
 import { massasMessage, type MassasLaunchDayView } from '../lib/massas';
-import { Calendar, ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { ModuleHelpModal } from '../components/ui/ModuleHelpModal';
 import { MassasCollectiveTable } from './massas/MassasCollectiveTable';
 import { MassasWhatsAppShare } from './massas/MassasWhatsAppShare';
@@ -105,21 +105,13 @@ export function MassasHistoryPage() {
           </div>
           <p className="text-sm text-gray-500 mt-1">{t('massas.historySubtitle')}</p>
         </div>
-        <Link to="/massas-launch" className="w-full sm:w-auto shrink-0">
-          <Button variant="outline" className="w-full sm:w-auto flex items-center justify-center gap-2 text-sm font-semibold">
-            <ArrowLeft className="h-4 w-4" />
-            {t('massas.backToToday')}
-          </Button>
-        </Link>
-      </div>
-
-      {/* Selector de Fecha. Sin los botones de días con lanzamientos ni los carteles de "Hoje"/"Modo
-          Leitura": la fecha se elige acá y el rango ya dice cuál es el día más nuevo. */}
-      <Card className="border-gray-200 shadow-sm">
-        <CardContent className="pt-6 space-y-4">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-gray-400" />
-            <label htmlFor="history-date" className="text-sm font-medium text-gray-700 whitespace-nowrap">
+        {/* La fecha y la vuelta a hoy van juntas, como en el lanzamiento: dos bloques apilados a todo
+            el ancho separaban dos controles que se usan uno tras otro. Sin los botones de días con
+            lanzamientos ni los carteles de "Hoje"/"Modo Leitura": el rango ya dice cuál es el día más
+            nuevo. */}
+        <div className="grid grid-cols-2 items-end gap-2 w-full sm:flex sm:items-center sm:gap-2 sm:w-auto shrink-0">
+          <div className="w-full sm:w-auto">
+            <label htmlFor="history-date" className="block text-xs font-medium text-gray-600 sm:sr-only">
               {t('massas.date')}:
             </label>
             <Input
@@ -133,8 +125,14 @@ export function MassasHistoryPage() {
               data-testid="massas-history-date"
             />
           </div>
-        </CardContent>
-      </Card>
+          <Link to="/massas-launch" className="w-full sm:w-auto">
+            <Button variant="outline" className="w-full sm:w-auto flex items-center justify-center gap-2 text-sm font-semibold">
+              <ArrowLeft className="h-4 w-4" />
+              {t('massas.backToToday')}
+            </Button>
+          </Link>
+        </div>
+      </div>
 
       {/* Avisos Globales */}
       {error && (
