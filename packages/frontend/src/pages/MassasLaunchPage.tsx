@@ -247,15 +247,11 @@ export function MassasLaunchPage() {
           </div>
           <p className="text-sm text-gray-500 mt-1">{t('massas.subtitle')}</p>
         </div>
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto shrink-0">
-          <Link to="/massas-history" className="w-full sm:w-auto">
-            <Button variant="outline" className="w-full sm:w-auto flex items-center justify-center gap-1.5 text-xs font-semibold px-2.5">
-              <History className="h-4 w-4 shrink-0" />
-              <span>{t('massas.viewHistory')}</span>
-            </Button>
-          </Link>
-          <div className="flex items-center gap-1.5 w-full sm:w-auto">
-            <label htmlFor="massa-date" className="sr-only xl:not-sr-only text-sm font-medium text-gray-700 whitespace-nowrap">
+        {/* La fecha y el acceso al histórico van lado a lado también en un teléfono: apilados a todo
+            el ancho se estiraban como dos bloques y empujaban la grilla fuera de la pantalla. */}
+        <div className="grid grid-cols-2 items-end gap-2 w-full sm:flex sm:items-center sm:gap-2 sm:w-auto shrink-0">
+          <div className="w-full sm:w-auto">
+            <label htmlFor="massa-date" className="block text-xs font-medium text-gray-600 sm:sr-only">
               {t('massas.date')}:
             </label>
             <Input
@@ -268,6 +264,12 @@ export function MassasLaunchPage() {
               data-testid="massas-launch-date"
             />
           </div>
+          <Link to="/massas-history" className="w-full sm:w-auto">
+            <Button variant="outline" className="w-full sm:w-auto flex items-center justify-center gap-1.5 text-xs font-semibold px-2.5">
+              <History className="h-4 w-4 shrink-0" />
+              <span>{t('massas.viewHistory')}</span>
+            </Button>
+          </Link>
         </div>
       </div>
 
