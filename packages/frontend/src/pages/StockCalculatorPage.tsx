@@ -205,50 +205,52 @@ export function StockCalculatorPage() {
           </div>
           <p className="text-sm text-gray-500">{canEdit ? t('stock.subtitle') : t('stock.readOnly')}</p>
         </div>
-        <Link to="/stock-history" className="w-full sm:w-auto shrink-0">
-          <Button variant="outline" className="w-full sm:w-auto" data-testid="stock-open-history">
-            {t('stock.goToHistory')}
-          </Button>
-        </Link>
+        {/* La fecha y el acceso al histórico van juntos, lado a lado también en un teléfono: dos
+            botones apilados a todo el ancho se comían media pantalla antes de llegar al contador. */}
+        <div className="grid grid-cols-2 items-end gap-2 w-full sm:flex sm:items-end sm:gap-2 sm:w-auto shrink-0">
+          <div className="w-full sm:w-auto">
+            <label htmlFor="stock-date" className="block text-xs font-medium text-gray-600">{t('stock.date')}</label>
+            <Input
+              id="stock-date"
+              type="date"
+              value={date}
+              max={saoPauloToday()}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-full sm:w-auto"
+              data-testid="stock-date"
+            />
+          </div>
+          <Link to="/stock-history" className="w-full sm:w-auto">
+            <Button variant="outline" className="w-full sm:w-auto" data-testid="stock-open-history">
+              {t('stock.goToHistory')}
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <Card>
         <CardContent className="p-3 space-y-3">
-          {/* La fecha y los días ya contados son dos cosas distintas y en un teléfono se separan:
-              el campo arriba a todo el ancho, y los chips en una sola fila con scroll horizontal en
-              lugar de partirse en renglones quebrados de dos botones. */}
-          <div className="flex flex-col sm:flex-row sm:items-end gap-3">
-            <div className="w-full sm:w-auto">
-              <label className="block text-xs font-medium text-gray-600">{t('stock.date')}</label>
-              <Input
-                type="date"
-                value={date}
-                max={saoPauloToday()}
-                onChange={(e) => setDate(e.target.value)}
-                className="w-full sm:w-auto"
-                data-testid="stock-date"
-              />
-            </div>
-            {history.length > 0 && (
-              <div className="w-full sm:w-auto sm:flex-1 min-w-0">
-                <span className="block text-xs text-gray-500 sm:mb-1">{t('stock.history')}</span>
-                <div className="flex items-center gap-2 overflow-x-auto pb-1 max-w-full scrollbar-none" data-testid="stock-history-days">
-                  {/* Tres en un teléfono y cinco en una pantalla ancha: el resto sigue alcanzable por
-                      la fecha, y así la fila no se lleva media pantalla del contador. */}
-                  {history.slice(0, 5).map((entry, idx) => (
-                    <button
-                      key={entry.date}
-                      onClick={() => setDate(entry.date)}
-                      className={`${idx >= 3 ? 'hidden sm:inline-flex' : 'inline-flex'} shrink-0 text-xs px-2.5 py-1 rounded-md border font-medium ${entry.date === date ? 'bg-gray-800 border-gray-800 text-white' : 'bg-white border-gray-300 text-gray-700'}`}
-                      data-testid={`stock-history-${entry.date}`}
-                    >
-                      {entry.date.slice(8, 10)}/{entry.date.slice(5, 7)} · {entry.boxes}
-                    </button>
-                  ))}
-                </div>
+          {/* Los días ya contados quedan debajo de la fila de fecha e histórico, en una sola fila con
+              scroll horizontal en lugar de renglones quebrados de dos botones. */}
+          {history.length > 0 && (
+            <div className="min-w-0">
+              <span className="block text-xs text-gray-500 sm:mb-1">{t('stock.history')}</span>
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 max-w-full scrollbar-none" data-testid="stock-history-days">
+                {/* Tres en un teléfono y cinco en una pantalla ancha: el resto sigue alcanzable por
+                    la fecha, y así la fila no se lleva media pantalla del contador. */}
+                {history.slice(0, 5).map((entry, idx) => (
+                  <button
+                    key={entry.date}
+                    onClick={() => setDate(entry.date)}
+                    className={`${idx >= 3 ? 'hidden sm:inline-flex' : 'inline-flex'} shrink-0 text-xs px-2.5 py-1 rounded-md border font-medium ${entry.date === date ? 'bg-gray-800 border-gray-800 text-white' : 'bg-white border-gray-300 text-gray-700'}`}
+                    data-testid={`stock-history-${entry.date}`}
+                  >
+                    {entry.date.slice(8, 10)}/{entry.date.slice(5, 7)} · {entry.boxes}
+                  </button>
+                ))}
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           <div className="flex items-center gap-2 border-b">
             {groups.map((group) => (
