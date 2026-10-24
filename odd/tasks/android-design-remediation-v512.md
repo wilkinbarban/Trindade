@@ -50,3 +50,14 @@ above the five administrator sections for the administrator, and those two alone
 `Acessar` opens Tarefas; the stock counter with no date field and `Histórico`/`Ajuda` where the repeated
 title used to be; massas with the whole tagline in two lines; `Voltar` only in the sub-screens (the stock
 history and Tarefas).
+
+L7: the `v0.5.2` tag ran `.github/workflows/android-release.yml` for the first time, and it replaced the
+hand-uploaded APK with its own build: versionCode 502, derived from the tag by `major*10000 + minor*100 +
+patch`, which on the 0.x line lands below the 511 that `v0.5.1` carries in the field. Android refuses that
+as a downgrade, so the published release could not reach a 0.5.1 install, and the `.sha256` uploaded by
+hand still described the APK the workflow had just replaced. Both are fixed in `34e00ef`: the derivation
+is `major*1000000 + minor*1000 + patch` and the publish job writes the checksum over the bytes it sends.
+The `v0.5.2` release was re-published with the 512 build and its matching checksum, and the upgrade was
+proven with `adb install -r` of the downloaded asset over the 502 build, in place, landing on `versionCode=512`.
+L8: `scripts/ci-android.sh` contract step is red on `main` and was red before this work (`LatestReleaseResponse.kt`
+and twenty-nine other model files exist only in the regenerated tree). Not touched here.
