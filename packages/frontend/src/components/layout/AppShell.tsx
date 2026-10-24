@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { DeveloperCredit } from '../ui/DeveloperCredit';
 import { useTranslation } from 'react-i18next';
-import { LucideMenu, LucideX, LayoutDashboard, ClipboardList, Truck, MessageCircle, Clock, ShieldCheck, History, Share2, Layers } from 'lucide-react';
+import { LucideMenu, LucideX, LayoutDashboard, ClipboardList, Truck, MessageCircle, ShieldCheck, History, Share2, Layers, Calculator, Boxes, CalendarDays, Archive, FileClock, FileSearch } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../ui/button';
 
@@ -101,19 +101,19 @@ export function AppShell({ children }: { children: ReactNode }) {
           <NavItem href="/reports" icon={<ClipboardList className="h-4 w-4" />} label={t('nav.reports')} />
           <NavItem
             href="/loading"
-            icon={<Clock className="h-4 w-4" />}
+            icon={<Truck className="h-4 w-4" />}
             label={t('nav.loadingSchedule')}
             excludedActivePrefixes={['/loading/reports-history', '/loading/history']}
           />
           {/* Cada calculadora queda pegada a su propio histórico: el menú sigue el orden en que se
               usa cada módulo, y el del lanzamiento deja de estar en medio. */}
           <NavItem href="/massas-launch" icon={<Layers className="h-4 w-4" />} label={t('nav.massasLaunch')} />
-          <NavItem href="/assai-calculator" icon={<ClipboardList className="h-4 w-4" />} label={t('nav.assai')} />
-          <NavItem href="/stock-calculator" icon={<ClipboardList className="h-4 w-4" />} label={t('nav.stock')} />
-          <NavItem href="/massas-history" icon={<History className="h-4 w-4" />} label={t('nav.massasHistory')} />
-          <NavItem href="/stock-history" icon={<ClipboardList className="h-4 w-4" />} label={t('nav.stockHistory')} />
-          <NavItem href="/loading/reports-history" icon={<History className="h-4 w-4" />} label={t('nav.reportHistory')} />
-          <NavItem href="/loading/history" icon={<Truck className="h-4 w-4" />} label={t('nav.loadingHistory')} />
+          <NavItem href="/assai-calculator" icon={<Calculator className="h-4 w-4" />} label={t('nav.assai')} />
+          <NavItem href="/stock-calculator" icon={<Boxes className="h-4 w-4" />} label={t('nav.stock')} />
+          <NavItem href="/massas-history" icon={<CalendarDays className="h-4 w-4" />} label={t('nav.massasHistory')} />
+          <NavItem href="/stock-history" icon={<Archive className="h-4 w-4" />} label={t('nav.stockHistory')} />
+          <NavItem href="/loading/reports-history" icon={<FileClock className="h-4 w-4" />} label={t('nav.reportHistory')} />
+          <NavItem href="/loading/history" icon={<History className="h-4 w-4" />} label={t('nav.loadingHistory')} />
           <NavItem href="/compartir" icon={<Share2 className="h-4 w-4" />} label={t('nav.share')} />
 
           {/* Admin section — visible to Administrador and limited Trabalhador panel */}
@@ -124,7 +124,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               </div>
               <NavItem href="/admin" icon={<ShieldCheck className="h-4 w-4" />} label={t('nav.adminPanel')} />
               {user?.role === 'Administrador' && (
-                <NavItem href="/admin/audit" icon={<History className="h-4 w-4" />} label={t('nav.audit')} />
+                <NavItem href="/admin/audit" icon={<FileSearch className="h-4 w-4" />} label={t('nav.audit')} />
               )}
             </>
           )}
