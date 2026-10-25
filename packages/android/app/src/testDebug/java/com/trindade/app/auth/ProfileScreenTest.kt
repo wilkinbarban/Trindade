@@ -103,6 +103,86 @@ class ProfileScreenTest {
         assertTrue("Sign out height >= 48dp", signOutBounds.bottom - signOutBounds.top >= 48.dp)
         signOutNode.performClick()
         assertEquals(1, signedOut)
+    }
+
+    @Test
+    fun `the header names the screen beside the way back`() {
+        composeRule.setContent {
+            TrindadeTheme {
+                ProfileScreen(
+                    state = ProfileViewModel.UiState(loading = false, profile = user()),
+                    appVersion = "0.5.2",
+                    releasesUrl = "https://example.com/releases",
+                    onBack = {},
+                    onDisplayNameChange = {},
+                    onSave = {},
+                    onCurrentPasswordChange = {},
+                    onNewPasswordChange = {},
+                    onChangePassword = {},
+                    onSignOut = {},
+                    onBackToLogin = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText(copy(R.string.report_back)).assertIsDisplayed()
+        composeRule.onNodeWithText(copy(R.string.profile_title)).assertIsDisplayed()
+    }
+
+    @Test
+    fun `an up-to-date app offers the re-check and no filled download button`() {
+        composeRule.setContent {
+            TrindadeTheme {
+                ProfileScreen(
+                    state = ProfileViewModel.UiState(
+                        loading = false,
+                        profile = user(),
+                        update = ProfileViewModel.UpdateStatus.UpToDate,
+                    ),
+                    appVersion = "0.5.2",
+                    releasesUrl = "https://example.com/releases",
+                    onBack = {},
+                    onDisplayNameChange = {},
+                    onSave = {},
+                    onCurrentPasswordChange = {},
+                    onNewPasswordChange = {},
+                    onChangePassword = {},
+                    onSignOut = {},
+                    onBackToLogin = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText(copy(R.string.profile_update_up_to_date)).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText(copy(R.string.profile_check_updates)).performScrollTo().assertIsDisplayed()
+        composeRule
+            .onNodeWithText(copy(R.string.profile_download_update))
+            .assertDoesNotExist()
+    }
+
+    @Test
+    fun `an available update keeps the filled download action at 48dp`() {
+        composeRule.setContent {
+            TrindadeTheme {
+                ProfileScreen(
+                    state = ProfileViewModel.UiState(
+                        loading = false,
+                        profile = user(),
+                        update = ProfileViewModel.UpdateStatus.Available("0.6.0"),
+                    ),
+                    appVersion = "0.5.2",
+                    releasesUrl = "https://example.com/releases",
+                    onBack = {},
+                    onDisplayNameChange = {},
+                    onSave = {},
+                    onCurrentPasswordChange = {},
+                    onNewPasswordChange = {},
+                    onChangePassword = {},
+                    onSignOut = {},
+                    onBackToLogin = {},
+                )
+            }
+        }
 
         val downloadNode = composeRule.onNodeWithText(copy(R.string.profile_download_update))
         downloadNode.performScrollTo().assertIsDisplayed()

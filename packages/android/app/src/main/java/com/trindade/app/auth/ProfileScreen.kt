@@ -137,7 +137,20 @@ fun ProfileScreen(
                 }
             }
         } else {
-            NavigationActionButton(onClick = onBack, text = stringResource(R.string.report_back))
+            // Return and title share the top row, the way every secondary screen in the app reads: the pill
+            // says where the tap goes and the title says where you are, and neither has to be inferred from
+            // the other. Without the title this was the only screen that opened on a bare "Voltar".
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                NavigationActionButton(onClick = onBack, text = stringResource(R.string.report_back))
+                Text(
+                    text = stringResource(R.string.profile_title),
+                    style = MaterialTheme.typography.titleLarge,
+                )
+            }
         }
         // One line for what went wrong, in the convention the other screens use.
         state.message?.let { message ->
@@ -375,18 +388,25 @@ fun ProfileScreen(
                         )
                     }
 
-                    AdminPrimaryButton(
-                        onClick = {
-                            val availableUrl = (state.update as? ProfileViewModel.UpdateStatus.Available)?.downloadUrl
-                            if (!availableUrl.isNullOrBlank()) {
-                                onStartDownload(availableUrl)
-                            } else {
-                                browserUnavailable = !openReleasesPage(context, releasesUrl)
-                            }
-                        },
-                        text = stringResource(R.string.profile_download_update),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                    // The filled action only exists when there is something to install. It used to be drawn
+                    // in every state, so the screen said "you are on the latest version" and offered a filled
+                    // primary "Baixar nova versão" two lines below it -- the loudest element on the card
+                    // contradicting the sentence above it. Now it appears for an update the check found, and
+                    // for a download that ended badly, which is the one case where retrying is the move.
+                    if (state.update is ProfileViewModel.UpdateStatus.Available || dl is DownloadState.Error) {
+                        AdminPrimaryButton(
+                            onClick = {
+                                val availableUrl = (state.update as? ProfileViewModel.UpdateStatus.Available)?.downloadUrl
+                                if (!availableUrl.isNullOrBlank()) {
+                                    onStartDownload(availableUrl)
+                                } else {
+                                    browserUnavailable = !openReleasesPage(context, releasesUrl)
+                                }
+                            },
+                            text = stringResource(R.string.profile_download_update),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                 }
             }
 
