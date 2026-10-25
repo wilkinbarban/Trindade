@@ -24,7 +24,7 @@ release_base_url="${CI_ANDROID_RELEASE_BASE_URL:-https://ci.invalid/}"
 # A release build also needs a version, enforced by a guard of the same shape, because the real release
 # is built by the tag workflow and its version comes from the tag. These two are the lane's own
 # placeholders: this lane is not a release, it only proves that a release builds. The encoding is the
-# documented one (major * 10000 + minor * 100 + patch), so 0.0.1 is versionCode 1 and the pair here is
+# documented one (major * 1000000 + minor * 1000 + patch), so 0.0.1 is versionCode 1 and the pair here is
 # consistent rather than merely present.
 release_version_name="${CI_ANDROID_RELEASE_VERSION_NAME:-0.0.1}"
 release_version_code="${CI_ANDROID_RELEASE_VERSION_CODE:-1}"

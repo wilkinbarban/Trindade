@@ -50,24 +50,31 @@ of truth for both numbers Android records in the APK.
 **For a tag `v<major>.<minor>.<patch>`:**
 
 ```
-versionName = <major>.<minor>.<patch>          e.g. v1.2.3  ->  1.2.3
-versionCode = major * 10000 + minor * 100 + patch   e.g. v1.2.3 -> 10203
+versionName = <major>.<minor>.<patch>                    e.g. v1.2.3  ->  1.2.3
+versionCode = major * 1000000 + minor * 1000 + patch     e.g. v1.2.3  ->  1002003
 ```
 
 | Tag | versionName | versionCode |
 | --- | --- | --- |
 | `v0.0.1` | `0.0.1` | `1` |
-| `v1.0.0` | `1.0.0` | `10000` |
-| `v1.2.3` | `1.2.3` | `10203` |
-| `v2.0.0` | `2.0.0` | `20000` |
+| `v0.5.3` | `0.5.3` | `5003` |
+| `v1.2.3` | `1.2.3` | `1002003` |
+| `v2.0.0` | `2.0.0` | `2000000` |
+
+The wider factors are not decoration: they are what makes the `0.x` line releasable. The common narrower
+encoding is `major * 10000 + minor * 100 + patch`, and with a major of `0` the tag contributes nothing above
+the minor, so `v0.5.2` derived **502** while build 511 was already in the field: Android compares
+`versionCode` to decide what is an update, and the release the tag produced was a downgrade no install would
+accept. Under the encoding above the same tag is `5002`, above everything the hand-built 0.x builds carry
+(510, 511, 512, 513, 514), and `v0.5.3` is `5003`.
 
 Three consequences worth knowing before choosing a tag:
 
 - **`versionCode` is what Android compares.** It decides whether an install is an update. The encoding
   above grows with every release as long as tags grow in order, which is the whole reason for the formula
   rather than a hand-picked number.
-- **`minor` and `patch` each have two digits of room.** `v1.100.0` would encode to `20000`, the same as
-  `v2.0.0`, so the workflow **refuses** such a tag instead of publishing an APK Android would compare
+- **`minor` and `patch` each have three digits of room.** `v1.1000.0` would encode to `2000000`, the same
+  as `v2.0.0`, so the workflow **refuses** such a tag instead of publishing an APK Android would compare
   against the wrong version. Roll over to a new major instead.
 - **The `v` belongs to the tag, not the version.** `versionName` is digits and dots; a build whose
   `-PversionName` carries a leading `v` fails the build's own validation.
@@ -76,7 +83,7 @@ Three consequences worth knowing before choosing a tag:
 
 - `-PversionName` and `-PversionCode` define both numbers, and a **release build requires both**: the build
   has no default for a release, so an APK can never be published carrying a version the build invented
-  instead of the one its tag declares. A debug build keeps the placeholder `0.1.0` / `1`, so local work
+  instead of the one its tag declares. A debug build keeps the placeholder `0.5.3` / `5003`, so local work
   needs no properties at all.
 - The two values are computed **once** in `packages/android/app/build.gradle.kts` and used both for the
   manifest (`defaultConfig.versionName` / `.versionCode`) and for the `BuildConfig` fields the app reads.
@@ -106,8 +113,8 @@ Three consequences worth knowing before choosing a tag:
      against);
    - derives `versionName` and `versionCode` from the tag by the rule in Section 2 and **refuses three
      kinds of tag**: `v1.2` and `vabc`, which its three-component regex does not read as a version at
-     all, and `v1.100.0`, which it does read but whose `minor` is above 99 — that one would encode to
-     `20000`, the `versionCode` of `v2.0.0`, so it is refused instead of published as a collision;
+     all, and `v1.1000.0`, which it does read but whose `minor` is above 999 — that one would encode to
+     `2000000`, the `versionCode` of `v2.0.0`, so it is refused instead of published as a collision;
    - decodes the keystore from `ANDROID_KEYSTORE_BASE64` into the runner's temporary directory (never into
      the workspace) and deletes it again at the end of the job;
    - builds `:app:assembleRelease` with `-PapiBaseUrl`, `-PversionName`, `-PversionCode` and

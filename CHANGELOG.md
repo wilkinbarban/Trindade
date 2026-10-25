@@ -6,6 +6,37 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [0.5.3+5003] — 2026-10-25
+
+### 📦 Distribuição Android v0.5.3 (Code 5003)
+- **A mesma entrega, agora com a versão que a tag declara**: o conteúdo é o da build 514 — Perfil com
+  cabeçalho e ação de descarga só quando há atualização, sinal `-` preso ao início nas temperaturas, máscara
+  `HH:mm` com relógio nos horários de carga e Histórico de Contagem de leitura com o resumo do dia. Nada
+  muda no comportamento; muda o número que o Android compara.
+- **Por que a versão sobe sem código novo**: a build 514 foi publicada sobre a tag `v0.5.2`, cujos assets
+  foram substituídos duas vezes. Tag publicada não se move e não se reaproveita, então a entrega sai de novo
+  como `v0.5.3`. A derivação da tag dá `versionName=0.5.3` e `versionCode=5003`, acima do 514 já instalado:
+  é uma atualização que qualquer telefone aceita, e não um downgrade.
+- **Workflow da tag**: a release não é mais montada à mão. O push da tag constrói, assina, confere a
+  impressão digital do certificado e o `versionCode` empacotado, e publica o `trindade-0.5.3.apk` junto ao
+  `trindade-0.5.3.apk.sha256` que ele mesmo calcula sobre os bytes enviados.
+
+### 🔧 Manutenção
+- **Gate de testes**: 1029 testes de unidade e Compose do cliente Android, 0 falhas, 0 omitidos; 520 de
+  backend e os de frontend, verdes.
+- **Derivação de versão documentada de novo**: `docs/release-android.md` e o comentário da lane do Android
+  ainda ensinavam `major * 10000 + minor * 100 + patch`, a fórmula estreita que fez `v0.5.2` derivar 502
+  abaixo do 511 que já estava na rua. A página agora ensina a que o workflow usa
+  (`major * 1000000 + minor * 1000 + patch`), com o orçamento de três dígitos por componente e o exemplo da
+  colisão que ela recusa.
+- **Contrato da API em dia**: `packages/contracts/openapi.json` foi regerado com o `MassasErrorResponse` que a
+  remediação de auditoria 509 introduziu. O job `verify` falhava desde então comparando o contrato versionado
+  com o gerado.
+- **Teste do Lançamento de Massas sem vazamento**: `MassasLaunchViewModelTest` deixava o `viewModelScope` do
+  modelo criado no `setUp` consultando o servidor enquanto o teste seguinte trocava o dispatcher principal, e
+  o `resetMain` estourava com `IllegalStateException` no job `android`. O `tearDown` agora cancela o escopo
+  antes de derrubar o servidor e restaurar o dispatcher.
+
 ## [0.5.2+514] — 2026-10-24
 
 ### ✨ Melhorado (Perfil, temperatura, horários e histórico de estoque)
