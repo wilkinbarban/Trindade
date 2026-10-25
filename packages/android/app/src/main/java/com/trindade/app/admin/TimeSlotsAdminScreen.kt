@@ -12,6 +12,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -20,6 +21,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -30,9 +35,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.trindade.app.R
+import com.trindade.app.ui.components.AdminConfirmDialog
+import com.trindade.app.ui.components.AdminConfirmation
 import com.trindade.app.ui.components.AdminDestructiveButton
 import com.trindade.app.ui.components.AdminDestructiveConfirmButton
 import com.trindade.app.ui.components.AdminPrimaryButton
+import com.trindade.app.ui.components.AdminResultDialog
 import com.trindade.app.ui.components.AdminSecondaryButton
 import com.trindade.app.ui.components.NavigationActionButton
 import com.trindade.app.ui.resolve
@@ -48,8 +56,11 @@ fun TimeSlotsAdminScreen(
     onRequestDelete: (String) -> Unit,
     onCancelDelete: () -> Unit,
     onConfirmDelete: () -> Unit,
+    onDismissOutcome: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
+    var pendingConfirmation by remember { mutableStateOf<AdminConfirmation?>(null) }
     val handleBack = {
         when {
             state.deleting || state.form?.saving == true -> Unit
@@ -106,7 +117,18 @@ fun TimeSlotsAdminScreen(
             TimeSlotForm(
                 state = state,
                 onSlotInputChanged = onSlotInputChanged,
-                onSave = onSave,
+                onSave = {
+                    val slotInput = state.form.slotInput
+                    pendingConfirmation = AdminConfirmation(
+                        title = context.getString(R.string.admin_action_create),
+                        message = context.getString(R.string.admin_dialog_create_body, slotInput),
+                        confirmLabel = context.getString(R.string.admin_action_confirm),
+                        onConfirm = {
+                            pendingConfirmation = null
+                            onSave()
+                        },
+                    )
+                },
                 onCancel = onCancelForm,
             )
         } else {
@@ -132,33 +154,31 @@ fun TimeSlotsAdminScreen(
     }
 
     val slotToDelete = state.deleteConfirmSlot
-    if (slotToDelete != null) {
-        AlertDialog(
-            onDismissRequest = onCancelDelete,
-            properties = if (state.deleting) {
-                DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
-            } else {
-                DialogProperties()
-            },
-            title = { Text(stringResource(R.string.time_slots_delete_confirm_title)) },
-            text = { Text(stringResource(R.string.time_slots_delete_confirm_body, slotToDelete)) },
-            confirmButton = {
-                AdminDestructiveConfirmButton(
-                    onClick = onConfirmDelete,
-                    enabled = !state.deleting,
-                    loading = state.deleting,
-                    text = stringResource(R.string.time_slots_remove),
-                )
-            },
-            dismissButton = {
-                AdminSecondaryButton(
-                    onClick = onCancelDelete,
-                    enabled = !state.deleting,
-                    text = stringResource(R.string.time_slots_cancel),
-                )
-            },
+    val deleteConfirmation = slotToDelete?.let { slot ->
+        AdminConfirmation(
+            title = stringResource(R.string.admin_action_delete),
+            message = stringResource(R.string.admin_dialog_delete_body, slot),
+            confirmLabel = stringResource(R.string.admin_action_delete),
+            isDestructive = true,
+            onConfirm = onConfirmDelete,
         )
     }
+
+    AdminConfirmDialog(
+        confirmation = deleteConfirmation ?: pendingConfirmation,
+        onDismiss = {
+            if (deleteConfirmation != null) {
+                onCancelDelete()
+            } else {
+                pendingConfirmation = null
+            }
+        },
+    )
+
+    AdminResultDialog(
+        outcome = state.outcome,
+        onClose = onDismissOutcome,
+    )
 }
 
 @Composable
@@ -168,7 +188,10 @@ private fun TimeSlotRow(
     onRequestDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Card(modifier = modifier.fillMaxWidth()) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        modifier = modifier.fillMaxWidth(),
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -200,7 +223,10 @@ private fun TimeSlotForm(
 ) {
     val form = state.form ?: return
 
-    Card(modifier = modifier.fillMaxWidth()) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        modifier = modifier.fillMaxWidth(),
+    ) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -264,6 +290,7 @@ fun TimeSlotsAdminRoute(
         onRequestDelete = viewModel::requestDelete,
         onCancelDelete = viewModel::cancelDelete,
         onConfirmDelete = viewModel::confirmDelete,
+        onDismissOutcome = viewModel::dismissOutcome,
         modifier = modifier,
     )
 }

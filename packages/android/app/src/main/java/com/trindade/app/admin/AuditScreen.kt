@@ -15,6 +15,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -90,7 +91,6 @@ fun AuditScreen(
     onClearFilters: () -> Unit = {},
     onPreviousPage: () -> Unit = {},
     onNextPage: () -> Unit = {},
-    onRefresh: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var actionMenuExpanded by remember { mutableStateOf(false) }
@@ -107,24 +107,11 @@ fun AuditScreen(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                NavigationActionButton(onClick = onBack) { Text(stringResource(R.string.admin_back)) }
-                Text(stringResource(R.string.admin_section_audit), style = MaterialTheme.typography.titleLarge)
-            }
-            TextButton(
-                onClick = onRefresh,
-                enabled = !state.loading,
-                modifier = Modifier.defaultMinSize(minHeight = 48.dp, minWidth = 48.dp),
-            ) {
-                Text(stringResource(R.string.admin_refresh))
-            }
+            NavigationActionButton(onClick = onBack) { Text(stringResource(R.string.admin_back)) }
+            Text(stringResource(R.string.admin_section_audit), style = MaterialTheme.typography.titleLarge)
         }
 
         if (state.loading) {
@@ -164,7 +151,12 @@ fun AuditScreen(
 
         if (state.isAdmin && !state.loading) {
             // Filters section
-            Card(modifier = Modifier.fillMaxWidth()) {
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                ),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -275,7 +267,12 @@ fun AuditScreen(
 
             // Audit rows or empty state
             if (state.logs.isEmpty()) {
-                Card(modifier = Modifier.fillMaxWidth()) {
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -291,7 +288,12 @@ fun AuditScreen(
                 }
             } else {
                 state.logs.forEach { log ->
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -555,7 +557,6 @@ fun AuditRoute(
     AuditScreen(
         state = state,
         onBack = onBack,
-        onRefresh = { viewModel.load() },
         onActionChange = viewModel::onActionChange,
         onEntityTypeChange = viewModel::onEntityTypeChange,
         onUserIdChange = viewModel::onUserIdChange,

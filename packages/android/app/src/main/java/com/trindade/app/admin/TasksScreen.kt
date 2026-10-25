@@ -11,6 +11,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -24,13 +25,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.trindade.app.R
 import com.trindade.app.contract.models.AdminTasksResponseTasksInner
+import com.trindade.app.ui.components.AdminConfirmDialog
+import com.trindade.app.ui.components.AdminConfirmation
 import com.trindade.app.ui.components.AdminDestructiveButton
 import com.trindade.app.ui.components.AdminDestructiveConfirmButton
 import com.trindade.app.ui.components.AdminPrimaryButton
+import com.trindade.app.ui.components.AdminResultDialog
 import com.trindade.app.ui.components.AdminSecondaryButton
 import com.trindade.app.ui.components.NavigationActionButton
 import com.trindade.app.ui.resolve
@@ -40,7 +45,6 @@ import com.trindade.app.ui.resolve
 fun TasksScreen(
     state: TasksViewModel.UiState,
     onBack: () -> Unit,
-    onRefresh: () -> Unit,
     onCategoryChange: (String) -> Unit,
     onNamePtChange: (String) -> Unit,
     onNameEsChange: (String) -> Unit,
@@ -52,9 +56,12 @@ fun TasksScreen(
     onRequestDelete: (AdminTasksResponseTasksInner) -> Unit,
     onConfirmDelete: () -> Unit,
     onDismissDelete: () -> Unit,
+    onDismissOutcome: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
     var showForm by remember { mutableStateOf(false) }
+    var pendingConfirmation by remember { mutableStateOf<AdminConfirmation?>(null) }
     Column(
         modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -65,12 +72,6 @@ fun TasksScreen(
         ) {
             NavigationActionButton(onClick = onBack) { Text(stringResource(R.string.admin_back)) }
             Text(stringResource(R.string.admin_tasks_title), style = MaterialTheme.typography.titleLarge)
-            NavigationActionButton(
-                onClick = onRefresh,
-                enabled = !state.loading && !state.saving,
-            ) {
-                Text(stringResource(R.string.admin_refresh))
-            }
         }
         if (state.loading) CircularProgressIndicator()
         state.error?.let { Text(it.resolve(), color = MaterialTheme.colorScheme.error) }
@@ -86,7 +87,21 @@ fun TasksScreen(
             TaskForm(state, onCategoryChange, onNamePtChange, onNameEsChange, onReadingsChange)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 AdminPrimaryButton(
-                    onClick = onSave,
+                    onClick = {
+                        val taskName = state.namePt.ifBlank { state.nameEs }
+                        val isCreate = state.editingId == null
+                        val titleRes = if (isCreate) R.string.admin_action_create else R.string.admin_action_save
+                        val bodyRes = if (isCreate) R.string.admin_dialog_create_body else R.string.admin_dialog_save_body
+                        pendingConfirmation = AdminConfirmation(
+                            title = context.getString(titleRes),
+                            message = context.getString(bodyRes, taskName),
+                            confirmLabel = context.getString(R.string.admin_action_confirm),
+                            onConfirm = {
+                                pendingConfirmation = null
+                                onSave()
+                            },
+                        )
+                    },
                     enabled = !state.saving,
                     loading = state.saving,
                     text = if (state.saving) stringResource(R.string.admin_action_saving) else if (state.editingId == null) stringResource(R.string.admin_action_create) else stringResource(R.string.admin_action_save),
@@ -101,7 +116,12 @@ fun TasksScreen(
 
         state.tasks.forEach { task ->
             val editable = state.canEdit(task)
-            Card(Modifier.fillMaxWidth()) {
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                ),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(task.categoryName, style = MaterialTheme.typography.labelMedium)
                     Text(task.namePt.ifBlank { task.nameEs }, style = MaterialTheme.typography.titleMedium)
@@ -121,7 +141,21 @@ fun TasksScreen(
                         }
                         if (state.canToggle(task)) {
                             AdminSecondaryButton(
-                                onClick = { onToggle(task) },
+                                onClick = {
+                                    val taskName = task.namePt.ifBlank { task.nameEs }
+                                    val isActivating = task.isActive != 1
+                                    val titleRes = if (isActivating) R.string.admin_action_activate else R.string.admin_action_deactivate
+                                    val bodyRes = if (isActivating) R.string.admin_dialog_toggle_on_body else R.string.admin_dialog_toggle_off_body
+                                    pendingConfirmation = AdminConfirmation(
+                                        title = context.getString(titleRes),
+                                        message = context.getString(bodyRes, taskName),
+                                        confirmLabel = context.getString(R.string.admin_action_confirm),
+                                        onConfirm = {
+                                            pendingConfirmation = null
+                                            onToggle(task)
+                                        },
+                                    )
+                                },
                                 text = if (task.isActive == 1) stringResource(R.string.admin_action_deactivate) else stringResource(R.string.admin_action_activate),
                             )
                         }
@@ -139,26 +173,32 @@ fun TasksScreen(
         if (!state.loading && state.tasks.isEmpty()) Text(stringResource(R.string.admin_no_tasks))
     }
 
-    state.deleteTarget?.let { task ->
+    val deleteConfirmation = state.deleteTarget?.takeIf { state.canDelete(it) }?.let { task ->
         val taskName = task.namePt.ifBlank { task.nameEs }
-        AlertDialog(
-            onDismissRequest = onDismissDelete,
-            title = { Text(stringResource(R.string.admin_confirm_delete)) },
-            text = { Text(stringResource(R.string.admin_delete_question, taskName)) },
-            confirmButton = {
-                AdminDestructiveConfirmButton(
-                    onClick = onConfirmDelete,
-                    text = stringResource(R.string.admin_action_confirm),
-                )
-            },
-            dismissButton = {
-                AdminSecondaryButton(
-                    onClick = onDismissDelete,
-                    text = stringResource(R.string.admin_action_cancel),
-                )
-            },
+        AdminConfirmation(
+            title = stringResource(R.string.admin_action_delete),
+            message = stringResource(R.string.admin_dialog_delete_body, taskName),
+            confirmLabel = stringResource(R.string.admin_action_delete),
+            isDestructive = true,
+            onConfirm = onConfirmDelete,
         )
     }
+
+    AdminConfirmDialog(
+        confirmation = deleteConfirmation ?: pendingConfirmation,
+        onDismiss = {
+            if (deleteConfirmation != null) {
+                onDismissDelete()
+            } else {
+                pendingConfirmation = null
+            }
+        },
+    )
+
+    AdminResultDialog(
+        outcome = state.outcome,
+        onClose = onDismissOutcome,
+    )
 }
 
 @Composable
@@ -226,7 +266,6 @@ fun TasksRoute(
     TasksScreen(
         state = state,
         onBack = onBack,
-        onRefresh = viewModel::load,
         onCategoryChange = viewModel::onCategoryChange,
         onNamePtChange = viewModel::onNamePtChange,
         onNameEsChange = viewModel::onNameEsChange,
@@ -238,6 +277,7 @@ fun TasksRoute(
         onRequestDelete = viewModel::requestDelete,
         onConfirmDelete = viewModel::confirmDelete,
         onDismissDelete = viewModel::cancelDelete,
+        onDismissOutcome = viewModel::dismissOutcome,
         modifier = modifier,
     )
 }

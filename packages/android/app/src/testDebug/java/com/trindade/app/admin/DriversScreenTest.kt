@@ -15,6 +15,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.trindade.app.R
 import com.trindade.app.contract.models.AdminDriverResponseDriver
+import com.trindade.app.ui.components.AdminOutcome
 import com.trindade.app.ui.UiText
 import com.trindade.app.ui.theme.TrindadeTheme
 import org.junit.Assert.assertEquals
@@ -51,9 +52,10 @@ class DriversScreenTest {
         saving: Boolean = false,
         error: UiText? = null,
         editingId: Int? = null,
+        name: String = "Motorista",
     ) = DriversViewModel.UiState(
         loading = loading, saving = saving, drivers = drivers, role = role,
-        currentUserId = 7, editingId = editingId, name = "Motorista",
+        currentUserId = 7, editingId = editingId, name = name,
         phone = "+55 11 98888-7777", driverType = DriversViewModel.FLETERO,
         error = error,
     )
@@ -69,6 +71,7 @@ class DriversScreenTest {
         onCancel: () -> Unit = {},
         onRefresh: () -> Unit = {},
         onBack: () -> Unit = {},
+        onDismissOutcome: () -> Unit = {},
     ) = composeRule.setContent {
         TrindadeTheme {
             DriversScreen(
@@ -77,6 +80,7 @@ class DriversScreenTest {
                 onPhoneChange = onPhoneChange,
                 onDriverTypeChange = onDriverTypeChange, onSave = onSave, onCancel = onCancel,
                 onEdit = onEdit, onToggle = onToggle,
+                onDismissOutcome = onDismissOutcome,
             )
         }
     }
@@ -90,6 +94,7 @@ class DriversScreenTest {
         composeRule.onNodeWithText("ABC1").assertDoesNotExist()
         composeRule.onAllNodesWithText("Fletero").assertCountEquals(2)
         composeRule.onNodeWithText("Desativar").performScrollTo().performClick()
+        composeRule.onNodeWithText("Confirmar").performClick()
         assertEquals(1, toggled)
     }
 
@@ -193,5 +198,58 @@ class DriversScreenTest {
         val saveBounds = saveNode.getUnclippedBoundsInRoot()
         assertTrue("Salvar height >= 48dp", saveBounds.bottom - saveBounds.top >= 48.dp)
         assertTrue("Salvar width >= 48dp", saveBounds.right - saveBounds.left >= 48.dp)
+    }
+
+    @Test
+    fun `save shows confirmation dialog and confirm invokes onSave`() {
+        var saved = 0
+        render(state(editingId = 1, name = "Carlos"), onSave = { saved++ })
+
+        composeRule.onNodeWithText("Salvar").performScrollTo().performClick()
+        val expectedBody = copy(R.string.admin_dialog_save_body, "Carlos")
+        composeRule.onNodeWithText(expectedBody).assertIsDisplayed()
+
+        composeRule.onNodeWithText("Confirmar").performClick()
+        assertEquals(1, saved)
+    }
+
+    @Test
+    fun `save confirmation cancel does not invoke onSave`() {
+        var saved = 0
+        render(state(editingId = 1, name = "Carlos"), onSave = { saved++ })
+
+        composeRule.onNodeWithText("Salvar").performScrollTo().performClick()
+        val expectedBody = copy(R.string.admin_dialog_save_body, "Carlos")
+        composeRule.onNodeWithText(expectedBody).assertIsDisplayed()
+
+        composeRule.onAllNodesWithText("Cancelar")[1].performClick()
+        assertEquals(0, saved)
+    }
+
+    @Test
+    fun `toggle shows confirmation dialog and confirm invokes onToggle`() {
+        var toggled = 0
+        render(state(), onToggle = { toggled++ })
+
+        composeRule.onAllNodesWithText("Desativar")[0].performScrollTo().performClick()
+        val expectedBody = copy(R.string.admin_dialog_toggle_off_body, "Motorista 1")
+        composeRule.onNodeWithText(expectedBody).assertIsDisplayed()
+
+        composeRule.onNodeWithText("Confirmar").performClick()
+        assertEquals(1, toggled)
+    }
+
+    @Test
+    fun `outcome shows result dialog and close invokes onDismissOutcome`() {
+        var dismissed = 0
+        render(
+            state().copy(outcome = AdminOutcome(isSuccess = true, message = UiText.of(R.string.admin_drivers_created))),
+            onDismissOutcome = { dismissed++ },
+        )
+
+        val expectedSuccess = copy(R.string.admin_drivers_created)
+        composeRule.onNodeWithText(expectedSuccess).assertIsDisplayed()
+        composeRule.onNodeWithText("Fechar").performClick()
+        assertEquals(1, dismissed)
     }
 }

@@ -108,7 +108,6 @@ class AuditScreenTest {
         onClearFilters: () -> Unit = {},
         onPreviousPage: () -> Unit = {},
         onNextPage: () -> Unit = {},
-        onRefresh: () -> Unit = {},
     ) = composeRule.setContent {
         TrindadeTheme {
             AuditScreen(
@@ -121,16 +120,15 @@ class AuditScreenTest {
                 onClearFilters = onClearFilters,
                 onPreviousPage = onPreviousPage,
                 onNextPage = onNextPage,
-                onRefresh = onRefresh,
             )
         }
     }
 
     @Test
-    fun `refresh action has touch target height of at least 48dp`() {
+    fun `refresh action is removed from audit screen`() {
         render(state())
 
-        composeRule.onNodeWithText("Atualizar").assertIsDisplayed().assertHeightIsAtLeast(48.dp)
+        composeRule.onNodeWithText("Atualizar").assertDoesNotExist()
     }
 
     @Test
@@ -223,7 +221,6 @@ class AuditScreenTest {
                         AuditScreen(
                             state = auditState,
                             onBack = { backed++ },
-                            onRefresh = { refreshed++ },
                             onApplyFilters = { applied++ },
                             onClearFilters = { cleared++ },
                             onPreviousPage = { prevClicked++ },
@@ -238,8 +235,7 @@ class AuditScreenTest {
         composeRule.onNodeWithText("Voltar").performScrollTo().assertIsDisplayed().performClick()
         assertEquals(1, backed)
         composeRule.onNodeWithText("Auditoria").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText("Atualizar").performScrollTo().assertIsDisplayed().performClick()
-        assertEquals(1, refreshed)
+        composeRule.onNodeWithText("Atualizar").assertDoesNotExist()
 
         // Filter controls are reachable and operable
         composeRule.onNodeWithText("Ação: Todos").performScrollTo().assertIsDisplayed()
@@ -290,7 +286,7 @@ class AuditScreenTest {
         // Header controls are reachable
         composeRule.onNodeWithText("Voltar").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Auditoria").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText("Atualizar").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Atualizar").assertDoesNotExist()
 
         // Filter controls are reachable
         composeRule.onNodeWithText("Ação: Todos").performScrollTo().assertIsDisplayed()
@@ -333,7 +329,7 @@ class AuditScreenTest {
 
         composeRule.onNodeWithText("Auditoria").assertIsDisplayed()
         composeRule.onNodeWithText("Voltar").assertIsDisplayed()
-        composeRule.onNodeWithText("Atualizar").assertIsDisplayed()
+        composeRule.onNodeWithText("Atualizar").assertDoesNotExist()
         composeRule.onNodeWithText("Ação: Todos").assertIsDisplayed()
         composeRule.onNodeWithText("Entidade: Todos").assertIsDisplayed()
         composeRule.onNodeWithText("ID Usuário").assertIsDisplayed()
@@ -471,16 +467,13 @@ class AuditScreenTest {
     }
 
     @Test
-    fun `navigation back and refresh callbacks are wired and invoked exactly once`() {
+    fun `navigation back callback is wired and invoked exactly once`() {
         var backs = 0
-        var refreshed = 0
-        render(state(), onBack = { backs++ }, onRefresh = { refreshed++ })
+        render(state(), onBack = { backs++ })
 
         composeRule.onNodeWithText("Voltar").performClick()
         assertEquals("onBack must be called exactly once per click", 1, backs)
-
-        composeRule.onNodeWithText("Atualizar").performClick()
-        assertEquals("onRefresh must be called exactly once per click", 1, refreshed)
+        composeRule.onNodeWithText("Atualizar").assertDoesNotExist()
     }
 
     @Test

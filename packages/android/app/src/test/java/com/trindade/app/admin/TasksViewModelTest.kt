@@ -181,6 +181,34 @@ class TasksViewModelTest {
         assertNull(model.state.value.error)
     }
 
+    @Test fun `saved write sets success outcome, refused sets failure, dismissOutcome clears it`() {
+        val api = CatalogApi()
+        val model = model(api)
+        model.load()
+        model.onCategoryChange("3")
+        model.onNamePtChange("Nova")
+
+        api.writeResult = TaskWriteResult.Refused(400)
+        model.save()
+        val failureOutcome = model.state.value.outcome
+        assertNotNull(failureOutcome)
+        assertEquals(false, failureOutcome?.isSuccess)
+        assertEquals(TasksViewModel.REFUSED.resId, failureOutcome?.message?.resId)
+
+        model.dismissOutcome()
+        assertNull(model.state.value.outcome)
+
+        api.writeResult = TaskWriteResult.Saved(AdminTaskResponseTask(10, 3, "Task10", "Tarea10", 1, 1, 42, "now", AdminTaskResponseTask.TaskType.temperature))
+        model.save()
+        val successOutcome = model.state.value.outcome
+        assertNotNull(successOutcome)
+        assertEquals(true, successOutcome?.isSuccess)
+        assertEquals(TasksViewModel.CREATED.resId, successOutcome?.message?.resId)
+
+        model.dismissOutcome()
+        assertNull(model.state.value.outcome)
+    }
+
     @Test fun `a newer load cancels an older response`() {
         val api = CatalogApi()
         val model = model(api)

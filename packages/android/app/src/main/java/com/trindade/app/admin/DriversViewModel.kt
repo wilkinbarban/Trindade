@@ -7,6 +7,7 @@ import com.trindade.app.auth.AuthRepository
 import com.trindade.app.contract.models.AdminDriverResponseDriver
 import com.trindade.app.contract.models.CreateAdminDriverRequest
 import com.trindade.app.contract.models.UpdateAdminDriverRequest
+import com.trindade.app.ui.components.AdminOutcome
 import com.trindade.app.ui.UiText
 import com.trindade.app.ui.cleanPhone
 import com.trindade.app.ui.filterPhoneInput
@@ -36,6 +37,7 @@ class DriversViewModel @Inject constructor(
         val driverType: String = "fletero",
         val error: UiText? = null,
         val refusedStatus: Int? = null,
+        val outcome: AdminOutcome? = null,
     ) {
         val isAdmin: Boolean get() = role == ADMIN
         fun canEdit(driver: AdminDriverResponseDriver): Boolean = isAdmin ||
@@ -87,6 +89,10 @@ class DriversViewModel @Inject constructor(
             error = null, refusedStatus = null)
     }
 
+    fun dismissOutcome() {
+        _state.update { it.copy(outcome = null) }
+    }
+
     fun save() {
         val current = _state.value
         if (current.loading || current.saving || (current.role != ADMIN && current.role != WORKER)) return
@@ -105,6 +111,9 @@ class DriversViewModel @Inject constructor(
         } else {
             cleanPhone(current.phone).ifEmpty { null }
         }
+        val isCreate = current.editingId == null
+        val successMessage = if (isCreate) CREATED else UPDATED
+
         _state.update { it.copy(saving = true, error = null, refusedStatus = null) }
         viewModelScope.launch {
             val result = current.editingId?.let { id ->
@@ -119,37 +128,57 @@ class DriversViewModel @Inject constructor(
                     driverType = driverType,
                 ),
             )
-            finishWrite(result)
+            finishWrite(result, successMessage)
         }
     }
 
     fun toggle(driver: AdminDriverResponseDriver) {
         val current = _state.value
         if (current.loading || !current.canToggle(driver) || current.saving) return
-        write {
+        write(UPDATED) {
             repository.update(driver.id, UpdateAdminDriverRequest(
                 isActive = if (driver.isActive == 1) UpdateAdminDriverRequest.IsActive._0 else UpdateAdminDriverRequest.IsActive._1,
             ))
         }
     }
 
-    private fun write(call: suspend () -> DriverWriteResult) {
+    private fun write(successMessage: UiText, call: suspend () -> DriverWriteResult) {
         val current = _state.value
         if (current.loading || current.saving) return
         _state.update { it.copy(saving = true, error = null, refusedStatus = null) }
-        viewModelScope.launch { finishWrite(call()) }
+        viewModelScope.launch { finishWrite(call(), successMessage) }
     }
 
-    private suspend fun finishWrite(result: DriverWriteResult) {
+    private suspend fun finishWrite(result: DriverWriteResult, successMessage: UiText) {
         when (result) {
             is DriverWriteResult.Saved -> {
-                _state.update { it.copy(saving = false, editingId = null, name = "", phone = "", driverType = FLETERO) }
+                _state.update {
+                    it.copy(
+                        saving = false,
+                        editingId = null,
+                        name = "",
+                        phone = "",
+                        driverType = FLETERO,
+                        outcome = AdminOutcome(isSuccess = true, message = successMessage),
+                    )
+                }
                 load()
             }
             is DriverWriteResult.Refused -> _state.update {
-                it.copy(saving = false, error = REFUSED, refusedStatus = result.status)
+                it.copy(
+                    saving = false,
+                    error = REFUSED,
+                    refusedStatus = result.status,
+                    outcome = AdminOutcome(isSuccess = false, message = REFUSED),
+                )
             }
-            DriverWriteResult.Unreachable -> _state.update { it.copy(saving = false, error = UNREACHABLE) }
+            DriverWriteResult.Unreachable -> _state.update {
+                it.copy(
+                    saving = false,
+                    error = UNREACHABLE,
+                    outcome = AdminOutcome(isSuccess = false, message = UNREACHABLE),
+                )
+            }
         }
     }
 
@@ -161,6 +190,9 @@ class DriversViewModel @Inject constructor(
         const val WORKER = "Trabalhador"
         const val CASA = "casa"
         const val FLETERO = "fletero"
+        val CREATED = UiText.of(R.string.admin_drivers_created)
+        val UPDATED = UiText.of(R.string.admin_drivers_updated)
+        val DELETED = UiText.of(R.string.admin_drivers_deleted)
         val NAME = UiText.of(R.string.drivers_error_name)
         val DRIVER_TYPE = UiText.of(R.string.drivers_error_type)
         val REFUSED = UiText.of(R.string.drivers_error_refused)

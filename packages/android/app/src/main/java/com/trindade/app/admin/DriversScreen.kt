@@ -10,6 +10,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -20,6 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -28,7 +30,10 @@ import com.trindade.app.R
 import com.trindade.app.contract.models.AdminDriverResponseDriver
 import com.trindade.app.ui.BrazilianPhoneVisualTransformation
 import com.trindade.app.ui.components.AdminChoiceChip
+import com.trindade.app.ui.components.AdminConfirmDialog
+import com.trindade.app.ui.components.AdminConfirmation
 import com.trindade.app.ui.components.AdminPrimaryButton
+import com.trindade.app.ui.components.AdminResultDialog
 import com.trindade.app.ui.components.AdminSecondaryButton
 import com.trindade.app.ui.components.NavigationActionButton
 import com.trindade.app.ui.filterPhoneDigits
@@ -47,10 +52,13 @@ fun DriversScreen(
     onCancel: () -> Unit,
     onEdit: (AdminDriverResponseDriver) -> Unit,
     onToggle: (AdminDriverResponseDriver) -> Unit,
+    onDismissOutcome: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
     var showForm by remember { mutableStateOf(false) }
     var wasSaving by remember { mutableStateOf(false) }
+    var pendingConfirmation by remember { mutableStateOf<AdminConfirmation?>(null) }
     androidx.compose.runtime.LaunchedEffect(state.saving) {
         if (wasSaving && !state.saving && state.error == null) {
             showForm = false
@@ -132,7 +140,20 @@ fun DriversScreen(
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 AdminPrimaryButton(
-                    onClick = onSave,
+                    onClick = {
+                        val isCreate = state.editingId == null
+                        val titleRes = if (isCreate) R.string.admin_action_create else R.string.admin_action_save
+                        val bodyRes = if (isCreate) R.string.admin_dialog_create_body else R.string.admin_dialog_save_body
+                        pendingConfirmation = AdminConfirmation(
+                            title = context.getString(titleRes),
+                            message = context.getString(bodyRes, state.name),
+                            confirmLabel = context.getString(R.string.admin_action_confirm),
+                            onConfirm = {
+                                pendingConfirmation = null
+                                onSave()
+                            },
+                        )
+                    },
                     enabled = !state.saving && !state.loading,
                     loading = state.saving,
                     text = if (state.saving) stringResource(R.string.drivers_saving)
@@ -148,7 +169,12 @@ fun DriversScreen(
         }
 
         state.drivers.forEach { driver ->
-            Card(Modifier.fillMaxWidth()) {
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                ),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(driver.name, style = MaterialTheme.typography.titleMedium)
                     // The number the fleet keeps, blank when nobody typed one: the list exists to show
@@ -165,7 +191,20 @@ fun DriversScreen(
                         }
                         if (state.canToggle(driver)) {
                             AdminSecondaryButton(
-                                onClick = { onToggle(driver) },
+                                onClick = {
+                                    val isActivating = driver.isActive != 1
+                                    val titleRes = if (isActivating) R.string.admin_action_activate else R.string.admin_action_deactivate
+                                    val bodyRes = if (isActivating) R.string.admin_dialog_toggle_on_body else R.string.admin_dialog_toggle_off_body
+                                    pendingConfirmation = AdminConfirmation(
+                                        title = context.getString(titleRes),
+                                        message = context.getString(bodyRes, driver.name),
+                                        confirmLabel = context.getString(R.string.admin_action_confirm),
+                                        onConfirm = {
+                                            pendingConfirmation = null
+                                            onToggle(driver)
+                                        },
+                                    )
+                                },
                                 text = if (driver.isActive == 1) stringResource(R.string.drivers_deactivate) else stringResource(R.string.drivers_activate),
                             )
                         }
@@ -175,6 +214,16 @@ fun DriversScreen(
         }
         if (!state.loading && state.drivers.isEmpty()) Text(stringResource(R.string.admin_no_drivers))
     }
+
+    AdminConfirmDialog(
+        confirmation = pendingConfirmation,
+        onDismiss = { pendingConfirmation = null },
+    )
+
+    AdminResultDialog(
+        outcome = state.outcome,
+        onClose = onDismissOutcome,
+    )
 }
 
 @Composable
@@ -198,6 +247,7 @@ fun DriversRoute(
         onCancel = viewModel::cancelEdit,
         onEdit = viewModel::edit,
         onToggle = viewModel::toggle,
+        onDismissOutcome = viewModel::dismissOutcome,
         modifier = modifier,
     )
 }

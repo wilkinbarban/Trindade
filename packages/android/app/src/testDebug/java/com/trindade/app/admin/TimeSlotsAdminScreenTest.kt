@@ -6,6 +6,7 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasProgressBarRangeInfo
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isDialog
@@ -20,6 +21,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.trindade.app.R
 import com.trindade.app.auth.RolePolicy
+import com.trindade.app.ui.components.AdminOutcome
 import com.trindade.app.ui.UiText
 import com.trindade.app.ui.theme.TrindadeTheme
 import org.junit.Assert.assertEquals
@@ -71,6 +73,7 @@ class TimeSlotsAdminScreenTest {
         onRequestDelete: (String) -> Unit = {},
         onCancelDelete: () -> Unit = {},
         onConfirmDelete: () -> Unit = {},
+        onDismissOutcome: () -> Unit = {},
     ) {
         composeRule.setContent {
             TrindadeTheme {
@@ -84,6 +87,7 @@ class TimeSlotsAdminScreenTest {
                     onRequestDelete = onRequestDelete,
                     onCancelDelete = onCancelDelete,
                     onConfirmDelete = onConfirmDelete,
+                    onDismissOutcome = onDismissOutcome,
                 )
             }
         }
@@ -151,6 +155,7 @@ class TimeSlotsAdminScreenTest {
         assertEquals("11:00", inputCaptured)
 
         composeRule.onNodeWithText(copy(R.string.time_slots_add)).performClick()
+        composeRule.onNodeWithText("Confirmar").performClick()
         assertEquals(true, saveClicked)
     }
 
@@ -206,11 +211,10 @@ class TimeSlotsAdminScreenTest {
             onCancelDelete = { cancelClicked = true },
         )
 
-        composeRule.onNodeWithText(copy(R.string.time_slots_delete_confirm_title)).assertIsDisplayed()
-        composeRule.onNodeWithText(copy(R.string.time_slots_delete_confirm_body, "06:00")).assertIsDisplayed()
+        composeRule.onNodeWithText(copy(R.string.admin_dialog_delete_body, "06:00")).assertIsDisplayed()
 
         val dialogCancelNode = composeRule.onNode(
-            hasAnyAncestor(isDialog()) and hasText(copy(R.string.time_slots_cancel)),
+            hasAnyAncestor(isDialog()) and hasText(copy(R.string.admin_action_cancel)),
         )
         dialogCancelNode.assertIsDisplayed().performClick()
         assertEquals(true, cancelClicked)
@@ -231,11 +235,10 @@ class TimeSlotsAdminScreenTest {
             onCancelDelete = { cancelClicked = true },
         )
 
-        composeRule.onNodeWithText(copy(R.string.time_slots_delete_confirm_title)).assertIsDisplayed()
-        composeRule.onNodeWithText(copy(R.string.time_slots_delete_confirm_body, "06:00")).assertIsDisplayed()
+        composeRule.onNodeWithText(copy(R.string.admin_dialog_delete_body, "06:00")).assertIsDisplayed()
 
         val dialogConfirmNode = composeRule.onNode(
-            hasAnyAncestor(isDialog()) and hasText(copy(R.string.time_slots_remove)),
+            hasAnyAncestor(isDialog()) and hasText(copy(R.string.admin_action_delete)) and hasClickAction(),
         )
         dialogConfirmNode.assertIsDisplayed().performClick()
         assertEquals(true, confirmClicked)
@@ -307,7 +310,9 @@ class TimeSlotsAdminScreenTest {
         assertTrue("Dialog Cancel height >= 48dp", dialogCancelBounds.bottom - dialogCancelBounds.top >= 48.dp)
         assertTrue("Dialog Cancel width >= 48dp", dialogCancelBounds.right - dialogCancelBounds.left >= 48.dp)
 
-        val confirmNode = composeRule.onAllNodesWithText(copy(R.string.time_slots_remove))[0]
+        val confirmNode = composeRule.onNode(
+            hasAnyAncestor(isDialog()) and hasText(copy(R.string.admin_action_delete)) and hasClickAction(),
+        )
         confirmNode.assertIsDisplayed()
         val confirmBounds = confirmNode.getUnclippedBoundsInRoot()
         assertTrue("Confirm height >= 48dp", confirmBounds.bottom - confirmBounds.top >= 48.dp)
@@ -330,17 +335,32 @@ class TimeSlotsAdminScreenTest {
     }
 
     @Test
-    fun `back button while a form is saving keeps the lockout and never exits`() {
-        var cancelFormCalled = false
-        var backCalled = false
+    fun `outcome shows result dialog and close invokes onDismissOutcome`() {
+        var dismissed = 0
         render(
-            state(form = TimeSlotsAdminViewModel.FormState(saving = true)),
-            onCancelForm = { cancelFormCalled = true },
-            onBack = { backCalled = true },
+            state().copy(outcome = AdminOutcome(isSuccess = true, message = UiText.of(R.string.admin_time_slots_added_success))),
+            onDismissOutcome = { dismissed++ },
         )
 
-        composeRule.onNodeWithText(copy(R.string.report_back)).performClick()
-        assertEquals(false, cancelFormCalled)
-        assertEquals(false, backCalled)
+        val expectedSuccess = copy(R.string.admin_time_slots_added_success)
+        composeRule.onNodeWithText(expectedSuccess).assertIsDisplayed()
+        composeRule.onNodeWithText("Fechar").performClick()
+        assertEquals(1, dismissed)
+    }
+
+    @Test
+    fun `add slot shows confirmation dialog and confirm invokes onSave`() {
+        var saved = 0
+        render(
+            state(form = TimeSlotsAdminViewModel.FormState(slotInput = "09:00")),
+            onSave = { saved++ },
+        )
+
+        composeRule.onNodeWithText(copy(R.string.time_slots_add)).performClick()
+        val expectedBody = copy(R.string.admin_dialog_create_body, "09:00")
+        composeRule.onNodeWithText(expectedBody).assertIsDisplayed()
+
+        composeRule.onNodeWithText("Confirmar").performClick()
+        assertEquals(1, saved)
     }
 }

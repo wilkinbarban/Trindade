@@ -204,6 +204,33 @@ class DriversViewModelTest {
         assertNull(model.state.value.error)
     }
 
+    @Test fun `saved write sets success outcome, refused sets failure, dismissOutcome clears it`() {
+        val api = DriverApi()
+        val model = viewModel(api)
+        model.load()
+        model.onNameChange("Ana")
+
+        api.writeResult = DriverWriteResult.Refused(400)
+        model.save()
+        val failureOutcome = model.state.value.outcome
+        assertNotNull(failureOutcome)
+        assertEquals(false, failureOutcome?.isSuccess)
+        assertEquals(DriversViewModel.REFUSED.resId, failureOutcome?.message?.resId)
+
+        model.dismissOutcome()
+        assertNull(model.state.value.outcome)
+
+        api.writeResult = DriverWriteResult.Saved(driver(5, 42))
+        model.save()
+        val successOutcome = model.state.value.outcome
+        assertNotNull(successOutcome)
+        assertEquals(true, successOutcome?.isSuccess)
+        assertEquals(DriversViewModel.CREATED.resId, successOutcome?.message?.resId)
+
+        model.dismissOutcome()
+        assertNull(model.state.value.outcome)
+    }
+
     @Test fun `a newer load cancels an older driver response and cancel clears the form`() {
         val api = DriverApi(rows = listOf(driver(7, 42)))
         api.firstRead = CompletableDeferred()

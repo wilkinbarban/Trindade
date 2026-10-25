@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.trindade.app.R
 import com.trindade.app.auth.AuthRepository
 import com.trindade.app.auth.RolePolicy
+import com.trindade.app.ui.components.AdminOutcome
 import com.trindade.app.ui.UiText
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -48,6 +49,7 @@ class TimeSlotsAdminViewModel @Inject constructor(
         val isError: Boolean = false,
         val deleteConfirmSlot: String? = null,
         val deleting: Boolean = false,
+        val outcome: AdminOutcome? = null,
     ) {
         val isAdmin: Boolean get() = role == RolePolicy.ADMIN
         val canRemove: Boolean get() = isAdmin && timeSlots.size > 1
@@ -224,6 +226,7 @@ class TimeSlotsAdminViewModel @Inject constructor(
                             timeSlots = result.timeSlots.sorted(),
                             message = ADDED_SUCCESS,
                             isError = false,
+                            outcome = AdminOutcome(isSuccess = true, message = ADDED_SUCCESS),
                         )
                     }
                 }
@@ -237,6 +240,7 @@ class TimeSlotsAdminViewModel @Inject constructor(
                                 timeSlots = emptyList(),
                                 message = ERROR_ADMIN_ONLY,
                                 isError = true,
+                                outcome = AdminOutcome(isSuccess = false, message = ERROR_ADMIN_ONLY),
                             )
                         }
                     } else {
@@ -245,6 +249,7 @@ class TimeSlotsAdminViewModel @Inject constructor(
                                 form = form.copy(saving = false),
                                 message = ERROR_SAVE,
                                 isError = true,
+                                outcome = AdminOutcome(isSuccess = false, message = ERROR_SAVE),
                             )
                         }
                     }
@@ -255,6 +260,7 @@ class TimeSlotsAdminViewModel @Inject constructor(
                             form = form.copy(saving = false),
                             message = ERROR_UNREACHABLE,
                             isError = true,
+                            outcome = AdminOutcome(isSuccess = false, message = ERROR_UNREACHABLE),
                         )
                     }
                 }
@@ -280,6 +286,10 @@ class TimeSlotsAdminViewModel @Inject constructor(
     fun cancelDelete() {
         if (_uiState.value.deleting) return
         _uiState.update { it.copy(deleteConfirmSlot = null) }
+    }
+
+    fun dismissOutcome() {
+        _uiState.update { it.copy(outcome = null) }
     }
 
     fun confirmDelete() {
@@ -333,6 +343,7 @@ class TimeSlotsAdminViewModel @Inject constructor(
                             timeSlots = result.timeSlots.sorted(),
                             message = REMOVED_SUCCESS,
                             isError = false,
+                            outcome = AdminOutcome(isSuccess = true, message = REMOVED_SUCCESS),
                         )
                     }
                 }
@@ -347,6 +358,7 @@ class TimeSlotsAdminViewModel @Inject constructor(
                                 form = null,
                                 message = ERROR_ADMIN_ONLY,
                                 isError = true,
+                                outcome = AdminOutcome(isSuccess = false, message = ERROR_ADMIN_ONLY),
                             )
                         }
                     } else {
@@ -356,6 +368,7 @@ class TimeSlotsAdminViewModel @Inject constructor(
                                 deleteConfirmSlot = null,
                                 message = ERROR_REMOVE,
                                 isError = true,
+                                outcome = AdminOutcome(isSuccess = false, message = ERROR_REMOVE),
                             )
                         }
                     }
@@ -367,6 +380,7 @@ class TimeSlotsAdminViewModel @Inject constructor(
                             deleteConfirmSlot = null,
                             message = ERROR_UNREACHABLE,
                             isError = true,
+                            outcome = AdminOutcome(isSuccess = false, message = ERROR_UNREACHABLE),
                         )
                     }
                 }

@@ -8,7 +8,11 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
@@ -20,6 +24,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.trindade.app.R
 import com.trindade.app.contract.models.AdminCategoryResponseCategory
 import com.trindade.app.contract.models.AdminTasksResponseTasksInner
+import com.trindade.app.ui.components.AdminOutcome
 import com.trindade.app.ui.UiText
 import com.trindade.app.ui.theme.TrindadeTheme
 import org.junit.Assert.assertEquals
@@ -62,10 +67,11 @@ class TasksScreenTest {
         error: UiText? = null,
         editingId: Int? = null,
         deleteTarget: AdminTasksResponseTasksInner? = null,
+        namePt: String = "Câmara fria",
     ) = TasksViewModel.UiState(
         loading = false, saving = saving, categories = listOf(category), tasks = tasks,
         role = role, currentUserId = 7, editingId = editingId,
-        categoryId = category.id.toString(), namePt = "Câmara fria", nameEs = "Cámara fría",
+        categoryId = category.id.toString(), namePt = namePt, nameEs = "Cámara fría",
         temperatureReadings = "2", deleteTarget = deleteTarget, error = error,
     )
 
@@ -76,22 +82,25 @@ class TasksScreenTest {
         onRequestDelete: (AdminTasksResponseTasksInner) -> Unit = {},
         onConfirmDelete: () -> Unit = {},
         onDismissDelete: () -> Unit = {},
-        onRefresh: () -> Unit = {},
         onBack: () -> Unit = {},
         onCategoryChange: (String) -> Unit = {},
         onNamePtChange: (String) -> Unit = {},
         onNameEsChange: (String) -> Unit = {},
         onReadingsChange: (String) -> Unit = {},
+        onSave: () -> Unit = {},
+        onCancel: () -> Unit = {},
+        onDismissOutcome: () -> Unit = {},
     ) = composeRule.setContent {
         TrindadeTheme {
             TasksScreen(
-                state = state, onBack = onBack, onRefresh = onRefresh,
+                state = state, onBack = onBack,
                 onCategoryChange = onCategoryChange, onNamePtChange = onNamePtChange,
                 onNameEsChange = onNameEsChange, onReadingsChange = onReadingsChange,
-                onSave = {}, onCancel = {}, onEdit = onEdit, onToggle = onToggle,
+                onSave = onSave, onCancel = onCancel, onEdit = onEdit, onToggle = onToggle,
                 onRequestDelete = onRequestDelete,
                 onConfirmDelete = onConfirmDelete,
                 onDismissDelete = onDismissDelete,
+                onDismissOutcome = onDismissOutcome,
             )
         }
     }
@@ -113,6 +122,7 @@ class TasksScreenTest {
         composeRule.onAllNodesWithText("Editar")[0].performScrollTo().performClick()
         assertEquals(1, edited)
         composeRule.onNodeWithText("Desativar").performScrollTo().performClick()
+        composeRule.onNodeWithText("Confirmar").performClick()
         assertEquals(1, toggled)
         composeRule.onAllNodesWithText("Excluir")[0].performScrollTo().performClick()
         assertEquals(1, requested)
@@ -170,14 +180,12 @@ class TasksScreenTest {
     }
 
     @Test
-    fun `back and refresh actions are wired`() {
+    fun `back action is wired and refresh button is removed`() {
         var backs = 0
-        var refreshes = 0
-        render(state(), onBack = { backs++ }, onRefresh = { refreshes++ })
+        render(state(), onBack = { backs++ })
         composeRule.onNodeWithText("Voltar").performClick()
-        composeRule.onNodeWithText("Atualizar").performClick()
         assertEquals(1, backs)
-        assertEquals(1, refreshes)
+        composeRule.onNodeWithText("Atualizar").assertDoesNotExist()
     }
 
     @Test
@@ -189,9 +197,9 @@ class TasksScreenTest {
             onConfirmDelete = { confirmed++ },
             onDismissDelete = { dismissed++ },
         )
-        composeRule.onNodeWithText("Confirmar exclusão").assertIsDisplayed()
-        composeRule.onNodeWithText("Excluir Câmara fria 1?").assertIsDisplayed()
-        composeRule.onNodeWithText("Confirmar").performClick()
+        val expectedBody = copy(R.string.admin_dialog_delete_body, "Câmara fria 1")
+        composeRule.onNodeWithText(expectedBody).assertIsDisplayed()
+        composeRule.onNode(hasAnyAncestor(isDialog()) and hasText(copy(R.string.admin_action_delete)) and hasClickAction()).performClick()
         assertEquals(1, confirmed)
         assertEquals(0, dismissed)
     }
@@ -203,7 +211,8 @@ class TasksScreenTest {
             state(deleteTarget = task(1, 7)),
             onDismissDelete = { dismissed++ },
         )
-        composeRule.onNodeWithText("Confirmar exclusão").assertIsDisplayed()
+        val expectedBody = copy(R.string.admin_dialog_delete_body, "Câmara fria 1")
+        composeRule.onNodeWithText(expectedBody).assertIsDisplayed()
         composeRule.onNodeWithText("Cancelar").performClick()
         assertEquals(1, dismissed)
     }
@@ -223,7 +232,6 @@ class TasksScreenTest {
                 TasksScreen(
                     state = uiState,
                     onBack = {},
-                    onRefresh = {},
                     onCategoryChange = {},
                     onNamePtChange = {},
                     onNameEsChange = {},
@@ -242,27 +250,27 @@ class TasksScreenTest {
             }
         }
 
-        // Before click: dialog does not exist
-        composeRule.onNodeWithText("Confirmar exclusão").assertDoesNotExist()
+        // Before click: dialog body does not exist
+        val expectedBody = copy(R.string.admin_dialog_delete_body, "Câmara fria 1")
+        composeRule.onNodeWithText(expectedBody).assertDoesNotExist()
 
         // Clicking Excluir triggers onRequestDelete callback which updates uiState.deleteTarget
         composeRule.onAllNodesWithText("Excluir")[0].performScrollTo().performClick()
         assertEquals(1, requested?.id)
 
         // Now dialog appears because uiState recomposed with non-null deleteTarget
-        composeRule.onNodeWithText("Confirmar exclusão").assertIsDisplayed()
-        composeRule.onNodeWithText("Excluir Câmara fria 1?").assertIsDisplayed()
+        composeRule.onNodeWithText(expectedBody).assertIsDisplayed()
     }
 
     @Test
     fun `failed reload clears deleteTarget so no lingering dialog survives`() {
         var uiState by mutableStateOf(state(deleteTarget = task(1, 7)))
+        val expectedBody = copy(R.string.admin_dialog_delete_body, "Câmara fria 1")
         composeRule.setContent {
             TrindadeTheme {
                 TasksScreen(
                     state = uiState,
                     onBack = {},
-                    onRefresh = {},
                     onCategoryChange = {},
                     onNamePtChange = {},
                     onNameEsChange = {},
@@ -279,25 +287,21 @@ class TasksScreenTest {
         }
 
         // Dialog is displayed initially because state.deleteTarget is set
-        composeRule.onNodeWithText("Confirmar exclusão").assertIsDisplayed()
+        composeRule.onNodeWithText(expectedBody).assertIsDisplayed()
 
         // Failed reload clears deleteTarget in state
         uiState = uiState.copy(deleteTarget = null, error = TasksViewModel.UNREACHABLE)
         composeRule.waitForIdle()
 
         // Dialog must disappear immediately without lingering local modal
-        composeRule.onNodeWithText("Confirmar exclusão").assertDoesNotExist()
+        composeRule.onNodeWithText(expectedBody).assertDoesNotExist()
     }
 
     @Test
     fun `critical task administration action controls meet 48dp touch target bounds`() {
         render(state(editingId = 1, deleteTarget = task(1, 7)))
 
-        val refreshNode = composeRule.onNodeWithText("Atualizar")
-        refreshNode.assertIsDisplayed()
-        val refreshBounds = refreshNode.getUnclippedBoundsInRoot()
-        assertTrue("Atualizar height must be >= 48dp", refreshBounds.bottom - refreshBounds.top >= 48.dp)
-        assertTrue("Atualizar width must be >= 48dp", refreshBounds.right - refreshBounds.left >= 48.dp)
+        composeRule.onNodeWithText("Atualizar").assertDoesNotExist()
 
         val cancelNodes = composeRule.onAllNodesWithText("Cancelar")
         cancelNodes.assertCountEquals(2)
@@ -308,11 +312,58 @@ class TasksScreenTest {
         val dialogCancelBounds = cancelNodes[1].getUnclippedBoundsInRoot()
         assertTrue("Dialog Cancelar height >= 48dp", dialogCancelBounds.bottom - dialogCancelBounds.top >= 48.dp)
         assertTrue("Dialog Cancelar width >= 48dp", dialogCancelBounds.right - dialogCancelBounds.left >= 48.dp)
+    }
 
-        val confirmNode = composeRule.onNodeWithText("Confirmar")
-        confirmNode.assertIsDisplayed()
-        val confirmBounds = confirmNode.getUnclippedBoundsInRoot()
-        assertTrue("Confirmar height >= 48dp", confirmBounds.bottom - confirmBounds.top >= 48.dp)
-        assertTrue("Confirmar width >= 48dp", confirmBounds.right - confirmBounds.left >= 48.dp)
+    @Test
+    fun `save shows confirmation dialog and confirm invokes onSave`() {
+        var saved = 0
+        render(state(editingId = 1, namePt = "Tarefa Teste"), onSave = { saved++ })
+
+        composeRule.onNodeWithText("Salvar").performScrollTo().performClick()
+        val expectedBody = copy(R.string.admin_dialog_save_body, "Tarefa Teste")
+        composeRule.onNodeWithText(expectedBody).assertIsDisplayed()
+
+        composeRule.onNodeWithText("Confirmar").performClick()
+        assertEquals(1, saved)
+    }
+
+    @Test
+    fun `save confirmation cancel does not invoke onSave`() {
+        var saved = 0
+        render(state(editingId = 1, namePt = "Tarefa Teste"), onSave = { saved++ })
+
+        composeRule.onNodeWithText("Salvar").performScrollTo().performClick()
+        val expectedBody = copy(R.string.admin_dialog_save_body, "Tarefa Teste")
+        composeRule.onNodeWithText(expectedBody).assertIsDisplayed()
+
+        composeRule.onAllNodesWithText("Cancelar")[1].performClick()
+        assertEquals(0, saved)
+    }
+
+    @Test
+    fun `toggle shows confirmation dialog and confirm invokes onToggle`() {
+        var toggled = 0
+        render(state(), onToggle = { toggled++ })
+
+        composeRule.onAllNodesWithText("Desativar")[0].performScrollTo().performClick()
+        val expectedBody = copy(R.string.admin_dialog_toggle_off_body, "Câmara fria 1")
+        composeRule.onNodeWithText(expectedBody).assertIsDisplayed()
+
+        composeRule.onNodeWithText("Confirmar").performClick()
+        assertEquals(1, toggled)
+    }
+
+    @Test
+    fun `outcome shows result dialog and close invokes onDismissOutcome`() {
+        var dismissed = 0
+        render(
+            state().copy(outcome = AdminOutcome(isSuccess = true, message = UiText.of(R.string.admin_tasks_created))),
+            onDismissOutcome = { dismissed++ },
+        )
+
+        val expectedSuccess = copy(R.string.admin_tasks_created)
+        composeRule.onNodeWithText(expectedSuccess).assertIsDisplayed()
+        composeRule.onNodeWithText("Fechar").performClick()
+        assertEquals(1, dismissed)
     }
 }

@@ -10,6 +10,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -29,7 +30,6 @@ import com.trindade.app.ui.resolve
 fun TimeSlotsScreen(
     state: TimeSlotsViewModel.UiState,
     onBack: () -> Unit,
-    onRefresh: () -> Unit,
     onInputChange: (String) -> Unit = {},
     onAddTimeSlot: () -> Unit = {},
     onRemoveTimeSlot: (String) -> Unit = {},
@@ -48,12 +48,6 @@ fun TimeSlotsScreen(
         ) {
             NavigationActionButton(onClick = onBack) { Text(stringResource(R.string.admin_back)) }
             Text(stringResource(R.string.admin_time_slots_title), style = MaterialTheme.typography.titleLarge)
-            TextButton(
-                onClick = onRefresh,
-                enabled = !state.loading && !state.saving,
-            ) {
-                Text(stringResource(R.string.admin_refresh))
-            }
         }
 
         if (state.loading) {
@@ -104,7 +98,12 @@ fun TimeSlotsScreen(
         }
 
         state.timeSlots.forEach { slot ->
-            Card(modifier = Modifier.fillMaxWidth()) {
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                ),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()

@@ -56,7 +56,6 @@ class TimeSlotsScreenTest {
     private fun render(
         state: TimeSlotsViewModel.UiState,
         onBack: () -> Unit = {},
-        onRefresh: () -> Unit = {},
         onInputChange: (String) -> Unit = {},
         onAddTimeSlot: () -> Unit = {},
         onRemoveTimeSlot: (String) -> Unit = {},
@@ -65,7 +64,6 @@ class TimeSlotsScreenTest {
             TimeSlotsScreen(
                 state = state,
                 onBack = onBack,
-                onRefresh = onRefresh,
                 onInputChange = onInputChange,
                 onAddTimeSlot = onAddTimeSlot,
                 onRemoveTimeSlot = onRemoveTimeSlot,
@@ -146,11 +144,11 @@ class TimeSlotsScreenTest {
         composeRule.onNodeWithText("Remover").assertDoesNotExist()
     }
 
-    @Test fun `loading state renders loading indicator and text and disables refresh`() {
+    @Test fun `loading state renders loading indicator and text`() {
         render(state(loading = true))
 
         composeRule.onNodeWithText("Carregando", substring = true).assertIsDisplayed()
-        composeRule.onNodeWithText("Atualizar").assertIsNotEnabled()
+        composeRule.onNodeWithText("Atualizar").assertDoesNotExist()
     }
 
     @Test fun `saving state renders saving progress and disables controls`() {
@@ -168,8 +166,8 @@ class TimeSlotsScreenTest {
         composeRule.onNodeWithText(expectedRefused).assertIsDisplayed()
         composeRule.onNodeWithText("Status: 400").assertIsDisplayed()
         composeRule.onNodeWithText("Salvando…").assertIsDisplayed().assertIsNotEnabled()
-        composeRule.onNodeWithText("Atualizar").assertIsNotEnabled()
         composeRule.onNodeWithText("Remover").assertIsNotEnabled()
+        composeRule.onNodeWithText("Atualizar").assertDoesNotExist()
     }
 
     @Test fun `empty catalog renders empty notice`() {
@@ -191,14 +189,12 @@ class TimeSlotsScreenTest {
         composeRule.onNodeWithText("Status: 403").assertIsDisplayed()
     }
 
-    @Test fun `back and refresh callbacks are wired`() {
+    @Test fun `back callback is wired`() {
         var backs = 0
-        var refreshes = 0
-        render(state(), onBack = { backs++ }, onRefresh = { refreshes++ })
+        render(state(), onBack = { backs++ })
 
         composeRule.onNodeWithText("Voltar").performClick()
-        composeRule.onNodeWithText("Atualizar").performClick()
         assertEquals(1, backs)
-        assertEquals(1, refreshes)
+        composeRule.onNodeWithText("Atualizar").assertDoesNotExist()
     }
 }

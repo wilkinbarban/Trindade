@@ -47,6 +47,7 @@ import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -298,6 +299,40 @@ class TimeSlotsAdminViewModelTest {
         assertFalse(state.deleting)
         assertTrue(state.isError)
         assertEquals(TimeSlotsAdminViewModel.ERROR_ADMIN_ONLY.resId, state.message?.resId)
+    }
+
+    @Test
+    fun `addTimeSlot sets outcome on success and refusal and dismissOutcome clears it`() {
+        val adminApi = TestAdminApi(slots = listOf("08:00", "10:00"))
+        val authRepo = createAuthRepository(role = RolePolicy.ADMIN)
+        val repository = TimeSlotsAdminRepository(adminApi)
+        val viewModel = TimeSlotsAdminViewModel(repository, authRepo)
+
+        viewModel.loadData()
+
+        viewModel.openAddForm()
+        viewModel.onSlotInputChanged("14:00")
+        adminApi.updateResponse = Response.error(500, "".toResponseBody("application/json".toMediaType()))
+        viewModel.addTimeSlot()
+
+        val failureOutcome = viewModel.uiState.value.outcome
+        assertNotNull(failureOutcome)
+        assertEquals(false, failureOutcome?.isSuccess)
+        assertEquals(TimeSlotsAdminViewModel.ERROR_SAVE.resId, failureOutcome?.message?.resId)
+
+        viewModel.dismissOutcome()
+        assertNull(viewModel.uiState.value.outcome)
+
+        adminApi.updateResponse = Response.success(TimeSlotsResponse(timeSlots = listOf("08:00", "10:00", "14:00")))
+        viewModel.addTimeSlot()
+
+        val successOutcome = viewModel.uiState.value.outcome
+        assertNotNull(successOutcome)
+        assertEquals(true, successOutcome?.isSuccess)
+        assertEquals(TimeSlotsAdminViewModel.ADDED_SUCCESS.resId, successOutcome?.message?.resId)
+
+        viewModel.dismissOutcome()
+        assertNull(viewModel.uiState.value.outcome)
     }
 
     @Test

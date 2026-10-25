@@ -9,6 +9,7 @@ import com.trindade.app.contract.models.AdminTaskResponseTask
 import com.trindade.app.contract.models.AdminTasksResponseTasksInner
 import com.trindade.app.contract.models.CreateAdminTaskRequest
 import com.trindade.app.contract.models.UpdateAdminTaskRequest
+import com.trindade.app.ui.components.AdminOutcome
 import com.trindade.app.ui.UiText
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -39,6 +40,7 @@ class TasksViewModel @Inject constructor(
         val deleteTarget: AdminTasksResponseTasksInner? = null,
         val error: UiText? = null,
         val refusedStatus: Int? = null,
+        val outcome: AdminOutcome? = null,
     ) {
         val isAdmin: Boolean get() = role == ADMIN
         fun canEdit(task: AdminTasksResponseTasksInner): Boolean =
@@ -106,6 +108,10 @@ class TasksViewModel @Inject constructor(
         it.copy(editingId = null, categoryId = "", namePt = "", nameEs = "", temperatureReadings = "1", error = null)
     }
 
+    fun dismissOutcome() {
+        _state.update { it.copy(outcome = null) }
+    }
+
     fun save() {
         val current = _state.value
         if (current.saving || current.loading) return
@@ -124,6 +130,9 @@ class TasksViewModel @Inject constructor(
             current.temperatureReadings.toIntOrNull()?.takeIf { it in MIN_READINGS..MAX_READINGS }
                 ?: return validation(TEMPERATURE_READINGS)
         } else 1
+        val isCreate = current.editingId == null
+        val successMessage = if (isCreate) CREATED else UPDATED
+
         _state.update { it.copy(saving = true, error = null, refusedStatus = null) }
         viewModelScope.launch {
             val result = if (current.editingId == null) {
@@ -134,13 +143,13 @@ class TasksViewModel @Inject constructor(
                     temperatureReadings = readings,
                 ))
             }
-            finishWrite(result)
+            finishWrite(result, successMessage)
         }
     }
 
     fun toggle(task: AdminTasksResponseTasksInner) {
         if (_state.value.loading || !_state.value.canToggle(task) || _state.value.saving) return
-        write { repository.update(task.id, UpdateAdminTaskRequest(
+        write(UPDATED) { repository.update(task.id, UpdateAdminTaskRequest(
             isActive = if (task.isActive == 1) UpdateAdminTaskRequest.IsActive._0 else UpdateAdminTaskRequest.IsActive._1,
         )) }
     }
@@ -169,16 +178,16 @@ class TasksViewModel @Inject constructor(
 
     private fun delete(task: AdminTasksResponseTasksInner) {
         if (!_state.value.canDelete(task)) return
-        write { repository.delete(task.id) }
+        write(DELETED) { repository.delete(task.id) }
     }
 
-    private fun write(call: suspend () -> TaskWriteResult) {
+    private fun write(successMessage: UiText, call: suspend () -> TaskWriteResult) {
         if (_state.value.saving || _state.value.loading) return
         _state.update { it.copy(saving = true, error = null, refusedStatus = null) }
-        viewModelScope.launch { finishWrite(call()) }
+        viewModelScope.launch { finishWrite(call(), successMessage) }
     }
 
-    private suspend fun finishWrite(result: TaskWriteResult) {
+    private suspend fun finishWrite(result: TaskWriteResult, successMessage: UiText) {
         when (result) {
             is TaskWriteResult.Saved, TaskWriteResult.Deleted -> {
                 _state.update {
@@ -190,12 +199,26 @@ class TasksViewModel @Inject constructor(
                         nameEs = "",
                         temperatureReadings = "1",
                         deleteTarget = null,
+                        outcome = AdminOutcome(isSuccess = true, message = successMessage),
                     )
                 }
                 load()
             }
-            is TaskWriteResult.Refused -> _state.update { it.copy(saving = false, error = REFUSED, refusedStatus = result.status) }
-            TaskWriteResult.Unreachable -> _state.update { it.copy(saving = false, error = UNREACHABLE) }
+            is TaskWriteResult.Refused -> _state.update {
+                it.copy(
+                    saving = false,
+                    error = REFUSED,
+                    refusedStatus = result.status,
+                    outcome = AdminOutcome(isSuccess = false, message = REFUSED),
+                )
+            }
+            TaskWriteResult.Unreachable -> _state.update {
+                it.copy(
+                    saving = false,
+                    error = UNREACHABLE,
+                    outcome = AdminOutcome(isSuccess = false, message = UNREACHABLE),
+                )
+            }
         }
     }
 
@@ -208,6 +231,9 @@ class TasksViewModel @Inject constructor(
         const val WORKER = "Trabalhador"
         const val MIN_READINGS = 1
         const val MAX_READINGS = 3
+        val CREATED = UiText.of(R.string.admin_tasks_created)
+        val UPDATED = UiText.of(R.string.admin_tasks_updated)
+        val DELETED = UiText.of(R.string.admin_tasks_deleted)
         val CATEGORY = UiText.of(R.string.tasks_error_category)
         val NAME = UiText.of(R.string.tasks_error_name)
         val TEMPERATURE_READINGS = UiText.of(R.string.tasks_error_readings)
