@@ -192,6 +192,9 @@
          desktop screen uses for the same fields, since the operators read both. -->
     <string name="profile_title">Perfil</string>
     <string name="profile_account">Conta</string>
+    <string name="profile_section_account">Dados da Conta</string>
+    <string name="profile_section_security">Segurança</string>
+    <string name="profile_section_updates">Versão do aplicativo e atualizações</string>
     <string name="profile_username">Usuário</string>
     <string name="profile_display_name">Nome</string>
     <string name="profile_role">Função</string>
@@ -534,11 +537,13 @@
     <!-- Massas Launch Strings -->
     <string name="massas_title">Lançamento de Massas</string>
     <string name="massas_tagline">Controle diário coletivo de produção de massas</string>
+    <string name="loading_tagline">Carga e horários da frota, dia a dia</string>
     <string name="massas_history_title">Histórico de Massas</string>
     <string name="massas_boxes">Caixas</string>
     <string name="massas_units">Unidades</string>
     <string name="massas_total_boxes">Total de Caixas</string>
     <string name="massas_total_units">Total de Unidades</string>
+    <string name="massas_launch_by_boxes">Lançar Produção por Caixas</string>
     <string name="massas_submit">Lançar</string>
     <string name="massas_submitting">Lançando...</string>
     <string name="massas_success">Lançamento registrado com sucesso!</string>
@@ -658,6 +663,7 @@
     <string name="stock_whatsapp_opening">Abrindo a conversa…</string>
     <string name="stock_email_opening">Abrindo o e-mail…</string>
     <string name="assai_title">Calculadora de Assaí</string>
+    <string name="assai_header_title">Calculadora Assaí</string>
     <string name="assai_subtitle">Informe as unidades de cada produto: a quantidade tem de fechar caixas inteiras.</string>
     <string name="assai_units_per_box">%1$d por caixa</string>
     <string name="assai_boxes_count">  ·  %1$d caixas</string>
@@ -732,6 +738,30 @@
     <string name="admin_action_activate">Ativar</string>
     <string name="admin_read_only">Somente leitura</string>
     <string name="admin_delete_question">Excluir %1$s?</string>
+    <string name="admin_dialog_success">Sucesso</string>
+    <string name="admin_dialog_error">Erro</string>
+    <string name="admin_dialog_close">Fechar</string>
+    <string name="admin_dialog_failed">Não foi possível concluir a operação: %1$s</string>
+    <string name="admin_dialog_create_body">%1$s será criado no cadastro.</string>
+    <string name="admin_dialog_save_body">As alterações de %1$s serão enviadas ao servidor.</string>
+    <string name="admin_dialog_delete_body">Esta ação não pode ser desfeita. %1$s será excluído definitivamente.</string>
+    <string name="admin_dialog_toggle_on_body">%1$s voltará a ficar disponível.</string>
+    <string name="admin_dialog_toggle_off_body">%1$s ficará indisponível para uso.</string>
+    <string name="admin_users_created">Usuário criado com sucesso.</string>
+    <string name="admin_users_updated">Usuário atualizado com sucesso.</string>
+    <string name="admin_users_deleted">Usuário excluído com sucesso.</string>
+    <string name="admin_vehicles_created">Veículo criado com sucesso.</string>
+    <string name="admin_vehicles_updated">Veículo atualizado com sucesso.</string>
+    <string name="admin_vehicles_deleted">Veículo excluído com sucesso.</string>
+    <string name="admin_categories_created">Categoria criada com sucesso.</string>
+    <string name="admin_categories_updated">Categoria atualizada com sucesso.</string>
+    <string name="admin_categories_deleted">Categoria excluída com sucesso.</string>
+    <string name="admin_tasks_created">Tarefa criada com sucesso.</string>
+    <string name="admin_tasks_updated">Tarefa atualizada com sucesso.</string>
+    <string name="admin_tasks_deleted">Tarefa excluída com sucesso.</string>
+    <string name="admin_drivers_created">Motorista criado com sucesso.</string>
+    <string name="admin_drivers_updated">Motorista atualizado com sucesso.</string>
+    <string name="admin_drivers_deleted">Motorista excluído com sucesso.</string>
     <string name="admin_role_unknown">Função %1$d</string>
     <string name="admin_status_active">Ativo</string>
     <string name="admin_status_inactive">Inativo</string>
