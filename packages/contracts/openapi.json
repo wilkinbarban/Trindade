@@ -29,6 +29,23 @@
         ],
         "additionalProperties": false
       },
+      "MassasErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "details": {}
+        },
+        "required": [
+          "error",
+          "code"
+        ],
+        "additionalProperties": false
+      },
       "AuthUser": {
         "type": "object",
         "properties": {
@@ -8093,6 +8110,16 @@
               }
             }
           },
+          "400": {
+            "description": "The query parameters failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MassasErrorResponse"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing, invalid, or expired credentials",
             "content": {
@@ -8131,11 +8158,11 @@
             }
           },
           "400": {
-            "description": "The request body failed validation",
+            "description": "The request body failed validation, empty items, or future date",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
+                  "$ref": "#/components/schemas/MassasErrorResponse"
                 }
               }
             }
@@ -8222,11 +8249,11 @@
             }
           },
           "400": {
-            "description": "The request body failed validation",
+            "description": "The identifier is not a number, or the body failed validation",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
+                  "$ref": "#/components/schemas/MassasErrorResponse"
                 }
               }
             }
@@ -8246,7 +8273,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
+                  "$ref": "#/components/schemas/MassasErrorResponse"
                 }
               }
             }
@@ -8256,7 +8283,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
+                  "$ref": "#/components/schemas/MassasErrorResponse"
                 }
               }
             }
@@ -8291,11 +8318,11 @@
             }
           },
           "400": {
-            "description": "The request body failed validation",
+            "description": "The identifier is not a number",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
+                  "$ref": "#/components/schemas/MassasErrorResponse"
                 }
               }
             }
@@ -8315,7 +8342,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
+                  "$ref": "#/components/schemas/MassasErrorResponse"
                 }
               }
             }
@@ -8325,7 +8352,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
+                  "$ref": "#/components/schemas/MassasErrorResponse"
                 }
               }
             }
