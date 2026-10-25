@@ -534,13 +534,12 @@ class MainActivity : ComponentActivity() {
                                         onBackToHistory = if (massasDayFromHistory) onBackMassasLaunchTab else null,
                                     )
                                 }
-                                // El histórico propaga el rol resuelto de sesión para que el
-                                // Administrador pueda realizar correcciones sobre días anteriores.
+                                // O histórico mostra o que o dia produziu; a correção acontece na
+                                // calculadora, que é onde a contagem é feita.
                                 Tab.STOCK_HISTORY -> {
                                     val onBackStockHistory = { tab = Tab.STOCK_COUNTER }
                                     BackHandler(enabled = !drawerState.isOpen, onBack = onBackStockHistory)
                                     StockHistoryScreen(
-                                        role = role,
                                         onBack = onBackStockHistory,
                                     )
                                 }
