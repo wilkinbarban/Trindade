@@ -270,6 +270,33 @@ class CategoriesViewModelTest {
         assertNull(model.state.value.error)
     }
 
+    @Test fun `saved write sets success outcome, refused sets failure, dismissOutcome clears it`() {
+        val api = CategoryApi(rows = fixtureCategories)
+        val model = viewModel(api, role = "Administrador")
+        model.load()
+        model.onNamePtChange("Nova")
+
+        api.writeResult = CategoryWriteResult.Refused(400)
+        model.save()
+        val failureOutcome = model.state.value.outcome
+        assertNotNull(failureOutcome)
+        assertEquals(false, failureOutcome?.isSuccess)
+        assertEquals(CategoriesViewModel.REFUSED.resId, failureOutcome?.message?.resId)
+
+        model.dismissOutcome()
+        assertNull(model.state.value.outcome)
+
+        api.writeResult = CategoryWriteResult.Saved(fixtureCategories[0])
+        model.save()
+        val successOutcome = model.state.value.outcome
+        assertNotNull(successOutcome)
+        assertEquals(true, successOutcome?.isSuccess)
+        assertEquals(CategoriesViewModel.CREATED.resId, successOutcome?.message?.resId)
+
+        model.dismissOutcome()
+        assertNull(model.state.value.outcome)
+    }
+
     @Test fun `a newer load cancels an older category response`() {
         val api = CategoryApi(rows = fixtureCategories)
         api.firstRead = CompletableDeferred()

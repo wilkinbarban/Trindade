@@ -5,6 +5,10 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
@@ -16,6 +20,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.trindade.app.R
 import com.trindade.app.contract.models.AdminCategoryResponseCategory
+import com.trindade.app.ui.components.AdminOutcome
 import com.trindade.app.ui.UiText
 import com.trindade.app.ui.theme.TrindadeTheme
 import org.junit.Assert.assertEquals
@@ -67,6 +72,8 @@ class CategoriesScreenTest {
         error: UiText? = null,
         refusedStatus: Int? = null,
         editingId: Int? = null,
+        namePt: String = "Nova Categoria",
+        nameEs: String = "Nueva Categoría",
         isSpanish: Boolean = false,
         deleteTarget: AdminCategoryResponseCategory? = null,
     ) = CategoriesViewModel.UiState(
@@ -76,8 +83,8 @@ class CategoriesScreenTest {
         role = role,
         currentUserId = 1,
         editingId = editingId,
-        namePt = "Nova Categoria",
-        nameEs = "Nueva Categoría",
+        namePt = namePt,
+        nameEs = nameEs,
         categoryType = CategoriesViewModel.CHECK,
         sortOrder = "0",
         deleteTarget = deleteTarget,
@@ -89,7 +96,6 @@ class CategoriesScreenTest {
     private fun render(
         state: CategoriesViewModel.UiState,
         onBack: () -> Unit = {},
-        onRefresh: () -> Unit = {},
         onNameChange: (String) -> Unit = {},
         onNamePtChange: (String) -> Unit = {},
         onNameEsChange: (String) -> Unit = {},
@@ -102,12 +108,12 @@ class CategoriesScreenTest {
         onRequestDelete: (AdminCategoryResponseCategory) -> Unit = {},
         onConfirmDelete: () -> Unit = {},
         onDismissDelete: () -> Unit = {},
+        onDismissOutcome: () -> Unit = {},
     ) = composeRule.setContent {
         TrindadeTheme {
             CategoriesScreen(
                 state = state,
                 onBack = onBack,
-                onRefresh = onRefresh,
                 onNameChange = onNameChange,
                 onNamePtChange = onNamePtChange,
                 onNameEsChange = onNameEsChange,
@@ -120,6 +126,7 @@ class CategoriesScreenTest {
                 onRequestDelete = onRequestDelete,
                 onConfirmDelete = onConfirmDelete,
                 onDismissDelete = onDismissDelete,
+                onDismissOutcome = onDismissOutcome,
             )
         }
     }
@@ -134,6 +141,7 @@ class CategoriesScreenTest {
         composeRule.onNodeWithText("Ativa").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Inativa").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Desativar").performScrollTo().performClick()
+        composeRule.onNodeWithText("Confirmar").performClick()
         assertEquals(1, toggled)
     }
 
@@ -157,6 +165,7 @@ class CategoriesScreenTest {
         assertEquals(CategoriesViewModel.TEMPERATURE, typeChanged)
 
         composeRule.onNodeWithText("Criar").performClick()
+        composeRule.onNodeWithText("Confirmar").performClick()
         assertEquals(1, saved)
     }
 
@@ -196,6 +205,7 @@ class CategoriesScreenTest {
         composeRule.onNodeWithText("Português").assertIsDisplayed()
         composeRule.onNodeWithText("Español").assertIsDisplayed()
         composeRule.onNodeWithText("Salvar").performClick()
+        composeRule.onNodeWithText("Confirmar").performClick()
         assertEquals(1, saved)
         composeRule.onNodeWithText("Cancelar").performClick()
         assertEquals(1, cancelled)
@@ -237,9 +247,9 @@ class CategoriesScreenTest {
             onConfirmDelete = { confirmed++ },
             onDismissDelete = { dismissed++ },
         )
-        composeRule.onNodeWithText("Confirmar exclusão").assertIsDisplayed()
-        composeRule.onNodeWithText("Excluir Temperatura Câmara?").assertIsDisplayed()
-        composeRule.onNodeWithText("Confirmar").performClick()
+        val expectedBody = copy(R.string.admin_dialog_delete_body, "Temperatura Câmara")
+        composeRule.onNodeWithText(expectedBody).assertIsDisplayed()
+        composeRule.onNode(hasAnyAncestor(isDialog()) and hasText(copy(R.string.admin_action_delete)) and hasClickAction()).performClick()
         assertEquals(1, confirmed)
         assertEquals(0, dismissed)
     }
@@ -256,7 +266,8 @@ class CategoriesScreenTest {
         composeRule.onAllNodesWithText("Excluir")[0].performScrollTo().performClick()
         assertEquals(1, requested)
         assertEquals(1, deletedTarget?.id)
-        composeRule.onNodeWithText("Confirmar exclusão").assertIsDisplayed()
+        val expectedBody = copy(R.string.admin_dialog_delete_body, "Temperatura Câmara")
+        composeRule.onNodeWithText(expectedBody).assertIsDisplayed()
         composeRule.onNodeWithText("Cancelar").performClick()
         assertEquals(1, dismissed)
     }
@@ -278,8 +289,9 @@ class CategoriesScreenTest {
         assertEquals(1, requestCount)
         assertEquals(1, requestedCategory?.id)
 
-        composeRule.onNodeWithText("Confirmar exclusão").assertIsDisplayed()
-        composeRule.onNodeWithText("Confirmar").performClick()
+        val expectedBody = copy(R.string.admin_dialog_delete_body, "Temperatura Câmara")
+        composeRule.onNodeWithText(expectedBody).assertIsDisplayed()
+        composeRule.onNode(hasAnyAncestor(isDialog()) and hasText(copy(R.string.admin_action_delete)) and hasClickAction()).performClick()
 
         assertEquals(1, requestCount)
         assertEquals(1, confirmCount)
@@ -300,7 +312,7 @@ class CategoriesScreenTest {
         composeRule.onNodeWithText(expectedRefused).assertIsDisplayed()
         composeRule.onNodeWithText("Status: 400").assertDoesNotExist()
         composeRule.onNodeWithText("Salvando…").assertIsDisplayed().assertIsNotEnabled()
-        composeRule.onNodeWithText("Atualizar").assertIsNotEnabled()
+        composeRule.onNodeWithText("Atualizar").assertDoesNotExist()
     }
 
     @Test fun `empty list renders empty notice`() {
@@ -308,32 +320,20 @@ class CategoriesScreenTest {
         composeRule.onNodeWithText("Nenhuma categoria").assertIsDisplayed()
     }
 
-    @Test fun `back and refresh callbacks are wired`() {
+    @Test fun `back callback is wired and refresh button is removed`() {
         var backs = 0
-        var refreshes = 0
-        render(state(), onBack = { backs++ }, onRefresh = { refreshes++ })
+        render(state(), onBack = { backs++ })
 
         composeRule.onNodeWithText("Voltar").performClick()
-        composeRule.onNodeWithText("Atualizar").performClick()
         assertEquals(1, backs)
-        assertEquals(1, refreshes)
+        composeRule.onNodeWithText("Atualizar").assertDoesNotExist()
     }
 
     @Test
     fun `critical administration action controls meet 48dp touch target bounds`() {
         render(state(editingId = 1, deleteTarget = category(1, "Temperatura Câmara")))
 
-        val refreshNode = composeRule.onNodeWithText("Atualizar")
-        refreshNode.assertIsDisplayed()
-        val refreshBounds = refreshNode.getUnclippedBoundsInRoot()
-        assertTrue(
-            "Atualizar height must be >= 48dp but was ${refreshBounds.bottom - refreshBounds.top}",
-            refreshBounds.bottom - refreshBounds.top >= 48.dp,
-        )
-        assertTrue(
-            "Atualizar width must be >= 48dp but was ${refreshBounds.right - refreshBounds.left}",
-            refreshBounds.right - refreshBounds.left >= 48.dp,
-        )
+        composeRule.onNodeWithText("Atualizar").assertDoesNotExist()
 
         val cancelNodes = composeRule.onAllNodesWithText("Cancelar")
         cancelNodes.assertCountEquals(2)
@@ -357,17 +357,58 @@ class CategoriesScreenTest {
             "Dialog Cancelar width must be >= 48dp but was ${dialogCancelBounds.right - dialogCancelBounds.left}",
             dialogCancelBounds.right - dialogCancelBounds.left >= 48.dp,
         )
+    }
 
-        val confirmNode = composeRule.onNodeWithText("Confirmar")
-        confirmNode.assertIsDisplayed()
-        val confirmBounds = confirmNode.getUnclippedBoundsInRoot()
-        assertTrue(
-            "Confirmar height must be >= 48dp but was ${confirmBounds.bottom - confirmBounds.top}",
-            confirmBounds.bottom - confirmBounds.top >= 48.dp,
+    @Test
+    fun `save shows confirmation dialog and confirm invokes onSave`() {
+        var saved = 0
+        render(state(editingId = 1, namePt = "Nova Categoria"), onSave = { saved++ })
+
+        composeRule.onNodeWithText("Salvar").performScrollTo().performClick()
+        val expectedBody = copy(R.string.admin_dialog_save_body, "Nova Categoria")
+        composeRule.onNodeWithText(expectedBody).assertIsDisplayed()
+
+        composeRule.onNodeWithText("Confirmar").performClick()
+        assertEquals(1, saved)
+    }
+
+    @Test
+    fun `save confirmation cancel does not invoke onSave`() {
+        var saved = 0
+        render(state(editingId = 1, namePt = "Nova Categoria"), onSave = { saved++ })
+
+        composeRule.onNodeWithText("Salvar").performScrollTo().performClick()
+        val expectedBody = copy(R.string.admin_dialog_save_body, "Nova Categoria")
+        composeRule.onNodeWithText(expectedBody).assertIsDisplayed()
+
+        composeRule.onAllNodesWithText("Cancelar")[1].performClick()
+        assertEquals(0, saved)
+    }
+
+    @Test
+    fun `toggle shows confirmation dialog and confirm invokes onToggle`() {
+        var toggled = 0
+        render(state(), onToggle = { toggled++ })
+
+        composeRule.onAllNodesWithText("Desativar")[0].performScrollTo().performClick()
+        val expectedBody = copy(R.string.admin_dialog_toggle_off_body, "Temperatura Câmara")
+        composeRule.onNodeWithText(expectedBody).assertIsDisplayed()
+
+        composeRule.onNodeWithText("Confirmar").performClick()
+        assertEquals(1, toggled)
+    }
+
+    @Test
+    fun `outcome shows result dialog and close invokes onDismissOutcome`() {
+        var dismissed = 0
+        render(
+            state().copy(outcome = AdminOutcome(isSuccess = true, message = UiText.of(R.string.admin_categories_created))),
+            onDismissOutcome = { dismissed++ },
         )
-        assertTrue(
-            "Confirmar width must be >= 48dp but was ${confirmBounds.right - confirmBounds.left}",
-            confirmBounds.right - confirmBounds.left >= 48.dp,
-        )
+
+        val expectedSuccess = copy(R.string.admin_categories_created)
+        composeRule.onNodeWithText(expectedSuccess).assertIsDisplayed()
+        composeRule.onNodeWithText("Fechar").performClick()
+        assertEquals(1, dismissed)
     }
 }

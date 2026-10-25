@@ -48,6 +48,7 @@ import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -244,6 +245,34 @@ class VehiclesViewModelTest {
         model.save()
         assertEquals(2, api.reads)
         assertNull(model.state.value.error)
+    }
+
+    @Test fun `saved write sets success outcome, refused sets failure, dismissOutcome clears it`() {
+        val api = VehicleApi(rows = fixtureVehicles)
+        val model = viewModel(api, role = "Administrador")
+        model.load()
+        model.onDescriptionChange("Novo")
+        model.onLicensePlateChange("ABC-1234")
+
+        api.writeResult = VehicleWriteResult.Refused(400)
+        model.save()
+        val failureOutcome = model.state.value.outcome
+        assertNotNull(failureOutcome)
+        assertEquals(false, failureOutcome?.isSuccess)
+        assertEquals(VehiclesViewModel.REFUSED.resId, failureOutcome?.message?.resId)
+
+        model.dismissOutcome()
+        assertNull(model.state.value.outcome)
+
+        api.writeResult = VehicleWriteResult.Saved(fixtureVehicles[0])
+        model.save()
+        val successOutcome = model.state.value.outcome
+        assertNotNull(successOutcome)
+        assertEquals(true, successOutcome?.isSuccess)
+        assertEquals(VehiclesViewModel.CREATED.resId, successOutcome?.message?.resId)
+
+        model.dismissOutcome()
+        assertNull(model.state.value.outcome)
     }
 
     @Test fun `a newer load cancels an older vehicle response`() {

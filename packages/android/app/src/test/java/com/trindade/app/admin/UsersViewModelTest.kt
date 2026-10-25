@@ -578,6 +578,35 @@ class UsersViewModelTest {
         assertEquals(2, api.reads)
     }
 
+    @Test fun `saved write sets success outcome, refused sets failure, dismissOutcome clears it`() {
+        val api = UserAdminApi(rows = fixtureUsers)
+        val model = viewModel(api, role = "Administrador", userId = 42)
+        model.load()
+        model.onUsernameChange("novousuario")
+        model.onDisplayNameChange("Novo")
+        model.onPasswordChange("senha12345678901")
+
+        api.writeResult = UserWriteResult.Refused(400)
+        model.save()
+        val failureOutcome = model.state.value.outcome
+        assertNotNull(failureOutcome)
+        assertEquals(false, failureOutcome?.isSuccess)
+        assertEquals(UsersViewModel.REFUSED.resId, failureOutcome?.message?.resId)
+
+        model.dismissOutcome()
+        assertNull(model.state.value.outcome)
+
+        api.writeResult = UserWriteResult.Saved(user(200, "novousuario", "Novo", 2, "Trabalhador", 1))
+        model.save()
+        val successOutcome = model.state.value.outcome
+        assertNotNull(successOutcome)
+        assertEquals(true, successOutcome?.isSuccess)
+        assertEquals(UsersViewModel.CREATED.resId, successOutcome?.message?.resId)
+
+        model.dismissOutcome()
+        assertNull(model.state.value.outcome)
+    }
+
     @Test fun `toggle sends inverted is_active flag`() {
         val api = UserAdminApi(rows = fixtureUsers)
         val model = viewModel(api, role = "Administrador", userId = 42)

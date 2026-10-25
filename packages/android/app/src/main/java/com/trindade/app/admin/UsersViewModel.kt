@@ -9,6 +9,7 @@ import com.trindade.app.contract.models.AdminUserResponseUser
 import com.trindade.app.contract.models.CreateAdminUserRequest
 import com.trindade.app.contract.models.UpdateAdminUserRequest
 import com.trindade.app.ui.UiText
+import com.trindade.app.ui.components.AdminOutcome
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.Job
@@ -38,6 +39,7 @@ class UsersViewModel @Inject constructor(
         val error: UiText? = null,
         val refusedStatus: Int? = null,
         val hasPasswordWarning: Boolean = false,
+        val outcome: AdminOutcome? = null,
     ) {
         val isAdmin: Boolean get() = role == ADMIN
         val isEditing: Boolean get() = editingId != null
@@ -175,6 +177,10 @@ class UsersViewModel @Inject constructor(
         }
     }
 
+    fun dismissOutcome() {
+        _state.update { it.copy(outcome = null) }
+    }
+
     fun requestDelete(user: AdminUserResponseUser) {
         val current = _state.value
         if (current.loading || current.saving || !current.canDelete(user)) return
@@ -197,13 +203,13 @@ class UsersViewModel @Inject constructor(
     private fun delete(user: AdminUserResponseUser) {
         val current = _state.value
         if (current.loading || current.saving || !current.canDelete(user)) return
-        write { repository.delete(user.id) }
+        write(DELETED) { repository.delete(user.id) }
     }
 
     fun toggle(user: AdminUserResponseUser) {
         val current = _state.value
         if (current.loading || current.saving || !current.canToggle(user)) return
-        write {
+        write(UPDATED) {
             repository.update(
                 user.id,
                 UpdateAdminUserRequest(
@@ -237,6 +243,8 @@ class UsersViewModel @Inject constructor(
             }
         }
 
+        val isCreate = current.editingId == null
+        val successMessage = if (isCreate) CREATED else UPDATED
         _state.update { it.copy(saving = true, error = null, refusedStatus = null) }
         viewModelScope.launch {
             val result = current.editingId?.let { id ->
@@ -263,17 +271,17 @@ class UsersViewModel @Inject constructor(
                     roleId = if (current.roleId == 1) CreateAdminUserRequest.RoleId._1 else CreateAdminUserRequest.RoleId._2,
                 ),
             )
-            finishWrite(result)
+            finishWrite(result, successMessage)
         }
     }
 
-    private fun write(call: suspend () -> UserWriteResult) {
+    private fun write(successMessage: UiText, call: suspend () -> UserWriteResult) {
         if (_state.value.loading || _state.value.saving) return
         _state.update { it.copy(saving = true, error = null, refusedStatus = null) }
-        viewModelScope.launch { finishWrite(call()) }
+        viewModelScope.launch { finishWrite(call(), successMessage) }
     }
 
-    private fun finishWrite(result: UserWriteResult) {
+    private fun finishWrite(result: UserWriteResult, successMessage: UiText) {
         when (result) {
             is UserWriteResult.Saved -> {
                 _password.value = ""
@@ -289,15 +297,26 @@ class UsersViewModel @Inject constructor(
                         hasPasswordWarning = false,
                         error = null,
                         refusedStatus = null,
+                        outcome = AdminOutcome(isSuccess = true, message = successMessage),
                     )
                 }
                 load()
             }
             is UserWriteResult.Refused -> _state.update {
-                it.copy(saving = false, error = REFUSED, refusedStatus = result.status)
+                it.copy(
+                    saving = false,
+                    error = REFUSED,
+                    refusedStatus = result.status,
+                    outcome = AdminOutcome(isSuccess = false, message = REFUSED),
+                )
             }
             UserWriteResult.Unreachable -> _state.update {
-                it.copy(saving = false, error = UNREACHABLE, refusedStatus = null)
+                it.copy(
+                    saving = false,
+                    error = UNREACHABLE,
+                    refusedStatus = null,
+                    outcome = AdminOutcome(isSuccess = false, message = UNREACHABLE),
+                )
             }
         }
     }
@@ -326,6 +345,9 @@ class UsersViewModel @Inject constructor(
         const val WORKER = "Trabalhador"
         const val DEFAULT_ROLE_ID = 2
         const val MIN_PASSWORD_LENGTH = PasswordPolicy.MIN_GRAPHEMES
+        val CREATED = UiText.of(R.string.admin_users_created)
+        val UPDATED = UiText.of(R.string.admin_users_updated)
+        val DELETED = UiText.of(R.string.admin_users_deleted)
         val USERNAME = UiText.of(R.string.users_error_username)
         val DISPLAY_NAME = UiText.of(R.string.users_error_display_name)
         val PASSWORD = UiText.of(R.string.users_error_password)

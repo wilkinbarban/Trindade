@@ -8,6 +8,7 @@ import com.trindade.app.contract.models.AdminCategoryResponseCategory
 import com.trindade.app.contract.models.CreateAdminCategoryRequest
 import com.trindade.app.contract.models.UpdateAdminCategoryRequest
 import com.trindade.app.ui.UiText
+import com.trindade.app.ui.components.AdminOutcome
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.Locale
 import javax.inject.Inject
@@ -50,6 +51,7 @@ class CategoriesViewModel @Inject constructor(
         val isSpanish: Boolean = false,
         val error: UiText? = null,
         val refusedStatus: Int? = null,
+        val outcome: AdminOutcome? = null,
     ) {
         val isAdmin: Boolean get() = role == ADMIN
         val isEditing: Boolean get() = editingId != null
@@ -125,6 +127,10 @@ class CategoriesViewModel @Inject constructor(
         )
     }
 
+    fun dismissOutcome() {
+        _state.update { it.copy(outcome = null) }
+    }
+
     fun requestDelete(category: AdminCategoryResponseCategory) {
         val current = _state.value
         if (current.loading || !current.canDelete(category) || current.saving) return
@@ -145,13 +151,13 @@ class CategoriesViewModel @Inject constructor(
 
     private fun delete(category: AdminCategoryResponseCategory) {
         if (!_state.value.canDelete(category)) return
-        write { repository.delete(category.id) }
+        write(DELETED) { repository.delete(category.id) }
     }
 
     fun toggle(category: AdminCategoryResponseCategory) {
         val current = _state.value
         if (current.loading || !current.canToggle(category) || current.saving) return
-        write {
+        write(UPDATED) {
             repository.update(
                 category.id,
                 UpdateAdminCategoryRequest(
@@ -187,6 +193,9 @@ class CategoriesViewModel @Inject constructor(
         val sort = current.sortOrder.trim().toIntOrNull()?.takeIf { it >= 0 }
             ?: return validation(SORT_ORDER)
 
+        val isCreate = current.editingId == null
+        val successMessage = if (isCreate) CREATED else UPDATED
+
         _state.update { it.copy(saving = true, error = null, refusedStatus = null) }
         viewModelScope.launch {
             val result = if (current.editingId == null) {
@@ -219,18 +228,18 @@ class CategoriesViewModel @Inject constructor(
                     ),
                 )
             }
-            finishWrite(result)
+            finishWrite(result, successMessage)
         }
     }
 
-    private fun write(call: suspend () -> CategoryWriteResult) {
+    private fun write(successMessage: UiText, call: suspend () -> CategoryWriteResult) {
         val current = _state.value
         if (current.loading || current.saving) return
         _state.update { it.copy(saving = true, error = null, refusedStatus = null) }
-        viewModelScope.launch { finishWrite(call()) }
+        viewModelScope.launch { finishWrite(call(), successMessage) }
     }
 
-    private fun finishWrite(result: CategoryWriteResult) {
+    private fun finishWrite(result: CategoryWriteResult, successMessage: UiText) {
         when (result) {
             is CategoryWriteResult.Saved -> {
                 _state.update {
@@ -242,15 +251,26 @@ class CategoriesViewModel @Inject constructor(
                         categoryType = CHECK,
                         sortOrder = "0",
                         deleteTarget = null,
+                        outcome = AdminOutcome(isSuccess = true, message = successMessage),
                     )
                 }
                 load()
             }
             is CategoryWriteResult.Refused -> _state.update {
-                it.copy(saving = false, error = REFUSED, refusedStatus = result.status)
+                it.copy(
+                    saving = false,
+                    error = REFUSED,
+                    refusedStatus = result.status,
+                    outcome = AdminOutcome(isSuccess = false, message = REFUSED),
+                )
             }
             CategoryWriteResult.Unreachable -> _state.update {
-                it.copy(saving = false, error = UNREACHABLE, refusedStatus = null)
+                it.copy(
+                    saving = false,
+                    error = UNREACHABLE,
+                    refusedStatus = null,
+                    outcome = AdminOutcome(isSuccess = false, message = UNREACHABLE),
+                )
             }
         }
     }
@@ -265,6 +285,9 @@ class CategoriesViewModel @Inject constructor(
         const val TEMPERATURE = "temperature"
         const val CHECK_ASSAI = "check_assai"
         const val CHECK_NORMAL = "check_normal"
+        val CREATED = UiText.of(R.string.admin_categories_created)
+        val UPDATED = UiText.of(R.string.admin_categories_updated)
+        val DELETED = UiText.of(R.string.admin_categories_deleted)
         val NAME = UiText.of(R.string.categories_error_name)
         val CATEGORY_TYPE = UiText.of(R.string.categories_error_type)
         val SORT_ORDER = UiText.of(R.string.categories_error_sort_order)

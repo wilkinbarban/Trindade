@@ -9,7 +9,10 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
@@ -21,6 +24,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.trindade.app.R
 import com.trindade.app.contract.models.AdminUserResponseUser
+import com.trindade.app.ui.components.AdminOutcome
 import com.trindade.app.ui.UiText
 import com.trindade.app.ui.theme.TrindadeTheme
 import org.junit.Assert.assertEquals
@@ -102,7 +106,6 @@ class UsersScreenTest {
         state: UsersViewModel.UiState,
         password: String = "",
         onBack: () -> Unit = {},
-        onRefresh: () -> Unit = {},
         onUsernameChange: (String) -> Unit = {},
         onDisplayNameChange: (String) -> Unit = {},
         onPasswordChange: (String) -> Unit = {},
@@ -115,13 +118,13 @@ class UsersScreenTest {
         onRequestDelete: (AdminUserResponseUser) -> Unit = {},
         onConfirmDelete: () -> Unit = {},
         onDismissDelete: () -> Unit = {},
+        onDismissOutcome: () -> Unit = {},
     ) = composeRule.setContent {
         TrindadeTheme {
             UsersScreen(
                 state = state,
                 password = password,
                 onBack = onBack,
-                onRefresh = onRefresh,
                 onUsernameChange = onUsernameChange,
                 onDisplayNameChange = onDisplayNameChange,
                 onPasswordChange = onPasswordChange,
@@ -134,6 +137,7 @@ class UsersScreenTest {
                 onRequestDelete = onRequestDelete,
                 onConfirmDelete = onConfirmDelete,
                 onDismissDelete = onDismissDelete,
+                onDismissOutcome = onDismissOutcome,
             )
         }
     }
@@ -155,6 +159,7 @@ class UsersScreenTest {
 
         // Worker 2 is inactive, so the toggle action button should say "Ativar"
         composeRule.onNodeWithText("Ativar").performScrollTo().performClick()
+        composeRule.onNodeWithText("Confirmar").performClick()
         assertEquals(2, toggledTarget?.id)
     }
 
@@ -268,6 +273,7 @@ class UsersScreenTest {
         composeRule.onNodeWithText("Status").assertDoesNotExist()
 
         composeRule.onNodeWithText("Criar").performClick()
+        composeRule.onNodeWithText("Confirmar").performClick()
         assertEquals(1, saved)
     }
 
@@ -285,6 +291,7 @@ class UsersScreenTest {
         composeRule.onNodeWithText(expectedWarning).assertIsDisplayed()
         // Save button remains enabled and clickable (warning is advisory only, non-blocking)
         composeRule.onNodeWithText("Criar").assertIsEnabled().performClick()
+        composeRule.onNodeWithText("Confirmar").performClick()
         assertEquals(1, saved)
     }
 
@@ -326,9 +333,9 @@ class UsersScreenTest {
             onConfirmDelete = { confirmed++ },
         )
 
-        composeRule.onNodeWithText("Confirmar exclusão").assertIsDisplayed()
-        composeRule.onNodeWithText("Excluir worker2?").assertIsDisplayed()
-        composeRule.onNodeWithText("Confirmar").performClick()
+        val expectedBody = copy(R.string.admin_dialog_delete_body, "worker2")
+        composeRule.onNodeWithText(expectedBody).assertIsDisplayed()
+        composeRule.onNode(hasAnyAncestor(isDialog()) and hasText(copy(R.string.admin_action_delete)) and hasClickAction()).performClick()
         assertEquals(1, confirmed)
     }
 
@@ -340,7 +347,8 @@ class UsersScreenTest {
             ),
         )
 
-        composeRule.onNodeWithText("Confirmar exclusão").assertDoesNotExist()
+        val expectedBody = copy(R.string.admin_dialog_delete_body, "admin1")
+        composeRule.onNodeWithText(expectedBody).assertDoesNotExist()
     }
 
     @Test fun `confirmed delete dialog is hidden for non-admin role`() {
@@ -351,7 +359,8 @@ class UsersScreenTest {
             ),
         )
 
-        composeRule.onNodeWithText("Confirmar exclusão").assertDoesNotExist()
+        val expectedBody = copy(R.string.admin_dialog_delete_body, "worker2")
+        composeRule.onNodeWithText(expectedBody).assertDoesNotExist()
     }
 
     @Test fun `confirmed delete from list item invokes request once and confirm once`() {
@@ -370,9 +379,9 @@ class UsersScreenTest {
         assertEquals(1, requested)
         assertEquals(2, target?.id)
 
-        composeRule.onNodeWithText("Confirmar exclusão").assertIsDisplayed()
-        composeRule.onNodeWithText("Excluir worker2?").assertIsDisplayed()
-        composeRule.onNodeWithText("Confirmar").performClick()
+        val expectedBody = copy(R.string.admin_dialog_delete_body, "worker2")
+        composeRule.onNodeWithText(expectedBody).assertIsDisplayed()
+        composeRule.onNode(hasAnyAncestor(isDialog()) and hasText(copy(R.string.admin_action_delete)) and hasClickAction()).performClick()
         assertEquals(1, confirmed)
     }
 
@@ -390,7 +399,8 @@ class UsersScreenTest {
         composeRule.onNodeWithText("Excluir").performScrollTo().performClick()
         assertEquals(1, requested)
 
-        composeRule.onNodeWithText("Confirmar exclusão").assertIsDisplayed()
+        val expectedBody = copy(R.string.admin_dialog_delete_body, "worker2")
+        composeRule.onNodeWithText(expectedBody).assertIsDisplayed()
         composeRule.onNodeWithText("Cancelar").performClick()
         assertEquals(1, dismissed)
     }
@@ -422,22 +432,22 @@ class UsersScreenTest {
         assertEquals(0, confirmed)
         assertEquals(0, dismissed)
 
-        composeRule.onNodeWithText("Confirmar exclusão").assertIsDisplayed()
-        composeRule.onNodeWithText("Excluir worker2?").assertIsDisplayed()
+        val expectedBody = copy(R.string.admin_dialog_delete_body, "worker2")
+        composeRule.onNodeWithText(expectedBody).assertIsDisplayed()
 
         composeRule.onNodeWithText("Cancelar").performClick()
         assertEquals(1, dismissed)
         assertEquals(0, confirmed)
-        composeRule.onNodeWithText("Confirmar exclusão").assertDoesNotExist()
+        composeRule.onNodeWithText(expectedBody).assertDoesNotExist()
 
         composeRule.onNodeWithText("Excluir").performScrollTo().performClick()
         assertEquals(2, requested)
-        composeRule.onNodeWithText("Confirmar exclusão").assertIsDisplayed()
+        composeRule.onNodeWithText(expectedBody).assertIsDisplayed()
 
-        composeRule.onNodeWithText("Confirmar").performClick()
+        composeRule.onNode(hasAnyAncestor(isDialog()) and hasText(copy(R.string.admin_action_delete)) and hasClickAction()).performClick()
         assertEquals(1, confirmed)
         assertEquals(2, requested)
-        composeRule.onNodeWithText("Confirmar exclusão").assertDoesNotExist()
+        composeRule.onNodeWithText(expectedBody).assertDoesNotExist()
     }
 
     @Test fun `loading error refusal and saving states are rendered`() {
@@ -457,7 +467,7 @@ class UsersScreenTest {
         composeRule.onNodeWithText(expectedRefused).assertIsDisplayed()
         composeRule.onNodeWithText("Status: 400").assertDoesNotExist()
         composeRule.onNodeWithText("Salvando…").assertIsDisplayed().assertIsNotEnabled()
-        composeRule.onNodeWithText("Atualizar").assertIsNotEnabled()
+        composeRule.onNodeWithText("Atualizar").assertDoesNotExist()
     }
 
     @Test fun `empty list renders empty notice`() {
@@ -465,15 +475,13 @@ class UsersScreenTest {
         composeRule.onNodeWithText("Nenhum usuário").assertIsDisplayed()
     }
 
-    @Test fun `back and refresh callbacks are wired`() {
+    @Test fun `back callback is wired and refresh button is removed`() {
         var backs = 0
-        var refreshes = 0
-        render(state(), onBack = { backs++ }, onRefresh = { refreshes++ })
+        render(state(), onBack = { backs++ })
 
         composeRule.onNodeWithText("Voltar").performClick()
-        composeRule.onNodeWithText("Atualizar").performClick()
         assertEquals(1, backs)
-        assertEquals(1, refreshes)
+        composeRule.onNodeWithText("Atualizar").assertDoesNotExist()
     }
 
     @Test fun `screen contract has no duplicate or alias action parameters`() {
@@ -524,11 +532,7 @@ class UsersScreenTest {
     @Test fun `critical user administration action controls meet 48dp touch target bounds`() {
         render(state(editingId = 2, deleteTarget = user(2, "bob")))
 
-        val refreshNode = composeRule.onNodeWithText("Atualizar")
-        refreshNode.assertIsDisplayed()
-        val refreshBounds = refreshNode.getUnclippedBoundsInRoot()
-        assertTrue("Atualizar height must be >= 48dp", refreshBounds.bottom - refreshBounds.top >= 48.dp)
-        assertTrue("Atualizar width must be >= 48dp", refreshBounds.right - refreshBounds.left >= 48.dp)
+        composeRule.onNodeWithText("Atualizar").assertDoesNotExist()
 
         val cancelNodes = composeRule.onAllNodesWithText("Cancelar")
         cancelNodes.assertCountEquals(2)
@@ -539,11 +543,66 @@ class UsersScreenTest {
         val dialogCancelBounds = cancelNodes[1].getUnclippedBoundsInRoot()
         assertTrue("Dialog Cancelar height >= 48dp", dialogCancelBounds.bottom - dialogCancelBounds.top >= 48.dp)
         assertTrue("Dialog Cancelar width >= 48dp", dialogCancelBounds.right - dialogCancelBounds.left >= 48.dp)
+    }
 
-        val confirmNode = composeRule.onNodeWithText("Confirmar")
-        confirmNode.assertIsDisplayed()
-        val confirmBounds = confirmNode.getUnclippedBoundsInRoot()
-        assertTrue("Confirmar height >= 48dp", confirmBounds.bottom - confirmBounds.top >= 48.dp)
-        assertTrue("Confirmar width >= 48dp", confirmBounds.right - confirmBounds.left >= 48.dp)
+    @Test
+    fun `save shows confirmation dialog and confirm invokes onSave`() {
+        var saved = 0
+        render(state(editingId = 1, username = "alice"), onSave = { saved++ })
+
+        composeRule.onNodeWithText("Salvar").performScrollTo().performClick()
+        val expectedBody = copy(R.string.admin_dialog_save_body, "alice")
+        composeRule.onNodeWithText(expectedBody).assertIsDisplayed()
+
+        composeRule.onNodeWithText("Confirmar").performClick()
+        assertEquals(1, saved)
+    }
+
+    @Test
+    fun `save confirmation cancel does not invoke onSave`() {
+        var saved = 0
+        render(state(editingId = 1, username = "alice"), onSave = { saved++ })
+
+        composeRule.onNodeWithText("Salvar").performScrollTo().performClick()
+        val expectedBody = copy(R.string.admin_dialog_save_body, "alice")
+        composeRule.onNodeWithText(expectedBody).assertIsDisplayed()
+
+        composeRule.onAllNodesWithText("Cancelar")[1].performClick()
+        assertEquals(0, saved)
+    }
+
+    @Test
+    fun `toggle shows confirmation dialog and confirm invokes onToggle`() {
+        var toggled = 0
+        render(
+            state(
+                users = listOf(
+                    user(1, "admin1", "Admin One", roleId = 1, isActive = 1),
+                    user(2, "worker2", "Worker Two", roleId = 2, isActive = 1),
+                ),
+            ),
+            onToggle = { toggled++ },
+        )
+
+        composeRule.onAllNodesWithText("Desativar")[0].performScrollTo().performClick()
+        val expectedBody = copy(R.string.admin_dialog_toggle_off_body, "worker2")
+        composeRule.onNodeWithText(expectedBody).assertIsDisplayed()
+
+        composeRule.onNodeWithText("Confirmar").performClick()
+        assertEquals(1, toggled)
+    }
+
+    @Test
+    fun `outcome shows result dialog and close invokes onDismissOutcome`() {
+        var dismissed = 0
+        render(
+            state().copy(outcome = AdminOutcome(isSuccess = true, message = UiText.of(R.string.admin_users_created))),
+            onDismissOutcome = { dismissed++ },
+        )
+
+        val expectedSuccess = copy(R.string.admin_users_created)
+        composeRule.onNodeWithText(expectedSuccess).assertIsDisplayed()
+        composeRule.onNodeWithText("Fechar").performClick()
+        assertEquals(1, dismissed)
     }
 }

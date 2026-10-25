@@ -8,6 +8,10 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
@@ -19,6 +23,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.trindade.app.R
 import com.trindade.app.contract.models.AdminVehicleResponseVehicle
+import com.trindade.app.ui.components.AdminOutcome
 import com.trindade.app.ui.UiText
 import com.trindade.app.ui.theme.TrindadeTheme
 import org.junit.Assert.assertEquals
@@ -87,7 +92,6 @@ class VehiclesScreenTest {
     private fun render(
         state: VehiclesViewModel.UiState,
         onBack: () -> Unit = {},
-        onRefresh: () -> Unit = {},
         onDescriptionChange: (String) -> Unit = {},
         onLicensePlateChange: (String) -> Unit = {},
         onSave: () -> Unit = {},
@@ -97,12 +101,12 @@ class VehiclesScreenTest {
         onRequestDelete: (AdminVehicleResponseVehicle) -> Unit = {},
         onConfirmDelete: () -> Unit = {},
         onDismissDelete: () -> Unit = {},
+        onDismissOutcome: () -> Unit = {},
     ) = composeRule.setContent {
         TrindadeTheme {
             VehiclesScreen(
                 state = state,
                 onBack = onBack,
-                onRefresh = onRefresh,
                 onDescriptionChange = onDescriptionChange,
                 onLicensePlateChange = onLicensePlateChange,
                 onSave = onSave,
@@ -112,6 +116,7 @@ class VehiclesScreenTest {
                 onRequestDelete = onRequestDelete,
                 onConfirmDelete = onConfirmDelete,
                 onDismissDelete = onDismissDelete,
+                onDismissOutcome = onDismissOutcome,
             )
         }
     }
@@ -128,6 +133,7 @@ class VehiclesScreenTest {
         composeRule.onNodeWithText("XYZ9W87").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Inativo").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Desativar").performScrollTo().performClick()
+        composeRule.onNodeWithText("Confirmar").performClick()
         assertEquals(1, toggled)
     }
 
@@ -154,6 +160,7 @@ class VehiclesScreenTest {
         assertEquals("BRA1234", plateChanged)
 
         composeRule.onNodeWithText("Criar").performClick()
+        composeRule.onNodeWithText("Confirmar").performClick()
         assertEquals(1, saved)
     }
 
@@ -169,6 +176,7 @@ class VehiclesScreenTest {
         composeRule.onNodeWithText("Descrição").assertIsDisplayed()
         composeRule.onNodeWithText("Placa").assertIsDisplayed()
         composeRule.onNodeWithText("Salvar").performClick()
+        composeRule.onNodeWithText("Confirmar").performClick()
         assertEquals(1, saved)
         composeRule.onNodeWithText("Cancelar").performClick()
         assertEquals(1, cancelled)
@@ -212,7 +220,6 @@ class VehiclesScreenTest {
                 VehiclesScreen(
                     state = state(role = currentRole, deleteTarget = vehicle(1, "Caminhão 1")),
                     onBack = {},
-                    onRefresh = {},
                     onConfirmDelete = { confirmed++ },
                     onDismissDelete = { dismissed++ },
                 )
@@ -224,9 +231,9 @@ class VehiclesScreenTest {
 
         currentRole = VehiclesViewModel.ADMIN
 
-        composeRule.onNodeWithText("Confirmar exclusão").assertIsDisplayed()
-        composeRule.onNodeWithText("Excluir Caminhão 1?").assertIsDisplayed()
-        composeRule.onNodeWithText("Confirmar").performClick()
+        val expectedBody = copy(R.string.admin_dialog_delete_body, "Caminhão 1")
+        composeRule.onNodeWithText(expectedBody).assertIsDisplayed()
+        composeRule.onNode(hasAnyAncestor(isDialog()) and hasText(copy(R.string.admin_action_delete)) and hasClickAction()).performClick()
         assertEquals(1, confirmed)
         assertEquals(0, dismissed)
     }
@@ -248,8 +255,9 @@ class VehiclesScreenTest {
         assertEquals(1, requestCount)
         assertEquals(1, requestedVehicle?.id)
 
-        composeRule.onNodeWithText("Confirmar exclusão").assertIsDisplayed()
-        composeRule.onNodeWithText("Confirmar").performClick()
+        val expectedBody = copy(R.string.admin_dialog_delete_body, "Caminhão 1")
+        composeRule.onNodeWithText(expectedBody).assertIsDisplayed()
+        composeRule.onNode(hasAnyAncestor(isDialog()) and hasText(copy(R.string.admin_action_delete)) and hasClickAction()).performClick()
 
         assertEquals(1, requestCount)
         assertEquals(1, confirmCount)
@@ -268,7 +276,8 @@ class VehiclesScreenTest {
         composeRule.onAllNodesWithText("Excluir")[0].performScrollTo().performClick()
         assertEquals(1, requested)
         assertEquals(1, deletedTarget?.id)
-        composeRule.onNodeWithText("Confirmar exclusão").assertIsDisplayed()
+        val expectedBody = copy(R.string.admin_dialog_delete_body, "Caminhão 1")
+        composeRule.onNodeWithText(expectedBody).assertIsDisplayed()
         composeRule.onNodeWithText("Cancelar").performClick()
         assertEquals(1, dismissed)
     }
@@ -298,22 +307,22 @@ class VehiclesScreenTest {
         assertEquals(0, confirmed)
         assertEquals(0, dismissed)
 
-        composeRule.onNodeWithText("Confirmar exclusão").assertIsDisplayed()
-        composeRule.onNodeWithText("Excluir Caminhão 1?").assertIsDisplayed()
+        val expectedBody = copy(R.string.admin_dialog_delete_body, "Caminhão 1")
+        composeRule.onNodeWithText(expectedBody).assertIsDisplayed()
 
         composeRule.onNodeWithText("Cancelar").performClick()
         assertEquals(1, dismissed)
         assertEquals(0, confirmed)
-        composeRule.onNodeWithText("Confirmar exclusão").assertDoesNotExist()
+        composeRule.onNodeWithText(expectedBody).assertDoesNotExist()
 
         composeRule.onAllNodesWithText("Excluir")[0].performScrollTo().performClick()
         assertEquals(2, requested)
-        composeRule.onNodeWithText("Confirmar exclusão").assertIsDisplayed()
+        composeRule.onNodeWithText(expectedBody).assertIsDisplayed()
 
-        composeRule.onNodeWithText("Confirmar").performClick()
+        composeRule.onNode(hasAnyAncestor(isDialog()) and hasText(copy(R.string.admin_action_delete)) and hasClickAction()).performClick()
         assertEquals(1, confirmed)
         assertEquals(2, requested)
-        composeRule.onNodeWithText("Confirmar exclusão").assertDoesNotExist()
+        composeRule.onNodeWithText(expectedBody).assertDoesNotExist()
     }
 
     @Test fun `loading error refusal and saving states are rendered`() {
@@ -331,7 +340,7 @@ class VehiclesScreenTest {
         composeRule.onNodeWithText(expectedRefused).assertIsDisplayed()
         composeRule.onNodeWithText("Status: 400").assertDoesNotExist()
         composeRule.onNodeWithText("Salvando…").assertIsDisplayed().assertIsNotEnabled()
-        composeRule.onNodeWithText("Atualizar").assertIsNotEnabled()
+        composeRule.onNodeWithText("Atualizar").assertDoesNotExist()
     }
 
     @Test fun `empty list renders empty notice`() {
@@ -339,15 +348,13 @@ class VehiclesScreenTest {
         composeRule.onNodeWithText("Nenhum veículo").assertIsDisplayed()
     }
 
-    @Test fun `back and refresh callbacks are wired`() {
+    @Test fun `back callback is wired and refresh button is removed`() {
         var backs = 0
-        var refreshes = 0
-        render(state(), onBack = { backs++ }, onRefresh = { refreshes++ })
+        render(state(), onBack = { backs++ })
 
         composeRule.onNodeWithText("Voltar").performClick()
-        composeRule.onNodeWithText("Atualizar").performClick()
         assertEquals(1, backs)
-        assertEquals(1, refreshes)
+        composeRule.onNodeWithText("Atualizar").assertDoesNotExist()
     }
 
     @Test fun `validation error display renders numeric-free message`() {
@@ -360,11 +367,7 @@ class VehiclesScreenTest {
     @Test fun `critical vehicle administration action controls meet 48dp touch target bounds`() {
         render(state(editingId = 1, deleteTarget = vehicle(1)))
 
-        val refreshNode = composeRule.onNodeWithText("Atualizar")
-        refreshNode.assertIsDisplayed()
-        val refreshBounds = refreshNode.getUnclippedBoundsInRoot()
-        assertTrue("Atualizar height must be >= 48dp", refreshBounds.bottom - refreshBounds.top >= 48.dp)
-        assertTrue("Atualizar width must be >= 48dp", refreshBounds.right - refreshBounds.left >= 48.dp)
+        composeRule.onNodeWithText("Atualizar").assertDoesNotExist()
 
         val cancelNodes = composeRule.onAllNodesWithText("Cancelar")
         cancelNodes.assertCountEquals(2)
@@ -375,11 +378,58 @@ class VehiclesScreenTest {
         val dialogCancelBounds = cancelNodes[1].getUnclippedBoundsInRoot()
         assertTrue("Dialog Cancelar height >= 48dp", dialogCancelBounds.bottom - dialogCancelBounds.top >= 48.dp)
         assertTrue("Dialog Cancelar width >= 48dp", dialogCancelBounds.right - dialogCancelBounds.left >= 48.dp)
+    }
 
-        val confirmNode = composeRule.onNodeWithText("Confirmar")
-        confirmNode.assertIsDisplayed()
-        val confirmBounds = confirmNode.getUnclippedBoundsInRoot()
-        assertTrue("Confirmar height >= 48dp", confirmBounds.bottom - confirmBounds.top >= 48.dp)
-        assertTrue("Confirmar width >= 48dp", confirmBounds.right - confirmBounds.left >= 48.dp)
+    @Test
+    fun `save shows confirmation dialog and confirm invokes onSave`() {
+        var saved = 0
+        render(state(editingId = 1, description = "Caminhão 9"), onSave = { saved++ })
+
+        composeRule.onNodeWithText("Salvar").performScrollTo().performClick()
+        val expectedBody = copy(R.string.admin_dialog_save_body, "Caminhão 9")
+        composeRule.onNodeWithText(expectedBody).assertIsDisplayed()
+
+        composeRule.onNodeWithText("Confirmar").performClick()
+        assertEquals(1, saved)
+    }
+
+    @Test
+    fun `save confirmation cancel does not invoke onSave`() {
+        var saved = 0
+        render(state(editingId = 1, description = "Caminhão 9"), onSave = { saved++ })
+
+        composeRule.onNodeWithText("Salvar").performScrollTo().performClick()
+        val expectedBody = copy(R.string.admin_dialog_save_body, "Caminhão 9")
+        composeRule.onNodeWithText(expectedBody).assertIsDisplayed()
+
+        composeRule.onAllNodesWithText("Cancelar")[1].performClick()
+        assertEquals(0, saved)
+    }
+
+    @Test
+    fun `toggle shows confirmation dialog and confirm invokes onToggle`() {
+        var toggled = 0
+        render(state(), onToggle = { toggled++ })
+
+        composeRule.onAllNodesWithText("Desativar")[0].performScrollTo().performClick()
+        val expectedBody = copy(R.string.admin_dialog_toggle_off_body, "Caminhão 1")
+        composeRule.onNodeWithText(expectedBody).assertIsDisplayed()
+
+        composeRule.onNodeWithText("Confirmar").performClick()
+        assertEquals(1, toggled)
+    }
+
+    @Test
+    fun `outcome shows result dialog and close invokes onDismissOutcome`() {
+        var dismissed = 0
+        render(
+            state().copy(outcome = AdminOutcome(isSuccess = true, message = UiText.of(R.string.admin_vehicles_created))),
+            onDismissOutcome = { dismissed++ },
+        )
+
+        val expectedSuccess = copy(R.string.admin_vehicles_created)
+        composeRule.onNodeWithText(expectedSuccess).assertIsDisplayed()
+        composeRule.onNodeWithText("Fechar").performClick()
+        assertEquals(1, dismissed)
     }
 }

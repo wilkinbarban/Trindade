@@ -8,6 +8,7 @@ import com.trindade.app.contract.models.AdminVehicleResponseVehicle
 import com.trindade.app.contract.models.CreateAdminVehicleRequest
 import com.trindade.app.contract.models.UpdateAdminVehicleRequest
 import com.trindade.app.ui.UiText
+import com.trindade.app.ui.components.AdminOutcome
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.Job
@@ -34,6 +35,7 @@ class VehiclesViewModel @Inject constructor(
         val deleteTarget: AdminVehicleResponseVehicle? = null,
         val error: UiText? = null,
         val refusedStatus: Int? = null,
+        val outcome: AdminOutcome? = null,
     ) {
         val isAdmin: Boolean get() = role == ADMIN
         val isEditing: Boolean get() = editingId != null
@@ -99,6 +101,10 @@ class VehiclesViewModel @Inject constructor(
         )
     }
 
+    fun dismissOutcome() {
+        _state.update { it.copy(outcome = null) }
+    }
+
     fun requestDelete(vehicle: AdminVehicleResponseVehicle) {
         val current = _state.value
         if (current.loading || !current.canDelete(vehicle) || current.saving) return
@@ -119,13 +125,13 @@ class VehiclesViewModel @Inject constructor(
 
     private fun delete(vehicle: AdminVehicleResponseVehicle) {
         if (!_state.value.canDelete(vehicle)) return
-        write { repository.delete(vehicle.id) }
+        write(DELETED) { repository.delete(vehicle.id) }
     }
 
     fun toggle(vehicle: AdminVehicleResponseVehicle) {
         val current = _state.value
         if (current.loading || !current.canToggle(vehicle) || current.saving) return
-        write {
+        write(UPDATED) {
             repository.update(
                 vehicle.id,
                 UpdateAdminVehicleRequest(
@@ -149,6 +155,9 @@ class VehiclesViewModel @Inject constructor(
             if (desc == null && plate == null) return validation(DESCRIPTION)
         }
 
+        val isCreate = current.editingId == null
+        val successMessage = if (isCreate) CREATED else UPDATED
+
         _state.update { it.copy(saving = true, error = null, refusedStatus = null) }
         viewModelScope.launch {
             val result = current.editingId?.let { id ->
@@ -165,18 +174,18 @@ class VehiclesViewModel @Inject constructor(
                     licensePlate = plate!!,
                 ),
             )
-            finishWrite(result)
+            finishWrite(result, successMessage)
         }
     }
 
-    private fun write(call: suspend () -> VehicleWriteResult) {
+    private fun write(successMessage: UiText, call: suspend () -> VehicleWriteResult) {
         val current = _state.value
         if (current.loading || current.saving) return
         _state.update { it.copy(saving = true, error = null, refusedStatus = null) }
-        viewModelScope.launch { finishWrite(call()) }
+        viewModelScope.launch { finishWrite(call(), successMessage) }
     }
 
-    private fun finishWrite(result: VehicleWriteResult) {
+    private fun finishWrite(result: VehicleWriteResult, successMessage: UiText) {
         when (result) {
             is VehicleWriteResult.Saved -> {
                 _state.update {
@@ -186,15 +195,26 @@ class VehiclesViewModel @Inject constructor(
                         description = "",
                         licensePlate = "",
                         deleteTarget = null,
+                        outcome = AdminOutcome(isSuccess = true, message = successMessage),
                     )
                 }
                 load()
             }
             is VehicleWriteResult.Refused -> _state.update {
-                it.copy(saving = false, error = REFUSED, refusedStatus = result.status)
+                it.copy(
+                    saving = false,
+                    error = REFUSED,
+                    refusedStatus = result.status,
+                    outcome = AdminOutcome(isSuccess = false, message = REFUSED),
+                )
             }
             VehicleWriteResult.Unreachable -> _state.update {
-                it.copy(saving = false, error = UNREACHABLE, refusedStatus = null)
+                it.copy(
+                    saving = false,
+                    error = UNREACHABLE,
+                    refusedStatus = null,
+                    outcome = AdminOutcome(isSuccess = false, message = UNREACHABLE),
+                )
             }
         }
     }
@@ -205,6 +225,9 @@ class VehiclesViewModel @Inject constructor(
     companion object {
         const val ADMIN = "Administrador"
         const val WORKER = "Trabalhador"
+        val CREATED = UiText.of(R.string.admin_vehicles_created)
+        val UPDATED = UiText.of(R.string.admin_vehicles_updated)
+        val DELETED = UiText.of(R.string.admin_vehicles_deleted)
         val DESCRIPTION = UiText.of(R.string.vehicles_error_description)
         val LICENSE_PLATE = UiText.of(R.string.vehicles_error_license_plate)
         val REFUSED = UiText.of(R.string.vehicles_error_refused)
