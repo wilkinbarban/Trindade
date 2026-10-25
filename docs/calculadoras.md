@@ -53,15 +53,20 @@ pantalla não tenha de os inventar.
 - Um dia que não se pôde ler é **nada** e não um dia vazio: mostrar zero caixas para um servidor inalcançável é
   mentir sobre a estante.
 - A calculadora opera **sempre sobre hoje** em São Paulo e não oferece escolha de data: um campo de data ali
-  permitia contar sem olhar para o dia, e a contagem caía num dia que ninguém tinha escolhido. Corrigir um dia
+  permitia contar sem olhar para o dia, e a contagem caía num dia que ninguém tinha escolhido. Consultar um dia
   passado é trabalho do Histórico de Estoque (`/stock-history`), que abre a data que se escolheu.
 
 ## Histórico de Estoque
 
 Uma rota própria na web (`/stock-history`, com a antiga `/stock/history` a redirecionar) e uma pantalla no
-Android. Lista **só os produtos contados** —vinte e quatro zeros escondem a linha por que alguém veio— e tem
-**controlo de papel**: um Trabalhador lê, um Administrador corrige, e o servidor aplica a mesma fronteira com o
-seu 403 (`POST /api/stock/add-entry` e `POST /api/stock/reset-product` são do Administrador).
+Android. É uma **leitura** nos dois lados: mostra o **Resumo Coletivo do Dia** que o servidor somou —só os
+produtos contados, vinte e quatro zeros escondem a linha por que alguém veio— com as caixas e as unidades de
+cada um e o total do dia, e oferece enviá-lo por WhatsApp ou correio. Não tem calculadora, campos de
+quantidade, "Adicionar" nem "Zerar": a contagem corrige-se onde é feita, e uma segunda calculadora para a mesma
+estante é como duas correções acabam discordando sobre o mesmo dia. O calendário aceita **hoje e os trinta dias
+anteriores**, porque uma contagem corrige-se na manhã seguinte e não no ano seguinte. Os dois `POST` do stock
+(`/api/stock/add-entry` e `/api/stock/reset-product`) continuam a ser do Administrador; a pantalla já não os
+chama.
 
 ## Exportações e destinos
 

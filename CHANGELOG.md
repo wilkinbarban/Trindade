@@ -6,6 +6,26 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [0.5.2+514] — 2026-10-24
+
+### ✨ Melhorado (Perfil, temperatura, horários e histórico de estoque)
+- **Perfil**: o título `Perfil` aparece na cabeçalho junto ao `Voltar`, no padrão das pantallas secundárias, e
+  a ação primária preenchida `Baixar nova versão` só é desenhada quando existe uma atualização de fato — uma
+  versão disponível, ou uma leitura que falhou e se pode repetir. Com o aplicativo em dia ficam só o aviso de
+  que já está na versão mais recente e o botão para verificar outra vez.
+- **Temperatura nos relatórios**: o sinal `-` agora só existe no começo. Um `-` digitado no fim ou no meio do
+  número muda de lugar enquanto se escreve, o `±` reescreve o valor com um único sinal e o campo aceita um
+  único separador decimal — `.` ou `,`.
+- **Horário de carga (Painel Admin)**: teclado numérico, máscara `HH:mm` que coloca os dois pontos sozinha
+  conforme os quatro dígitos chegam (e volta atrás ao apagar) e um relógio ao lado do campo que abre o seletor
+  de hora do sistema já com o valor escolhido.
+- **Histórico de estoque**: virou leitura nos dois lados. A pantalla mostra o **Resumo Coletivo do Dia** que o
+  servidor somou, com o total do dia, e oferece enviá-lo por WhatsApp ou correio; a calculadora, os campos de
+  quantidade e os botões `Adicionar`/`Zerar` saíram. O calendário aceita hoje e os trinta dias anteriores, e a
+  data abre pelo campo ou pelo botão.
+- **Material 3**: nenhum literal `Color(0x…)` fora de `ui/theme/Theme.kt` e nenhum alvo de toque abaixo de
+  48dp nas quatro pantallas tocadas.
+
 ## [0.5.2+513] — 2026-10-24
 
 ### ✨ Melhorado (toda a interface Android nos tokens do Material 3)
