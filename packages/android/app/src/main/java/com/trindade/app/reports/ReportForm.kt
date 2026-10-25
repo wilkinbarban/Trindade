@@ -245,7 +245,10 @@ private fun TemperatureBlock(
                 value = value,
                 onValueChange = {
                     if (readOnly) return@OutlinedTextField
-                    onChange(index, it)
+                    // Sanitized here rather than on save: the field is what the operator sees, so a `-` they
+                    // typed at the end has to move to the front the moment it is written, not at the moment
+                    // the report is.
+                    onChange(index, sanitizeTemperatureInput(it))
                 },
                 label = { Text("Leitura ${index + 1}") },
                 singleLine = true,
@@ -263,13 +266,4 @@ private fun TemperatureBlock(
     }
 }
 
-/**
- * The same reading with its sign flipped, which is what a field's `±` action writes back.
- *
- * String arithmetic rather than a round trip through the parser, so it works on a half-typed field: an
- * operator who typed `2,` and then remembers the chamber was cold gets `-2,` and keeps the separator they
- * had already pressed, where parsing and re-rendering would have rewritten the number without it. An empty
- * field becomes a lone `-`, which is the sign the next digit lands behind.
- */
-private fun toggledSign(value: String): String =
-    if (value.startsWith("-")) value.removePrefix("-") else "-$value"
+
