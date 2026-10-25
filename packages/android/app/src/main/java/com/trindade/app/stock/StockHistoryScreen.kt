@@ -8,7 +8,9 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -17,6 +19,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -87,12 +90,13 @@ fun StockHistoryScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             NavigationActionButton(onClick = onBack, text = stringResource(R.string.report_back))
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(stringResource(R.string.nav_stock_history), style = MaterialTheme.typography.titleLarge)
                 Text(
                     if (canEdit) stringResource(R.string.stock_history_subtitle_edit)
                     else stringResource(R.string.stock_history_subtitle_readonly),
                     style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -112,8 +116,9 @@ fun StockHistoryScreen(
             )
             Button(
                 onClick = { openDayPicker(context, state.date) { viewModel.onDateChange(it) } },
+                modifier = Modifier.defaultMinSize(minHeight = 48.dp),
             ) {
-                Text(stringResource(R.string.stock_pick_date))
+                Text(stringResource(R.string.stock_pick_date), style = MaterialTheme.typography.labelLarge, maxLines = 1)
             }
         }
 
@@ -128,8 +133,13 @@ fun StockHistoryScreen(
                     Button(
                         onClick = { viewModel.onDateChange(day.date) },
                         enabled = day.date != state.date,
+                        modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp),
                     ) {
-                        Text("${formatDayLabel(day.date)} · ${day.units}")
+                        Text(
+                            text = "${formatDayLabel(day.date)} · ${day.units}",
+                            style = MaterialTheme.typography.labelLarge,
+                            maxLines = 1,
+                        )
                     }
                 }
             }
@@ -147,7 +157,11 @@ fun StockHistoryScreen(
         }
 
         if (state.failed) {
-            Text(stringResource(R.string.stock_failed_to_load_count_day), color = MaterialTheme.colorScheme.error)
+            Text(
+                stringResource(R.string.stock_failed_to_load_count_day),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error,
+            )
         }
 
         if (state.day != null && counted.isEmpty()) {
@@ -155,7 +169,10 @@ fun StockHistoryScreen(
         }
 
         counted.forEach { product ->
-            Card {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
                 Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -198,11 +215,17 @@ fun StockHistoryScreen(
                             Button(
                                 onClick = { viewModel.addEntry(product) },
                                 enabled = !addDisabled(state.quantities[product.code] ?: ""),
+                                modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                             ) {
-                                Text(stringResource(R.string.stock_add_button))
+                                Text(stringResource(R.string.stock_add_button), style = MaterialTheme.typography.labelLarge, maxLines = 1)
                             }
-                            Button(onClick = { viewModel.resetProduct(product) }) {
-                                Text(stringResource(R.string.stock_reset_button))
+                            Button(
+                                onClick = { viewModel.resetProduct(product) },
+                                modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                            ) {
+                                Text(stringResource(R.string.stock_reset_button), style = MaterialTheme.typography.labelLarge, maxLines = 1)
                             }
                         }
                     }
@@ -212,7 +235,7 @@ fun StockHistoryScreen(
 
         HorizontalDivider()
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(stringResource(R.string.stock_day_total))
+            Text(stringResource(R.string.stock_day_total), style = MaterialTheme.typography.bodyLarge)
             Text(
                 stringResource(R.string.stock_day_total_format, counted.sumOf { it.boxes }, counted.sumOf { it.units }),
                 style = MaterialTheme.typography.titleMedium,
@@ -241,9 +264,9 @@ fun StockHistoryScreen(
                 }
             },
             enabled = counted.isNotEmpty(),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp),
         ) {
-            Text(stringResource(R.string.whatsapp_send_button))
+            Text(stringResource(R.string.whatsapp_send_button), style = MaterialTheme.typography.labelLarge)
         }
 
         Button(
@@ -253,9 +276,9 @@ fun StockHistoryScreen(
                 viewModel.onNote(openingEmailNote)
             },
             enabled = counted.isNotEmpty(),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp),
         ) {
-            Text(stringResource(R.string.stock_send_email_button))
+            Text(stringResource(R.string.stock_send_email_button), style = MaterialTheme.typography.labelLarge)
         }
 
         if (state.note.isNotEmpty()) {

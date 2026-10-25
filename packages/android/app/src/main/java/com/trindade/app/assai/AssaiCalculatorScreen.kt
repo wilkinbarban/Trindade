@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -13,7 +14,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -29,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -68,20 +72,32 @@ fun AssaiCalculatorScreen(
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        // La raíz del módulo no lleva "Voltar" ni el título que la pestaña ya dice: sólo sus acciones.
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            ModuleHelpButton(onClick = { showHelpDialog = true })
+        // La raíz del módulo no lleva "Voltar" ni el título que la pestaña ya dice: el nombre del módulo
+        // con su ayuda en la esquina de cierre, y la explicación debajo. El título sí se dibuja acá porque
+        // la fila de pestañas lo abrevia, y esta es la única línea que dice el nombre completo.
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.assai_header_title),
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    modifier = Modifier.weight(1f),
+                )
+                ModuleHelpButton(onClick = { showHelpDialog = true })
+            }
+            Text(
+                stringResource(R.string.assai_subtitle),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
-        Text(
-            stringResource(R.string.assai_subtitle),
-            style = MaterialTheme.typography.bodySmall,
-        )
 
-        Card {
+        Card(
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
             Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 lines.forEach { line ->
                     Row(
@@ -123,7 +139,10 @@ fun AssaiCalculatorScreen(
             }
         }
 
-        Card {
+        Card(
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
             Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(stringResource(R.string.assai_weekday_label), style = MaterialTheme.typography.bodySmall)
                 Row(
@@ -133,14 +152,26 @@ fun AssaiCalculatorScreen(
                     FilterChip(
                         selected = state.selectedDay == "Terça-feira",
                         onClick = { viewModel.onDaySelect("Terça-feira") },
-                        label = { Text(stringResource(R.string.weekday_tuesday)) },
-                        modifier = Modifier.weight(1f),
+                        label = { Text(stringResource(R.string.weekday_tuesday), style = MaterialTheme.typography.labelMedium) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
+                        modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp),
                     )
                     FilterChip(
                         selected = state.selectedDay == "Quinta-feira",
                         onClick = { viewModel.onDaySelect("Quinta-feira") },
-                        label = { Text(stringResource(R.string.weekday_thursday)) },
-                        modifier = Modifier.weight(1f),
+                        label = { Text(stringResource(R.string.weekday_thursday), style = MaterialTheme.typography.labelMedium) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
+                        modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp),
                     )
                 }
                 Row(
@@ -150,14 +181,26 @@ fun AssaiCalculatorScreen(
                     FilterChip(
                         selected = state.selectedDay == "Sexta-feira",
                         onClick = { viewModel.onDaySelect("Sexta-feira") },
-                        label = { Text(stringResource(R.string.weekday_friday)) },
-                        modifier = Modifier.weight(1f),
+                        label = { Text(stringResource(R.string.weekday_friday), style = MaterialTheme.typography.labelMedium) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
+                        modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp),
                     )
                     FilterChip(
                         selected = state.selectedDay == "Sábado",
                         onClick = { viewModel.onDaySelect("Sábado") },
-                        label = { Text(stringResource(R.string.weekday_saturday)) },
-                        modifier = Modifier.weight(1f),
+                        label = { Text(stringResource(R.string.weekday_saturday), style = MaterialTheme.typography.labelMedium) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
+                        modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp),
                     )
                 }
             }
@@ -165,7 +208,7 @@ fun AssaiCalculatorScreen(
 
         HorizontalDivider()
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(stringResource(R.string.assai_order_total))
+            Text(stringResource(R.string.assai_order_total), style = MaterialTheme.typography.bodyLarge)
             Text(stringResource(R.string.assai_total_boxes_format, viewModel.totalBoxes()), style = MaterialTheme.typography.titleMedium)
         }
 
@@ -180,7 +223,10 @@ fun AssaiCalculatorScreen(
             modifier = Modifier.fillMaxWidth(),
         )
 
-        Card {
+        Card(
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
             Column(modifier = Modifier.padding(10.dp)) {
                 Text(stringResource(R.string.whatsapp_message_label), style = MaterialTheme.typography.bodySmall)
                 Text(viewModel.message(), style = MaterialTheme.typography.bodySmall)
@@ -200,9 +246,9 @@ fun AssaiCalculatorScreen(
                 }
             },
             enabled = !viewModel.hasError() && link != null,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp),
         ) {
-            Text(stringResource(R.string.whatsapp_send_button))
+            Text(stringResource(R.string.whatsapp_send_button), style = MaterialTheme.typography.labelLarge)
         }
 
         if (state.note.isNotEmpty()) {

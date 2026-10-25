@@ -3,19 +3,22 @@ package com.trindade.app.stock
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -37,7 +40,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -50,6 +52,7 @@ import com.trindade.app.ui.BrazilianPhoneVisualTransformation
 import com.trindade.app.ui.components.HelpSection
 import com.trindade.app.ui.components.ModuleHelpButton
 import com.trindade.app.ui.components.ModuleHelpDialog
+import com.trindade.app.ui.components.ModuleHistoryButton
 import com.trindade.app.ui.resolve
 import com.trindade.app.ui.filterPhoneDigits
 
@@ -92,31 +95,25 @@ fun StockCalculatorScreen(
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            OutlinedButton(
-                onClick = onOpenHistory,
-                shape = RoundedCornerShape(8.dp),
-                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                modifier = Modifier
-                    .height(36.dp)
-                    .padding(end = 8.dp),
+        // Las acciones en las esquinas -- el histórico a la izquierda, la ayuda a la derecha -- y la
+        // frase del módulo debajo, con su propio aire: compartiendo la fila se apretaba contra los dos
+        // botones y se leía como parte del control en vez de como lo que la pantalla hace.
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text = stringResource(R.string.report_history),
-                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                )
+                ModuleHistoryButton(onClick = onOpenHistory)
+                Spacer(modifier = Modifier.weight(1f))
+                ModuleHelpButton(onClick = { showHelpDialog = true })
             }
-            ModuleHelpButton(onClick = { showHelpDialog = true })
+            Text(
+                if (canEdit) stringResource(R.string.stock_calculator_subtitle_edit)
+                else stringResource(R.string.stock_calculator_subtitle_readonly),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
-        Text(
-            if (canEdit) stringResource(R.string.stock_calculator_subtitle_edit)
-            else stringResource(R.string.stock_calculator_subtitle_readonly),
-            style = MaterialTheme.typography.bodySmall,
-        )
 
         if (state.loading) {
             Box(
@@ -130,24 +127,37 @@ fun StockCalculatorScreen(
         }
 
         if (state.failed) {
-            Text(stringResource(R.string.stock_failed_to_load_count_day), color = MaterialTheme.colorScheme.error)
+            Text(
+                stringResource(R.string.stock_failed_to_load_count_day),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             groups.keys.forEach { category ->
                 Button(
                     onClick = { viewModel.onTabChange(category) },
                     enabled = category != shown,
+                    modifier = Modifier.defaultMinSize(minHeight = 48.dp),
                 ) {
                     val label = if (category == "Massas") stringResource(R.string.stock_category_massas)
                     else stringResource(R.string.stock_category_terceirizados)
-                    Text("$label (${groups[category]?.size ?: 0})")
+                    Text("$label (${groups[category]?.size ?: 0})", style = MaterialTheme.typography.labelLarge, maxLines = 1)
                 }
             }
         }
 
         active?.forEach { product ->
-            Card {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
                 Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -197,14 +207,18 @@ fun StockCalculatorScreen(
                             Button(
                                 onClick = { viewModel.addEntry(product) },
                                 enabled = canEdit && !addDisabled(state.quantities[product.code] ?: ""),
+                                modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                             ) {
-                                Text(stringResource(R.string.stock_add_button))
+                                Text(stringResource(R.string.stock_add_button), style = MaterialTheme.typography.labelLarge, maxLines = 1)
                             }
                             Button(
                                 onClick = { viewModel.resetProduct(product) },
                                 enabled = canEdit,
+                                modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                             ) {
-                                Text(stringResource(R.string.stock_reset_button))
+                                Text(stringResource(R.string.stock_reset_button), style = MaterialTheme.typography.labelLarge, maxLines = 1)
                             }
                         }
                     }
@@ -214,7 +228,7 @@ fun StockCalculatorScreen(
 
         HorizontalDivider()
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(stringResource(R.string.stock_day_total))
+            Text(stringResource(R.string.stock_day_total), style = MaterialTheme.typography.bodyLarge)
             Text(
                 stringResource(
                     R.string.stock_day_total_format,
@@ -239,7 +253,10 @@ fun StockCalculatorScreen(
             modifier = Modifier.fillMaxWidth(),
         )
 
-        Card {
+        Card(
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
             Column(modifier = Modifier.padding(10.dp)) {
                 Text(stringResource(R.string.whatsapp_message_label), style = MaterialTheme.typography.bodySmall)
                 Text(viewModel.message(), style = MaterialTheme.typography.bodySmall)
@@ -257,9 +274,9 @@ fun StockCalculatorScreen(
                 }
             },
             enabled = viewModel.hasSomethingToSend() && state.number.isNotBlank(),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp),
         ) {
-            Text(stringResource(R.string.whatsapp_send_button))
+            Text(stringResource(R.string.whatsapp_send_button), style = MaterialTheme.typography.labelLarge)
         }
 
         Button(
@@ -268,9 +285,9 @@ fun StockCalculatorScreen(
                 context.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse(viewModel.mailtoLink())))
                 viewModel.onNote(R.string.stock_email_opening)
             },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp),
         ) {
-            Text(stringResource(R.string.stock_send_email_button))
+            Text(stringResource(R.string.stock_send_email_button), style = MaterialTheme.typography.labelLarge)
         }
 
         state.note?.let { note ->
@@ -310,11 +327,9 @@ internal fun StockCollectiveSummary(
     modifier: Modifier = Modifier,
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = RoundedCornerShape(16.dp),
-        modifier = modifier
-            .fillMaxWidth()
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        modifier = modifier.fillMaxWidth(),
     ) {
         Column(
             modifier = Modifier
@@ -344,11 +359,9 @@ internal fun StockCollectiveSummary(
             } else {
                 products.forEach { product ->
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF3C7)),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .border(1.dp, Color(0xFFFCD34D), RoundedCornerShape(10.dp)),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Row(
                             modifier = Modifier
@@ -361,36 +374,36 @@ internal fun StockCollectiveSummary(
                                 Text(
                                     text = product.name,
                                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = Color(0xFF78350F),
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
                                 )
                                 Text(
                                     text = stringResource(R.string.stock_units_per_box_short, product.unitsPerBox),
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = Color(0xFF92400E),
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
                                 )
                             }
 
                             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Box(
                                     modifier = Modifier
-                                        .background(Color(0x14000000), RoundedCornerShape(6.dp))
+                                        .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.08f), CircleShape)
                                         .padding(horizontal = 8.dp, vertical = 3.dp),
                                 ) {
                                     Text(
                                         text = stringResource(R.string.stock_summary_boxes, product.boxes),
                                         style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                        color = Color(0xFF1F2937),
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer,
                                     )
                                 }
                                 Box(
                                     modifier = Modifier
-                                        .background(Color(0xFFB45309), RoundedCornerShape(6.dp))
+                                        .background(MaterialTheme.colorScheme.primary, CircleShape)
                                         .padding(horizontal = 8.dp, vertical = 3.dp),
                                 ) {
                                     Text(
                                         text = stringResource(R.string.stock_summary_units, product.units),
                                         style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.ExtraBold),
-                                        color = Color.White,
+                                        color = MaterialTheme.colorScheme.onPrimary,
                                     )
                                 }
                             }
