@@ -1,6 +1,6 @@
 # Android design remediation v513: header actions, admin dialogs, profile
 
-Directive source: `DIRECTIVA_REMEDIACION_ANDROID_V513.md` (read-only input, not committed). State: **in progress**.
+Directive source: `DIRECTIVA_REMEDIACION_ANDROID_V513.md` (read-only input, not committed). State: **closed**.
 
 ## Specs
 
@@ -97,17 +97,17 @@ the gold `secondaryContainer` instead of a third copy of the red.
 
 | ID | Specs | Route | Commit |
 | -- | ----- | ----- | ------ |
-| T1 | S1, S2, S3, S8 | `ModuleHistoryButton` component; header rows in Loading, Massas, Stock, Assaí; description below the row | pending |
-| T2 | S4 | Massas history header without `Atualizar`; stock history header review | pending |
-| T3 | S5 | `admin_refresh` removal in six screens; `AdminConfirmDialog`/`AdminResultDialog`; view-model outcome state; six screens + Drivers wired | pending |
-| T4 | S6, S7 | `ic_profile.xml`; profile screen redesign in cards | pending |
-| T7 | S10, S11 | Massas module: `MassasLaunchScreen.kt`, `MassasHistoryScreen.kt` onto tokens, 12dp cards, 48dp targets | pending |
-| T8 | S10, S11 | Stock and Assaí: `StockCalculatorScreen.kt`, `StockHistoryScreen.kt`, `AssaiCalculatorScreen.kt` | pending |
-| T9 | S10, S11 | Dashboard, Relatórios, Compartilhar, Horários: `DashboardScreen.kt`, `reports/*`, `share/*`, `loading/LoadingScreen.kt` | pending |
-| T10 | S10, S11 | Auth: `LoginScreen.kt`, `RegisterScreen.kt`, `ProfileScreen.kt` (the last one also carries S7) | pending |
-| T11 | S10, S11 | Admin: `admin/*` onto tokens, cards and 48dp targets, on top of the T3 dialogs | pending |
-| T12 | S9, S10, S11 | Unit and Compose tests for the new behaviour; full suite | pending |
-| T13 | S9 | versionCode 513, emulator screenshots, signed build, release clobber, docs and CHANGELOG | pending |
+| T1 | S1, S2, S3, S8 | `ModuleHistoryButton` component; header rows in Loading, Massas, Stock, Assaí; description below the row | `4b77389` |
+| T2 | S4 | Massas history header without `Atualizar`; stock history header review | `71a0081` |
+| T3 | S5 | `admin_refresh` removal in six screens; `AdminConfirmDialog`/`AdminResultDialog`; view-model outcome state; six screens + Drivers wired | `b958a88` |
+| T4 | S6, S7 | `ic_profile.xml`; profile screen redesign in cards | `cb79d24` |
+| T7 | S10, S11 | Massas module: `MassasLaunchScreen.kt`, `MassasHistoryScreen.kt` onto tokens, 12dp cards, 48dp targets | `71a0081` |
+| T8 | S10, S11 | Stock and Assaí: `StockCalculatorScreen.kt`, `StockHistoryScreen.kt`, `AssaiCalculatorScreen.kt` | `f72ad25` |
+| T9 | S10, S11 | Dashboard, Relatórios, Compartilhar, Horários: `DashboardScreen.kt`, `reports/*`, `share/*`, `loading/LoadingScreen.kt` | `6f6aea1` |
+| T10 | S10, S11 | Auth: `LoginScreen.kt`, `RegisterScreen.kt`, `ProfileScreen.kt` (the last one also carries S7) | `6f6aea1` |
+| T11 | S10, S11 | Admin: `admin/*` onto tokens, cards and 48dp targets, on top of the T3 dialogs | `a9f5d79` |
+| T12 | S9, S10, S11 | Unit and Compose tests for the new behaviour; full suite | `b958a88` |
+| T13 | S9 | versionCode 513, emulator screenshots, signed build, release clobber, docs and CHANGELOG | `899653a` |
 
 ## Log
 
@@ -187,3 +187,25 @@ L7: Left out on purpose. Portuguese literals that never switch language are stil
 (`"Nenhum motorista disponível."`, `"Salvar fletero"`, `"Nenhum histórico de massas encontrado."`,
 `"caixas"`, `"produtos lançados"`, `"un/cx"`, `"cx"`, `"un"`). They are older than this directive and fixing
 them means new keys in two locales for copy nobody asked to change; they are reported, not touched.
+
+L8: Visual verification on `emulator-5554`, over the *published* binary. The first capture run stopped on the
+mandatory update dialog and that was the app being right: `UpdateDetector` compares the release tag with the
+installed versionName and, on a tie, the published APK's digest with the installed one. A freshly built 513
+next to a published 512 is exactly `SAME_RELEASE_PATCH`, and that state blocks every screen behind the notice.
+So the order had to invert: publish first, then photograph what is published. A capture script that met the
+dialog earlier would have produced thirteen pictures of a modal and a report saying the design was fine.
+
+L9: The dialog body read "Higiene e Organização será desativado." The string was fixed in the masculine while
+the subject changes per section -- *categoria* and *tarefa* are feminine, *veículo* and *usuário* are not. Both
+locales moved to phrasing with no participle to agree: "ficará indisponível para uso" / "voltará a ficar
+disponível" and "quedará no disponible" / "volverá a estar disponible". Found by looking, not by testing: the
+five admin screen tests assert the body through `copy(R.string.…, name)`, so they passed both before and after.
+
+L10: Delivered as nine commits on `main` (`4b77389` … `899653a`), pushed to `origin/main`. The working tree at
+`899653a` is the tree the signed APK came from; the intermediate commits were ordered so that each one
+compiles (shared tokens and components first, the hygiene test last), but only the final tree was built and
+tested as a whole. 1010 tests, 0 failures.
+
+L11: Reported and not changed, because it is product, not design. Profile states "Você já está na versão mais
+recente" and keeps a filled primary "Baixar nova versão" right below it; and Profile is the only screen that
+opens with just "Voltar", no title in the bar, because the identity card is doing that job.
