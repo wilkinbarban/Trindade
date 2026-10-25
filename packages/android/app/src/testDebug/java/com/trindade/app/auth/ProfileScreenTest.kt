@@ -158,6 +158,10 @@ class ProfileScreenTest {
         composeRule
             .onNodeWithText(copy(R.string.profile_download_update))
             .assertDoesNotExist()
+        // The sentence about the first install belongs to a button that is not there.
+        composeRule
+            .onNodeWithText(copy(R.string.profile_download_update_hint))
+            .assertDoesNotExist()
     }
 
     @Test

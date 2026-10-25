@@ -342,6 +342,12 @@ fun ProfileScreen(
                 }
             }
 
+            // Whether there is anything to install or retry. Named once, because the filled action and the
+            // sentence that explains the install prompt have to appear and disappear together -- a hint about
+            // a tap with no button beside it is a screen explaining itself to nobody.
+            val offersDownload =
+                state.update is ProfileViewModel.UpdateStatus.Available || state.downloadState is DownloadState.Error
+
             when (val dl = state.downloadState) {
                 is DownloadState.Downloading -> {
                     Card(
@@ -393,7 +399,7 @@ fun ProfileScreen(
                     // primary "Baixar nova versão" two lines below it -- the loudest element on the card
                     // contradicting the sentence above it. Now it appears for an update the check found, and
                     // for a download that ended badly, which is the one case where retrying is the move.
-                    if (state.update is ProfileViewModel.UpdateStatus.Available || dl is DownloadState.Error) {
+                    if (offersDownload) {
                         AdminPrimaryButton(
                             onClick = {
                                 val availableUrl = (state.update as? ProfileViewModel.UpdateStatus.Available)?.downloadUrl
@@ -424,12 +430,16 @@ fun ProfileScreen(
 
             // The first install's prompt, described before it appears instead of after. Muted rather than in
             // the error tone or the confirmation one, because it is neither: nothing went wrong and nothing
-            // was done yet.
-            Text(
-                text = stringResource(R.string.profile_download_update_hint),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            // was done yet. It belongs to the download action above, so it is drawn only when that action is:
+            // explaining the install prompt on a screen that says the app is up to date is a sentence about a
+            // tap there is nothing to make.
+            if (offersDownload) {
+                Text(
+                    text = stringResource(R.string.profile_download_update_hint),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
 
         // Sair da conta, separado del resto por una línea: es la única acción irreversible de la pantalla
