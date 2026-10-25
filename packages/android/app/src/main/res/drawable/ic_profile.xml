@@ -1,10 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24"
     android:tint="#FF1F2937">
+    <!-- Cabeza: un círculo de 4.5 de radio centrado en (12, 7.5), sin anillo que la encoja. -->
     <path
         android:fillColor="#FF000000"
-        android:pathData="M12,2a10,10 0,1 0,0 20a10,10 0,0 0,0 -20zM12,4a10,10 0,0 1,10 10a9.96,9.96 0,0 1,-2.5 6.6C17.6,18.9 15,17.5 12,17.5s-5.6,1.4 -7.5,3.1A9.96,9.96 0,0 1,2 14A10,10 0,0 1,12 4zM12,6a4,4 0,1 1,0 8a4,4 0,0 1,0 -8zM12,8a2,2 0,1 0,0 4a2,2 0,0 0,0 -4z" />
+        android:pathData="M12,12a4.5,4.5 0,1 0,0 -9a4.5,4.5 0,0 0,0 9z" />
+    <!-- Hombros: un arco que nace a la altura de los hombros y baja hasta la base, con las esquinas
+         redondeadas para que la silueta no termine en un rectángulo duro. -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M12,14c-4.42,0 -8,2.35 -8,5.25c0,0.41 0.34,0.75 0.75,0.75h14.5c0.41,0 0.75,-0.34 0.75,-0.75C20,16.35 16.42,14 12,14z" />
 </vector>
