@@ -1,5 +1,6 @@
 package com.trindade.app.massas
 
+import androidx.lifecycle.viewModelScope
 import com.trindade.app.R
 import com.trindade.app.auth.AuthRepository
 import com.trindade.app.auth.TokenStore
@@ -9,6 +10,7 @@ import com.trindade.app.network.MassasApi
 import com.trindade.app.network.MassasLaunchDayView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -82,6 +84,13 @@ class MassasLaunchViewModelTest {
     @OptIn(ExperimentalCoroutinesApi::class)
     @After
     fun tearDown() {
+        // The view model polls on its own scope from the moment it is constructed, and nothing clears it
+        // here. A poll that is still in flight when the test ends resumes on `Dispatchers.Main` while the
+        // next test's tearDown resets it, and kotlinx-coroutines-test answers that overlap with
+        // `IllegalStateException: Dispatchers.Main is used concurrently with setting it` -- the failure
+        // this class produced in CI while passing on a slower machine. Cancelling the scope first stops the
+        // polling before the server it talks to goes away, so both the shutdown and the reset run alone.
+        viewModel.viewModelScope.cancel()
         server.shutdown()
         Dispatchers.resetMain()
     }
