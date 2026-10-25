@@ -2,21 +2,26 @@ package com.trindade.app.massas
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -30,6 +35,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -39,6 +45,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
@@ -56,6 +63,7 @@ import com.trindade.app.ui.BrazilianPhoneVisualTransformation
 import com.trindade.app.ui.components.HelpSection
 import com.trindade.app.ui.components.ModuleHelpButton
 import com.trindade.app.ui.components.ModuleHelpDialog
+import com.trindade.app.ui.components.ModuleHistoryButton
 import com.trindade.app.ui.components.NavigationActionButton
 import com.trindade.app.ui.resolve
 import com.trindade.app.ui.filterPhoneDigits
@@ -109,65 +117,44 @@ fun MassasLaunchScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        // Encabezado: sus acciones, sin repetir el título que la pestaña ya dice. El "Voltar" sólo
-        // aparece en el día leído desde el histórico, que es la subpantalla de este módulo.
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            if (state.isReadOnly && onBackToHistory != null) {
-                NavigationActionButton(
-                    onClick = onBackToHistory,
-                    text = stringResource(R.string.report_back),
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = stringResource(R.string.massas_production_date, state.date),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
-            } else {
-                Text(
-                    text = stringResource(R.string.massas_tagline),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    // Dos líneas: la frase entera comparte la fila con los dos botones y en una sola
-                    // quedaba cortada a media palabra.
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (!state.isReadOnly) {
-                    OutlinedButton(
-                        onClick = onNavigateToHistory,
-                        shape = RoundedCornerShape(8.dp),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                        modifier = Modifier.height(36.dp),
-                    ) {
-                        Text(
-                            text = stringResource(R.string.report_history),
-                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                        )
-                    }
+        // Encabezado: sus acciones en las esquinas, sin repetir el título que la pestaña ya dice, y la
+        // frase del módulo debajo de ellas. El "Voltar" sólo aparece en el día leído desde el histórico,
+        // que es la subpantalla de este módulo.
+        // The actions and the module's line are one block, 4dp apart, the same block the other three
+        // modules draw: the line belongs to the header, not to the gap between the header and the next card.
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (state.isReadOnly && onBackToHistory != null) {
+                    NavigationActionButton(
+                        onClick = onBackToHistory,
+                        text = stringResource(R.string.report_back),
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
                 }
+                if (!state.isReadOnly) {
+                    ModuleHistoryButton(onClick = onNavigateToHistory)
+                }
+                Spacer(modifier = Modifier.weight(1f))
                 ModuleHelpButton(onClick = { viewModel.toggleHelpDialog(true) })
             }
+            // The tagline is the module's own line, not a read-only notice: the date and the read-only
+            // state are already in the card below, and swapping the description for the date left the
+            // header saying two different kinds of thing depending on who was looking at it.
+            Text(
+                text = stringResource(R.string.massas_tagline),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
 
         // Banners de Notificación / Error
         if (state.noticeMessage != null) {
             Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFF0FDF4)),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, Color(0xFFBBF7D0), RoundedCornerShape(12.dp)),
-                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
                     modifier = Modifier
@@ -178,11 +165,18 @@ fun MassasLaunchScreen(
                     Text(
                         text = "✓ " + (state.noticeMessage?.resolve() ?: ""),
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                        color = Color(0xFF166534),
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
                         modifier = Modifier.weight(1f),
                     )
-                    TextButton(onClick = { viewModel.clearNotice() }) {
-                        Text(stringResource(R.string.massas_close), color = Color(0xFF166534))
+                    TextButton(
+                        onClick = { viewModel.clearNotice() },
+                        modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.massas_close),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        )
                     }
                 }
             }
@@ -190,11 +184,8 @@ fun MassasLaunchScreen(
 
         if (state.errorMessage != null) {
             Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF2F2)),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, Color(0xFFFECACA), RoundedCornerShape(12.dp)),
-                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
                     modifier = Modifier
@@ -205,11 +196,18 @@ fun MassasLaunchScreen(
                     Text(
                         text = "⚠ " + (state.errorMessage?.resolve() ?: ""),
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                        color = Color(0xFF991B1B),
+                        color = MaterialTheme.colorScheme.onErrorContainer,
                         modifier = Modifier.weight(1f),
                     )
-                    TextButton(onClick = { viewModel.clearError() }) {
-                        Text(stringResource(R.string.massas_close), color = Color(0xFF991B1B))
+                    TextButton(
+                        onClick = { viewModel.clearError() },
+                        modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.massas_close),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                        )
                     }
                 }
             }
@@ -217,8 +215,8 @@ fun MassasLaunchScreen(
 
         // Fila de Fecha y Sincronización
         Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+            modifier = Modifier.fillMaxWidth(),
         ) {
             Row(
                 modifier = Modifier
@@ -231,18 +229,48 @@ fun MassasLaunchScreen(
                     text = stringResource(R.string.massas_production_date, brazilianDate(state.date)),
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f, fill = false),
                 )
-                OutlinedButton(
-                    onClick = { viewModel.refresh() },
-                    enabled = !state.isLoading,
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                    modifier = Modifier.height(32.dp),
+                Box(
+                    modifier = Modifier
+                        .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable(
+                            enabled = !state.isLoading,
+                            onClick = { viewModel.refresh() },
+                        ),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    if (state.isLoading) {
-                        CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
-                    } else {
-                        Text(stringResource(R.string.massas_sync_now), style = MaterialTheme.typography.labelSmall)
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = Color.Transparent,
+                        border = BorderStroke(
+                            1.dp,
+                            if (!state.isLoading) MaterialTheme.colorScheme.outline
+                            else MaterialTheme.colorScheme.outline.copy(alpha = 0.38f),
+                        ),
+                        contentColor = if (!state.isLoading) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .heightIn(min = 32.dp)
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            if (state.isLoading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(14.dp),
+                                    strokeWidth = 2.dp,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            } else {
+                                Text(
+                                    text = stringResource(R.string.massas_sync_now),
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -251,11 +279,8 @@ fun MassasLaunchScreen(
         if (!state.isReadOnly) {
             // BLOQUE 1: Lançar Produção do Dia (Cálculo e Inputs)
             Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp)),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(
                     modifier = Modifier
@@ -264,7 +289,7 @@ fun MassasLaunchScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Text(
-                        text = "Lançar Produção por Caixas",
+                        text = stringResource(R.string.massas_launch_by_boxes),
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onSurface,
                     )
@@ -278,7 +303,7 @@ fun MassasLaunchScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .background(
-                                    color = if (boxes > 0) Color(0xFFF0FDF4) else Color.Transparent,
+                                    color = if (boxes > 0) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
                                     shape = RoundedCornerShape(8.dp),
                                 )
                                 .padding(horizontal = 8.dp, vertical = 6.dp),
@@ -304,7 +329,7 @@ fun MassasLaunchScreen(
                                         Text(
                                             text = "= $calculatedUnits un",
                                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                            color = Color(0xFF16A34A),
+                                            color = MaterialTheme.colorScheme.primary,
                                         )
                                     }
                                 }
@@ -334,8 +359,9 @@ fun MassasLaunchScreen(
                         OutlinedButton(
                             onClick = { viewModel.clearQuantities() },
                             enabled = hasAnyQuantity && !state.isSubmitting,
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .defaultMinSize(minHeight = 48.dp),
                         ) {
                             Text(stringResource(R.string.massas_clear), style = MaterialTheme.typography.labelLarge)
                         }
@@ -343,8 +369,9 @@ fun MassasLaunchScreen(
                         Button(
                             onClick = { viewModel.requestLaunchConfirmation() },
                             enabled = hasAnyQuantity && !state.isSubmitting,
-                            modifier = Modifier.weight(2f),
-                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier
+                                .weight(2f)
+                                .defaultMinSize(minHeight = 48.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                         ) {
                             if (state.isSubmitting) {
@@ -369,11 +396,8 @@ fun MassasLaunchScreen(
 
         // BLOQUE 2: Lançamentos Individuais do Dia (filtro por trabalhador no topo)
         Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp)),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+            modifier = Modifier.fillMaxWidth(),
         ) {
             Column(
                 modifier = Modifier
@@ -401,39 +425,19 @@ fun MassasLaunchScreen(
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
                             val isAllSelected = state.selectedOperatorId == null
-                            Button(
+                            MassasFilterChip(
+                                selected = isAllSelected,
                                 onClick = { viewModel.selectOperator(null) },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (isAllSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                                    contentColor = if (isAllSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                ),
-                                shape = RoundedCornerShape(20.dp),
-                                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                                modifier = Modifier.height(32.dp),
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.massas_all_workers),
-                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                )
-                            }
+                                label = stringResource(R.string.massas_all_workers),
+                            )
 
                             operators.forEach { op ->
                                 val isSelected = state.selectedOperatorId == op.id
-                                Button(
+                                MassasFilterChip(
+                                    selected = isSelected,
                                     onClick = { viewModel.selectOperator(op.id) },
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                                        contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    ),
-                                    shape = RoundedCornerShape(20.dp),
-                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                                    modifier = Modifier.height(32.dp),
-                                ) {
-                                    Text(
-                                        text = "👤 ${op.name}",
-                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                                    )
-                                }
+                                    label = "👤 ${op.name}",
+                                )
                             }
                         }
 
@@ -443,8 +447,8 @@ fun MassasLaunchScreen(
                             val opName = operators.find { it.id == state.selectedOperatorId }?.name ?: ""
                             if (subtotal != null) {
                                 Card(
-                                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF3C7)),
-                                    shape = RoundedCornerShape(8.dp),
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                                     modifier = Modifier.fillMaxWidth(),
                                 ) {
                                     Row(
@@ -457,12 +461,12 @@ fun MassasLaunchScreen(
                                         Text(
                                             text = stringResource(R.string.massas_worker_subtotal, opName),
                                             style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
-                                            color = Color(0xFF92400E),
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
                                         Text(
                                             text = "${subtotal.first} cx (${subtotal.second} un)",
                                             style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.ExtraBold),
-                                            color = Color(0xFF78350F),
+                                            color = MaterialTheme.colorScheme.primary,
                                         )
                                     }
                                 }
@@ -485,8 +489,7 @@ fun MassasLaunchScreen(
                         val canEdit = viewModel.canEdit(launch)
 
                         Card(
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
-                            shape = RoundedCornerShape(10.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Column(
@@ -525,13 +528,19 @@ fun MassasLaunchScreen(
 
                                     if (canEdit) {
                                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                            TextButton(onClick = { viewModel.startEdit(launch) }) {
-                                                Text(stringResource(R.string.massas_edit), style = MaterialTheme.typography.labelSmall)
+                                            TextButton(
+                                                onClick = { viewModel.startEdit(launch) },
+                                                modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+                                            ) {
+                                                Text(stringResource(R.string.massas_edit), style = MaterialTheme.typography.labelMedium)
                                             }
-                                            TextButton(onClick = { viewModel.promptDelete(launch.id) }) {
+                                            TextButton(
+                                                onClick = { viewModel.promptDelete(launch.id) },
+                                                modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+                                            ) {
                                                 Text(
                                                     stringResource(R.string.massas_delete),
-                                                    style = MaterialTheme.typography.labelSmall,
+                                                    style = MaterialTheme.typography.labelMedium,
                                                     color = MaterialTheme.colorScheme.error,
                                                 )
                                             }
@@ -548,11 +557,8 @@ fun MassasLaunchScreen(
 
         // BLOQUE 3: Resumo Coletivo do Dia (segue o filtro de trabalhador e destaca os totais)
         Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp)),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+            modifier = Modifier.fillMaxWidth(),
         ) {
             Column(
                 modifier = Modifier
@@ -584,11 +590,8 @@ fun MassasLaunchScreen(
                         val workerNames = productWorkerNames(visibleLaunches, product.code)
 
                         Card(
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF3C7)),
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .border(1.dp, Color(0xFFFCD34D), RoundedCornerShape(10.dp)),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                            modifier = Modifier.fillMaxWidth(),
                         ) {
                             Column(
                                 modifier = Modifier
@@ -605,36 +608,36 @@ fun MassasLaunchScreen(
                                         Text(
                                             text = product.name,
                                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                            color = Color(0xFF78350F),
+                                            color = MaterialTheme.colorScheme.onSurface,
                                         )
                                         Text(
                                             text = "${product.unitsPerBox} un/cx",
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = Color(0xFF92400E),
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
                                     }
 
                                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                         Box(
                                             modifier = Modifier
-                                                .background(Color(0x14000000), RoundedCornerShape(6.dp))
-                                                .padding(horizontal = 8.dp, vertical = 3.dp),
+                                                .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                                                .padding(horizontal = 10.dp, vertical = 4.dp),
                                         ) {
                                             Text(
                                                 text = "${product.totalBoxes} cx",
                                                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                                color = Color(0xFF1F2937),
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             )
                                         }
                                         Box(
                                             modifier = Modifier
-                                                .background(Color(0xFFB45309), RoundedCornerShape(6.dp))
-                                                .padding(horizontal = 8.dp, vertical = 3.dp),
+                                                .background(MaterialTheme.colorScheme.primary, CircleShape)
+                                                .padding(horizontal = 10.dp, vertical = 4.dp),
                                         ) {
                                             Text(
                                                 text = "${product.totalUnits} un",
                                                 style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.ExtraBold),
-                                                color = Color.White,
+                                                color = MaterialTheme.colorScheme.onPrimary,
                                             )
                                         }
                                     }
@@ -644,7 +647,7 @@ fun MassasLaunchScreen(
                                     Text(
                                         text = "👤 ${workerNames.joinToString(", ")}",
                                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                                        color = Color(0xFF92400E),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 }
                             }
@@ -656,11 +659,8 @@ fun MassasLaunchScreen(
 
         // BLOQUE 4: Compartilhar no WhatsApp
         Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp)),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+            modifier = Modifier.fillMaxWidth(),
         ) {
             Column(
                 modifier = Modifier
@@ -688,10 +688,10 @@ fun MassasLaunchScreen(
                 // Pré-visualização da Mensagem
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
                     ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 ) {
                     Column(
                         modifier = Modifier
@@ -700,7 +700,7 @@ fun MassasLaunchScreen(
                         verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         Text(
-                            text = "Pré-visualização da Mensagem",
+                            text = stringResource(R.string.share_preview_label),
                             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -724,14 +724,13 @@ fun MassasLaunchScreen(
                             }
                         },
                         enabled = whatsappLink != null,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF25D366)),
+                        modifier = Modifier
+                            .weight(1f)
+                            .defaultMinSize(minHeight = 48.dp),
                     ) {
                         Text(
                             text = "WhatsApp",
                             style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-                            color = Color.White,
                         )
                     }
 
@@ -742,8 +741,9 @@ fun MassasLaunchScreen(
                                 clipboardManager.setText(AnnotatedString(text))
                             }
                         },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .defaultMinSize(minHeight = 48.dp),
                     ) {
                         Text(
                             text = stringResource(R.string.massas_copy_report),
@@ -833,7 +833,7 @@ fun MassasLaunchScreen(
                         Text(
                             text = stringResource(R.string.massas_calculated_units_format, calculatedUnits, unitsPerBox),
                             style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
-                            color = Color(0xFF16A34A),
+                            color = MaterialTheme.colorScheme.primary,
                         )
                     }
                 }
@@ -881,7 +881,7 @@ fun MassasLaunchScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.shapes.small)
                             .padding(10.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
@@ -965,17 +965,59 @@ fun MassasLaunchScreen(
                 Button(
                     onClick = { viewModel.dismissResultDialog() },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isSuccess) Color(0xFF16A34A) else MaterialTheme.colorScheme.error,
+                        containerColor = if (isSuccess) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                        contentColor = if (isSuccess) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onError,
                     ),
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .defaultMinSize(minHeight = 48.dp),
                 ) {
                     Text(
                         text = stringResource(R.string.massas_close),
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
                     )
                 }
             },
         )
+    }
+}
+
+/**
+ * Filter chip matching Material 3 token roles with an outer >=48dp touch target and inner 32dp pill.
+ */
+@Composable
+private fun MassasFilterChip(
+    selected: Boolean,
+    onClick: () -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+            .clip(CircleShape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Surface(
+            shape = CircleShape,
+            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+            contentColor = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+        ) {
+            Row(
+                modifier = Modifier
+                    .heightIn(min = 32.dp)
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
+                    ),
+                    maxLines = 1,
+                )
+            }
+        }
     }
 }
