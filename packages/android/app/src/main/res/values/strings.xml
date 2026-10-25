@@ -408,6 +408,7 @@
     <string name="time_slots_new_slot">Novo horário</string>
     <string name="time_slots_slot_label">Horário</string>
     <string name="time_slots_slot_placeholder">HH:MM</string>
+    <string name="time_slots_pick_time">Selecionar horário</string>
     <string name="time_slots_add">Adicionar</string>
     <string name="time_slots_saving">Salvando…</string>
     <string name="time_slots_remove">Remover</string>

@@ -7,6 +7,8 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasProgressBarRangeInfo
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isDialog
@@ -183,6 +185,32 @@ class TimeSlotsAdminScreenTest {
         )
 
         composeRule.onNodeWithText(copy(R.string.admin_time_slots_validate_format)).assertIsDisplayed()
+    }
+
+    @Test
+    fun `four digits land in the field as HH-mm`() {
+        var captured = ""
+        render(
+            state(form = TimeSlotsAdminViewModel.FormState(slotInput = "")),
+            onSlotInputChanged = { captured = it },
+        )
+
+        // Types the four digits an operator actually presses; the field places the colon itself.
+        composeRule.onNode(hasSetTextAction()).performTextReplacement("1430")
+        assertEquals("14:30", captured)
+    }
+
+    @Test
+    fun `the clock beside the field is a full touch target`() {
+        render(state(form = TimeSlotsAdminViewModel.FormState(slotInput = "08:00")))
+
+        val clock = composeRule.onNode(
+            hasContentDescription(copy(R.string.time_slots_pick_time)) and hasClickAction(),
+        )
+        clock.assertIsDisplayed()
+        val bounds = clock.getUnclippedBoundsInRoot()
+        assertTrue((bounds.right - bounds.left) >= 48.dp)
+        assertTrue((bounds.bottom - bounds.top) >= 48.dp)
     }
 
     @Test
