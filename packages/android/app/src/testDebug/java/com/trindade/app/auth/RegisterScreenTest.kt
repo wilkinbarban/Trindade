@@ -55,7 +55,10 @@ class RegisterScreenTest {
         rule.onNodeWithText(text(R.string.register_submit)).assertIsEnabled().performClick()
         assertEquals(1, submitted)
         rule.runOnUiThread { state.value = state.value.copy(submitting = true) }
-        rule.onNodeWithText(text(R.string.register_submit)).assertDoesNotExist()
+        // The label stays while the request is in flight, the same way Login keeps it beside its own
+        // spinner; what changes is that the button refuses the second tap.
+        rule.onNodeWithText(text(R.string.register_submit)).assertIsNotEnabled()
+        rule.onNodeWithText(text(R.string.register_submit)).performClick()
         assertEquals(1, submitted)
     }
 

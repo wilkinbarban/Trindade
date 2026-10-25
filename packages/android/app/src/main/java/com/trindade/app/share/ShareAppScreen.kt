@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -13,9 +14,11 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -78,7 +81,9 @@ fun ShareAppScreen(
         )
 
         // Platform selection card
-        Card {
+        Card(
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        ) {
             Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(stringResource(R.string.share_platform_label), style = MaterialTheme.typography.titleSmall)
                 Row(
@@ -89,19 +94,37 @@ fun ShareAppScreen(
                         selected = state.platform == SharePlatform.ANDROID,
                         onClick = { viewModel.onPlatformSelect(SharePlatform.ANDROID) },
                         label = { Text(stringResource(R.string.share_platform_android)) },
-                        modifier = Modifier.weight(1f),
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
+                        modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp),
                     )
                     FilterChip(
                         selected = state.platform == SharePlatform.IOS,
                         onClick = { viewModel.onPlatformSelect(SharePlatform.IOS) },
                         label = { Text(stringResource(R.string.share_platform_iphone)) },
-                        modifier = Modifier.weight(1f),
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
+                        modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp),
                     )
                     FilterChip(
                         selected = state.platform == SharePlatform.BOTH,
                         onClick = { viewModel.onPlatformSelect(SharePlatform.BOTH) },
                         label = { Text(stringResource(R.string.share_platform_both)) },
-                        modifier = Modifier.weight(1f),
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
+                        modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp),
                     )
                 }
             }
@@ -109,7 +132,9 @@ fun ShareAppScreen(
 
         // Credentials card (Administrator only)
         if (state.isAdmin) {
-            Card {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+            ) {
                 Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -129,7 +154,7 @@ fun ShareAppScreen(
                         Box(modifier = Modifier.fillMaxWidth()) {
                             OutlinedButton(
                                 onClick = { usersMenuExpanded = true },
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp),
                             ) {
                                 val label = if (state.displayName.isNotBlank()) {
                                     state.displayName
@@ -190,7 +215,9 @@ fun ShareAppScreen(
         )
 
         // Preview of the message
-        Card {
+        Card(
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        ) {
             Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(stringResource(R.string.share_preview_label), style = MaterialTheme.typography.titleSmall)
                 Text(viewModel.message(), style = MaterialTheme.typography.bodySmall)
@@ -209,9 +236,12 @@ fun ShareAppScreen(
                     clipboard.setText(AnnotatedString(viewModel.message()))
                     viewModel.onNote(noteCopied)
                 },
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp),
             ) {
-                Text(stringResource(R.string.export_copy))
+                Text(
+                    text = stringResource(R.string.export_copy),
+                    style = MaterialTheme.typography.labelLarge,
+                )
             }
 
             Button(
@@ -225,9 +255,12 @@ fun ShareAppScreen(
                     }
                 },
                 enabled = viewModel.whatsappLink() != null,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp),
             ) {
-                Text(stringResource(R.string.share_send_whatsapp))
+                Text(
+                    text = stringResource(R.string.share_send_whatsapp),
+                    style = MaterialTheme.typography.labelLarge,
+                )
             }
         }
 

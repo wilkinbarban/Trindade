@@ -21,6 +21,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -182,21 +184,37 @@ fun LoginScreen(
             // is handed, looks at no cause, and asks `appSentenceOf` for the resource.
             state.message?.let { message ->
                 Spacer(Modifier.height(12.dp))
-                Text(
-                    text = when (message) {
-                        is LoginMessage.FromServer -> when {
-                            message.text == "Invalid credentials" || message.text == "Usuário ou senha inválidos." ->
-                                stringResource(R.string.login_invalid_credentials)
-                            else -> AuthRepository.normalizeServerAuthError(message.text) ?: message.text
-                        }
-                        else -> stringResource(appSentenceOf(message))
-                    },
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.semantics {
-                        liveRegion = LiveRegionMode.Assertive
-                    },
-                )
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            text = "⚠",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                        Text(
+                            text = when (message) {
+                                is LoginMessage.FromServer -> when {
+                                    message.text == "Invalid credentials" || message.text == "Usuário ou senha inválidos." ->
+                                        stringResource(R.string.login_invalid_credentials)
+                                    else -> AuthRepository.normalizeServerAuthError(message.text) ?: message.text
+                                }
+                                else -> stringResource(appSentenceOf(message))
+                            },
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.semantics {
+                                liveRegion = LiveRegionMode.Assertive
+                            },
+                        )
+                    }
+                }
             }
 
             Spacer(Modifier.height(24.dp))
@@ -217,10 +235,16 @@ fun LoginScreen(
                             strokeWidth = 2.dp,
                             color = MaterialTheme.colorScheme.onPrimary,
                         )
-                        Text(stringResource(R.string.login_submit))
+                        Text(
+                            text = stringResource(R.string.login_submit),
+                            style = MaterialTheme.typography.labelLarge,
+                        )
                     }
                 } else {
-                    Text(stringResource(R.string.login_submit))
+                    Text(
+                        text = stringResource(R.string.login_submit),
+                        style = MaterialTheme.typography.labelLarge,
+                    )
                 }
             }
 
@@ -235,7 +259,10 @@ fun LoginScreen(
                     .fillMaxWidth()
                     .defaultMinSize(minHeight = 48.dp),
             ) {
-                Text(stringResource(R.string.login_register_link))
+                Text(
+                    text = stringResource(R.string.login_register_link),
+                    style = MaterialTheme.typography.labelLarge,
+                )
             }
 
             // El crédito va como último hijo del Column y no como hermano suyo: un Box ubica a sus hijos

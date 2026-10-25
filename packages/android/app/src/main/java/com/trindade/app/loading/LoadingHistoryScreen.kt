@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -256,8 +257,9 @@ fun LoadingHistoryScreen(
                                 pickingMonth = false
                                 onMonthSelected(iso)
                             },
+                            modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp),
                         ) {
-                            Text(displayMonth(iso))
+                            Text(displayMonth(iso), style = MaterialTheme.typography.labelLarge)
                         }
                     }
                 }
@@ -310,6 +312,7 @@ private fun BatchRow(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .defaultMinSize(minHeight = 48.dp)
                 .clickable(enabled = !busy, onClick = onOpen)
                 .padding(vertical = 4.dp),
         ) {

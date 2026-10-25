@@ -13,11 +13,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -192,7 +191,10 @@ fun DashboardScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    TextButton(onClick = openActiveSchedule) {
+                    TextButton(
+                        onClick = openActiveSchedule,
+                        modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+                    ) {
                         Text(
                             text = stringResource(
                                 if (canViewActiveSchedule) R.string.dashboard_view_schedule
@@ -206,6 +208,7 @@ fun DashboardScreen(
                     TextButton(
                         onClick = onShareActiveSchedule,
                         enabled = activeScheduleBatchDate != null,
+                        modifier = Modifier.defaultMinSize(minHeight = 48.dp),
                     ) {
                         Text(text = stringResource(R.string.dashboard_share_schedule))
                     }
@@ -225,10 +228,16 @@ fun DashboardScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        TextButton(onClick = onOpenMassas) {
+                        TextButton(
+                            onClick = onOpenMassas,
+                            modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+                        ) {
                             Text(text = stringResource(R.string.dashboard_massas_launch_now))
                         }
-                        TextButton(onClick = onOpenMassasHistory) {
+                        TextButton(
+                            onClick = onOpenMassasHistory,
+                            modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+                        ) {
                             Text(text = stringResource(R.string.dashboard_massas_view_history))
                         }
                     }
@@ -366,12 +375,12 @@ fun DashboardRoute(
 /**
  * One card of the dashboard: a label, the value below it, and a click when the web gives the card one.
  *
- * Clickable shortcut cards use [OutlinedCard] with primary-tinted labels and explicit boundary to
- * make actionable destinations visibly evident. Static metric cards use [ElevatedCard] on warm neutral
- * surface to cleanly distinguish informational counts from shortcuts.
+ * Clickable shortcut cards use tonal [Card] with containerColor [MaterialTheme.colorScheme.surfaceContainerHigh],
+ * primary-tinted labels and outline border to make actionable destinations visibly evident. Static metric cards
+ * sit on [MaterialTheme.colorScheme.surfaceContainer] without border to cleanly distinguish informational counts.
  *
  * Both card variants span full width and enforce a minimum height of 72dp to easily exceed the
- * 48dp touch target accessibility requirement.
+ * 48dp touch target accessibility requirement, with the scheme's standard 12dp corner radius.
  */
 @Composable
 private fun DashboardCard(
@@ -398,13 +407,13 @@ private fun DashboardCard(
     }
 
     if (onClick != null) {
-        OutlinedCard(
+        Card(
             onClick = onClick,
             modifier = Modifier
                 .fillMaxWidth()
                 .defaultMinSize(minHeight = 72.dp),
-            colors = CardDefaults.outlinedCardColors(
-                containerColor = MaterialTheme.colorScheme.surface,
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                 contentColor = MaterialTheme.colorScheme.onSurface,
             ),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
@@ -412,15 +421,14 @@ private fun DashboardCard(
             content()
         }
     } else {
-        ElevatedCard(
+        Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .defaultMinSize(minHeight = 72.dp),
-            colors = CardDefaults.elevatedCardColors(
-                containerColor = MaterialTheme.colorScheme.surface,
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainer,
                 contentColor = MaterialTheme.colorScheme.onSurface,
             ),
-            elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp),
         ) {
             content()
         }

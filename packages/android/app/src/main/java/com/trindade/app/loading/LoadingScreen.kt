@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -50,6 +51,7 @@ import com.trindade.app.ui.components.AdminSecondaryButton
 import com.trindade.app.ui.components.HelpSection
 import com.trindade.app.ui.components.ModuleHelpButton
 import com.trindade.app.ui.components.ModuleHelpDialog
+import com.trindade.app.ui.components.ModuleHistoryButton
 import com.trindade.app.ui.components.NavigationActionButton
 
 /**
@@ -99,19 +101,29 @@ fun LoadingScreen(
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         item {
-            // La barra del módulo: acciones a la derecha, y "Voltar" sólo cuando hay a dónde volver.
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                if (showBack) {
-                    NavigationActionButton(onClick = onBack, text = stringResource(R.string.report_back))
-                    Spacer(modifier = Modifier.width(8.dp))
+            // La barra del módulo: el histórico en la esquina de arranque y la ayuda en la de cierre.
+            // "Voltar" sólo aparece cuando hay a dónde volver, y se queda a la izquierda: es el orden en
+            // que se lee una pantalla, salir primero y después lo que se puede hacer en ella.
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (showBack) {
+                        NavigationActionButton(onClick = onBack, text = stringResource(R.string.report_back))
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+                    ModuleHistoryButton(onClick = onOpenHistory)
+                    Spacer(modifier = Modifier.weight(1f))
+                    ModuleHelpButton(onClick = { showHelpDialog = true })
                 }
-                NavigationActionButton(onClick = onOpenHistory, text = stringResource(R.string.report_history))
-                Spacer(modifier = Modifier.width(8.dp))
-                ModuleHelpButton(onClick = { showHelpDialog = true })
+                // The module's line, below the actions instead of squeezed between them: the same place and
+                // the same style the other modules give theirs.
+                Text(
+                    text = stringResource(R.string.loading_tagline),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
 
@@ -151,8 +163,12 @@ fun LoadingScreen(
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodyMedium,
                     )
-                    TextButton(onClick = onRetry, enabled = !state.loading) {
-                        Text(stringResource(R.string.loading_retry))
+                    TextButton(
+                        onClick = onRetry,
+                        enabled = !state.loading,
+                        modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+                    ) {
+                        Text(stringResource(R.string.loading_retry), style = MaterialTheme.typography.labelLarge)
                     }
                 }
             }
@@ -419,15 +435,18 @@ private fun AddEntryForm(
         if (!showQuickAdd) {
             Button(
                 onClick = { showQuickAdd = true },
-                modifier = Modifier.padding(vertical = 4.dp),
+                modifier = Modifier
+                    .padding(vertical = 4.dp)
+                    .defaultMinSize(minHeight = 48.dp),
             ) {
-                Text(stringResource(R.string.loading_new_fletero))
+                Text(stringResource(R.string.loading_new_fletero), style = MaterialTheme.typography.labelLarge)
             }
         } else {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 6.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
             ) {
                 Column(
                     modifier = Modifier.padding(12.dp),

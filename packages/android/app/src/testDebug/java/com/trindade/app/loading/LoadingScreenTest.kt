@@ -25,12 +25,16 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.unit.Dp
+import com.trindade.app.ui.components.ModuleHelpButtonPillTag
+import com.trindade.app.ui.components.ModuleHistoryButtonPillTag
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.Density
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpRect
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
@@ -103,6 +107,23 @@ class LoadingScreenTest {
 
     /** One string this screen draws, looked up rather than typed. */
     private fun copy(id: Int, vararg args: Any): String = context.getString(id, *args)
+
+    /**
+     * The pill's height, measured on the inner surface that draws it.
+     *
+     * The header action is two boxes: the outer one answers the tap and is 48dp, the inner one is the pill
+     * you see and is 36dp. Reading the text node would give 48 every time, so the pill is measured by its
+     * tag and on the unmerged tree, where the drawing surface is still a node of its own.
+     */
+    private fun assertPillHeight(tag: String, expected: Dp) {
+        val height = composeRule.onNodeWithTag(tag, useUnmergedTree = true)
+            .getUnclippedBoundsInRoot()
+            .let { it.bottom - it.top }
+        assertTrue(
+            "Pill $tag must be $expected tall but was $height",
+            height in (expected - 1.dp)..(expected + 1.dp),
+        )
+    }
 
     // ---- The day the screen is handed ----
 
@@ -397,13 +418,39 @@ class LoadingScreenTest {
         backNode.performClick()
         assertEquals(1, backed)
 
+        // Dos medidas y no una. La píldora que se ve mide 36dp, el tamaño del diseño; la caja que responde
+        // al dedo mide 48dp, el mínimo de toque de la app. El nodo con el texto es el de la caja -- es el
+        // que tiene la acción -- así que acá se afirma el objetivo táctil, y la píldora se mide por su tag.
         val historyNode = composeRule.onNodeWithText(copy(R.string.report_history))
         historyNode.assertIsDisplayed()
         val historyBounds = historyNode.getUnclippedBoundsInRoot()
-        assertTrue("History height >= 48dp", historyBounds.bottom - historyBounds.top >= 48.dp)
+        assertTrue(
+            "The history touch target must be 48dp tall but was ${historyBounds.bottom - historyBounds.top}",
+            historyBounds.bottom - historyBounds.top >= 48.dp,
+        )
         assertTrue("History width >= 48dp", historyBounds.right - historyBounds.left >= 48.dp)
+        assertPillHeight(ModuleHistoryButtonPillTag, 36.dp)
         historyNode.performClick()
         assertEquals(1, openedHistory)
+
+        // Las esquinas: el histórico pegado al arranque de la fila y la ayuda al cierre. Se comparan
+        // contra sus vecinos y no contra una coordenada fija, que cambiaría con cada padding del tema.
+        val helpNode = composeRule.onNodeWithText(copy(R.string.help_button_label))
+        val helpBounds = helpNode.getUnclippedBoundsInRoot()
+        assertTrue(
+            "The help touch target must be 48dp tall but was ${helpBounds.bottom - helpBounds.top}",
+            helpBounds.bottom - helpBounds.top >= 48.dp,
+        )
+        assertPillHeight(ModuleHelpButtonPillTag, 36.dp)
+        assertTrue(
+            "Help must sit to the right of the history action",
+            helpBounds.left > historyBounds.right,
+        )
+        val rowRight = composeRule.onRoot().getUnclippedBoundsInRoot().right - 16.dp
+        assertTrue(
+            "Help must end at the row's right edge: ${helpBounds.right} vs $rowRight",
+            (helpBounds.right - rowRight).value in -1f..1f,
+        )
 
         val editNode = composeRule.onNodeWithText(copy(R.string.report_edit))
         editNode.performScrollTo().assertIsDisplayed()
@@ -510,7 +557,18 @@ class LoadingScreenTest {
         val historyNode = composeRule.onNodeWithText(copy(R.string.report_history)).performScrollTo()
         assertWithinViewport(historyNode)
         val historyBounds = historyNode.getUnclippedBoundsInRoot()
-        assertTrue("History button height >= 48dp at 1.5x", historyBounds.bottom - historyBounds.top >= 48.dp)
+        // Con la fuente al 1.5x la píldora crece con la etiqueta y el objetivo táctil nunca baja de 48dp:
+        // fijar una altura exacta acá sería afirmar que el texto se recorta, que es lo contrario del diseño.
+        assertTrue(
+            "History touch target must stay >= 48dp at 1.5x but was " +
+                "${historyBounds.bottom - historyBounds.top}",
+            historyBounds.bottom - historyBounds.top >= 48.dp,
+        )
+        val pillHeight = composeRule
+            .onNodeWithTag(ModuleHistoryButtonPillTag, useUnmergedTree = true)
+            .getUnclippedBoundsInRoot()
+            .let { it.bottom - it.top }
+        assertTrue("The pill must grow with the label at 1.5x but stayed at $pillHeight", pillHeight >= 36.dp)
         assertTrue("History button width >= 48dp at 1.5x", historyBounds.right - historyBounds.left >= 48.dp)
 
         // Export action
@@ -587,7 +645,11 @@ class LoadingScreenTest {
         val historyNode = composeRule.onNodeWithText(copy(R.string.report_history)).performScrollTo()
         assertWithinViewport(historyNode)
         val historyBounds = historyNode.getUnclippedBoundsInRoot()
-        assertTrue("History button height >= 48dp at 2.0x", historyBounds.bottom - historyBounds.top >= 48.dp)
+        assertTrue(
+            "History touch target must stay >= 48dp at 2.0x but was " +
+                "${historyBounds.bottom - historyBounds.top}",
+            historyBounds.bottom - historyBounds.top >= 48.dp,
+        )
         assertTrue("History button width >= 48dp at 2.0x", historyBounds.right - historyBounds.left >= 48.dp)
 
         // Export action
@@ -1152,3 +1214,4 @@ class LoadingScreenTest {
         val MOVED_SLOTS = listOf("04:00", "04:30", "05:00")
     }
 }
+
