@@ -6,6 +6,29 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [0.5.2+513] — 2026-10-24
+
+### ✨ Melhorado (toda a interface Android nos tokens do Material 3)
+- **Cores do tema em toda a aplicação**: os literais `Color(0xFF…)` saíram das telas e dos diálogos; cada
+  cor agora vem de `MaterialTheme.colorScheme` (ou de um token nomeado na paleta, como o âmbar da ajuda e o
+  verde do WhatsApp). Um teste de fonte (`M3TokenHygieneTest`) falha se um `Color(0x…)` reaparecer fora de
+  `ui/theme/Theme.kt`.
+- **Cartões com a mesma superfície e o mesmo raio**: `Card` usa as superfícies tonais do esquema
+  (`surfaceContainer`, `surfaceContainerHigh`) e o canto padrão de 12dp do Material 3, em vez de cinco raios
+  diferentes espalhados pelas telas.
+- **Alvos de toque de 48dp também nos controles desenhados menores**: os botões de histórico e ajuda das
+  cabeçalhos são uma pílula de 36dp dentro de uma área de toque de 48dp, e o mesmo tratamento vale para o
+  sincronizar do Lançamento de Massas e os chips de operário. A pílula cresce com a escala de fonte em vez de
+  cortar a etiqueta.
+- **Diálogos de administração**: confirmação antes de criar, editar, excluir, ativar e desativar em
+  Usuários, Veículos, Categorias, Horários, Tarefas e Motoristas, e uma janela de resultado com ✅ Sucesso ou
+  ❌ Erro e um único botão para fechar. O botão `Atualizar` redundante saiu das seis seções e do histórico de
+  massas.
+- **Perfil reorganizado**: cabeçalho com avatar (iniciais ou ícone), nome de exibição, `@usuário` e o papel;
+  depois `Dados da Conta`, `Segurança`, `Versão do aplicativo e atualizações` e `Sair da conta`, cada bloco
+  em seu cartão.
+- **Calculadora de Assaí**: título do módulo e ajuda na mesma linha, com o subtítulo abaixo.
+
 ## [0.5.2+512] — 2026-10-24
 
 ### ✨ Melhorado (navegação, ícones e cabeçalhos do Android como na Web)
