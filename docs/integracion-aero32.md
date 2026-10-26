@@ -6,8 +6,8 @@ stock) y el ERP de la empresa (**Aero32 / AeroSML**, cliente Windows del proveed
 Todo lo que sigue proviene de **análisis estático de solo lectura** sobre una copia de trabajo del cliente en Linux.
 El host Windows de producción no se modificó: los binarios se copiaron, se desempacaron y se analizaron fuera de él.
 
-- Fecha: 2026-10-25
-- Alcance: cliente `aerosml.exe` (v. portable instalada en `C:\Users\wilki\proyectos\Aero32`), DLLs auxiliares y archivos de configuración exportados.
+- Fecha: 2026-10-25 (cliente de escritorio) · 2026-10-26 (cliente móvil Android)
+- Alcance: cliente `aerosml.exe` (v. portable instalada en `C:\Users\wilki\proyectos\Aero32`), DLLs auxiliares y archivos de configuración exportados; más el cliente móvil Android de stock (`br.com.aerosytem.Estoque`, v2.0.0) copiado del teléfono (§13).
 - Estado: **auditoría cerrada, integración no iniciada**. Este documento es la base de decisión, no una implementación.
 
 ---
@@ -27,6 +27,7 @@ Consecuencias directas:
    documentos (`ENTRADA`/`ENTRADADET`) u orden de producción (`OPR00000`/`OPR10000`).
 3. Existe una **segunda base, MySQL, para el producto móvil del proveedor** (`Aeromobile`), alimentada por un
    conector propio. Es una vía de solo lectura de catálogo, no un canal de escritura fiable para producción.
+   El cliente móvil de stock y el de fuerza de ventas usan replicación por scripts PHP y espejo SQLite (§13).
 4. El "lanzamiento de masas" tiene un equivalente nativo confirmado: el módulo **Estoque Avulso** con tipo de
    lanzamiento **Industrialização** (y su variante **Acerto**), más el módulo **Ordem de Produção** con fórmulas
    (`PROF0000`/`PROM0000`).
@@ -47,7 +48,7 @@ que reproduzca la secuencia por transacción, credenciales propias y auditoría.
 | Desempaquetado | `upx -d` sobre ejecutables comprimidos | `aerosml.exe` 11,7 MB → 52,5 MB |
 | Cadenas | extracción ASCII y UTF-16, indexada por línea | >9.500 sentencias SQL; ~1.600 candidatas a catálogo de parámetros (93 validadas en el rango `005xxx`–`006xxx`) |
 | Formularios | parseo de recursos `RT_RCDATA` (DFM binario, firma `TPF0`) | **1.134 recursos**, **943 formularios** `TF_*` con sus datasets, `SQL.Strings`, `FieldDefs` y parámetros |
-| Índice SQL | extracción de `INSERT/UPDATE/DELETE/FROM/JOIN` por formulario | mapa tabla → formularios que la escriben/leen (§13-B) |
+| Índice SQL | extracción de `INSERT/UPDATE/DELETE/FROM/JOIN` por formulario | mapa tabla → formularios que la escriben/leen (§14-B) |
 
 Herramienta reutilizable: [`scripts/aero32/dfm_extract.py`](../scripts/aero32/dfm_extract.py). Se debe volver a
 ejecutar cuando el proveedor actualice el cliente: el esquema cambia sin aviso y sin documentación pública.
@@ -455,7 +456,7 @@ que probablemente se hace hoy a mano. Se resuelve con una captura de pantalla de
 | --- | --- | --- | --- | --- |
 | **A** | Escritura directa Firebird desde el backend de Trindade (`node-firebird`) | simple, sin infraestructura extra | expone la base a Internet, dialecto 1, sin validaciones del ERP, concurrencia con `KEYCONT` | **no recomendada** |
 | **B** | **Puente on-prem** (servicio pequeño en la LAN que expone HTTP/JSON a Trindade y escribe Firebird por transacción) | aísla credenciales, controla validaciones/auditoría, reintentos, un solo escritor, mismo lenguaje que Trindade | una pieza más que operar (Docker en la LAN o en el server Windows) | **recomendada** |
-| **C** | Usar `Aeromobile` (MySQL + endpoint del proveedor) como bus de datos | ya existe | es del proveedor, orientado a pedidos/catálogo; sin garantía de stock ni de producción; API key de terceros | descartada para escritura |
+| **C** | Usar `Aeromobile` (MySQL + endpoint del proveedor) como bus de datos | ya existe | es del proveedor, orientado a pedidos/catálogo; sin garantía de stock ni de producción; API key de terceros; protocolo móvil propietario (§13) | descartada para escritura |
 | **D** | Importación por archivo/planilla (el ERP lee Excel/CSV en varios módulos) | cero riesgo de esquema | manual, no idempotente, depende del operador | solo como contingencia |
 | **E** | RPA sobre la UI del cliente (automatizar `Estoque Avulso`) | respeta toda la lógica | frágil, requiere sesión Windows, no auditable | última ratio |
 
@@ -584,7 +585,113 @@ Fuera de alcance por ahora: facturación/NF-e, contabilidad, y cualquier escritu
 
 ---
 
-## 13. Anexos
+## 13. Cliente móvil Android: ecosistema, protocolo y vías de interoperabilidad
+
+Existen dos clientes móviles distintos bajo el mismo publicador: la app de **stock** (`br.com.aerosytem.Estoque`) y
+la de **fuerza de ventas** (`br.com.aero.aeromob`, «Aero Mob»). Ninguno expone API pública; ambos forman parte del
+mismo ecosistema del proveedor y se sincronizan contra el servidor del cliente.
+
+### 13.1 Artefactos analizados y autenticidad
+
+| Artefacto | Versión | SHA-256 | Origen |
+| --- | --- | --- | --- |
+| `base.apk` (stock) | 2.0.0 (código 80) | `40bad7018bee9d44ceafd237a4a967839e093cc8b0b2c8b7b867ad3a20813560` | copia del equipo Windows (extraída del teléfono) |
+| `config.arm64_v8a.apk` (stock) | 1.0.1 (código 79) | `d7b296c198870fd8dd3c80416e3907a99cdba642c9a908810f5e1fe61dc29f1a` | espejo público, solo para contraste |
+| `br.com.aero.aeromob.apk` | 1.23.1 (código 149) | `a59b3d612332107f00f8e16ccecff90b29fba675ef02a538feec6e9805b087f9` | espejo público, contraste de protocolo |
+
+Los tres artefactos declaran el mismo `META-INF/stamp-cert-sha256`
+(`3257d599a49d2c961a471ca9843f59d341a405884583fc087df4237b733bbd6d`), es decir el mismo certificado de
+distribución (Play App Signing) del proveedor. **Precaución de lectura**: el *stamp* acredita mismo publicador, **no**
+misma build; por eso el split 1.0.1 no puede tomarse como el binario de la versión instalada.
+
+Copia y verificación (solo lectura, el original no se modifica):
+
+```bash
+scp windows:'C:/Users/<usuario>/OneDrive/Desktop/Trindade/base.apk' /tmp/base_apk/base.apk
+sha256sum /tmp/base_apk/base.apk           # comparar con la tabla
+unzip -p /tmp/base_apk/base.apk stamp-cert-sha256 | xxd -p   # digest del certificado de distribución
+```
+
+### 13.2 Qué es la app instalada (2.0.0)
+
+- **Flutter** (`meta-data flutterEmbedding=2`, 9 entradas `flutter_assets/`), `minSdk 24`, `targetSdk 36`.
+- **Play Integrity Protection**: el *shell* `com.pairip.application.Application` y `LicenseActivity` envuelven la app.
+- **Permisos mínimos**: `INTERNET`, `com.android.vending.CHECK_LICENSE` y un permiso propio de *receiver*. La 1.0.1
+  pedía cámara, almacenamiento y ubicación; la 2.0.0 no.
+- **`usesCleartextTraffic="true"`**: el cliente tolera HTTP sin TLS, señal de que el servidor del cliente puede ser
+  HTTP plano (hosting compartido del proveedor).
+- **No trae `lib/`**: se distribuye como App Bundle y el código Dart AOT (`libapp.so`) viaja en un split ABI. Con el
+  `base.apk` solo **no se pueden extraer endpoints**: la lógica y las constantes de red viven en el *snapshot* Dart.
+
+### 13.3 La 1.0.1 no es la misma aplicación
+
+El split `arm64-v8a` de la 1.0.1 contiene `libEstoque.so` (45.234.984 bytes) que es **Delphi FMX**, no Flutter:
+4.693 ocurrencias de `FMX`, referencias `androidapi.jni.*` y `www.embarcadero.com`, y cero marcadores de Dart
+(`_kDartIsolateSnapshotData`, `libflutter`). Además sus literales de negocio están protegidos: **cero** ocurrencias de
+`.php`, `CREATE TABLE` de negocio o `saldoestoque`, y solo 3 de `Estoque` en 45 MB.
+
+Conclusión: el proveedor **reescribió el cliente móvil de Delphi FMX a Flutter** en la 2.0.0. Analizar la 1.0.1 no
+aporta el contrato de la versión instalada, y la extracción de cadenas tampoco lo entregaría.
+
+### 13.4 Protocolo del ecosistema (evidencia cruzada desde Aero Mob)
+
+La app de fuerza de ventas está escrita en Java/Kotlin y conserva el andamiaje de red sin ofuscar, lo que revela el
+modelo de integración que el proveedor reutiliza entre productos:
+
+| Elemento | Evidencia |
+| --- | --- |
+| Scripts del servidor | `lib.php?c=`, `recebe.php?`, `recebefile.php`, `cargasqlite.php?id=`, `processasqlite.php?` |
+| Cliente HTTP | `Http.doPost`, `Http.doPostJson`, `Http.readString`, `Http.downloadArquivo`, `Http.downloadImagem` |
+| Identidad del equipo | `IMEI`, `SERIAL`, `CNPJ` (sin OAuth ni *tokens*; el vínculo es el aparato + la carga) |
+| Transporte | `BASE64` + `GZIP`; acciones `ENVIARDB` / `ENVIARDADOS` |
+| Servidor | campo editable «Endereco do Servidor»: **la URL no está compilada**, se configura en el equipo |
+| Modelo de datos | espejo SQLite con el esquema del ERP (`cliente`, `clienteinforma`, `clientefoto`, `condicaopgto`, `contasreceber`, `distribuicao`, `cidade`…), con el mismo *naming* Firebird (`cli_cod`, `cli_nom`, `cli_lim NUMERIC(15,2)`) |
+| Sincronización | por tabla («Recebendo Produtos», «Recebendo Pedidos Faturados»), con confirmación en servidor («Enviou os dados, Processando…») |
+
+Esto encaja con lo ya documentado del escritorio: endpoint `http://<host-del-cliente>/aeromob/`, base MySQL
+`aeromob` y la marca `OPE_ENVIAMOB` («Avisar AeroMob») en las operaciones del ERP.
+
+**No es REST**: es replicación de archivos y sentencias SQL a través de scripts PHP sin contrato publicado. El
+servidor móvil es una instalación por cliente en hosting compartido, no un servicio multi-tenant con API versionada.
+
+### 13.5 Por qué no conviene reimplementar ese protocolo
+
+1. **Sin contrato**: los paths y el formato (`base64`+`gzip`, SQL, archivos) no están documentados ni versionados;
+   una actualización del proveedor los cambia sin aviso.
+2. **Autenticación débil**: identidad por `IMEI`/`SERIAL` + datos de carga, sobre HTTP claro permitido. Reproducirla
+   obliga a custodiar identificadores de aparato, no credenciales revocables.
+3. **Efectos colaterales**: un POST mal formado puede dejar la cola de sincronización del cliente a medias, porque el
+   servidor no es idempotente ni expone estado consultable.
+4. **Titularidad**: el endpoint es del proveedor y del cliente, no de Trindade; automatizarlo sin autorización escrita
+   queda fuera de las condiciones de uso y complica el soporte.
+5. **El dato de verdad está en otro lado**: el stock autoritativo es `SALDOESTOQUE`/`CUSTOMEDIO` en Firebird (§4), no el
+   espejo SQLite del teléfono.
+
+### 13.6 Cómo se desbloquearía el contrato exacto de la versión instalada
+
+Si en el futuro hiciera falta el contrato literal de la 2.0.0, hay tres vías y ninguna es gratis:
+
+1. **Captura de tráfico** (mitmproxy en la LAN del teléfono de pruebas). Viable si el cliente usa HTTP (el manifest lo
+   permite); para HTTPS haría falta una CA de usuario, que Flutter no confía por defecto. Requiere un aparato de
+   pruebas, nunca el de producción, y autorización del cliente.
+2. **Obtener `libapp.so` de la 2.0.0**: split ABI extraído del teléfono (root o Shizuku) o cuando un espejo publique el
+   `versionCode 80`; después, filtrar el *snapshot* Dart por `http`, `php`, `api`, `login`, `estoque`.
+3. **Pedir documentación al proveedor** y una autorización escrita para consumir su endpoint (recomendado si el
+   requisito real es escribir stock en su nube).
+
+### 13.7 Veredicto para Trindade
+
+La integración sigue siendo **por ERP** (§8, opción B): el móvil es un cliente del ecosistema del proveedor, no una
+API. El stock se escribe en Firebird con la secuencia de §5.2 y `KEYCONT` bloqueado; el teléfono es un consumidor
+más de ese dato.
+
+Reglas si alguna vez se consume su nube: endpoints autorizados por escrito, credenciales propias, `dry_run`,
+idempotencia por `launch_id` (§9), nunca escribir en el MySQL del proveedor y no versionar artefactos del APK más
+allá de su hash y su descripción.
+
+---
+
+## 14. Anexos
 
 ### A. Índice de formularios relevantes (943 en total)
 
@@ -642,3 +749,5 @@ grep -iE 'insert into|update .* set' /tmp/aero32/strings.txt | sort -u | less
 4. ¿Hay triggers activos sobre `SALDOESTOQUE`/`CUSTOMEDIO`? ¿Cuáles y desde qué versión del ERP?
 5. ¿La red permite un puente on-prem con salida a Trindade (o Trindade hacia la LAN)? ¿Quién administra Firebird?
 6. ¿Qué módulos están licenciados (Estoque, Produção, NF) y quién es el contacto del proveedor Aero para cambios de esquema?
+7. ¿El proveedor documenta y autoriza por escrito el consumo de su endpoint móvil (§13), o el servidor móvil a usar es
+   propio del cliente? Sin esa respuesta no se implementa nada contra la nube del proveedor.
