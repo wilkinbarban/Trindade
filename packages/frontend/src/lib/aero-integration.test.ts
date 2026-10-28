@@ -161,25 +161,25 @@ describe('aero-integration: settings persistence', () => {
 });
 
 describe('aero-integration: aeroSettingsReady', () => {
-  it('requires a normalizable URL, non-empty credentials, and positive integer userCode', () => {
-    const valid: AeroSettings = {
-      wsUrl: 'http://192.168.1.50:8000/api',
-      username: 'wilkin',
-      password: 'pwd',
-      userCode: 12,
-      shortcutName: 'Aero',
-      syncEnabled: true,
-      lastSyncAt: null,
-    };
+  const valid: AeroSettings = {
+    wsUrl: 'http://192.168.1.50:8000/api',
+    username: 'wilkin',
+    password: 'pwd',
+    userCode: 12,
+    shortcutName: 'Aero',
+    syncEnabled: true,
+    lastSyncAt: null,
+  };
+
+  it('decides on the three fields the operator types, not on the code only the ERP can reveal', () => {
     assert.equal(aeroSettingsReady(valid), true);
 
-    // Missing userCode
-    assert.equal(aeroSettingsReady({ ...valid, userCode: null }), false);
-    // Non-positive userCode
-    assert.equal(aeroSettingsReady({ ...valid, userCode: 0 }), false);
-    assert.equal(aeroSettingsReady({ ...valid, userCode: -1 }), false);
+    // The code is captured by a probe the browser cannot complete over HTTPS, so it must never gate the switch.
+    assert.equal(aeroSettingsReady({ ...valid, userCode: null }), true);
+
     // Missing credentials
     assert.equal(aeroSettingsReady({ ...valid, username: '' }), false);
+    assert.equal(aeroSettingsReady({ ...valid, username: '   ' }), false);
     assert.equal(aeroSettingsReady({ ...valid, password: '' }), false);
     // Invalid URL
     assert.equal(aeroSettingsReady({ ...valid, wsUrl: 'not-a-url' }), false);
@@ -325,6 +325,21 @@ describe('aero-integration: payload builders', () => {
     assert.equal(payload.ENT_DTANOT, '2026-10-28');
     assert.equal(payload.ENT_DTMOVI, '2026-10-28');
     assert.equal(payload.ENT_OBS, 'Lancamento de massas via Trindade');
+  });
+
+  it('sends the documented fallback user code when no code was captured', () => {
+    const base = {
+      productCode: '1045',
+      productName: 'MASSA CASEIRA',
+      quantity: 10,
+      entryDate: '2026-10-27',
+    };
+
+    // A null or absent code is the normal state in production: the browser cannot probe over HTTPS.
+    assert.equal(buildEntradaItemPayload({ ...base, userCode: null }).ENT_USU, 1);
+    assert.equal(buildEntradaItemPayload(base).ENT_USU, 1);
+    // A code the operator typed is honoured.
+    assert.equal(buildEntradaItemPayload({ ...base, userCode: 12 }).ENT_USU, 12);
   });
 
   it('always launches in units under the fixed APL series', () => {

@@ -50,6 +50,9 @@ function isAbort(error: unknown): boolean {
 /**
  * Rings the `/usuarios/` endpoint with the company credentials.
  *
+ * The route is POST on the factory server: Laravel answers a GET with `405 Supported methods: POST`, which is
+ * what the first factory test actually returned.
+ *
  * Two requests at most: the authenticated one, and -- only when the browser refused to hand over the
  * answer -- an opaque `no-cors` GET to the same URL. The second one cannot read the body or the status,
  * but it is the difference between "the Wi-Fi or the IP is wrong" and "the server is there and does not
@@ -66,15 +69,14 @@ export async function probeAeroConnection(args: AeroConnectionProbeArgs): Promis
     return { kind: 'blocked', reason: blocker };
   }
 
-  const target = aeroEndpoint(wsUrl, 'usuarios/');
-  const fetchImpl = args.fetchImpl ?? fetch;
+  const target = aeroEndpoint(wsUrl, 'usuarios/');  const fetchImpl = args.fetchImpl ?? fetch;
   const controller = new AbortController();
   const timeoutMs = args.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const response = await fetchImpl(target, {
-      method: 'GET',
+      method: 'POST',
       headers: {
         Authorization: basicAuthHeader(args.settings.username, args.settings.password),
         Accept: 'application/json',
@@ -107,7 +109,7 @@ export async function probeAeroConnection(args: AeroConnectionProbeArgs): Promis
 
     // The opaque retry can only tell that *something* answered: it never exposes a status or a body.
     try {
-      await fetchImpl(target, { method: 'GET', mode: 'no-cors', signal: controller.signal });
+      await fetchImpl(target, { method: 'POST', mode: 'no-cors', signal: controller.signal });
       return { kind: 'reachable_without_cors', snippet: '' };
     } catch {
       return { kind: 'network', message: error instanceof Error ? error.message : 'network error' };

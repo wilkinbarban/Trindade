@@ -189,14 +189,13 @@ export function MassasLaunchPage() {
 
       if (wantsSync) {
         // The switch said "send it to the company" and the entry stayed home. The operator's launch is safe,
-        // but the reason belongs in the log: the missing piece is usually the ENT_USU that only a successful
-        // connection test can capture.
+        // but the reason belongs in the log: at this point the configuration itself is what is missing.
         void postAeroAuditEvent({
           event: 'launch_sync',
           phase: 'requested',
           destinationUrl: aeroDestination() || aeroSettings.wsUrl,
           payload: requested,
-          error: aeroSettings.userCode === null ? 'userCode missing' : 'integration not ready',
+          error: 'integration not ready',
           note: `${requested.length} not sent`,
         });
       }
@@ -239,7 +238,7 @@ export function MassasLaunchPage() {
         productName: next.item.productName,
         quantity: next.item.quantity,
         entryDate: queue.date,
-        userCode: aeroSettings.userCode ?? 0,
+        userCode: aeroSettings.userCode,
       });
       // El atajo recibe el cuerpo del POST y nada más: la URL y el encabezado son constantes de la
       // fábrica y viven dentro del atajo. Cuanto menos tenga que armar el teléfono, más probable es

@@ -23,6 +23,16 @@ export const AERO_ENTRY_SERIES = 'APL';
 /** Launches never travel per box: the factory counts boxes, the ERP receives units. */
 export const AERO_QUANTITY_UNIT = 'UN';
 
+/**
+ * The user code an entry carries when nobody captured the real one.
+ *
+ * `ENT_USU` is the ERP's numeric operator id, and the only place it can be read is `/usuarios/`, which the
+ * browser cannot reach from an HTTPS page: Safari refuses the plain-HTTP target before a packet leaves.
+ * So over production the code is unknown by design, and refusing to launch because of it would leave the
+ * factory without stock sync on every phone. The entry goes as code 1 and the audit log records the fact.
+ */
+export const AERO_FALLBACK_USER_CODE = 1;
+
 export interface AeroSettings {
   wsUrl: string;
   username: string;
@@ -125,7 +135,11 @@ export function clearAeroSettings(storage?: Pick<Storage, 'removeItem'> | Storag
 }
 
 /**
- * Indicates whether the settings contain all minimum parameters needed for ERP synchronization.
+ * Indicates whether the settings contain everything the operator is responsible for.
+ *
+ * Deliberately three fields. `userCode` is not one of them: it is a value the ERP reveals, not a value a person
+ * types, and the only probe able to read it is blocked by the browser over HTTPS. Gating readiness on it would
+ * keep the sync switch disabled forever on the exact deployment the factory uses.
  */
 export function aeroSettingsReady(settings: AeroSettings): boolean {
   if (!settings) return false;
@@ -133,9 +147,6 @@ export function aeroSettingsReady(settings: AeroSettings): boolean {
   if (!normalized) return false;
   if (!settings.username || !settings.username.trim()) return false;
   if (!settings.password) return false;
-  if (typeof settings.userCode !== 'number' || !Number.isInteger(settings.userCode) || settings.userCode <= 0) {
-    return false;
-  }
   return true;
 }
 
@@ -271,6 +282,15 @@ export interface AeroEntryPayload {
 }
 
 /**
+ * Resolves the operator id an entry carries, keeping only a value the ERP can accept.
+ */
+export function aeroUserCode(userCode: number | null | undefined): number {
+  return typeof userCode === 'number' && Number.isInteger(userCode) && userCode > 0
+    ? userCode
+    : AERO_FALLBACK_USER_CODE;
+}
+
+/**
  * Constructs the exact JSON payload expected by POST /entradasitem in Aero32 ERP.
  * Property order matches docs/registro-integracion-aero-webservice.md §2.3.
  */
@@ -279,7 +299,8 @@ export function buildEntradaItemPayload(args: {
   productName: string;
   quantity: number;
   entryDate: Date | string;
-  userCode: number;
+  /** The ERP operator id; anything unusable falls back to {@link AERO_FALLBACK_USER_CODE}. */
+  userCode?: number | null;
   /** Only for a caller that must quote a series: the ERP entry always carries {@link AERO_ENTRY_SERIES}. */
   entrySeries?: string;
   observation?: string | null;
@@ -298,7 +319,7 @@ export function buildEntradaItemPayload(args: {
     PRO_DES: args.productName,
     PRO_QTD: args.quantity,
     ENT_DTA: dateStr,
-    ENT_USU: args.userCode,
+    ENT_USU: aeroUserCode(args.userCode),
     ENT_SER: args.entrySeries ?? AERO_ENTRY_SERIES,
     ENT_DTANOT: dateStr,
     ENT_DTMOVI: dateStr,
@@ -319,7 +340,7 @@ export function buildAeroEntryPayload(args: {
   boxes: number;
   unitsPerBox: number;
   date: string;
-  userCode: number;
+  userCode?: number | null;
   observation?: string;
 }): AeroEntryPayload {
   return buildEntradaItemPayload({

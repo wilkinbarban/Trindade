@@ -22,9 +22,11 @@ de unidad desaparece de la UI y la cantidad que viaja al ERP es siempre `cajas �
 ni unidad, y ambas viven como constantes del módulo, no como ajustes.
 
 S3 — Botón «Testar Conexão»: «intenta validar contra /api/usuarios/ y reporta el resultado al backend para
-auditoría.» El resultado exitoso guarda `CODIGO` como `ENT_USU`. Cuando la página corre en HTTPS y el
-WebService en HTTP plano, la petición es imposible por diseño del navegador y el panel lo dice antes de
-intentar, en vez de mostrar un error de red genérico; el intento igual se audita.
+auditoría.» (reescrita por L15) La sonda es `POST`, no `GET`: la ruta de la fábrica solo monta `POST` y
+responde al `GET` con `The GET method is not supported for route api/usuarios. Supported methods: POST`. El
+resultado exitoso guarda `CODIGO` como `ENT_USU`. Cuando la página corre en HTTPS y el WebService en HTTP
+plano, la petición es imposible por diseño del navegador y el panel lo dice antes de intentar, en vez de
+mostrar un error de red genérico; el intento igual se audita.
 
 S4 — (reescrita por L12) Botón «Instalar Atajo en iPhone»: la plantilla del Atajo que dispara a
 `/api/entradasitem` se arma con **dos acciones nativas**, no siete. El deep link transporta como texto el
@@ -38,6 +40,13 @@ S5 — Formulario de lanzamiento: switch «Sincronizar com ERP da Empresa», «a
 hay credenciales configuradas». Al guardar la masa, además de persistir en la base de Trindade, «emite el
 trigger hacia el Atajo de iOS (o x-callback-url) y registra el evento en el log del backend.» El lanzamiento
 en Trindade nunca se pierde por un fallo del ERP: primero persiste, después sincroniza.
+
+S16 — (por L15) El switch de sincronización se decide con **los tres datos que maneja el usuario**: URL
+normalizable, usuario no vacío y contraseña no vacía. `aeroSettingsReady` no puede exigir `userCode`: esa
+sonda está bloqueada por el navegador en producción y dejaría el switch deshabilitado para siempre. Cuando el
+código es nulo o ausente, el payload viaja con `ENT_USU = 1` (`userCode ?? 1`), y el panel ofrece el campo
+opcional «Código do Usuário no ERP» para quien lo conozca. Al guardar los tres campos el switch queda
+habilitado de inmediato.
 
 S6 — Endpoint interno `POST /api/integration/aero/log` «(restringido a admin wilkin)». Cuerpo validado y
 estricto; la identidad que se escribe en el log sale del token verificado contra la base, nunca del cuerpo.
@@ -55,7 +64,8 @@ resto del módulo.
 
 S9 — Contratos del WebService tal como están documentados en `docs/registro-integracion-aero-webservice.md`:
 autenticación `Authorization: Basic base64(usuario:senha)` con `Accept`/`Content-Type: application/json`;
-`/usuarios/` devuelve `{ success, data: { CODIGO, SENHA, NOME } }` y `CODIGO` es el `ENT_USU` del ERP;
+`/usuarios/` **solo `POST`** devuelve `{ success, data: { CODIGO, SENHA, NOME } }` y `CODIGO` es el `ENT_USU`
+del ERP;
 `POST /entradasitem` recibe `{ PRO_COD, PRO_DES, PRO_QTD, ENT_DTA, ENT_USU, ENT_SER, ENT_DTANOT, ENT_DTMOVI,
 ENT_OBS, LOTES: [] }` con fechas `YYYY-MM-DD` y `LOTES` vacío; `PRO_COD` se envía tal cual sale de
 `stock.catalog.ts` porque «Los códigos de producto (PRO_COD) en stock.catalog.ts (5000 = MASSA ROLO 1KG, 1045
@@ -139,6 +149,9 @@ web && docker compose up -d web`)»; «Validar HTTP 200 en `https://trindademasa
   `buildAeroShortcutEnvelope`) se retiran. Diálogo reescrito con los valores dentro de cada paso, copy en
   ambos locales, documentación y verificación del portapapeles a 375 y 390px. Ruta: inline ·
   commit `feat(aero)`.
+- T12 (S3, S5, S9, S16) — reabre S3 y S5 por L15: desbloquear el switch (readiness sin `userCode`) y pasar la
+  sonda de `/usuarios/` a `POST`; `ENT_USU` con fallback `1` en el armado del payload; campo opcional del
+  código en el panel; tests, locales, documentación y despliegue. Ruta: inline · commit `fix(aero)`.
 
 ## Log
 
@@ -495,3 +508,26 @@ viewport. La navegación real al esquema `shortcuts://` no es observable en Chro
 asignación se descarta en silencio), así que queda pendiente de la prueba en el iPhone; lo verificable de
 punta a punta es el contrato: el payload auditado es el cuerpo exacto del `POST` (`PRO_COD`, `PRO_QTD` en
 unidades, `ENT_SER: "APL"`), sin sobre.
+
+L15 — pedido del usuario, literal:
+
+```
+Remediación urgente en Trindade Web (integración Aero32):
+
+1. Desbloquear el switch «Sincronizar con ERP de la empresa»:
+   - En packages/frontend/src/lib/aero-integration.ts, aeroSettingsReady(settings) actualmente exige que userCode sea un entero > 0. Esto bloquea permanentemente el switch porque en Safari HTTPS en la web, probeAeroConnection devuelve blocked (mixed content) y userCode nunca se autocompleta.
+   - Modifica aeroSettingsReady para que considere listos los ajustes con solo los 3 datos que maneja el usuario: wsUrl normalizable, username no vacío y password no vacía.
+   - En el armado del payload (buildEntradaItemPayload / MassasLaunchPage), si userCode es null o ausente, usa fallback de 1 (ENT_USU = userCode ?? 1). Opcionalmente en el panel de configuración agrega el campo opcional 'Código do Usuário no ERP' por si el usuario lo conoce, pero sin ser obligatorio.
+   - Al guardar los 3 campos, el switch debe quedar inmediatamente habilitado para activarse.
+
+2. Corregir método en probeAeroConnection:
+   - En packages/frontend/src/lib/aero-connection.ts, el probe a /usuarios/ se hacía con GET. El servidor Laravel de la fábrica respondió: 'The GET method is not supported for route api/usuarios. Supported methods: POST'.
+   - Cambia el probe a method: 'POST'.
+
+3. Verificación y despliegue:
+   - Actualiza tests unitarios en aero-integration.test.ts y aero-connection.test.ts.
+   - Corre typecheck y npm test (100% pasando).
+   - Trunk-based directo a main, sin ramas satélites ni Co-Authored-By.
+   - git push origin main.
+   - docker compose up -d --build web y verifica HTTP 200 en https://trindademasas.duckdns.org.
+```

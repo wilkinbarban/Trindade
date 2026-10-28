@@ -27,7 +27,7 @@ A partir del análisis binario estático de la aplicación de stock instalada en
 Todos los endpoints esperan `Accept: application/json` y cabecera de autenticación Basic Auth.
 
 ### 2.1 Autenticación / Test de Conexión
-- **Endpoint**: `POST` o `GET` a `/usuarios/`
+- **Endpoint**: `POST` a `/usuarios/`. El servidor Laravel de la fábrica solo monta esa ruta como `POST`: un `GET` devuelve `405` con `The GET method is not supported for route api/usuarios. Supported methods: POST`.
 - **Headers**:
   ```http
   Authorization: Basic base64(usuario:senha)
@@ -139,4 +139,5 @@ sequenceDiagram
 | Fecha | Entorno | Acción | Resultado / Diagnóstico | Solución / Estado |
 |---|---|---|---|---|
 | 2026-10-27 | Entorno local (fuera de fábrica) | Ingeniería inversa de `base.apk` / `libso.so` | Extraídos contratos de `entradasitem`, `usuarios/`, `movimentoitem` y `produtoconsulta` | Confirmado que no se requiere IMEI. Autenticación HTTP Basic estándar. |
+| 2026-10-28 | Fábrica (red real) | Prueba del panel desde el iPhone | `405` en `/usuarios/`: la ruta solo acepta `POST` | Probe del cliente cambiado a `POST` (`aero-connection.ts`) |
 | *Pendiente* | Fábrica (Wi-Fi) | Test de conexión con IP real | Por ejecutar al suministrar IP:PUERTO y credenciales | Requiere IP, puerto y credenciales para validar respuesta real de `/usuarios/`. |

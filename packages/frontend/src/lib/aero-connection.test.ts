@@ -71,7 +71,8 @@ describe('probeAeroConnection', () => {
 
     assert.equal(calls.length, 1);
     assert.equal(calls[0]!.url, 'http://192.168.1.50:8000/api/usuarios/');
-    assert.equal(calls[0]!.init.method, 'GET');
+    // The factory routes /usuarios/ as POST only: a GET comes back as a 405 from Laravel.
+    assert.equal(calls[0]!.init.method, 'POST');
     const headers = calls[0]!.init.headers as Record<string, string>;
     assert.equal(headers.Authorization, basicAuthHeader('wilkin', 'senha'));
     assert.equal(headers.Accept, 'application/json');
@@ -105,6 +106,7 @@ describe('probeAeroConnection', () => {
     assert.deepEqual(probe, { kind: 'reachable_without_cors', snippet: '' });
     assert.equal(calls.length, 2);
     assert.equal(calls[1]!.init.mode, 'no-cors', 'only the opaque retry can separate CORS from an unreachable host');
+    assert.equal(calls[1]!.init.method, 'POST', 'the opaque retry must knock on the same door as the real probe');
   });
 
   it('reports a network failure when the opaque retry is refused too', async () => {

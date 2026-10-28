@@ -64,25 +64,29 @@ vuelta en otra pestaña.
 Dentro de *Lançamento de Masas*, debajo de la grilla, hay una tarjeta colapsable. Arranca abierta solo
 cuando todavía no hay nada configurado.
 
-El panel pide **tres datos y nada más**, que es lo que un operario puede saber de memoria en la fábrica:
+El panel pide **tres datos obligatorios y nada más**, que es lo que un operario puede saber de memoria en la
+fábrica. Con esos tres la sincronización ya se puede activar:
 
 | Campo | Qué es | Validación |
 | --- | --- | --- |
 | URL do WebService | Base del WebService, ej. `http://192.168.1.50:8000/api` | Debe empezar con `http://` o `https://`; se normaliza (sin barra final duplicada) |
 | Usuário da empresa | Usuario del WebService | No vacío |
 | Senha da empresa | Contraseña del WebService | No vacía; se muestra enmascarada |
+| Código do usuário no ERP | Id numérico del operario (`ENT_USU`) | **Opcional**; si queda vacío se usa `1` |
 
 Todo lo demás lo resuelve el sistema, porque no es una decisión del operario:
 
 | Dato | Cómo se obtiene |
 | --- | --- |
-| Código de usuario (`ENT_USU`) | Lo captura *Testar Conexão* del campo `CODIGO` que devuelve `/usuarios/` y queda guardado en el teléfono |
+| Código de usuario (`ENT_USU`) | Si se cargó a mano, ese; si no, el `CODIGO` que devuelva *Testar Conexão*; si tampoco, `1` |
 | Cantidad (`PRO_QTD`) | Siempre en **unidades**: `cajas × unidades por caja`. No existe lanzamiento por cajas |
 | Serie del asiento (`ENT_SER`) | Fija en `APL`, la que trae quemada el binario Delphi de `base.apk` |
 
-Si el código no se pudo capturar, el lanzamiento **igual se guarda en Trindade** y el motivo queda escrito en
-`logs/aero-integration.log` (`error: "userCode missing"`), para poder reconstruir por qué un día no llegó al
-stock de la empresa.
+El código **nunca bloquea** nada. Es un dato que solo el ERP conoce y que la única prueba capaz de leerlo
+(`POST /usuarios/`) no puede completarse desde una página HTTPS: Safari rechaza el destino HTTP antes de
+que salga un paquete. Por eso, en el despliegue real de la fábrica el código queda vacío y el lanzamiento
+sale como usuario `1`. Si el operario lo conoce, lo carga en el campo opcional y los asientos quedan a su
+nombre.
 
 Los ajustes viven en el `localStorage` de **ese** iPhone, no en el servidor. Dos consecuencias: hay que
 configurar una vez por teléfono, y borrar los datos de Safari equivale a borrar la configuración. El
@@ -90,7 +94,8 @@ botón **Limpar** hace lo mismo de forma explícita, con confirmación.
 
 ### Testar Conexão
 
-Hace `GET {URL}/usuarios/` con Basic Auth y traduce el resultado a una frase útil:
+Hace `POST {URL}/usuarios/` con Basic Auth y traduce el resultado a una frase útil. El método importa: la
+ruta de la fábrica solo acepta `POST` y un `GET` devuelve `405 Supported methods: POST`.
 
 | Resultado | Significado |
 | --- | --- |
