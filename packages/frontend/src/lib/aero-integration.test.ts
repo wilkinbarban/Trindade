@@ -24,7 +24,9 @@ import {
   buildEntradaItemPayload,
   clearAeroPendingSync,
   clearAeroSettings,
+  formatAeroCst,
   formatAeroProductCode,
+  formatAeroQuantity,
   isAeroAllowed,
   isAeroIntegrationOwner,
   loadAeroPendingSync,
@@ -312,7 +314,7 @@ describe('aero-integration: payload builders', () => {
     assert.deepEqual(payload, {
       PRO_COD: '001001',
       PRO_DES: 'MASSA TRADICIONAL 500G',
-      PRO_QTD: 50.0,
+      PRO_QTD: 5000,
       PRO_CST: '000',
       ENT_DTA: '2026-10-27',
       ENT_USU: 12,
@@ -370,9 +372,9 @@ describe('aero-integration: payload builders', () => {
     assert.equal(buildEntradaItemPayload({ ...base, userCode: '15' }).ENT_USU, 15);
   });
 
-  it('always launches in units under the fixed APL series', () => {
+  it('always launches in units under the fixed APL series, scaled by 100 for Firebird ERP', () => {
     // The factory has no per-box launch and the Delphi binary has APL burnt in: five boxes of ten is fifty
-    // units on the ERP, and neither number is something the operator can pick.
+    // units on the ERP, scaled by 100 (50 * 100 = 5000) so Firebird numeric precision records 50.00 and not 0.50.
     const payload = buildAeroEntryPayload({
       productCode: '1045',
       productName: 'MASSA CASEIRA',
@@ -382,9 +384,19 @@ describe('aero-integration: payload builders', () => {
       userCode: 12,
     });
 
-    assert.equal(payload.PRO_QTD, 50);
+    assert.equal(payload.PRO_QTD, 5000);
     assert.equal(payload.ENT_SER, AERO_ENTRY_SERIES);
     assert.equal(AERO_ENTRY_SERIES, 'APL');
+  });
+
+  it('multiplies units by 100 via formatAeroQuantity so Firebird stores the exact integer units', () => {
+    assert.equal(formatAeroQuantity(90), 9000);
+    assert.equal(formatAeroQuantity(15), 1500);
+    assert.equal(formatAeroQuantity(1), 100);
+    assert.equal(formatAeroQuantity(0), 0);
+    assert.equal(formatAeroQuantity(null), 0);
+    assert.equal(formatAeroQuantity(undefined), 0);
+    assert.equal(formatAeroQuantity(Number.NaN), 0);
   });
 
   it('includes default PRO_CST "000" and respects custom CST when supplied', () => {

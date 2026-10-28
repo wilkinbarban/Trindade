@@ -309,6 +309,25 @@ export interface AeroEntryPayload {
 }
 
 /**
+ * Scales units for Aero32 / Firebird ERP stock entry.
+ * Firebird ERP expects the integer value scaled by 100 (e.g. 90 units = 9000, 15 units = 1500),
+ * otherwise it records as 0.90 or 0.15 in the database.
+ */
+export function formatAeroQuantity(quantity: number | null | undefined): number {
+  if (typeof quantity !== 'number' || !Number.isFinite(quantity)) {
+    return 0;
+  }
+  return Math.round(quantity * 100);
+}
+
+/**
+ * Formats CST item code for Aero32 / Firebird ERP. Defaults to '000' (Tributada integralmente).
+ */
+export function formatAeroCst(cst: string | null | undefined): string {
+  return cst && cst.trim() ? cst.trim() : AERO_DEFAULT_CST;
+}
+
+/**
  * Resolves the operator identity (numeric code or username string) an entry carries.
  * Matches base.apk which passes txtUsuario.Text directly into ENT_USU.
  */
@@ -369,8 +388,8 @@ export function buildEntradaItemPayload(args: {
   return {
     PRO_COD: formatAeroProductCode(args.productCode),
     PRO_DES: args.productName,
-    PRO_QTD: args.quantity,
-    PRO_CST: args.productCst && args.productCst.trim() ? args.productCst.trim() : AERO_DEFAULT_CST,
+    PRO_QTD: formatAeroQuantity(args.quantity),
+    PRO_CST: formatAeroCst(args.productCst),
     ENT_DTA: dateStr,
     ENT_USU: aeroUserCode(args.userCode),
     ENT_SER: args.entrySeries ?? AERO_ENTRY_SERIES,
