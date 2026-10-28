@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import { Card, CardContent } from '../components/ui/card';
-import { Input } from '../components/ui/input';
+import { DateField } from '../components/ui/date-field';
 import { LoadingSpinner } from '../components/ui/loading-spinner';
 import { toWhatsAppNumber } from '../lib/phone';
 import { shareOrCopy, waMeLink } from '../lib/whatsapp';
@@ -106,26 +106,19 @@ export function MassasHistoryPage() {
           </div>
           <p className="text-sm text-gray-500 mt-1">{t('massas.historySubtitle')}</p>
         </div>
-        {/* Una fila, la misma que en el lanzamiento: la fecha toma el ancho sobrante y la vuelta a hoy
-            se queda con el suyo, con la palabra corta en el teléfono. Sin los botones de días con
-            lanzamientos ni los carteles de "Hoje"/"Modo Leitura": el rango ya dice cuál es el día más
-            nuevo. */}
-        <div className="flex w-full items-center gap-2 sm:w-auto sm:items-end">
-          <div className="min-w-0 flex-1 sm:flex-none">
-            <label htmlFor="history-date" className="sr-only">
-              {t('massas.date')}:
-            </label>
-            <Input
-              id="history-date"
-              type="date"
-              min={saoPauloDaysAgo(30)}
-              max={saoPauloYesterday()}
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="h-11 w-full font-medium sm:h-10 sm:w-auto"
-              data-testid="massas-history-date"
-            />
-          </div>
+        {/* Una fila, la misma que en el lanzamiento: `DateField` y la vuelta a hoy a ancho propio, con
+            la palabra corta en el teléfono. Sin los botones de días con lanzamientos ni los carteles de
+            "Hoje"/"Modo Leitura": el rango ya dice cuál es el día más nuevo. */}
+        <div className="flex w-full items-center gap-2 sm:w-auto">
+          <DateField
+            id="history-date"
+            label={`${t('massas.date')}:`}
+            value={date}
+            onChange={setDate}
+            min={saoPauloDaysAgo(30)}
+            max={saoPauloYesterday()}
+            testId="massas-history-date"
+          />
           <Link
             to="/massas-launch"
             className="inline-flex h-11 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-gray-300 bg-white px-3 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 sm:h-10"

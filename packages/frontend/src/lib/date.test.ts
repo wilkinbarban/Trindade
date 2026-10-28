@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { saoPauloDaysAgo, saoPauloToday, saoPauloYesterday } from './date.js';
+import { formatDateLabel, saoPauloDaysAgo, saoPauloToday, saoPauloYesterday } from './date.js';
 
 // 2026-10-23T15:00:00Z is midday in São Paulo, the quiet case.
 const NOON_SP = new Date('2026-10-23T15:00:00Z');
@@ -32,4 +32,17 @@ test('the three helpers agree with each other and with today', () => {
 test('days ago refuses a value that is not a whole past day', () => {
   assert.throws(() => saoPauloDaysAgo(-1, NOON_SP), RangeError);
   assert.throws(() => saoPauloDaysAgo(1.5, NOON_SP), RangeError);
+});
+
+// El trigger del campo de fecha muestra el día en un formato corto y propio, porque el texto que WebKit
+// dibuja dentro de un <input type="date"> nativo lo decide el locale del sistema y no se puede formatear.
+test('the date label is day/month/year with both parts padded', () => {
+  assert.equal(formatDateLabel('2026-10-28'), '28/10/2026');
+  assert.equal(formatDateLabel('2026-01-05'), '05/01/2026');
+});
+
+test('the date label never invents a day when the value is empty or malformed', () => {
+  assert.equal(formatDateLabel(''), '');
+  assert.equal(formatDateLabel('2026-10'), '2026-10');
+  assert.equal(formatDateLabel('not-a-date'), 'not-a-date');
 });

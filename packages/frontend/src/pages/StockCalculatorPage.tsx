@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Link } from 'react-router-dom';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
+import { DateField } from '../components/ui/date-field';
 import { Input } from '../components/ui/input';
 import {
   groupByCategory,
@@ -208,25 +209,18 @@ export function StockCalculatorPage() {
           </div>
           <p className="text-sm text-gray-500">{canEdit ? t('stock.subtitle') : t('stock.readOnly')}</p>
         </div>
-        {/* La fecha toma el ancho sobrante y el histórico se queda con el suyo en la misma fila, con
-            la palabra corta en el teléfono: apilados costaban media pantalla antes del primer producto.
-            Desde `sm` el botón recupera su nombre completo. La etiqueta visible del campo también vuelve
-            ahí, donde hay ancho para ella. */}
-        <div className="flex w-full items-center gap-2 sm:w-auto sm:items-end">
-          <div className="min-w-0 flex-1 sm:flex-none">
-            <label htmlFor="stock-date" className="sr-only sm:not-sr-only sm:mb-1 sm:block sm:text-xs sm:font-medium sm:text-gray-600">
-              {t('stock.date')}
-            </label>
-            <Input
-              id="stock-date"
-              type="date"
-              value={date}
-              max={saoPauloToday()}
-              onChange={(e) => setDate(e.target.value)}
-              className="h-11 w-full sm:h-10 sm:w-auto"
-              data-testid="stock-date"
-            />
-          </div>
+        {/* Misma fila que en masas, con el mismo `DateField`: la caja de la fecha mide su propio texto
+            y el histórico se queda con el suyo, en vez de que el control nativo de WebKit empuje y quede
+            debajo del botón. Desde `sm` el botón recupera su nombre completo. */}
+        <div className="flex w-full items-center gap-2 sm:w-auto">
+          <DateField
+            id="stock-date"
+            label={t('stock.date')}
+            value={date}
+            onChange={setDate}
+            max={saoPauloToday()}
+            testId="stock-date"
+          />
           <Link
             to="/stock-history"
             className="inline-flex h-11 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-gray-300 bg-white px-3 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 sm:h-10"

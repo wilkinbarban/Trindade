@@ -65,17 +65,19 @@ ODD y TDD.»; «todos los tests queden en verde»; «commits atómicos en main, 
 healthcheck HTTP 200 en el dominio público y dejalo 100% publicado y listo.» El backend también cambia, así
 que la imagen `api` se reconstruye en el mismo despliegue.
 
-S11 — (reescrita por L5, supersede el apilado de L3) Fecha y control de navegación comparten UNA sola fila
-asimétrica en el teléfono, en las cuatro pantallas: `MassasLaunchPage` (fecha vs «Histórico»),
-`StockCalculatorPage` (fecha vs «Histórico»), `MassasHistoryPage` (fecha vs «Hoje») y `StockHistoryPage`
-(fecha vs «Contador»). Pedido textual: «Contenedor en mobile: flex items-center gap-2 w-full sm:w-auto»;
-«Input date: flexible (flex-1 min-w-0), h-10, con label sr-only en mobile»; «Botón de navegación (Histórico /
-Voltar): shrink-0 inline-flex items-center gap-1.5 h-10 px-3 rounded-lg border text-xs font-semibold
-whitespace-nowrap. En mobile texto conciso ("Histórico" con ícono History, "Hoje" / "Contador" con
-ArrowLeft)»; «En 375px y 390px, ~190px de fecha + 8px gap + ~115px de botón suman ~315-325px: entran
-perfectamente en UNA SOLA fila limpia y elegante, sin desborde ni solapamiento.» El apilado a ancho completo
-de S11 original «se comen el 40% del alto útil antes de que el operario vea un solo producto o registro» y
-queda prohibido.
+S11 — (reescrita por L10, supersede la fila asimétrica de L5) El campo de fecha es un trigger propio con el
+`<input type="date">` nativo transparente encima, en las cuatro pantallas y en todo ancho. Pedido textual:
+«Implementar un trigger visual compacto con el input nativo transparente superpuesto»; «Un contenedor
+relativo con apariencia de botón/input de 44px de alto» que «Muestra el texto formateado corto en formato
+estándar: DD/MM/AAAA (ej: "28/10/2026" o "28 out 2026") con un ícono `Calendar` de lucide-react» y «Ancho
+compacto natural (~135px - 145px)»; dentro, el input con «`absolute inset-0 h-full w-full opacity-0
+cursor-pointer`» conservando «`id`, `value`, `min`, `max`, `onChange`, `data-testid`, etc.»; «Al tocar la caja,
+el tap lo recibe el input transparente y Safari abre el wheel/calendario nativo de iOS», y «Al elegir fecha,
+el texto visible se actualiza inmediatamente a "DD/MM/AAAA"». Motivo: «El `<input type="date">` nativo de
+Safari renderiza el texto largo localizado ("28 de out. de 2026") con un ancho intrínseco de ~250px en el
+shadow DOM de WebKit. Aunque el contenedor tenga `min-w-0 flex-1`, el elemento nativo de Safari no se encoge y
+desborda hacia la derecha, haciendo que el botón que viene después se dibuje encima del borde derecho de la
+fecha.» Queda prohibido volver a apoyar el ancho del campo en el control nativo.
 
 S13 — Jerarquía sin duplicado: «En Lançamento de Massas hay un duplicado visual evidente: la tarjeta superior
 dice "Lançamento de Massas" en H1, y la tarjeta inmediatamente inferior (MassasLaunchGrid) repite "Lançamento
@@ -122,11 +124,11 @@ web && docker compose up -d web`)»; «Validar HTTP 200 en `https://trindademasa
   constantes del módulo; payload siempre en unidades; trazabilidad en la bitácora cuando falta el `ENT_USU`
   capturado por «Probar conexión». Tests de la librería reescritos al contrato nuevo. Ruta: inline ·
   commit `refactor(aero)`.
-- T9 (S11, S13, S14) — reabierta por L5: en las cuatro pantallas, fecha y navegación en una sola fila
-  asimétrica (`flex-1 min-w-0` para el campo, `shrink-0` para el chip), etiquetas cortas en móvil con ícono y
-  nombre completo desde `sm`; `MassasLaunchGrid` pierde el H2 repetido y la línea de fecha en ISO; padding
-  `p-4 sm:p-6` y `space-y-4 sm:space-y-6` en las cuatro páginas. Ruta: inline · commit `fix(mobile)`
-  (el del cierre). El intento anterior, `e9bb880`, apilaba a ancho completo y queda superseded.
+- T9 (S11, S13, S14) — reabierta por L10: `DateField` compartido (caja propia de 44px con `DD/MM/AAAA` e
+  ícono `Calendar`, input nativo `absolute inset-0 opacity-0` encima) en las cuatro pantallas, chip de
+  navegación `shrink-0` al lado, `MassasLaunchGrid` sin el H2 repetido ni la línea de fecha en ISO y densidad
+  `p-4 sm:p-6` + `space-y-4 sm:space-y-6`. Ruta: inline · commit `fix(mobile)`. Superseded: el apilado de
+  `e9bb880` (L3) y la fila asimétrica de `2500ad2` (L5), que dejaba el ancho del campo en manos de WebKit.
 - T10 (S12, S15): suites completas, contrato Android regenerado (los tres modelos `AeroLog*`), commit
   atómico en `main`, push a `origin`, rebuild de la imagen `web` y HTTP 200 en producción. Ruta: inline ·
   evidencia en el Log.

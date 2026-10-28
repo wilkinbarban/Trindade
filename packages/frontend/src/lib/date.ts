@@ -38,3 +38,22 @@ export function saoPauloDaysAgo(daysAgo: number, now: Date = new Date()): string
 export function saoPauloYesterday(now: Date = new Date()): string {
   return saoPauloDaysAgo(1, now);
 }
+
+/**
+ * The day as the trigger of a date field shows it: DD/MM/YYYY.
+ *
+ * The visible half of the date field is ours, not WebKit's. A native <input type="date"> draws its
+ * text from the operating system's locale ("28 de out. de 2026" in pt-BR, "10/28/2026" in en-US),
+ * which is what gives it an intrinsic width of roughly 250px on iOS and pushes everything after it
+ * out of place. So the field shows this string instead, and the native input rides on top,
+ * transparent, only to own the tap and open the system picker.
+ *
+ * Anything that is not a plain ISO date is returned untouched: an empty or half-typed value must
+ * render as itself, never as a guessed day.
+ */
+export function formatDateLabel(iso: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!match) return iso;
+  const [, year, month, day] = match;
+  return `${day}/${month}/${year}`;
+}

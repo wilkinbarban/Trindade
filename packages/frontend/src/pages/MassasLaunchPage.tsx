@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
+import { DateField } from '../components/ui/date-field';
 import { LoadingSpinner } from '../components/ui/loading-spinner';
 import { toWhatsAppNumber } from '../lib/phone';
 import { shareOrCopy, waMeLink } from '../lib/whatsapp';
@@ -427,25 +427,19 @@ export function MassasLaunchPage() {
           </div>
           <p className="text-sm text-gray-500 mt-1">{t('massas.subtitle')}</p>
         </div>
-        {/* Una sola fila también en el teléfono, asimétrica: la fecha se queda con el ancho que le
-            sobra (`flex-1 min-w-0`, así no empuja) y el acceso al histórico mantiene su ancho justo
-            (`shrink-0`) con una palabra corta. Apilarlos a todo el ancho costaba media pantalla antes
-            del primer producto. El nombre completo del destino sigue estando desde `sm`. */}
-        <div className="flex w-full items-center gap-2 sm:w-auto sm:items-end">
-          <div className="min-w-0 flex-1 sm:flex-none">
-            <label htmlFor="massa-date" className="sr-only">
-              {t('massas.date')}:
-            </label>
-            <Input
-              id="massa-date"
-              type="date"
-              max={saoPauloToday()}
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="h-11 w-full px-2.5 text-sm font-medium sm:h-10 sm:w-auto"
-              data-testid="massas-launch-date"
-            />
-          </div>
+        {/* Una sola fila también en el teléfono. Los dos controles miden lo que su propio texto mide:
+            `DateField` dibuja la fecha él mismo y deja el input nativo invisible encima, así que WebKit
+            no puede reclamar los ~250px con los que dibujaría "28 de out. de 2026". El nombre completo
+            del destino sigue estando desde `sm`. */}
+        <div className="flex w-full items-center gap-2 sm:w-auto">
+          <DateField
+            id="massa-date"
+            label={`${t('massas.date')}:`}
+            value={date}
+            onChange={setDate}
+            max={saoPauloToday()}
+            testId="massas-launch-date"
+          />
           {/* Un enlace que envuelve un botón deja dos destinos anidados en el mismo punto: el lector de
               pantalla anuncia dos y el dedo no sabe cuál tocó. El destino vive en el enlace. */}
           <Link

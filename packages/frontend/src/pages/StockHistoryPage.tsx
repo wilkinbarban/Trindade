@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
+import { DateField } from '../components/ui/date-field';
 import { Input } from '../components/ui/input';
 import { mailtoLink, stockEmailBody, stockMessage, stockSummary, type StockDay } from '../lib/stock';
 import { saoPauloDaysAgo, saoPauloYesterday } from '../lib/date';
@@ -102,28 +103,19 @@ export function StockHistoryPage() {
           </div>
           <p className="text-sm text-gray-500">{t('stock.historySubtitle')}</p>
         </div>
-        {/* Igual que en el calculador: una fila con la fecha flexible y la vuelta al contador a ancho
-            justo. Una sola fecha y dos topes: la última noche cerrada hacia atrás y treinta días de
-            archivo. */}
-        <div className="flex w-full items-center gap-2 sm:w-auto sm:items-end">
-          <div className="min-w-0 flex-1 sm:flex-none">
-            <label
-              className="sr-only sm:not-sr-only sm:mb-1 sm:block sm:text-xs sm:font-medium sm:text-gray-600"
-              htmlFor="stock-history-date"
-            >
-              {t('stock.date')}
-            </label>
-            <Input
-              id="stock-history-date"
-              type="date"
-              value={date}
-              min={saoPauloDaysAgo(30)}
-              max={saoPauloYesterday()}
-              onChange={(e) => setDate(e.target.value)}
-              className="h-11 w-full sm:h-10 sm:w-auto"
-              data-testid="stock-history-date"
-            />
-          </div>
+        {/* Igual que en el calculador: `DateField` y la vuelta al contador en la misma fila, cada uno a
+            ancho propio. Una sola fecha y dos topes: la última noche cerrada hacia atrás y treinta días
+            de archivo. */}
+        <div className="flex w-full items-center gap-2 sm:w-auto">
+          <DateField
+            id="stock-history-date"
+            label={t('stock.date')}
+            value={date}
+            onChange={setDate}
+            min={saoPauloDaysAgo(30)}
+            max={saoPauloYesterday()}
+            testId="stock-history-date"
+          />
           <Link
             to="/stock-calculator"
             className="inline-flex h-11 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-gray-300 bg-white px-3 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 sm:h-10"
