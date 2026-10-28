@@ -87,16 +87,109 @@ Todos los endpoints esperan `Accept: application/json` y cabecera de autenticaci
   }
   ```
 
-### 2.4 Consulta de Movimientos del Día (Historial del Usuario)
-- **Endpoint**: `POST` o `GET` a `/movimentoitem`
-- **Campos devueltos por ítem**:
-  - `txtLcto`: Número de lanzamiento / registro
-  - `txtCodPro`: Código del producto
-  - `txtDescricao`: Descripción de la masa
-  - `txtQtde`: Cantidad lanzada
-  - `txtData`: Fecha (`dd/mm/yyyy`)
-  - `txtUsuario`: Usuario que realizó el lanzamiento
-  - `txtEntSai`: Tipo de movimiento ("E" para Entrada)
+### 2.4 Lanzamiento de Baja / Consumo (Salida de Stock)
+- **Endpoint**: `POST` a `/saidasitem`
+- **Propósito**: Dar de baja o registrar salidas de productos/insumos del stock (mismo mecanismo y protocolo que `/entradasitem`, pero decrementa stock en Firebird).
+- **Origen en Binario Delphi (`base.apk` / `libso.so`)**:
+  - Invocador en `0x17fb4f0`, implementación en `0x17fc2d4` / `0x17fc3c0`.
+  - Construcción del payload en `0x17fb300`–`0x17fb4d0`.
+- **Payload JSON**:
+  ```json
+  {
+    "PRO_COD": "001192",
+    "PRO_DES": "MASSA QUADRADA",
+    "PRO_QTD": 1500,
+    "PED_DTA": "2026-10-28",
+    "PED_USU": "WILKIN",
+    "PED_SER": "APL",
+    "PED_DTANOT": "2026-10-28",
+    "PED_OBS": "Saida de massas via Trindade",
+    "LOTES": []
+  }
+  ```
+- **Diferencias Críticas respecto a `/entradasitem`**:
+  | Parámetro | `/entradasitem` (Entrada) | `/saidasitem` (Salida / Baja) | Regla / Justificación técnica |
+  |---|---|---|---|
+  | Prefijo campos de pedido | `ENT_*` (`ENT_DTA`, `ENT_USU`, etc.) | `PED_*` (`PED_DTA`, `PED_USU`, etc.) | Delphi mapea a tabla de Pedido/Salida en Firebird ERP |
+  | Fecha movimiento | `ENT_DTMOVI` presente | No existe `PED_DTMOVI` | Solo se envían `PED_DTA` y `PED_DTANOT` |
+  | Código de Producto (`PRO_COD`) | Relleno a 6 dígitos (`001192`) | Relleno a 6 dígitos (`001192`) | Ambos requieren 6 dígitos para triggers Firebird |
+  | Cantidad (`PRO_QTD`) | Escalada × 100 (`1500` = 15 un) | Escalada × 100 (`1500` = 15 un) | Alineación estricta con enteros/decimales Firebird |
+  | Usuario (`PED_USU`) | `ENT_USU` en mayúsculas | `PED_USU` en mayúsculas (`WILKIN`) | Debe ir en mayúsculas para coincidir con `NOMUSU` |
+  | Serie (`PED_SER`) | `"APL"` | `"APL"` | Serie de aplicación móvil quemada en el binario |
+  | Lotes (`LOTES`) | `[]` | `[]` | Array vacío por defecto si no maneja lotes |
+- **Respuesta Esperada**:
+  ```json
+  {
+    "success": true,
+    "message": "Gravado com sucesso"
+  }
+  ```
+
+### 2.5 Consulta de Movimientos e Historial por Usuario
+- **Endpoint**: `POST` a `/movimentoitem`
+- **Propósito**: Consultar los movimientos de stock registrados en el ERP (Entradas y Bajas/Salidas) filtrados por usuario logueado, producto y rango de fechas.
+- **Origen en Binario Delphi (`base.apk` / `libso.so`)**:
+  - Invocador en `0x17f9e64`, serialización en `0x17f9d50`–`0x17f9e40`, deserialización en `0x17fa0d8`–`0x17fa540`.
+- **Request Payload JSON**:
+  ```json
+  {
+    "CODFOR": null,
+    "NOMUSU": "WILKIN",
+    "CODPRO": "001192",
+    "DTINI": "2026-10-28",
+    "DTFIM": "2026-10-28",
+    "ENTSAI": "E"
+  }
+  ```
+  - `CODFOR`: Código de proveedor/cliente (`null` para movimientos internos de producción/stock).
+  - `NOMUSU`: Nombre de usuario en mayúsculas (ej. `"WILKIN"`). Permite aislar exclusivamente lo que el operario conectado lanzó o dio de baja.
+  - `CODPRO`: Código de producto a 6 dígitos (ej. `"001192"`) o `null` para consultar todos los productos.
+  - `DTINI` / `DTFIM`: Rango de fechas en formato ISO `YYYY-MM-DD`.
+  - `ENTSAI`: Filtro de dirección de stock:
+    - `"E"`: Solo Entradas / Lanzamientos de producción.
+    - `"S"`: Solo Salidas / Bajas de inventario.
+    - `null` / vacío: Todos los movimientos.
+- **Response Schema JSON**:
+  ```json
+  {
+    "success": true,
+    "data": [
+      {
+        "ENT_LAN": 10542,
+        "PRO_COD": "001192",
+        "PRO_DES": "MASSA TRADICIONAL 500G",
+        "PRO_QTD": 90.0,
+        "ENT_DTA": "2026-10-28",
+        "ENT_USU": "WILKIN",
+        "ENTSAI": "E"
+      }
+    ]
+  }
+  ```
+- **Mapeo de Controles UI Delphi (`base.apk`) a Campos de Respuesta**:
+  | Campo JSON ERP | Control UI Delphi | Significado | Formato / Máscara |
+  |---|---|---|---|
+  | `ENT_LAN` | `txtLcto` | Número de lanzamiento / asiento ERP | Numérico entero |
+  | `PRO_COD` | `txtCodPro` | Código del producto ERP | 6 dígitos con ceros |
+  | `PRO_DES` | `txtDescricao` | Nombre / descripción de la masa | Texto descriptivo |
+  | `PRO_QTD` | `txtQtde` | Cantidad registrada | Máscara `##0.00` |
+  | `ENT_DTA` | `txtData` | Fecha de registro | Formato `dd/mm/yyyy` |
+  | `ENT_USU` | `txtUsuario` | Operario responsable | Mayúsculas (`NOMUSU`) |
+  | `ENTSAI` | `txtEntSai` | Tipo de movimiento | `"E"` (Entrada) / `"S"` (Salida) |
+
+### 2.6 Consulta de Catálogo de Productos
+- **Endpoint Único**: `GET` a `/produtoconsultaunico/{codigo}`
+- **Endpoint Lista/Búsqueda**: `GET` a `/produtoconsulta?produto={codigo}&status=A`
+- **Respuesta Esperada**:
+  ```json
+  {
+    "success": true,
+    "data": {
+      "PRO_COD": "001192",
+      "PRO_DES": "MASSA TRADICIONAL 500G"
+    }
+  }
+  ```
 
 ---
 
@@ -144,4 +237,5 @@ sequenceDiagram
 | 2026-10-28 | Fábrica (red real) | Prueba del panel desde el iPhone | `405` en `/usuarios/`: la ruta solo acepta `POST` | Probe del cliente cambiado a `POST` (`aero-connection.ts`) |
 | 2026-10-28 | Producción (HTTPS) | Test de conexión delegado al atajo | Safari bloquea el `POST` HTTP desde la página HTTPS: el botón no podía probar lo que el lanzamiento sí hace | Segundo atajo `Aero32 Prueba` de 3 acciones; la página lee `aero_test` y escribe `requested` + `result` en la bitácora |
 | 2026-10-28 | Fábrica (red real) | Lanzamiento con atajo definitivo | Envío de JSON exitoso con acción 'Definir nome: payload.json'. Laravel deserializó todos los campos. Trigger Firebird `ENTRADADET_BIU_SPED_VERIFICA` requirió CST del ítem | Payload incluye `PRO_CST: '000'` estándar de fabricación propia. `formatAeroProductCode` a 6 dígitos con ceros a la izquierda y `ENT_USU` en mayúsculas (`.toUpperCase()`) garantizados. |
+| 2026-10-28 | Entorno local | Desensamblado profundo ARM64 (`libso.so`) para salidas e historial | Identificados endpoints `/saidasitem` (campos `PED_*`, escalado x100) y `/movimentoitem` (filtros `NOMUSU`, `ENTSAI`, campos `ENT_LAN`) | Documentados contratos JSON para bajas de stock y consulta de movimientos por usuario. |
 | *Pendiente* | Fábrica (Wi-Fi) | Lanzamiento de 1 caja para verificar confirmación ERP | Validar inserción en base Firebird con `{"success":true,"message":"Gravado com sucesso"}` | Pendiente de prueba por Wilkin en iPhone |

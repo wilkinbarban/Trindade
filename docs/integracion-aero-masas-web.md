@@ -10,6 +10,11 @@ La integración es **exclusiva del usuario `wilkin` con rol `Administrador`**. P
 no existe: el panel no se renderiza, el switch no aparece y el backend rechaza la bitácora con `403`
 porque la autoridad es la base de datos, nunca el cuerpo del pedido ni el estado del navegador.
 
+El alcance funcional abarca el ciclo completo de inventario reflejado en la app nativa Android (`base.apk`):
+1. **Lanzamiento de Masas / Producción (Entradas)**: `POST /entradasitem` (activo en fase piloto).
+2. **Baja de Stock / Consumo (Salidas)**: `POST /saidasitem` (especificado e incorporable con mismo flujo).
+3. **Auditoría de Movimientos por Usuario**: `POST /movimentoitem` (consulta cruzada de asientos ERP vs Trindade).
+
 El objetivo de la primera etapa es **medir, no automatizar**. El sistema:
 
 1. persiste el lanzamiento en Trindade como siempre;
@@ -204,7 +209,7 @@ Content-Type: application/json
 `GET /usuarios/` → `{ "success": true, "data": { "CODIGO": 12, "SENHA": "…", "NOME": "WILKIN" } }`.
 `CODIGO` es el `ENT_USU` que espera el ERP.
 
-`POST /entradasitem`:
+### 6.1 Entrada de Producción (`POST /entradasitem`)
 
 ```json
 {
@@ -213,7 +218,7 @@ Content-Type: application/json
   "PRO_QTD": 2000,
   "PRO_CST": "000",
   "ENT_DTA": "2026-02-10",
-  "ENT_USU": 12,
+  "ENT_USU": "WILKIN",
   "ENT_SER": "APL",
   "ENT_DTANOT": "2026-02-10",
   "ENT_DTMOVI": "2026-02-10",
@@ -227,6 +232,47 @@ Detalles del contrato ajustados con la fábrica:
 - `PRO_QTD`: entero escalado × 100 (`formatAeroQuantity`) para que Firebird no lo grabe como decimal `0.20`.
 - `PRO_CST`: situación tributaria (`000` - Tributada integralmente de fabricación propia) requerida por el trigger `ENTRADADET_BIU_SPED_VERIFICA`.
 - `ENT_USU`: código numérico o nombre de usuario formateado siempre en mayúsculas (`.toUpperCase()`) tal como lo hace `base.apk`.
+
+### 6.2 Baja de Stock / Consumo (`POST /saidasitem`)
+
+Mismo mecanismo operativo que `/entradasitem`, pero decrementa stock en Firebird para bajas por desecho, mermas o insumos:
+
+```json
+{
+  "PRO_COD": "005000",
+  "PRO_DES": "MASSA ROLO 1KG",
+  "PRO_QTD": 2000,
+  "PED_DTA": "2026-02-10",
+  "PED_USU": "WILKIN",
+  "PED_SER": "APL",
+  "PED_DTANOT": "2026-02-10",
+  "PED_OBS": "Saida de massas via Trindade",
+  "LOTES": []
+}
+```
+
+Diferencias con `/entradasitem`:
+- Campos de cabecera con prefijo `PED_*` (`PED_DTA`, `PED_USU`, `PED_SER`, `PED_DTANOT`, `PED_OBS`).
+- No envía `PED_DTMOVI`.
+- Mantiene `PRO_COD` a 6 dígitos, `PRO_QTD` escalado × 100 y `PED_USU` en mayúsculas.
+
+### 6.3 Consulta de Movimientos por Usuario (`POST /movimentoitem`)
+
+Permite recuperar el historial de asientos registrados en el ERP para contrastar contra la producción de Trindade:
+
+```json
+{
+  "CODFOR": null,
+  "NOMUSU": "WILKIN",
+  "CODPRO": "005000",
+  "DTINI": "2026-02-10",
+  "DTFIM": "2026-02-10",
+  "ENTSAI": "E"
+}
+```
+
+- Filtro `ENTSAI`: `"E"` (entradas), `"S"` (salidas/bajas) o `null` (ambos).
+- Retorna array con `ENT_LAN` (número de asiento), `PRO_COD`, `PRO_DES`, `PRO_QTD`, `ENT_DTA`, `ENT_USU` y `ENTSAI`.
 
 Los códigos de producto (`PRO_COD`) salen tal cual de `stock.catalog.ts` (`5000` = MASSA ROLO 1KG,
 `1045` = CASEIRA, …): son idénticos a los del ERP. Las fechas van en `YYYY-MM-DD` y en la zona de São
@@ -249,7 +295,7 @@ Una línea JSON por evento:
  "response":null,"error":null}
 ```
 
-Eventos: `test_connection`, `launch_sync`, `read_history`. La identidad se toma del token verificado
+Eventos soportados: `test_connection`, `launch_sync`, `exit_sync`, `history_query`. La identidad se toma del token verificado
 contra la base, nunca del cuerpo. La cabecera `Authorization` **no se escribe nunca** (lleva las
 credenciales en base64) y el payload/respuesta se truncan para que una línea siga siendo una línea.
 
@@ -290,3 +336,22 @@ En la fábrica:
 - La configuración es por dispositivo, no por usuario del sistema.
 - El test de conexión desde la página HTTPS siempre fallará por diseño; sirve para distinguir «red mal»
   de «bloqueo del navegador», no para validar credenciales en producción.
+
+## 10. Evolución y Roadmap: Bajas de Stock y Consulta de Movimientos
+
+A partir de la ingeniería inversa de `base.apk`, el modelo de datos de la empresa soporta dos funcionalidades clave a incorporar:
+
+### 10.1 Módulo de Bajas / Saídas de Insumos y Masas
+- **Objetivo**: Permitir dar de baja stock por mermas, desecho o consumo interno directamente desde Trindade.
+- **Ruta WebService**: `POST /saidasitem` con prefijo `PED_*` (`PED_DTA`, `PED_USU`, `PED_SER: "APL"`).
+- **Implementación**:
+  - Reutiliza la misma cola y mecanismo de Atajo de iOS (`Aero32 Saida`).
+  - Escala la cantidad x100 y formatea el código a 6 dígitos con ceros a la izquierda.
+
+### 10.2 Vista de Movimientos del Usuario (ERP vs Trindade)
+- **Objetivo**: Mostrar en la interfaz de Trindade qué se registró efectivamente en el ERP bajo el usuario logueado (`NOMUSU`).
+- **Ruta WebService**: `POST /movimentoitem` enviando `{"NOMUSU": "WILKIN", "DTINI": "...", "DTFIM": "...", "ENTSAI": "E"}` (o `"S"` para bajas).
+- **Implementación**:
+  - Cruza el historial local de Trindade con el número de asiento Firebird (`ENT_LAN`).
+  - Muestra badges en el historial: entrada confirmada en ERP con su número de asiento (`ENT_LAN: 10542`), o baja registrada (`ENTSAI: "S"`).
+
