@@ -104,7 +104,7 @@ export function MassasCollectiveTable({
                 <button
                   type="button"
                   onClick={() => setSelectedOperatorId('all')}
-                  className={`px-3 py-1 text-xs rounded-full border transition-all ${
+                  className={`min-h-[44px] px-3.5 py-1 text-xs rounded-full border transition-all sm:min-h-0 ${
                     selectedOperatorId === 'all'
                       ? 'bg-amber-600 text-white border-amber-600 font-semibold shadow-xs'
                       : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
@@ -118,7 +118,7 @@ export function MassasCollectiveTable({
                     key={op.id}
                     type="button"
                     onClick={() => setSelectedOperatorId(op.id)}
-                    className={`px-3 py-1 text-xs rounded-full border transition-all ${
+                    className={`min-h-[44px] px-3.5 py-1 text-xs rounded-full border transition-all sm:min-h-0 ${
                       selectedOperatorId === op.id
                         ? 'bg-amber-600 text-white border-amber-600 font-semibold shadow-xs'
                         : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
@@ -148,7 +148,7 @@ export function MassasCollectiveTable({
           )}
 
           {displayedLaunches.length === 0 ? (
-            <div className="py-8 text-center text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-200 text-sm">
+            <div className="py-8 text-center text-gray-500 bg-gray-50 rounded-lg border border-dashed border-gray-200 text-sm">
               {t('massas.noLaunches')}
             </div>
           ) : (
@@ -167,7 +167,7 @@ export function MassasCollectiveTable({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-semibold text-gray-900 text-sm break-words min-w-0">{launch.product_name}</span>
-                        <span className="text-[11px] text-gray-400 shrink-0">#{launch.id}</span>
+                        <span className="text-[11px] text-gray-500 shrink-0">#{launch.id}</span>
                       </div>
                       <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 mt-1">
                         <span>
@@ -233,7 +233,7 @@ export function MassasCollectiveTable({
                                     size="sm"
                                     variant="ghost"
                                     onClick={() => onStartEdit?.(launch)}
-                                    className="h-9 w-9 p-0 text-gray-600 hover:text-amber-700 active:bg-amber-100"
+                                    className="h-9 w-9 p-0 text-gray-600 hover:text-amber-700 active:bg-amber-100 max-sm:h-11 max-sm:w-11"
                                     title={t('massas.edit')}
                                   >
                                     <Edit2 className="h-4 w-4" />
@@ -243,7 +243,7 @@ export function MassasCollectiveTable({
                                     variant="ghost"
                                     onClick={() => onDelete?.(launch.id)}
                                     disabled={deletingId === launch.id}
-                                    className="h-9 w-9 p-0 text-gray-600 hover:text-red-700 active:bg-red-50"
+                                    className="h-9 w-9 p-0 text-gray-600 hover:text-red-700 active:bg-red-50 max-sm:h-11 max-sm:w-11"
                                     title={t('massas.delete')}
                                   >
                                     <Trash2 className="h-4 w-4" />

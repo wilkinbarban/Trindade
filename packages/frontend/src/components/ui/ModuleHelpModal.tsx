@@ -154,7 +154,9 @@ export function ModuleHelpModal({
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-gray-600 bg-gray-50 hover:bg-gray-100 hover:text-gray-900 border border-gray-200 rounded-lg transition-colors shadow-2xs ${className}`}
+        // 30px tall is fine beside a desktop title and a miss on a phone: this is the only way into a
+        // module's help, so it takes the same 44px floor as the rest of the touch surface.
+        className={`inline-flex min-h-[44px] items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-gray-600 bg-gray-50 hover:bg-gray-100 hover:text-gray-900 border border-gray-200 rounded-lg transition-colors shadow-2xs sm:min-h-0 ${className}`}
         aria-label={t('ui.help')}
       >
         <HelpCircle className="h-4 w-4 text-amber-600 shrink-0" />

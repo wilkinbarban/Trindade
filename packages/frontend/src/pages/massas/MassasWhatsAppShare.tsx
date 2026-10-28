@@ -48,7 +48,7 @@ export function MassasWhatsAppShare({
                 onChange={(e) => onPhoneChange(formatPhoneMask(e.target.value))}
                 className="font-medium text-base"
               />
-              <span className="text-[11px] text-gray-400 mt-1 block">
+              <span className="text-[11px] text-gray-500 mt-1 block">
                 Ex: (11) 98765-4321 · O código +55 será adicionado automaticamente.
               </span>
             </div>

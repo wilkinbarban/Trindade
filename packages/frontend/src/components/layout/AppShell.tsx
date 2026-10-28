@@ -180,7 +180,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               variant={(i18n.resolvedLanguage || i18n.language || 'pt-BR').startsWith('pt') ? 'default' : 'outline'}
               size="sm"
               onClick={() => i18n.changeLanguage('pt-BR')}
-              className="h-8 px-3 text-xs font-semibold"
+              className="h-11 min-w-[44px] px-3 text-xs font-semibold sm:h-8"
             >
               PT
             </Button>
@@ -188,7 +188,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               variant={(i18n.resolvedLanguage || i18n.language || 'pt-BR').startsWith('es') ? 'default' : 'outline'}
               size="sm"
               onClick={() => i18n.changeLanguage('es')}
-              className="h-8 px-3 text-xs font-semibold"
+              className="h-11 min-w-[44px] px-3 text-xs font-semibold sm:h-8"
             >
               ES
             </Button>

@@ -46,7 +46,9 @@ export function MassasLaunchGrid({
   return (
     <Card className="border-gray-200 shadow-sm">
       <CardContent className="pt-6">
-        <div className="flex items-center justify-between mb-4">
+        {/* En un teléfono el título y el vivo de cajas no caben en un renglón: el título se partía y
+            los totales se comían el ancho que la grilla necesita. Debajo de `sm` bajan a dos filas. */}
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-lg font-semibold text-gray-900">{t('massas.title')}</h2>
             <p className="text-xs text-gray-500">
@@ -54,8 +56,8 @@ export function MassasLaunchGrid({
             </p>
           </div>
           {totalLaunchBoxes > 0 && (
-            <div className="text-right">
-              <span className="text-xs font-semibold uppercase text-gray-400 block">{t('massas.liveUnits')}</span>
+            <div className="text-right sm:shrink-0">
+              <span className="text-xs font-semibold uppercase text-gray-500 block">{t('massas.liveUnits')}</span>
               <span className="text-base font-bold text-amber-700">
                 {totalLaunchBoxes} cx · {totalLaunchUnits} un
               </span>
@@ -87,8 +89,11 @@ export function MassasLaunchGrid({
                   </span>
                 </div>
 
+                {/* Las unidades nacen de las cajas: van en el mismo renglón, al lado del campo, en vez
+                    de gastar un renglón propio en cada tarjeta. Diez productos son diez renglones
+                    menos que recorrer con el pulgar. */}
                 <div className="mt-2 flex items-center gap-2">
-                  <div className="flex-1">
+                  <div className="min-w-0 flex-1">
                     <Input
                       type="number"
                       min="0"
@@ -97,13 +102,14 @@ export function MassasLaunchGrid({
                       placeholder="0 cx"
                       value={currentBoxes}
                       onChange={(e) => onQuantityChange(product.code, e.target.value)}
-                      className="h-9 text-sm text-center font-bold"
+                      className="h-11 text-base text-center font-bold sm:h-9 sm:text-sm"
                     />
                   </div>
-                </div>
-
-                <div className="mt-1 text-right">
-                  <span className={`text-xs font-semibold ${numBoxes > 0 ? 'text-amber-700' : 'text-gray-400'}`}>
+                  <span
+                    className={`w-14 shrink-0 text-right text-xs font-semibold ${
+                      numBoxes > 0 ? 'text-amber-700' : 'text-gray-500'
+                    }`}
+                  >
                     {liveUnits} un
                   </span>
                 </div>
@@ -119,7 +125,7 @@ export function MassasLaunchGrid({
             type="button"
             onClick={onLaunch}
             disabled={itemsToLaunch.length === 0 || submitting}
-            className="w-full sm:w-auto bg-amber-600 hover:bg-amber-700 text-white font-semibold px-6"
+            className="min-h-[44px] w-full bg-amber-600 px-6 font-semibold text-white hover:bg-amber-700 sm:w-auto"
           >
             <Send className="h-4 w-4 mr-2" />
             {submitting ? t('massas.launching') : t('massas.launch')}

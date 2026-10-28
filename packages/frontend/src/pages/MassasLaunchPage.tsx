@@ -424,15 +424,18 @@ export function MassasLaunchPage() {
               max={saoPauloToday()}
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full sm:w-auto font-medium text-sm px-2.5"
+              className="h-11 w-full px-2.5 text-sm font-medium sm:w-auto"
               data-testid="massas-launch-date"
             />
           </div>
-          <Link to="/massas-history" className="w-full sm:w-auto">
-            <Button variant="outline" className="w-full sm:w-auto flex items-center justify-center gap-1.5 text-xs font-semibold px-2.5">
-              <History className="h-4 w-4 shrink-0" />
-              <span>{t('massas.viewHistory')}</span>
-            </Button>
+          {/* Un enlace que envuelve un botón deja dos destinos anidados en el mismo punto: el lector de
+              pantalla anuncia dos y el dedo no sabe cuál tocó. El destino vive en el enlace. */}
+          <Link
+            to="/massas-history"
+            className="inline-flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white px-2.5 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 sm:w-auto sm:min-h-9"
+          >
+            <History className="h-4 w-4 shrink-0" />
+            <span>{t('massas.viewHistory')}</span>
           </Link>
         </div>
       </div>
@@ -587,9 +590,9 @@ export function MassasLaunchPage() {
 
             <div className="max-h-60 overflow-y-auto space-y-2 border rounded-lg p-3 bg-gray-50">
               {itemsToConfirm.map((item) => (
-                <div key={item.product_code} className="flex justify-between items-center text-sm">
-                  <span className="font-medium text-gray-800">📦 {item.name}</span>
-                  <span className="font-bold text-amber-800">{item.boxes} cx ({item.units} un)</span>
+                <div key={item.product_code} className="flex items-center justify-between gap-2 text-sm">
+                  <span className="min-w-0 font-medium text-gray-800">📦 {item.name}</span>
+                  <span className="shrink-0 text-right font-bold text-amber-800">{item.boxes} cx ({item.units} un)</span>
                 </div>
               ))}
             </div>
@@ -601,18 +604,19 @@ export function MassasLaunchPage() {
               </span>
             </div>
 
-            <div className="flex justify-end gap-3 pt-3">
+            <div className="flex flex-col-reverse gap-3 pt-3 sm:flex-row sm:justify-end">
               <Button
                 variant="outline"
                 onClick={() => setIsConfirmOpen(false)}
                 disabled={submitting}
+                className="min-h-[44px] w-full sm:w-auto"
               >
                 {t('massas.cancel', 'Cancelar')}
               </Button>
               <Button
                 onClick={handleConfirmLaunch}
                 disabled={submitting}
-                className="bg-amber-600 hover:bg-amber-700 text-white font-semibold"
+                className="min-h-[44px] w-full bg-amber-600 font-semibold text-white hover:bg-amber-700 sm:w-auto"
               >
                 {submitting ? t('massas.submitting', 'Lançando...') : t('massas.confirmAction', 'Confirmar')}
               </Button>

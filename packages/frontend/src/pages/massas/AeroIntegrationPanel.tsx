@@ -127,23 +127,26 @@ export function AeroIntegrationPanel({ settings, onSettingsSaved }: AeroIntegrat
 
   return (
     <Card className="border-gray-200 shadow-sm overflow-hidden">
+      {/* En un teléfono el título no entra junto a la insignia: se cortaba en "Configuración I..." y
+          el panel dejaba de decir qué era. Debajo de `sm` el título ocupa su renglón, la insignia baja
+          alineada con el texto y solo el chevron comparte fila. */}
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
         aria-expanded={open}
         aria-controls="aero-integration-body"
-        className="flex w-full min-h-[56px] items-center justify-between gap-3 px-4 py-3 text-left hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500"
+        className="flex w-full min-h-[56px] flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 text-left hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500"
       >
-        <span className="flex min-w-0 items-center gap-2">
-          <Plug className="h-4 w-4 shrink-0 text-gray-400" />
+        <span className="flex min-w-0 flex-1 items-center gap-2">
+          <Plug className="h-4 w-4 shrink-0 text-gray-500" />
           <span className="min-w-0">
-            <span className="block truncate text-sm font-semibold text-gray-900">
+            <span className="block text-sm font-semibold leading-tight text-gray-900 sm:truncate">
               {t('massas.aero.panelTitle')}
             </span>
             <span className="hidden sm:block text-xs text-gray-500 truncate">{t('massas.aero.panelHint')}</span>
           </span>
         </span>
-        <span className="flex shrink-0 items-center gap-2">
+        <span className="order-last flex w-full shrink-0 items-center gap-2 pl-6 sm:order-none sm:w-auto sm:pl-0">
           <span
             className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
               ready ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'
@@ -152,7 +155,9 @@ export function AeroIntegrationPanel({ settings, onSettingsSaved }: AeroIntegrat
             {ready && <ShieldCheck className="h-3 w-3" />}
             {ready ? t('massas.aero.configured') : t('massas.aero.notConfigured')}
           </span>
-          <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+          <ChevronDown
+            className={`h-4 w-4 shrink-0 text-gray-500 transition-transform sm:ml-0 ${open ? 'rotate-180' : ''} max-sm:ml-auto`}
+          />
         </span>
       </button>
 
@@ -220,7 +225,7 @@ export function AeroIntegrationPanel({ settings, onSettingsSaved }: AeroIntegrat
                     type="button"
                     onClick={() => setDraft((current) => ({ ...current, quantityUnit: unit }))}
                     aria-pressed={draft.quantityUnit === unit}
-                    className={`flex-1 min-h-[40px] rounded-md text-sm font-semibold transition-colors ${
+                    className={`flex-1 min-h-[44px] rounded-md text-sm font-semibold transition-colors ${
                       draft.quantityUnit === unit ? 'bg-amber-600 text-white' : 'text-gray-600 hover:bg-gray-50'
                     }`}
                   >
@@ -306,6 +311,7 @@ export function AeroIntegrationPanel({ settings, onSettingsSaved }: AeroIntegrat
               onClick={() => setShortcutOpen(true)}
               variant="ghost"
               className="min-h-[44px] w-full sm:w-auto font-semibold text-gray-700"
+              data-testid="aero-shortcut-open"
             >
               {t('massas.aero.shortcut')}
             </Button>
