@@ -366,9 +366,9 @@ describe('aero-integration: payload builders', () => {
     assert.equal(buildEntradaItemPayload(base).ENT_USU, 1);
     // A code the operator typed is honoured.
     assert.equal(buildEntradaItemPayload({ ...base, userCode: 12 }).ENT_USU, 12);
-    // An operator username string is preserved as in base.apk txtUsuario.
-    assert.equal(buildEntradaItemPayload({ ...base, userCode: 'wilkin' }).ENT_USU, 'wilkin');
-    assert.equal(buildEntradaItemPayload({ ...base, userCode: '  wilkin  ' }).ENT_USU, 'wilkin');
+    // An operator username string is formatted in uppercase as in base.apk txtUsuario.
+    assert.equal(buildEntradaItemPayload({ ...base, userCode: 'wilkin' }).ENT_USU, 'WILKIN');
+    assert.equal(buildEntradaItemPayload({ ...base, userCode: '  wilkin  ' }).ENT_USU, 'WILKIN');
     assert.equal(buildEntradaItemPayload({ ...base, userCode: '15' }).ENT_USU, 15);
   });
 

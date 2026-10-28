@@ -18,6 +18,8 @@ interface MassasCollectiveTableProps {
   products: MassaProductTotal[];
   launches: MassaIndividualLaunch[];
   currentUserId?: number;
+  /** When true, the user can edit or delete any launch regardless of who created it. */
+  isAdmin?: boolean;
   /**
    * Editing is optional on purpose: the history screen reads past days and has nothing to edit, so it
    * passes none of these instead of inventing handlers that can never fire.
@@ -38,6 +40,7 @@ export function MassasCollectiveTable({
   products,
   launches,
   currentUserId,
+  isAdmin = false,
   editingLaunchId = null,
   editingBoxes = '',
   editingBusy = false,
@@ -155,13 +158,14 @@ export function MassasCollectiveTable({
             <div className="space-y-2.5">
               {displayedLaunches.map((launch) => {
                 const isOwner = currentUserId === launch.user_id;
+                const canManage = isOwner || isAdmin;
                 const isEditing = editingLaunchId === launch.id;
 
                 return (
                   <div
                     key={launch.id}
                     className={`p-3.5 rounded-lg border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-                      isOwner ? 'bg-amber-50/40 border-amber-200' : 'bg-gray-50/60 border-gray-200'
+                      canManage ? 'bg-amber-50/40 border-amber-200' : 'bg-gray-50/60 border-gray-200'
                     }`}
                   >
                     <div className="flex-1 min-w-0">
@@ -227,7 +231,7 @@ export function MassasCollectiveTable({
 
                           {!readOnly && (
                             <div className="flex items-center gap-1 shrink-0 ml-2">
-                              {isOwner ? (
+                              {canManage ? (
                                 <>
                                   <Button
                                     size="sm"

@@ -171,9 +171,46 @@ describe('massas routes', () => {
     assert.equal(aliceEditRes.statusCode, 200);
     const updated = JSON.parse(aliceEditRes.body) as MassaIndividualLaunch;
     assert.equal(updated.boxes, 8);
+
+    // Bob creates a launch
+    const bobCreateRes = await app.inject({
+      method: 'POST',
+      url: '/api/massas-launch',
+      headers: { authorization: `Bearer ${tokenBob}` },
+      payload: { date: dateStr, product_code: '1045', boxes: 2 },
+    });
+    const bobLaunchId = JSON.parse(bobCreateRes.body).created[0].id;
+
+    // Alice (Administrador) edits Bob's launch -> 200 OK
+    const adminEditBobRes = await app.inject({
+      method: 'PUT',
+      url: `/api/massas-launch/${bobLaunchId}`,
+      headers: { authorization: `Bearer ${tokenAlice}` },
+      payload: { boxes: 6 },
+    });
+    assert.equal(adminEditBobRes.statusCode, 200);
+    const updatedBob = JSON.parse(adminEditBobRes.body) as MassaIndividualLaunch;
+    assert.equal(updatedBob.boxes, 6);
   });
 
-  it('DELETE /api/massas-launch/:id permits owner to delete and returns 403 for other users', async () => {
+  it('DELETE /api/massas-launch/:id permits owner and Administrador to delete, and returns 403 for other workers', async () => {
+    // Alice creates a launch
+    const aliceCreateRes = await app.inject({
+      method: 'POST',
+      url: '/api/massas-launch',
+      headers: { authorization: `Bearer ${tokenAlice}` },
+      payload: { date: dateStr, product_code: '60', boxes: 3 },
+    });
+    const aliceLaunchId = JSON.parse(aliceCreateRes.body).created[0].id;
+
+    // Bob (Trabalhador) tries to delete Alice's launch -> 403 Forbidden
+    const bobDelAliceRes = await app.inject({
+      method: 'DELETE',
+      url: `/api/massas-launch/${aliceLaunchId}`,
+      headers: { authorization: `Bearer ${tokenBob}` },
+    });
+    assert.equal(bobDelAliceRes.statusCode, 403);
+
     // Bob creates a launch
     const createRes = await app.inject({
       method: 'POST',
@@ -183,18 +220,28 @@ describe('massas routes', () => {
     });
     const launchId = JSON.parse(createRes.body).created[0].id;
 
-    // Alice tries to delete Bob's launch -> 403 Forbidden
+    // Alice (Administrador) deletes Bob's launch -> 200 OK
     const aliceDelRes = await app.inject({
       method: 'DELETE',
       url: `/api/massas-launch/${launchId}`,
       headers: { authorization: `Bearer ${tokenAlice}` },
     });
-    assert.equal(aliceDelRes.statusCode, 403);
+    assert.equal(aliceDelRes.statusCode, 200);
+    assert.deepEqual(JSON.parse(aliceDelRes.body), { ok: true });
+
+    // Bob deletes his own remaining launch (creates one to delete)
+    const bobOwnCreateRes = await app.inject({
+      method: 'POST',
+      url: '/api/massas-launch',
+      headers: { authorization: `Bearer ${tokenBob}` },
+      payload: { date: dateStr, product_code: '91', boxes: 1 },
+    });
+    const bobOwnLaunchId = JSON.parse(bobOwnCreateRes.body).created[0].id;
 
     // Bob deletes his own launch -> 200 OK
     const bobDelRes = await app.inject({
       method: 'DELETE',
-      url: `/api/massas-launch/${launchId}`,
+      url: `/api/massas-launch/${bobOwnLaunchId}`,
       headers: { authorization: `Bearer ${tokenBob}` },
     });
     assert.equal(bobDelRes.statusCode, 200);

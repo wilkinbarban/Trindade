@@ -121,6 +121,16 @@ vuelve sin ejecutar el atajo, el intento se cierra igual, como `shortcut:no_verd
 navegador se conserva para cuando la página y el WebService comparten esquema, porque ahí el `fetch`
 contesta en el acto.
 
+S18 — (por L17) Ajuste fiscal y operativo de lanzamientos:
+1. `ENT_USU` en mayúsculas: cuando el código o identidad sea un string (username, ej: `'wilkin'`), se
+   formatea en mayúsculas (`.toUpperCase()` -> `'WILKIN'`), idéntico al comportamiento de `base.apk`.
+2. CST de item: `PRO_CST: '000'` por defecto en `AeroEntryPayload` para satisfacer el trigger
+   `ENTRADADET_BIU_SPED_VERIFICA` de Firebird en productos de fabricación propia.
+3. Reparación de lanzamientos por Administrador: en backend (`massas.service.ts`, `massas.routes.ts`) y
+   frontend (`MassasCollectiveTable`, `MassasLaunchPage`, `MassasHistoryPage`), el rol `Administrador`
+   puede editar (PUT) y eliminar (DELETE) cualquier lanzamiento sin importar quién lo creó, incluso en
+   días pasados desde el Historial.
+
 ## Tasks
 
 - T1 (S6, S7, S9): servicio de bitácora, contrato zod y ruta `POST /api/integration/aero/log` con guarda de
@@ -172,6 +182,9 @@ contesta en el acto.
   `aero_test`, cierra el intento sin veredicto en `visibilitychange` y desplaza el aviso a la vista. Diálogo
   con la receta de tres acciones, locales, documentación y verificación a 375px. Ruta: inline ·
   commit `feat(aero)`.
+
+- T14 (S18): CST '000', usuario ERP en mayúsculas y permisos de Administrador para editar/eliminar
+  lanzamientos (incluido Historial). Ruta: inline · commit `feat(massas)`.
 
 ## Log
 
@@ -641,3 +654,34 @@ Auditoría de los formularios DFM del sistema Delphi (`TF_RELFISCALENTCST.txt` y
 2. `AeroEntryPayload` extendido con `PRO_CST: string`.
 3. `buildEntradaItemPayload` y `buildAeroEntryPayload` asignan `PRO_CST: args.productCst?.trim() || AERO_DEFAULT_CST`, permitiendo customización opcional y garantizando `'000'` por defecto.
 4. Tests unitarios en `aero-integration.test.ts` actualizados con orden exacto de claves y validación de fallback/custom CST (`211/211` pasando). Suite backend completa `532/532` pasando. Build Vite limpio.
+
+L17 — pedido del usuario, literal:
+
+  Wilkin nos pidió dos ajustes clave en Trindade:
+
+  1. Formateo de usuario en mayúsculas para el ERP: en aero-integration.ts, asegurate de que cuando ENT_USU sea un string (el username del operador, ej. 'wilkin'), se formatee siempre en mayúsculas (.toUpperCase() -> 'WILKIN'), tal como lo manda la app nativa base.apk de la empresa.
+
+  2. Edición y eliminación de lanzamientos desde Trindade:
+  Actualmente tanto el frontend (MassasCollectiveTable) como el backend (massas.service.ts) bloquean la edición y borrado si el registro no pertenece al usuario autenticado (isOwner). Además, en MassasHistoryPage los días pasados están fijos en solo lectura.
+  Habilitemos la capacidad de reparar lanzamientos errados:
+  - En backend (massas.service.ts y massas.routes.ts): si el usuario tiene rol 'Administrador', debe poder editar (PUT) y eliminar (DELETE) cualquier lanzamiento sin importar quién lo creó.
+  - En frontend (MassasCollectiveTable y MassasLaunchPage): si el usuario es Administrador (user?.role === 'Administrador'), habilitar los botones de editar y eliminar en todos los ítems.
+  - En MassasHistoryPage: conectar los handlers de edición y eliminación para que un Administrador pueda corregir lanzamientos de días pasados desde el Historial.
+
+  Corrida de tests completa (frontend y backend), typecheck limpio, commit atómico directo a main sin Co-Authored-By ni ramas, y reconstrucción del contenedor web en Docker. Dale para adelante que te voy siguiendo.
+
+### Evidencia — T14 (CST '000', usuario en mayúsculas y permisos de Administrador)
+
+RED observado antes de tocar backend:
+- `massas.routes.test.ts`: Alice (Administrador) editando el lanzamiento de Bob arrojaba `403 !== 200`.
+- `massas.routes.test.ts`: Alice (Administrador) borrando el lanzamiento de Bob arrojaba `403 !== 200`.
+- `massas.service.test.ts`: `updateMassaLaunch` de Alice sobre el registro de Bob arrojaba excepción `FORBIDDEN`.
+- `massas.service.test.ts`: `deleteMassaLaunch` de Alice sobre el registro de Bob arrojaba excepción `FORBIDDEN`.
+- Frontend: `aeroUserCode('wilkin')` devolvía `'wilkin'` en minúsculas en vez de `'WILKIN'`.
+
+GREEN tras la implementación:
+- `aeroUserCode`: `.toUpperCase()` para cualquier string no numérico. Tests unitarios en `aero-integration.test.ts` validados.
+- `massas.service.ts` y `massas.routes.ts`: `updateMassaLaunch` y `deleteMassaLaunch` admiten `userRole` (`Administrador`), permitiendo reparar registros ajenos mientras un trabajador común sigue recibiendo 403 `FORBIDDEN`.
+- `MassasCollectiveTable.tsx`: recibe prop `isAdmin` y permite `canManage = isOwner || isAdmin`, habilitando botones de editar y eliminar.
+- `MassasLaunchPage.tsx`: pasa `isAdmin={user?.role === 'Administrador'}` a la tabla colectiva.
+- `MassasHistoryPage.tsx`: incorpora estado de edición/eliminación (`editingLaunchId`, `editingBoxes`, `deletingLaunchId`), handlers conectados a `api.put` y `api.del`, feedback visual de éxito/error, y tabla en modo interactivo para Administradores (`readOnly={!isAdmin}`).

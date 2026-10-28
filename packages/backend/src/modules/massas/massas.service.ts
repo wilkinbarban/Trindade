@@ -204,6 +204,7 @@ export function updateMassaLaunch(
     id: number;
     userId: number;
     boxes: number;
+    userRole?: string;
   },
 ): MassaIndividualLaunch {
   if (!Number.isInteger(params.boxes) || params.boxes <= 0) {
@@ -220,7 +221,8 @@ export function updateMassaLaunch(
     throw err;
   }
 
-  if (existing.user_id !== params.userId) {
+  const isAdmin = params.userRole === 'Administrador';
+  if (!isAdmin && existing.user_id !== params.userId) {
     const err = new Error('Forbidden: cannot edit launches belonging to another user');
     (err as unknown as { code: string }).code = 'FORBIDDEN';
     throw err;
@@ -268,6 +270,7 @@ export function deleteMassaLaunch(
   params: {
     id: number;
     userId: number;
+    userRole?: string;
   },
 ): void {
   const existing = db
@@ -280,7 +283,8 @@ export function deleteMassaLaunch(
     throw err;
   }
 
-  if (existing.user_id !== params.userId) {
+  const isAdmin = params.userRole === 'Administrador';
+  if (!isAdmin && existing.user_id !== params.userId) {
     const err = new Error('Forbidden: cannot delete launches belonging to another user');
     (err as unknown as { code: string }).code = 'FORBIDDEN';
     throw err;

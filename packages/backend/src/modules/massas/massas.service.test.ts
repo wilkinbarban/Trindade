@@ -157,6 +157,21 @@ describe('massas launch service', () => {
         }),
       (err: unknown) => (err as { code?: string }).code === 'FORBIDDEN'
     );
+
+    // Bob creates a launch, Alice (admin) edits it successfully
+    const [bobLaunch] = createMassaLaunches(db, {
+      date: testDate,
+      userId: userBobId,
+      items: [{ product_code: '1045', boxes: 2 }],
+    });
+
+    const adminUpdated = updateMassaLaunch(db, {
+      id: bobLaunch.id,
+      userId: userAliceId,
+      userRole: 'Administrador',
+      boxes: 6,
+    });
+    assert.equal(adminUpdated.boxes, 6);
   });
 
   it('allows owner to delete launch and enforces RBAC for other users', () => {
@@ -175,6 +190,21 @@ describe('massas launch service', () => {
         }),
       (err: unknown) => (err as { code?: string }).code === 'FORBIDDEN'
     );
+
+    // Bob creates a launch, Alice (admin) deletes it successfully
+    const [bobLaunch] = createMassaLaunches(db, {
+      date: testDate,
+      userId: userBobId,
+      items: [{ product_code: '1045', boxes: 2 }],
+    });
+
+    assert.doesNotThrow(() => {
+      deleteMassaLaunch(db, {
+        id: bobLaunch.id,
+        userId: userAliceId,
+        userRole: 'Administrador',
+      });
+    });
 
     // Alice deletes her own launch
     assert.doesNotThrow(() => {

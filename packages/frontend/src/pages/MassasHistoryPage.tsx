@@ -8,7 +8,7 @@ import { DateField } from '../components/ui/date-field';
 import { LoadingSpinner } from '../components/ui/loading-spinner';
 import { toWhatsAppNumber } from '../lib/phone';
 import { shareOrCopy, waMeLink } from '../lib/whatsapp';
-import { massasMessage, type MassasLaunchDayView } from '../lib/massas';
+import { massasMessage, type MassasLaunchDayView, type MassaIndividualLaunch } from '../lib/massas';
 import { ArrowLeft } from 'lucide-react';
 import { ModuleHelpModal } from '../components/ui/ModuleHelpModal';
 import { MassasCollectiveTable } from './massas/MassasCollectiveTable';
@@ -25,10 +25,18 @@ import { saoPauloDaysAgo, saoPauloYesterday } from '../lib/date';
 export function MassasHistoryPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const isAdmin = user?.role === 'Administrador';
   const [date, setDate] = useState(saoPauloYesterday());
   const [dayView, setDayView] = useState<MassasLaunchDayView | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // Edit / Delete state for Administrador
+  const [editingLaunchId, setEditingLaunchId] = useState<number | null>(null);
+  const [editingBoxes, setEditingBoxes] = useState('');
+  const [editingBusy, setEditingBusy] = useState(false);
+  const [deletingLaunchId, setDeletingLaunchId] = useState<number | null>(null);
 
   // WhatsApp state
   const [phone, setPhone] = useState('');
@@ -57,6 +65,49 @@ export function MassasHistoryPage() {
     if (!dayView) return '';
     return massasMessage(dayView);
   }, [dayView]);
+
+  const startEditing = (launch: MassaIndividualLaunch) => {
+    setEditingLaunchId(launch.id);
+    setEditingBoxes(String(launch.boxes));
+  };
+
+  const cancelEditing = () => {
+    setEditingLaunchId(null);
+    setEditingBoxes('');
+  };
+
+  const saveEditing = async (launchId: number) => {
+    const boxesNum = parseInt(editingBoxes, 10);
+    if (!Number.isInteger(boxesNum) || boxesNum <= 0 || editingBusy) return;
+    setEditingBusy(true);
+    setNotice(null);
+    try {
+      await api.put(`/massas-launch/${launchId}`, { boxes: boxesNum });
+      setEditingLaunchId(null);
+      setEditingBoxes('');
+      setNotice({ type: 'success', message: t('massas.updateSuccess') });
+      await loadDay(date);
+    } catch (err) {
+      setNotice({ type: 'error', message: err instanceof Error ? err.message : t('massas.updateError') });
+    } finally {
+      setEditingBusy(false);
+    }
+  };
+
+  const handleDeleteLaunch = async (launchId: number) => {
+    if (!window.confirm(t('massas.deleteConfirm'))) return;
+    setDeletingLaunchId(launchId);
+    setNotice(null);
+    try {
+      await api.del(`/massas-launch/${launchId}`);
+      setNotice({ type: 'success', message: t('massas.deleteSuccess') });
+      await loadDay(date);
+    } catch (err) {
+      setNotice({ type: 'error', message: err instanceof Error ? err.message : t('massas.deleteError') });
+    } finally {
+      setDeletingLaunchId(null);
+    }
+  };
 
   const handleCopyReport = async () => {
     if (!previewMessage) return;
@@ -136,13 +187,35 @@ export function MassasHistoryPage() {
           {error}
         </div>
       )}
+      {notice && (
+        <div
+          role="alert"
+          className={`p-4 rounded-lg border text-sm font-medium ${
+            notice.type === 'success'
+              ? 'bg-green-50 border-green-200 text-green-800'
+              : 'bg-red-50 border-red-200 text-red-800'
+          }`}
+        >
+          {notice.message}
+        </div>
+      )}
       {/* Resumen Colectivo y Desglose por Operador */}
       {dayView && (
         <MassasCollectiveTable
           products={dayView.products}
           launches={dayView.launches}
           currentUserId={user?.id}
-          readOnly
+          isAdmin={isAdmin}
+          readOnly={!isAdmin}
+          editingLaunchId={editingLaunchId}
+          editingBoxes={editingBoxes}
+          editingBusy={editingBusy}
+          onStartEdit={startEditing}
+          onCancelEdit={cancelEditing}
+          onSaveEdit={saveEditing}
+          onEditBoxesChange={setEditingBoxes}
+          onDelete={handleDeleteLaunch}
+          deletingId={deletingLaunchId}
         />
       )}
 

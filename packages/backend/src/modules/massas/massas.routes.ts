@@ -84,6 +84,7 @@ export async function massasRoutes(fastify: FastifyInstance) {
       const updated = updateMassaLaunch(fastify.db, {
         id: parsedParam.data.id,
         userId: request.user!.sub,
+        userRole: request.user?.role,
         boxes: parsedBody.data.boxes,
       });
       return reply.send(updated);
@@ -110,6 +111,7 @@ export async function massasRoutes(fastify: FastifyInstance) {
       deleteMassaLaunch(fastify.db, {
         id: parsedParam.data.id,
         userId: request.user!.sub,
+        userRole: request.user?.role,
       });
       return reply.send({ ok: true });
     } catch (error) {

@@ -208,18 +208,25 @@ Content-Type: application/json
 
 ```json
 {
-  "PRO_COD": "5000",
+  "PRO_COD": "005000",
   "PRO_DES": "MASSA ROLO 1KG",
-  "PRO_QTD": 20,
+  "PRO_QTD": 2000,
+  "PRO_CST": "000",
   "ENT_DTA": "2026-02-10",
   "ENT_USU": 12,
   "ENT_SER": "APL",
   "ENT_DTANOT": "2026-02-10",
   "ENT_DTMOVI": "2026-02-10",
-  "ENT_OBS": "",
+  "ENT_OBS": "Lancamento de massas via Trindade",
   "LOTES": []
 }
 ```
+
+Detalles del contrato ajustados con la fábrica:
+- `PRO_COD`: 6 dígitos con ceros a la izquierda (`formatAeroProductCode`), idéntico al binario Delphi `base.apk`.
+- `PRO_QTD`: entero escalado × 100 (`formatAeroQuantity`) para que Firebird no lo grabe como decimal `0.20`.
+- `PRO_CST`: situación tributaria (`000` - Tributada integralmente de fabricación propia) requerida por el trigger `ENTRADADET_BIU_SPED_VERIFICA`.
+- `ENT_USU`: código numérico o nombre de usuario formateado siempre en mayúsculas (`.toUpperCase()`) tal como lo hace `base.apk`.
 
 Los códigos de producto (`PRO_COD`) salen tal cual de `stock.catalog.ts` (`5000` = MASSA ROLO 1KG,
 `1045` = CASEIRA, …): son idénticos a los del ERP. Las fechas van en `YYYY-MM-DD` y en la zona de São

@@ -612,6 +612,7 @@ export function MassasLaunchPage() {
           products={dayView.products}
           launches={dayView.launches}
           currentUserId={user?.id}
+          isAdmin={user?.role === 'Administrador'}
           editingLaunchId={editingLaunchId}
           editingBoxes={editingBoxes}
           editingBusy={editingBusy}

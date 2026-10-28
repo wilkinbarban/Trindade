@@ -342,7 +342,7 @@ export function aeroUserCode(userCode: string | number | null | undefined): numb
       if (Number.isInteger(parsed) && String(parsed) === trimmed && parsed > 0) {
         return parsed;
       }
-      return trimmed;
+      return trimmed.toUpperCase();
     }
   }
   return AERO_FALLBACK_USER_CODE;
