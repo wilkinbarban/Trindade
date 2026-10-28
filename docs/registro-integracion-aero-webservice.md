@@ -140,4 +140,5 @@ sequenceDiagram
 |---|---|---|---|---|
 | 2026-10-27 | Entorno local (fuera de fábrica) | Ingeniería inversa de `base.apk` / `libso.so` | Extraídos contratos de `entradasitem`, `usuarios/`, `movimentoitem` y `produtoconsulta` | Confirmado que no se requiere IMEI. Autenticación HTTP Basic estándar. |
 | 2026-10-28 | Fábrica (red real) | Prueba del panel desde el iPhone | `405` en `/usuarios/`: la ruta solo acepta `POST` | Probe del cliente cambiado a `POST` (`aero-connection.ts`) |
+| 2026-10-28 | Producción (HTTPS) | Test de conexión delegado al atajo | Safari bloquea el `POST` HTTP desde la página HTTPS: el botón no podía probar lo que el lanzamiento sí hace | Segundo atajo `Aero32 Prueba` de 3 acciones; la página lee `aero_test` y escribe `requested` + `result` en la bitácora |
 | *Pendiente* | Fábrica (Wi-Fi) | Test de conexión con IP real | Por ejecutar al suministrar IP:PUERTO y credenciales | Requiere IP, puerto y credenciales para validar respuesta real de `/usuarios/`. |

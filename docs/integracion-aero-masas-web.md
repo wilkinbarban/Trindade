@@ -44,7 +44,7 @@ cola local (localStorage)          ← una entrada por producto, sobrevive a la 
    │
    ▼
 shortcuts://x-callback-url/run-shortcut?name=…
-   │        (el Atajo recibe { url, authorization, body })
+   │        (el Atajo recibe el JSON del pedido como texto, tal cual)
    ▼
 POST http://192.168.1.50:8000/api/entradasitem
    │
@@ -82,11 +82,10 @@ Todo lo demás lo resuelve el sistema, porque no es una decisión del operario:
 | Cantidad (`PRO_QTD`) | Siempre en **unidades**: `cajas × unidades por caja`. No existe lanzamiento por cajas |
 | Serie del asiento (`ENT_SER`) | Fija en `APL`, la que trae quemada el binario Delphi de `base.apk` |
 
-El código **nunca bloquea** nada. Es un dato que solo el ERP conoce y que la única prueba capaz de leerlo
-(`POST /usuarios/`) no puede completarse desde una página HTTPS: Safari rechaza el destino HTTP antes de
-que salga un paquete. Por eso, en el despliegue real de la fábrica el código queda vacío y el lanzamiento
-sale como usuario `1`. Si el operario lo conoce, lo carga en el campo opcional y los asientos quedan a su
-nombre.
+El código **nunca bloquea** nada. Es un dato que solo el ERP conoce, y el atajo de prueba devuelve
+`success` —un booleano—, no el `CODIGO`: leerlo exigiría otra acción en el teléfono. Por eso, en el
+despliegue real de la fábrica, el código queda vacío y el lanzamiento sale como usuario `1`. Si el
+operario lo conoce, lo carga en el campo opcional y los asientos quedan a su nombre.
 
 Los ajustes viven en el `localStorage` de **ese** iPhone, no en el servidor. Dos consecuencias: hay que
 configurar una vez por teléfono, y borrar los datos de Safari equivale a borrar la configuración. El
@@ -97,27 +96,61 @@ botón **Limpar** hace lo mismo de forma explícita, con confirmación.
 Hace `POST {URL}/usuarios/` con Basic Auth y traduce el resultado a una frase útil. El método importa: la
 ruta de la fábrica solo acepta `POST` y un `GET` devuelve `405 Supported methods: POST`.
 
+El botón tiene **dos caminos**, y elige solo:
+
+| Camino | Cuándo | Qué hace |
+| --- | --- | --- |
+| Navegador | La página y el WebService comparten esquema (desarrollo local, o un WebService HTTPS) | El `fetch` responde en el acto y devuelve la frase |
+| Atajo | La página es HTTPS y el WebService HTTP | Abre el atajo **`Aero32 Prueba`**, que hace el `POST` fuera de Safari y vuelve con el veredicto |
+
+El segundo camino no es una preferencia, es la única salida: en el despliegue real Safari rechaza el
+destino HTTP antes de que salga un paquete, así que probar «desde el navegador» es probar una cosa
+distinta de la que va a hacer el lanzamiento.
+
+Resultados del camino «navegador»:
+
 | Resultado | Significado |
 | --- | --- |
 | `Conectado como … (código n)` | Credenciales válidas; guarda `CODIGO` como `ENT_USU` |
 | `O WebService respondeu 401: …` | El servidor contestó y rechazó el login |
 | `A rede respondeu, mas o WebService não libera CORS` | La IP es correcta; falta la cabecera CORS (el Atajo no la necesita) |
-| `O Safari bloqueia HTTP a partir de uma página HTTPS` | Se detectó el bloqueo **antes** de intentar; es el caso normal en producción |
+| `O Safari bloqueia HTTP a partir de uma página HTTPS` | Bloqueo detectado; con este build ya no aparece: el botón pasa al atajo |
 | `Não foi possível alcançar o WebService` | Red, IP o puerto equivocados |
 | `O WebService não respondeu em 8 segundos` | Host alcanzable, sin respuesta |
 
-Cada intento —exitoso o no— se registra en la bitácora del backend. El caso «bloqueado» se registra
-igualmente: saber que el pedido nunca salió del teléfono es la mitad del diagnóstico.
+Resultados del camino «atajo», que es el que se ve en la fábrica:
+
+| Veredicto | Significado |
+| --- | --- |
+| `success = true` | La empresa respondió y aceptó las credenciales: conexión correcta |
+| `success = false` | El endpoint contestó y rechazó el login (usuario o contraseña) |
+| Sin veredicto | El operario volvió sin ejecutar el atajo, o el atajo se cortó antes de leer `success` |
+
+El atajo devuelve el campo `success` **tal como lo leyó**, y la página acepta las formas en que iOS lo
+puede escribir (`true`, `1`, `ok`; y del otro lado `false`, `0`, `error`). Un valor que no reconoce no se
+interpreta: la tarjeta dice que no hubo veredicto en vez de inventar un éxito.
+
+Cada intento —exitoso o no— se registra en la bitácora del backend, en dos líneas: la de `requested`
+antes de que el teléfono salga, y la de `result` cuando vuelve. Saber que el pedido nunca salió del
+teléfono es la mitad del diagnóstico, y una línea `requested` sin `result` es exactamente eso.
 
 ## 5. Receta del Atajo (Apple Shortcuts)
 
 Un archivo `.shortcut` tiene que estar firmado por el dispositivo que lo instala, e iOS solo acepta
 enlaces oficiales de iCloud: generarlo en el servidor produce un archivo que la web no puede entregar.
-Por eso el panel entrega tres valores copiables y el enlace profundo a la app. Se arma una vez y son **dos
-acciones nativas**.
+Por eso el panel entrega los valores copiables y el enlace profundo a la app.
 
-Nombre del atajo: **`Aero32 Estoque`** (el nombre debe coincidir exactamente: es la clave con la que la
-página lo invoca).
+Son **dos atajos** y se arman una sola vez:
+
+| Atajo | Para qué | Acciones |
+| --- | --- | --- |
+| **`Aero32 Estoque`** | Envía cada lanzamiento al ERP | 2 |
+| **`Aero32 Prueba`** | Contesta *Testar Conexão* | 3 |
+
+Los nombres deben coincidir exactamente: son la clave con la que la página los invoca (se pueden cambiar
+en el panel, campo «nome do atajo»).
+
+### `Aero32 Estoque` — el lanzamiento
 
 Valores fijos, que el panel muestra con su botón de copiar y no cambian entre lanzamientos:
 
@@ -137,6 +170,26 @@ La página envía como texto el cuerpo exacto del `POST /entradasitem`: el JSON 
 Atajo no calcula ni interpreta nada — entrega ese texto como cuerpo y vuelve a la app. Antes el texto era
 un sobre `{ url, authorization, body }` que obligaba a tres lecturas de diccionario más el armado de la
 respuesta: siete pasos en un teléfono, que es la razón por la que el atajo nunca llegó a existir.
+
+### `Aero32 Prueba` — la conexión
+
+No recibe nada: el endpoint, la cabecera y la vuelta viven dentro del atajo. Son tres acciones.
+
+| Valor | Dónde se usa |
+| --- | --- |
+| URL del POST — `{wsUrl}/usuarios/` | campo **URL** de la acción 1 |
+| Cabecera `Authorization: Basic …` | **Encabezados** de la acción 1 (el mismo valor del otro atajo) |
+| URL de retorno — `{origen}/massas-launch?aero_test=` | campo **URL** de la acción 3, con la variable al final |
+
+1. Abrir **Atajos** → `+` → nombrarlo `Aero32 Prueba`.
+2. **Obtener contenido de URL**: la URL de arriba, método `POST`, en **Encabezados** `Authorization` y
+   `Content-Type: application/json`, y **sin cuerpo**.
+3. **Obtener valor del diccionario**: sobre la respuesta, con la clave `success`.
+4. **Abrir URLs** y pegar la URL de retorno, con la variable `success` **al final**. Queda así:
+   `…/massas-launch?aero_test=` + variable.
+
+La página lee ese valor y lo escribe tal cual en la bitácora (`aero_test=true`), así que el log de la
+fábrica muestra la respuesta del ERP y no una interpretación de ella.
 
 ## 6. Contrato con el WebService
 
@@ -193,6 +246,14 @@ Eventos: `test_connection`, `launch_sync`, `read_history`. La identidad se toma 
 contra la base, nunca del cuerpo. La cabecera `Authorization` **no se escribe nunca** (lleva las
 credenciales en base64) y el payload/respuesta se truncan para que una línea siga siendo una línea.
 
+`test_connection` usa dos líneas y una nota:
+
+| `phase` | `note` | `error` |
+| --- | --- | --- |
+| `requested` | `via=shortcut reason=mixed_content` (o `via=browser`) | `null`, o `invalid_config` si faltaban datos |
+| `result` | `via=shortcut aero_test=true` | `null` si fue `true`; `shortcut:error` si fue `false`; `shortcut:unknown` si no se pudo leer |
+| `result` | `the operator returned without a shortcut result` | `shortcut:no_verdict` |
+
 ## 8. Procedimiento de prueba en fábrica
 
 Antes de ir:
@@ -205,8 +266,8 @@ En la fábrica:
 
 1. Abrir la Web en Safari, entrar como `wilkin`.
 2. *Lançamento de Masas* → **Configuração Integração Empresa** → completar URL, usuario y contraseña.
-3. **Testar Conexão**. Si el WebService no libera CORS verás el aviso correspondiente: es esperable.
-   Lo que importa es que el mensaje no diga «não foi possível alcançar».
+3. **Testar Conexão**. El botón abre `Aero32 Prueba`; al volver, la tarjeta dice si la empresa respondió.
+   Lo que importa es que no diga «sin veredicto»: eso significa que el atajo no llegó a leer `success`.
 4. Cargar **un** producto, una caja, y confirmar con el switch *Sincronizar com ERP da Empresa* activo.
 5. iOS abre el Atajo; al volver, la tarjeta de confirmación debe desaparecer y aparecer el resultado.
 6. Verificar en el ERP que la entrada existe, y en el log del servidor las dos líneas (`requested` y

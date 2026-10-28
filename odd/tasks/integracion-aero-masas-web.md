@@ -22,11 +22,12 @@ de unidad desaparece de la UI y la cantidad que viaja al ERP es siempre `cajas �
 ni unidad, y ambas viven como constantes del módulo, no como ajustes.
 
 S3 — Botón «Testar Conexão»: «intenta validar contra /api/usuarios/ y reporta el resultado al backend para
-auditoría.» (reescrita por L15) La sonda es `POST`, no `GET`: la ruta de la fábrica solo monta `POST` y
-responde al `GET` con `The GET method is not supported for route api/usuarios. Supported methods: POST`. El
-resultado exitoso guarda `CODIGO` como `ENT_USU`. Cuando la página corre en HTTPS y el WebService en HTTP
-plano, la petición es imposible por diseño del navegador y el panel lo dice antes de intentar, en vez de
-mostrar un error de red genérico; el intento igual se audita.
+auditoría.» (reescrita por L15 y por L16) La sonda es `POST`, no `GET`: la ruta de la fábrica solo monta
+`POST` y responde al `GET` con `The GET method is not supported for route api/usuarios. Supported methods:
+POST`. El resultado exitoso guarda `CODIGO` como `ENT_USU`. Cuando la página corre en HTTPS y el WebService
+en HTTP plano la petición es imposible por diseño del navegador, así que el botón **delega en el atajo de
+prueba** (S17) en lugar de mostrar el bloqueo: el panel informa el veredicto de la empresa, y el intento se
+audita igual en sus dos fases.
 
 S4 — (reescrita por L12) Botón «Instalar Atajo en iPhone»: la plantilla del Atajo que dispara a
 `/api/entradasitem` se arma con **dos acciones nativas**, no siete. El deep link transporta como texto el
@@ -110,6 +111,16 @@ S12 — Cierre: «Ejecutar la suite de tests para asegurar 0 fallos»; «Commit 
 Co-Authored-By y push a `origin main`»; «Reconstruir la imagen de producción en Docker (`docker compose build
 web && docker compose up -d web`)»; «Validar HTTP 200 en `https://trindademasas.duckdns.org`».
 
+S17 — (por L16) «Testar Conexão» tiene que informar **lo que la empresa responde** en el despliegue real,
+no el bloqueo del navegador. Pedido: al probar desde la página HTTPS, el botón abre un **segundo atajo**
+(`Aero32 Prueba`) que hace el `POST /usuarios/` fuera de Safari y vuelve con el campo `success`; la página
+lee esa vuelta y escribe **dos** líneas en la bitácora: `requested` antes de salir y `result` con el
+veredicto. El valor crudo viaja en `aero_test` y la página no inventa un resultado: `true`/`1`/`ok` es
+conexión correcta, `false`/`0`/`error` es rechazo, cualquier otra cosa es «sin veredicto». Si el operario
+vuelve sin ejecutar el atajo, el intento se cierra igual, como `shortcut:no_verdict`. El camino del
+navegador se conserva para cuando la página y el WebService comparten esquema, porque ahí el `fetch`
+contesta en el acto.
+
 ## Tasks
 
 - T1 (S6, S7, S9): servicio de bitácora, contrato zod y ruta `POST /api/integration/aero/log` con guarda de
@@ -152,6 +163,15 @@ web && docker compose up -d web`)»; «Validar HTTP 200 en `https://trindademasa
 - T12 (S3, S5, S9, S16) — reabre S3 y S5 por L15: desbloquear el switch (readiness sin `userCode`) y pasar la
   sonda de `/usuarios/` a `POST`; `ENT_USU` con fallback `1` en el armado del payload; campo opcional del
   código en el panel; tests, locales, documentación y despliegue. Ruta: inline · commit `fix(aero)`.
+
+- T13 (S3, S16, S17): segundo atajo de prueba. `lib/aero-test.ts` (veredicto crudo, intento pendiente en
+  `localStorage`, las tres líneas de auditoría), receta y prefijo de vuelta en `aero-integration.ts`
+  (`aeroTestShortcutRecipe`, `aeroTestCallbackPrefix`, `aeroTestShortcutTriggerUrl`) con el retorno
+  discriminado por `kind`, y `testShortcutName` en los ajustes. El panel enruta la prueba al atajo cuando
+  `aeroConnectionBlocker` detecta el bloqueo y muestra el veredicto al volver; `MassasLaunchPage` consume
+  `aero_test`, cierra el intento sin veredicto en `visibilitychange` y desplaza el aviso a la vista. Diálogo
+  con la receta de tres acciones, locales, documentación y verificación a 375px. Ruta: inline ·
+  commit `feat(aero)`.
 
 ## Log
 
@@ -560,3 +580,13 @@ Despliegue: `docker compose up -d --build web` reconstruyó `api` y `web`, ambos
 `https://trindademasas.duckdns.org` responde `200` y `/api/health` devuelve `{"status":"ok",…}` con `200`. El
 bundle servido (`assets/index-Dcp1Q8zc.js`) contiene «Código do usuário no ERP» y «Código del usuario en el
 ERP», la frase «lança como usuário 1», y ya no contiene la clave `missingCode`.
+
+L16 — pedido del usuario sobre «Testar Conexão», reconstruido: el texto original llegó antes de una
+compactación y no está disponible verbatim, así que se conserva su contenido sin comillas. Pedía que el
+botón «Testar Conexão» deje de informar `blocked:mixed_content` en producción y devuelva el resultado real
+de la empresa: como Safari no puede hacer el `POST` HTTP desde la página HTTPS y el servidor de la VPS no
+tiene ruta a la red de la fábrica, la prueba tiene que salir por un **atajo de iOS**, igual que el
+lanzamiento. Además: registrar el intento y el resultado completos en `logs/aero-integration.log` (las dos
+fases, `requested` y `result`), reflejar el veredicto en el panel en vez de un bloqueo falso, tests primero
+con las suites en verde y `tsc` limpio, y entrega trunk-based a `main` sin `Co-Authored-By` con rebuild de
+`web` y HTTP 200 en `https://trindademasas.duckdns.org`.
