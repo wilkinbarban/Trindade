@@ -318,6 +318,17 @@ export function aeroUserCode(userCode: number | null | undefined): number {
 }
 
 /**
+ * Formats a product code to 6 characters with leading zeros, matching Aero32 ERP format.
+ * The Delphi client in base.apk explicitly applies StringOfChar('0', 6 - Length(PRO_COD)) + PRO_COD
+ * so Firebird triggers can resolve the item in the PRODUTO table.
+ */
+export function formatAeroProductCode(code: string | number | null | undefined): string {
+  const clean = String(code ?? '').trim();
+  if (!clean) return '';
+  return clean.length < 6 ? clean.padStart(6, '0') : clean;
+}
+
+/**
  * Constructs the exact JSON payload expected by POST /entradasitem in Aero32 ERP.
  * Property order matches docs/registro-integracion-aero-webservice.md §2.3.
  */
@@ -344,7 +355,7 @@ export function buildEntradaItemPayload(args: {
       : 'Lancamento de massas via Trindade';
 
   return {
-    PRO_COD: args.productCode,
+    PRO_COD: formatAeroProductCode(args.productCode),
     PRO_DES: args.productName,
     PRO_QTD: args.quantity,
     PRO_CST: args.productCst && args.productCst.trim() ? args.productCst.trim() : AERO_DEFAULT_CST,

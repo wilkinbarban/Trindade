@@ -65,7 +65,7 @@ Todos los endpoints esperan `Accept: application/json` y cabecera de autenticaci
 - **Payload JSON**:
   ```json
   {
-    "PRO_COD": "1001",
+    "PRO_COD": "001001",
     "PRO_DES": "MASSA TRADICIONAL 500G",
     "PRO_QTD": 50.0,
     "PRO_CST": "000",
@@ -78,7 +78,7 @@ Todos los endpoints esperan `Accept: application/json` y cabecera de autenticaci
     "LOTES": []
   }
   ```
-  *Nota*: `PRO_CST` ("000" - Tributada integralmente) es requerido obligatoriamente por el trigger Firebird `ENTRADADET_BIU_SPED_VERIFICA` (`EXC_CST Favor informar a CST do Item`).
+  *Nota*: `PRO_COD` debe enviarse rellenado a 6 dígitos con ceros a la izquierda (`000022`, `001192`), tal como lo hace el binario Delphi `base.apk` (`StringOfChar('0', 6 - Length(PRO_COD)) + PRO_COD`). Si se envía sin ceros (`22`), el trigger Firebird no localiza el registro en `PRODUTO`, no puede autocompletar la situación tributaria y aborta con `EXC_CST Favor informar a CST do Item` en `ENTRADADET_BIU_SPED_VERIFICA`. Adicionalmente, `PRO_CST` ("000" - Tributada integralmente) se incluye por compatibilidad.
 - **Respuesta Esperada**:
   ```json
   {
@@ -143,5 +143,5 @@ sequenceDiagram
 | 2026-10-27 | Entorno local (fuera de fábrica) | Ingeniería inversa de `base.apk` / `libso.so` | Extraídos contratos de `entradasitem`, `usuarios/`, `movimentoitem` y `produtoconsulta` | Confirmado que no se requiere IMEI. Autenticación HTTP Basic estándar. |
 | 2026-10-28 | Fábrica (red real) | Prueba del panel desde el iPhone | `405` en `/usuarios/`: la ruta solo acepta `POST` | Probe del cliente cambiado a `POST` (`aero-connection.ts`) |
 | 2026-10-28 | Producción (HTTPS) | Test de conexión delegado al atajo | Safari bloquea el `POST` HTTP desde la página HTTPS: el botón no podía probar lo que el lanzamiento sí hace | Segundo atajo `Aero32 Prueba` de 3 acciones; la página lee `aero_test` y escribe `requested` + `result` en la bitácora |
-| 2026-10-28 | Fábrica (red real) | Lanzamiento con atajo definitivo | Firebird arrojó `EXC_CST Favor informar a CST do Item` en trigger `ENTRADADET_BIU_SPED_VERIFICA` | Agregado `PRO_CST: "000"` (Tributada integralmente) por defecto en `buildEntradaItemPayload` |
+| 2026-10-28 | Fábrica (red real) | Lanzamiento con atajo definitivo | Firebird arrojó `EXC_CST Favor informar a CST do Item` en trigger `ENTRADADET_BIU_SPED_VERIFICA` con códigos 22 y 1192 | Análisis de `libso.so` reveló que `base.apk` formatea `PRO_COD` a 6 dígitos con ceros a la izquierda (`000022`, `001192`). Sin ceros, el trigger no halla el producto en `PRODUTO` y su CST queda NULL. Se implementó `formatAeroProductCode` en Trindade Web. |
 | *Pendiente* | Fábrica (Wi-Fi) | Lanzamiento de 1 caja para verificar confirmación ERP | Validar inserción en base Firebird con `{"success":true,"message":"Gravado com sucesso"}` | Pendiente de prueba por Wilkin en iPhone |

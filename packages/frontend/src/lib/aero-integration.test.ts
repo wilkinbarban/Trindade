@@ -24,6 +24,7 @@ import {
   buildEntradaItemPayload,
   clearAeroPendingSync,
   clearAeroSettings,
+  formatAeroProductCode,
   isAeroAllowed,
   isAeroIntegrationOwner,
   loadAeroPendingSync,
@@ -309,7 +310,7 @@ describe('aero-integration: payload builders', () => {
     assert.deepEqual(Object.keys(payload), expectedKeys);
 
     assert.deepEqual(payload, {
-      PRO_COD: '1001',
+      PRO_COD: '001001',
       PRO_DES: 'MASSA TRADICIONAL 500G',
       PRO_QTD: 50.0,
       PRO_CST: '000',
@@ -321,6 +322,18 @@ describe('aero-integration: payload builders', () => {
       ENT_OBS: 'Lanzamiento desde Trindade',
       LOTES: [],
     });
+  });
+
+  it('pads product codes to 6 digits with leading zeros via formatAeroProductCode', () => {
+    assert.equal(formatAeroProductCode('22'), '000022');
+    assert.equal(formatAeroProductCode('1192'), '001192');
+    assert.equal(formatAeroProductCode('1045'), '001045');
+    assert.equal(formatAeroProductCode('000022'), '000022');
+    assert.equal(formatAeroProductCode('123456'), '123456');
+    assert.equal(formatAeroProductCode(22), '000022');
+    assert.equal(formatAeroProductCode(null), '');
+    assert.equal(formatAeroProductCode(undefined), '');
+    assert.equal(formatAeroProductCode('   '), '');
   });
 
   it('handles Date objects and default observation in buildEntradaItemPayload', () => {
