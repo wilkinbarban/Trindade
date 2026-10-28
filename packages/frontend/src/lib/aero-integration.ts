@@ -332,53 +332,51 @@ export function buildAeroEntryPayload(args: {
   });
 }
 
-export interface AeroShortcutEnvelope {
-  url: string;
+/**
+ * Builds the deep link that runs the shortcut, handing it one string: the entry payload.
+ *
+ * What the shortcut receives is the exact request body for `/entradasitem`, not a transport envelope.
+ * That is a deliberate reduction of what the person installing it has to build on the phone. A payload
+ * wrapped in `{ url, authorization, body }` forces three "get dictionary value" actions before the POST
+ * even starts, and that seven-step recipe is why the shortcut was never installed. The endpoint and the
+ * Authorization header are fixed facts of one factory, so they live in the shortcut itself (see
+ * {@link aeroShortcutRecipe}) and the launch only carries what changes per launch.
+ */
+export function aeroShortcutTriggerUrl(args: { name: string; payload: unknown }): string {
+  const body = JSON.stringify(args.payload);
+  return `shortcuts://x-callback-url/run-shortcut?name=${encodeURIComponent(args.name)}&input=text&text=${encodeURIComponent(body)}`;
+}
+
+export interface AeroShortcutRecipe {
+  /** The URL the one POST action points at. */
+  endpoint: string;
+  /** The complete header value for that action, prefix included. */
   authorization: string;
-  body: string;
+  /** What the action must declare it is sending. */
+  contentType: string;
+  /** Where the second action opens so the page learns the shortcut finished. */
+  callbackUrl: string;
 }
 
 /**
- * Assembles the transmission envelope for iOS Shortcut execution.
+ * The three constants the shortcut needs, in the shape the dialog copies them.
+ *
+ * These do not change between launches, so they are set up once, when the shortcut is created. Keeping
+ * them out of the per-launch payload is what leaves the shortcut with two native actions: fetch with the
+ * entry the page handed it, then open the return URL.
  */
-export function aeroLaunchEnvelope(args: {
+export function aeroShortcutRecipe(args: {
   wsUrl: string;
   username: string;
   password: string;
-  payload: unknown;
-}): AeroShortcutEnvelope {
+  callbackUrl: string;
+}): AeroShortcutRecipe {
   return {
-    url: aeroEndpoint(args.wsUrl, 'entradasitem'),
+    endpoint: aeroEndpoint(args.wsUrl, 'entradasitem'),
     authorization: basicAuthHeader(args.username, args.password),
-    body: JSON.stringify(args.payload),
+    contentType: 'application/json',
+    callbackUrl: args.callbackUrl,
   };
-}
-
-export function buildAeroShortcutEnvelope(args: {
-  settings: AeroSettings;
-  payload: AeroEntryPayload;
-}): AeroShortcutEnvelope {
-  return aeroLaunchEnvelope({
-    wsUrl: args.settings.wsUrl,
-    username: args.settings.username,
-    password: args.settings.password,
-    payload: args.payload,
-  });
-}
-
-/**
- * Builds the deep link triggering the Apple Shortcuts app with the encoded envelope.
- */
-export function aeroShortcutTriggerUrl(args: {
-  name: string;
-  envelope: AeroShortcutEnvelope;
-}): string {
-  const envelopeJson = JSON.stringify(args.envelope);
-  return `shortcuts://x-callback-url/run-shortcut?name=${encodeURIComponent(args.name)}&input=text&text=${encodeURIComponent(envelopeJson)}`;
-}
-
-export function aeroShortcutUrl(envelope: AeroShortcutEnvelope, shortcutName: string): string {
-  return aeroShortcutTriggerUrl({ name: shortcutName, envelope });
 }
 
 /**

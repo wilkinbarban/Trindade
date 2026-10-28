@@ -106,28 +106,32 @@ igualmente: saber que el pedido nunca salió del teléfono es la mitad del diagn
 
 ## 5. Receta del Atajo (Apple Shortcuts)
 
-Un archivo `.shortcut` debe estar firmado por el dispositivo que lo instala; generarlo en el servidor
-produce un archivo que falla al abrir. Por eso el panel entrega la receta exacta —copiable— y el enlace
-profundo a la app. Se arma una vez, en un minuto.
+Un archivo `.shortcut` tiene que estar firmado por el dispositivo que lo instala, e iOS solo acepta
+enlaces oficiales de iCloud: generarlo en el servidor produce un archivo que la web no puede entregar.
+Por eso el panel entrega tres valores copiables y el enlace profundo a la app. Se arma una vez y son **dos
+acciones nativas**.
 
 Nombre del atajo: **`Aero32 Estoque`** (el nombre debe coincidir exactamente: es la clave con la que la
 página lo invoca).
 
-1. Abrir **Atajos** → `+` → nombrarlo `Aero32 Estoque`.
-2. Añadir **Obtener diccionario del texto de entrada** (la página envía un JSON como texto de entrada).
-3. Añadir **Obtener valor del diccionario** → clave `url`.
-4. Repetir para las claves `authorization` y `body`.
-5. Añadir **Obtener contenido de URL**:
-   - URL: la variable `url`
-   - Método: `POST`
-   - Cabeceras: `Authorization` = variable `authorization`, `Content-Type` y `Accept` = `application/json`
-   - Cuerpo de la petición: `Texto` = variable `body`
-6. Añadir **Obtener valor del diccionario** sobre la respuesta → clave `message`.
-7. Añadir **Abrir URLs** con la URL de retorno que muestra el panel, seguida del mensaje codificado con
-   la acción **Codificar URL**.
+Valores fijos, que el panel muestra con su botón de copiar y no cambian entre lanzamientos:
 
-La página envía el sobre `{ url, authorization, body }`: la URL completa de `/entradasitem`, la cabecera
-`Basic …` ya armada en base64 y el JSON del pedido como texto. El Atajo no calcula nada; solo transporta.
+| Valor | Dónde se usa |
+| --- | --- |
+| URL del POST — `{wsUrl}/entradasitem` | campo **URL** de la acción 1 |
+| Cabecera `Authorization: Basic …` | **Encabezados** de la acción 1 |
+| URL de retorno — `{origen}/massas-launch?aero_sync=ok` | campo **URL** de la acción 2 |
+
+1. Abrir **Atajos** → `+` → nombrarlo `Aero32 Estoque`.
+2. Añadir **Obtener contenido de URL**: pegar la URL del POST, método `POST`, en **Encabezados**
+   `Authorization` con el valor copiado y `Content-Type` = `application/json`, y en **Cuerpo de la
+   petición** elegir `Texto` e insertar la variable **Entrada del atajo**.
+3. Añadir **Abrir URLs** y pegar la URL de retorno.
+
+La página envía como texto el cuerpo exacto del `POST /entradasitem`: el JSON del pedido, sin sobre. El
+Atajo no calcula ni interpreta nada — entrega ese texto como cuerpo y vuelve a la app. Antes el texto era
+un sobre `{ url, authorization, body }` que obligaba a tres lecturas de diccionario más el armado de la
+respuesta: siete pasos en un teléfono, que es la razón por la que el atajo nunca llegó a existir.
 
 ## 6. Contrato con el WebService
 

@@ -24,7 +24,7 @@ import { MassasWhatsAppShare } from './massas/MassasWhatsAppShare';
 import { saoPauloToday } from '../lib/date';
 import {
   aeroSettingsReady,
-  aeroLaunchEnvelope,
+  aeroEndpoint,
   aeroShortcutTriggerUrl,
   buildEntradaItemPayload,
   isAeroAllowed,
@@ -241,22 +241,18 @@ export function MassasLaunchPage() {
         entryDate: queue.date,
         userCode: aeroSettings.userCode ?? 0,
       });
-      const envelope = aeroLaunchEnvelope({
-        wsUrl: aeroSettings.wsUrl,
-        username: aeroSettings.username,
-        password: aeroSettings.password,
-        payload,
-      });
-
+      // El atajo recibe el cuerpo del POST y nada más: la URL y el encabezado son constantes de la
+      // fábrica y viven dentro del atajo. Cuanto menos tenga que armar el teléfono, más probable es
+      // que el atajo exista y siga funcionando.
       void postAeroAuditEvent({
         event: 'launch_sync',
         phase: 'requested',
-        destinationUrl: envelope.url,
+        destinationUrl: aeroEndpoint(aeroSettings.wsUrl, 'entradasitem'),
         payload,
         note: next.rest.items.length > 0 ? `${next.rest.items.length} pending` : 'last entry',
       });
 
-      window.location.href = aeroShortcutTriggerUrl({ name: aeroSettings.shortcutName, envelope });
+      window.location.href = aeroShortcutTriggerUrl({ name: aeroSettings.shortcutName, payload });
     },
     [aeroSettings],
   );

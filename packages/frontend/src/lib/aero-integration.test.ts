@@ -11,13 +11,11 @@ import {
   aeroCallbackUrl,
   aeroConnectionBlocker,
   aeroEndpoint,
-  aeroLaunchEnvelope,
   aeroSettingsReady,
   aeroShortcutTriggerUrl,
-  aeroShortcutUrl,
+  aeroShortcutRecipe,
   basicAuthHeader,
   buildAeroEntryPayload,
-  buildAeroShortcutEnvelope,
   buildEntradaItemPayload,
   clearAeroPendingSync,
   clearAeroSettings,
@@ -381,8 +379,12 @@ describe('aero-integration: readAeroTestResult', () => {
   });
 });
 
-describe('aero-integration: shortcuts and envelopes', () => {
-  it('builds launch envelope with endpoint, auth, and serialized JSON body', () => {
+describe('aero-integration: the two-action shortcut', () => {
+  // El atajo tiene que poder armarse con dos acciones nativas. Si el `text` del deep link llevara el
+  // sobre { url, authorization, body }, la persona que lo instala tendría que abrir un diccionario y
+  // leer tres claves antes de llegar al POST: siete pasos en un teléfono, que es exactamente lo que
+  // no ocurrió. El payload viaja como JSON plano y el atajo lo entrega tal cual como cuerpo.
+  it('sends the entry payload itself as the shortcut text, not a transport envelope', () => {
     const payload = buildEntradaItemPayload({
       productCode: '1001',
       productName: 'MASSA TRADICIONAL 500G',
@@ -390,47 +392,33 @@ describe('aero-integration: shortcuts and envelopes', () => {
       entryDate: '2026-10-27',
       userCode: 12,
     });
+    const url = aeroShortcutTriggerUrl({ name: 'Aero32 Estoque', payload });
 
-    const envelope = aeroLaunchEnvelope({
-      wsUrl: 'http://192.168.1.50:8000/api',
-      username: 'wilkin',
-      password: 'senha',
-      payload,
-    });
+    const parsed = new URL(url);
+    assert.equal(parsed.protocol, 'shortcuts:');
+    assert.equal(parsed.searchParams.get('input'), 'text');
+    const text = parsed.searchParams.get('text');
+    assert.ok(text);
 
-    assert.equal(envelope.url, 'http://192.168.1.50:8000/api/entradasitem');
-    assert.equal(envelope.authorization, basicAuthHeader('wilkin', 'senha'));
-    assert.equal(envelope.body, JSON.stringify(payload));
-
-    const settings: AeroSettings = {
-      ...DEFAULT_AERO_SETTINGS,
-      wsUrl: 'http://192.168.1.50:8000/api',
-      username: 'wilkin',
-      password: 'senha',
-    };
-    const shortcutEnv = buildAeroShortcutEnvelope({ settings, payload });
-    assert.deepEqual(shortcutEnv, envelope);
+    // Lo que llega al atajo es el cuerpo exacto del POST, sin envoltorio.
+    assert.equal(text, JSON.stringify(payload));
+    assert.deepEqual(JSON.parse(text), payload);
+    assert.equal('url' in JSON.parse(text), false);
+    assert.equal('authorization' in JSON.parse(text), false);
   });
 
-  it('generates iOS shortcut URL containing encoded envelope JSON in text param', () => {
-    const envelope = {
-      url: 'http://192.168.1.50:8000/api/entradasitem',
-      authorization: 'Basic d2lsa2luOnNlbmhh',
-      body: '{"PRO_COD":"1001"}',
-    };
-    const shortcutName = 'Aero32 Estoque';
-    const url = aeroShortcutTriggerUrl({ name: shortcutName, envelope });
+  it('hands the shortcut the endpoint and the Authorization header as separate copyable strings', () => {
+    const recipe = aeroShortcutRecipe({
+      wsUrl: 'http://192.168.1.50:8000/api',
+      username: 'wilkin',
+      password: 'senha',
+      callbackUrl: 'https://trindademasas.duckdns.org/massas-launch?aero_sync=ok',
+    });
 
-    assert.ok(url.startsWith('shortcuts://x-callback-url/run-shortcut?'));
-    const parsed = new URL(url);
-    assert.equal(parsed.searchParams.get('name'), shortcutName);
-    assert.equal(parsed.searchParams.get('input'), 'text');
-    const textParam = parsed.searchParams.get('text');
-    assert.ok(textParam);
-    assert.deepEqual(JSON.parse(textParam), envelope);
-
-    // Also verify aeroShortcutUrl alias
-    assert.equal(aeroShortcutUrl(envelope, shortcutName), url);
+    assert.equal(recipe.endpoint, 'http://192.168.1.50:8000/api/entradasitem');
+    assert.equal(recipe.authorization, basicAuthHeader('wilkin', 'senha'));
+    assert.equal(recipe.callbackUrl, 'https://trindademasas.duckdns.org/massas-launch?aero_sync=ok');
+    assert.equal(recipe.contentType, 'application/json');
   });
 });
 
