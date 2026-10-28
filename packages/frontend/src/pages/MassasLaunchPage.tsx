@@ -244,12 +244,17 @@ export function MassasLaunchPage() {
       writeAeroQueue(next.rest);
       setSyncAwaiting({ date: queue.date, remaining: next.rest.items.length });
 
+      const operatorUser =
+        aeroSettings.userCode ??
+        (aeroSettings.username?.trim() ? aeroSettings.username.trim() : null) ??
+        (user?.username?.trim() ? user.username.trim() : null);
+
       const payload = buildEntradaItemPayload({
         productCode: next.item.productCode,
         productName: next.item.productName,
         quantity: next.item.quantity,
         entryDate: queue.date,
-        userCode: aeroSettings.userCode,
+        userCode: operatorUser,
       });
       // El atajo recibe el cuerpo del POST y nada más: la URL y el encabezado son constantes de la
       // fábrica y viven dentro del atajo. Cuanto menos tenga que armar el teléfono, más probable es
@@ -264,7 +269,7 @@ export function MassasLaunchPage() {
 
       window.location.href = aeroShortcutTriggerUrl({ name: aeroSettings.shortcutName, payload });
     },
-    [aeroSettings],
+    [aeroSettings, user],
   );
 
   /**

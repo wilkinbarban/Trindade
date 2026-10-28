@@ -300,7 +300,7 @@ export interface AeroEntryPayload {
   PRO_QTD: number;
   PRO_CST: string;
   ENT_DTA: string;
-  ENT_USU: number;
+  ENT_USU: number | string;
   ENT_SER: string;
   ENT_DTANOT: string;
   ENT_DTMOVI: string;
@@ -309,12 +309,24 @@ export interface AeroEntryPayload {
 }
 
 /**
- * Resolves the operator id an entry carries, keeping only a value the ERP can accept.
+ * Resolves the operator identity (numeric code or username string) an entry carries.
+ * Matches base.apk which passes txtUsuario.Text directly into ENT_USU.
  */
-export function aeroUserCode(userCode: number | null | undefined): number {
-  return typeof userCode === 'number' && Number.isInteger(userCode) && userCode > 0
-    ? userCode
-    : AERO_FALLBACK_USER_CODE;
+export function aeroUserCode(userCode: string | number | null | undefined): number | string {
+  if (typeof userCode === 'number' && Number.isInteger(userCode) && userCode > 0) {
+    return userCode;
+  }
+  if (typeof userCode === 'string') {
+    const trimmed = userCode.trim();
+    if (trimmed) {
+      const parsed = Number.parseInt(trimmed, 10);
+      if (Number.isInteger(parsed) && String(parsed) === trimmed && parsed > 0) {
+        return parsed;
+      }
+      return trimmed;
+    }
+  }
+  return AERO_FALLBACK_USER_CODE;
 }
 
 /**
@@ -337,8 +349,8 @@ export function buildEntradaItemPayload(args: {
   productName: string;
   quantity: number;
   entryDate: Date | string;
-  /** The ERP operator id; anything unusable falls back to {@link AERO_FALLBACK_USER_CODE}. */
-  userCode?: number | null;
+  /** The ERP operator id or username; anything unusable falls back to {@link AERO_FALLBACK_USER_CODE}. */
+  userCode?: string | number | null;
   /** Only for a caller that must quote a series: the ERP entry always carries {@link AERO_ENTRY_SERIES}. */
   entrySeries?: string;
   observation?: string | null;
@@ -381,7 +393,7 @@ export function buildAeroEntryPayload(args: {
   boxes: number;
   unitsPerBox: number;
   date: string;
-  userCode?: number | null;
+  userCode?: string | number | null;
   observation?: string;
   productCst?: string | null;
 }): AeroEntryPayload {
