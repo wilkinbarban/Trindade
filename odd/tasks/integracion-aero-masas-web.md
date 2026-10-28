@@ -392,3 +392,73 @@ y en `/api/health`. El bundle servido contiene `items-center gap-2 sm:w-auto sm:
 L9 — obstáculo real del contenedor: el comando que pasó el usuario (L6) falla con `mkdir: cannot create
 directory '//.cache': Permission denied` porque `HOME=/` dentro de la imagen. Se corrió el mismo comando con
 `-e HOME=/tmp` y el script eligió `/tmp/.cache/trindade-openapi-generator`. No se modificó el script.
+
+### Evidencia — DateField con el input nativo encima (commit `54ab0b7`)
+
+RED, medido con Playwright a 375x844 sobre el árbol anterior: el `<input type="date">` de Chromium con
+locale pt-BR ocupaba 222px y el chip arrancaba 8px después, pero en Safari el mismo control mide ~250px
+intrínsecos y se sale de su caja: en las capturas de Wilkin el chip «Histórico» se dibuja sobre el borde
+derecho del campo (foto `photo_AQADQQ1rGzNYEUd-.jpg`, Calculador de Estoque). `min-w-0` no puede encogerlo
+porque el ancho lo fija el shadow DOM de WebKit.
+
+GREEN, ocho combinaciones (4 rutas x 375/390), midiendo la caja visible, el input invisible y el chip:
+
+  375 /massas-launch     caja 125x44 "28/10/2026" | chip 109 | gap 8 | solape caja/chip: no | toque→input: sí
+  375 /massas-history    caja 125x44 "27/10/2026" | chip  79 | gap 8 | no | sí
+  375 /stock-calculator  caja 125x44 "28/10/2026" | chip 109 | gap 8 | no | sí
+  375 /stock-history     caja 125x44 "27/10/2026" | chip 110 | gap 8 | no | sí
+  390 (las cuatro)       idéntico
+
+En las ocho: el input invisible queda recortado exactamente a la caja (`|right_input - right_caja| <= 1`), no
+hay solape entre input y chip, `scrollWidth === clientWidth`, la caja mide 125x44 y tocar su centro deja
+`document.activeElement` en el `<input type="date">`, que es el gesto que abre el wheel de iOS. Fila total
+125 + 8 + 110 = 243px de 343 disponibles a 375px: ~100px de margen, como pedía L10.
+
+Formato: `formatDateLabel('2026-10-28') === '28/10/2026'` y los dos tests nuevos fijan además que un valor
+vacío o incompleto se devuelve intacto, nunca como un día inventado ni como `undefined`. RED observado:
+`does not provide an export named 'formatDateLabel'`. GREEN: 197/197 frontend (195 previos + 2), 532/532
+backend, `tsc --noEmit` limpio, detector `impeccable detect --json` sobre las cinco piezas: `[]`.
+
+CI de GitHub Actions: run 40683453980 sobre `54ab0b7`, `verify: success` y `android: success`.
+
+Despliegue: `54ab0b7` en `main` pusheado a `origin/main`; `docker compose build web && docker compose up -d
+web` → `trindade-web-1 healthy`; HTTP 200 en `https://trindademasas.duckdns.org` y en `/api/health`. El bundle
+servido contiene `absolute inset-0 h-full w-full min-w-0 cursor-pointer opacity-0` y `tabular-nums`.
+
+L10 — pedido del usuario, literal:
+
+  Wilkin subió 4 capturas nuevas tomadas desde su iPhone en Safari (en ~/adjuntos/photo_AQADQA*.jpg a photo_AQADQw*.jpg). Mirá las capturas: en las 4 pantallas el botón derecho se monta físicamente encima del borde derecho del campo de fecha.
+
+  Causa raíz en Safari iOS:
+  El `<input type="date">` nativo de Safari renderiza el texto largo localizado ("28 de out. de 2026") con un ancho intrínseco de ~250px en el shadow DOM de WebKit. Aunque el contenedor tenga `min-w-0 flex-1`, el elemento nativo de Safari no se encoge y desborda hacia la derecha, haciendo que el botón que viene después se dibuje encima del borde derecho de la fecha. Además, en WebKit no se puede formatear el texto interno de un `<input type="date">` nativo por CSS/JS porque toma el locale del sistema operativo.
+
+  La solución estándar e impecable para mobile web:
+  Implementar un trigger visual compacto con el input nativo transparente superpuesto:
+  1. Un contenedor relativo con apariencia de botón/input de 44px de alto:
+     - Muestra el texto formateado corto en formato estándar: DD/MM/AAAA (ej: "28/10/2026" o "28 out 2026") con un ícono `Calendar` de lucide-react.
+     - Ancho compacto natural (~135px - 145px).
+  2. Dentro del contenedor, el `<input type="date">` con clases:
+     `absolute inset-0 h-full w-full opacity-0 cursor-pointer`
+     manteniendo sus atributos: `id`, `value`, `min`, `max`, `onChange`, `data-testid`, etc.
+  3. Al tocar la caja, el tap lo recibe el input transparente y Safari abre el wheel/calendario nativo de iOS. Al elegir fecha, el texto visible se actualiza inmediatamente a "DD/MM/AAAA".
+  4. Al medir solo ~135px, entra al lado del botón de histórico/vuelta (~100px) sumando ~240px: en un iPhone de 375px sobran más de 100px de margen. Cero solape, cero desborde, y el campo de fecha queda proporcionado y pequeño como pidió Wilkin.
+
+  Aplicá este componente/patrón en los 4 módulos:
+  - MassasLaunchPage
+  - StockCalculatorPage
+  - MassasHistoryPage
+  - StockHistoryPage
+
+  Reglas de entrega:
+  - Correr suites de tests completas (195 frontend, 532 backend).
+  - Verificar que a 375px y 390px no haya solapamiento alguno.
+  - Commit directo a main con conventional commits (sin Co-Authored-By ni ramas) y push a origin.
+  - Reconstruir imagen de producción en Docker (`docker compose build web && docker compose up -d web`) y verificar HTTP 200 en https://trindademasas.duckdns.org.
+
+  Avisame cuando quede listo.
+
+L11 — dos desvíos mínimos sobre las clases literales de L10, ambos declarados: (a) la caja mide 125px y no
+135-145px porque el texto `DD/MM/AAAA` más el ícono y el padding dan ese ancho natural y no se fuerza relleno
+artificial; (b) el input lleva además `min-w-0` y la caja `overflow-hidden`, porque un input absoluto con
+`w-full` todavía puede imponer su ancho intrínseco y, sin el recorte, su caja invisible habría robado el tap
+del chip vecino. El piso táctil de 44px se mantiene (`h-11`, `sm:h-10`), igual que en L7.
