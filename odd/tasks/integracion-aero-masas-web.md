@@ -14,11 +14,12 @@ base, nunca el cliente); (b) el cliente no renderiza ni ejecuta nada de la integ
 `username !== 'wilkin'` o el rol no es `Administrador`.
 
 S2 — Sección colapsable «Configuração Integração Empresa» dentro de Lançamento de Masas, visible solo para
-`wilkin`. Campos exactos: «URL del WebService (ej. http://192.168.1.50:8000/api), Usuario de empresa,
-Contraseña de empresa.» Guardado: «privado y seguro en localStorage del navegador del iPhone.» Se suman
-dos ajustes de operación: unidad de cantidad enviada al ERP (`UN` por defecto, `CX` alternativo) y serie
-`ENT_SER` (por defecto `APL`), porque ninguna de las dos está fijada por el contrato y las dos deciden qué
-escribe el ERP.
+`wilkin`. La UI muestra **tres campos y nada más**: «1. URL del WebService (`http://IP:PUERTO/api`) 2.
+Usuario 3. Contraseña», guardados «privado y seguro en localStorage del navegador del iPhone». El lanzamiento
+es «SIEMPRE por unidades individuales (`UN`)»: «No existe lanzamiento por cajas (`CX`)», así que el selector
+de unidad desaparece de la UI y la cantidad que viaja al ERP es siempre `cajas × unidades por caja`. La serie
+`ENT_SER` es fija «("APL")» porque así está en el binario Delphi de `base.apk`: el operario no configura serie
+ni unidad, y ambas viven como constantes del módulo, no como ajustes.
 
 S3 — Botón «Testar Conexão»: «intenta validar contra /api/usuarios/ y reporta el resultado al backend para
 auditoría.» El resultado exitoso guarda `CODIGO` como `ENT_USU`. Cuando la página corre en HTTPS y el
@@ -64,6 +65,19 @@ ODD y TDD.»; «todos los tests queden en verde»; «commits atómicos en main, 
 healthcheck HTTP 200 en el dominio público y dejalo 100% publicado y listo.» El backend también cambia, así
 que la imagen `api` se reconstruye en el mismo despliegue.
 
+S11 — Fecha y botón nunca se solapan en un iPhone. Pedido: «En móvil (`< sm`), cambiar a apilamiento vertical
+(`flex flex-col gap-2 w-full sm:flex-row sm:items-center sm:w-auto`)» en las cuatro pantallas que hoy usan
+`grid grid-cols-2 items-end gap-2 w-full sm:flex ...`: `MassasLaunchPage` (fecha vs «Ver Histórico»),
+`StockCalculatorPage` (fecha vs «Ir ao Histórico»), `MassasHistoryPage` (fecha vs «Voltar para Hoje») y
+`StockHistoryPage` (fecha vs «Voltar ao contador»). En móvil cada control ocupa el 100% de su fila y el botón
+queda debajo con 44px de alto; desde `sm` vuelven lado a lado en la misma fila. La causa citada: «En Safari
+iOS, el input de fecha nativo formatea `28 de out. de 2026`, cuyo ancho intrínseco excede los 160px que le da
+la grilla en un iPhone de 375-390px».
+
+S12 — Cierre: «Ejecutar la suite de tests para asegurar 0 fallos»; «Commit atómico directo a `main` sin
+Co-Authored-By y push a `origin main`»; «Reconstruir la imagen de producción en Docker (`docker compose build
+web && docker compose up -d web`)»; «Validar HTTP 200 en `https://trindademasas.duckdns.org`».
+
 ## Tasks
 
 - T1 (S6, S7, S9): servicio de bitácora, contrato zod y ruta `POST /api/integration/aero/log` con guarda de
@@ -86,6 +100,14 @@ que la imagen `api` se reconstruye en el mismo despliegue.
   camino de lanzamiento en iPhone: piso táctil de 44px en las primitivas, título del panel, diálogo del atajo
   con un solo scroll y acciones alcanzables, densidad de la grilla y copy de ambos locales. Ruta: inline ·
   commit `fix(mobile)`.
+- T8 (S2, S3, S9): panel reducido a URL, usuario y contraseña; unidad fija `UN` y serie fija `APL` como
+  constantes del módulo; payload siempre en unidades; trazabilidad en la bitácora cuando falta el `ENT_USU`
+  capturado por «Probar conexión». Tests de la librería reescritos al contrato nuevo. Ruta: inline ·
+  commit `refactor(aero)`.
+- T9 (S11): fecha y botón apilados en móvil en las cuatro pantallas, con el piso táctil intacto. Ruta:
+  inline · commit `fix(mobile)`.
+- T10 (S12): suites completas, commit atómico en `main`, push a `origin`, rebuild de la imagen `web` y HTTP
+  200 en producción. Ruta: inline · evidencia en el Log.
 
 ## Log
 
@@ -166,3 +188,61 @@ Pendiente conocido, fuera de este alcance: en `/admin` las pestañas (32px) y en
 días de la semana (34px) siguen por debajo del piso táctil; el modal de confirmación de masas repite el
 título de la página dentro de la tarjeta de la grilla; la hora del historial se muestra en formato de 12
 horas («05:00 AM»).
+
+L3 — pedido del usuario, literal:
+
+  Hola colega. Wilkin probó la aplicación web directamente desde su iPhone en Safari y nos envió 4 capturas
+  exactas en `/home/wilkin/adjuntos/` (Operations 1 a 4) con dos pedidos puntuales de remediación urgente que
+  debemos resolver y desplegar:
+
+  ### 1. Simplificación de la configuración de conexión (AeroIntegrationPanel):
+  - **Lanzamiento siempre por unidades:** En la fábrica el lanzamiento SIEMPRE es por unidades individuales
+    (`UN`). No existe lanzamiento por cajas (`CX`). Eliminar el selector de unidades de la UI de configuración
+    y dejarlo internamente fijo en `UN`.
+  - **Serie de lanzamiento (`ENT_SER`):** En el binario Delphi de `base.apk` la serie es fija (`"APL"`). El
+    usuario no tiene por qué saber qué es una serie contable/fiscal ni configurarla. Eliminar ese campo de la
+    UI y dejarlo internamente como constante invariable (`"APL"`).
+  - **Los ÚNICOS 3 campos que debe ver el usuario en la UI son:**
+    1. URL del WebService (`http://IP:PUERTO/api`)
+    2. Usuario
+    3. Contraseña
+    Cualquier otro dato necesario (como el código numérico `ENT_USU` / `CODIGO`) se captura automáticamente de
+    la API al presionar "Probar conexión". Si algún dato adicional no se puede capturar, se registra la
+    trazabilidad en `logs/aero-integration.log`.
+
+  ### 2. Remediación del solapamiento de fecha y botones en iPhone (Causa raíz identificada):
+  Wilkin adjuntó las capturas en `/home/wilkin/adjuntos/` donde se ve claramente el defecto en 4 páginas:
+  1. `MassasLaunchPage.tsx`: Fecha vs "Ver Histórico"
+  2. `StockCalculatorPage.tsx`: Fecha vs "Ir ao Histórico"
+  3. `MassasHistoryPage.tsx`: Fecha vs "Voltar para Hoje"
+  4. `StockHistoryPage.tsx`: Fecha vs "Voltar ao contador"
+
+  **Causa Raíz:**
+  En las 4 pantallas se usó:
+  `<div className="grid grid-cols-2 items-end gap-2 w-full sm:flex sm:items-center sm:gap-2 sm:w-auto shrink-0">`
+  En Safari iOS, el input de fecha nativo formatea `28 de out. de 2026`, cuyo ancho intrínseco excede los
+  160px que le da la grilla en un iPhone de 375-390px. Como resultado, el botón contiguo se monta y solapa
+  físicamente sobre el borde del campo de fecha.
+
+  **Solución Requerida:**
+  En móvil (`< sm`), cambiar a apilamiento vertical (`flex flex-col gap-2 w-full sm:flex-row sm:items-center
+  sm:w-auto`):
+  - En móvil: el selector de fecha ocupa el 100% del ancho de su fila, y el botón de histórico/volver ocupa el
+    100% del ancho debajo, con altura mínima de 44px táctil.
+  - En pantallas medianas/grandes (`sm:` en adelante): se mantienen lado a lado en la misma fila (`sm:flex-row
+    sm:items-center sm:w-auto`).
+  - Esto elimina de raíz cualquier posibilidad de solapamiento en Safari iOS.
+
+  ### 3. Pipeline de cierre:
+  - Ejecutar la suite de tests para asegurar 0 fallos.
+  - Commit atómico directo a `main` sin Co-Authored-By y push a `origin main`.
+  - Reconstruir la imagen de producción en Docker (`docker compose build web && docker compose up -d web`).
+  - Validar HTTP 200 en `https://trindademasas.duckdns.org`.
+
+L4 — decisión de diseño sobre la alineación en `sm` (desvío mínimo, declarado): el pedido nombra
+`sm:items-center`. En `MassasLaunchPage` y `MassasHistoryPage` la etiqueta de la fecha es `sm:sr-only` y no
+ocupa alto, así que `items-center` y `items-end` son idénticos; en `StockCalculatorPage` y `StockHistoryPage`
+la etiqueta es visible, y con `items-center` el botón quedaría flotando ~15px por encima del campo. Se usa
+`sm:items-end` en las cuatro para que el botón se apoye en el mismo borde que el campo de fecha, con una sola
+cadena de clases para las cuatro pantallas. El requisito de fondo —apilado a ancho completo en móvil, fila
+lado a lado desde `sm`— se cumple tal cual.
