@@ -124,3 +124,28 @@ export function requireRole(...roles: string[]) {
     }
   };
 }
+
+// --------------- Username Guard ---------------
+
+/**
+ * Returns a `preHandler` that requires the authenticated user to have one
+ * of the specified usernames.
+ *
+ * Usage:
+ *   fastify.post('/wilkin-only', {
+ *     preHandler: [fastify.authenticate, requireUsername('wilkin')]
+ *   }, handler)
+ */
+export function requireUsername(...usernames: string[]) {
+  return async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!request.user) {
+      return reply.status(401).send({ error: 'Authentication required' });
+    }
+
+    if (!usernames.includes(request.user.username)) {
+      return reply
+        .status(403)
+        .send({ error: 'Insufficient permissions' });
+    }
+  };
+}

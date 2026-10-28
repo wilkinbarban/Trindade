@@ -120,6 +120,11 @@ import {
   MassasErrorResponseSchema,
 } from '../modules/massas/massas.schema.js';
 import {
+  AeroErrorResponseSchema,
+  AeroLogBodySchema,
+  AeroLogResponseSchema,
+} from '../modules/integration/aero.schema.js';
+import {
   HealthResponseSchema,
   PaginationSchema,
   SuccessResponseSchema,
@@ -317,6 +322,9 @@ registerComponent(registry, 'StockHistory', StockHistorySchema);
   registerComponent(registry, 'MassasLaunchDeleteResponse', MassasLaunchDeleteResponseSchema);
   registerComponent(registry, 'MassaHistoryDay', MassaHistoryDaySchema);
   registerComponent(registry, 'MassasHistoryResponse', MassasHistoryResponseSchema);
+  registerComponent(registry, 'AeroLogRequest', AeroLogBodySchema);
+  registerComponent(registry, 'AeroLogResponse', AeroLogResponseSchema);
+  registerComponent(registry, 'AeroLogError', AeroErrorResponseSchema);
 
   // Response envelopes. These existed as schemas and were used in the paths below, but were never
   // registered, so every one of them was expanded inline and a generated client got an unnamed
@@ -1532,6 +1540,24 @@ registerComponent(registry, 'StockHistory', StockHistorySchema);
       401: UNAUTHORIZED,
       403: massasErrorResponse('The launch belongs to another user'),
       404: massasErrorResponse('The launch does not exist'),
+    },
+  });
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/integration/aero/log',
+    summary: 'Append an event to the company integration audit trail',
+    description:
+      'Restricted to the owner admin, and the identity written on the line is the one the token resolved ' +
+      'to against the database, never one sent in the body. The event lands as one JSON line in the ' +
+      'rotating audit log; credentials and authorization headers are never stored.',
+    tags: ['integration'],
+    request: jsonRequest(AeroLogBodySchema),
+    responses: {
+      200: jsonResponse('The event was appended to the audit trail', AeroLogResponseSchema),
+      400: jsonResponse('The event failed validation', AeroErrorResponseSchema),
+      401: errorResponse('Missing or invalid token'),
+      403: errorResponse('The authenticated user is not the owner admin'),
     },
   });
 

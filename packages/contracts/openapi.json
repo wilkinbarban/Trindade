@@ -1716,6 +1716,105 @@
         ],
         "additionalProperties": false
       },
+      "AeroLogRequest": {
+        "type": "object",
+        "properties": {
+          "event": {
+            "type": "string",
+            "enum": [
+              "test_connection",
+              "launch_sync",
+              "read_history"
+            ]
+          },
+          "phase": {
+            "type": "string",
+            "enum": [
+              "requested",
+              "result"
+            ]
+          },
+          "destinationUrl": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "httpStatus": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 100,
+            "maximum": 599
+          },
+          "payload": {},
+          "response": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 4096
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 1024
+          },
+          "launchId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "exclusiveMinimum": 0
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 256
+          }
+        },
+        "required": [
+          "event",
+          "destinationUrl"
+        ],
+        "additionalProperties": false
+      },
+      "AeroLogResponse": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "additionalProperties": false
+      },
+      "AeroLogError": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "details": {}
+        },
+        "required": [
+          "error",
+          "code"
+        ],
+        "additionalProperties": false
+      },
       "SchedulesResponse": {
         "type": "object",
         "properties": {
@@ -8353,6 +8452,66 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/MassasErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/integration/aero/log": {
+      "post": {
+        "summary": "Append an event to the company integration audit trail",
+        "description": "Restricted to the owner admin, and the identity written on the line is the one the token resolved to against the database, never one sent in the body. The event lands as one JSON line in the rotating audit log; credentials and authorization headers are never stored.",
+        "tags": [
+          "integration"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AeroLogRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The event was appended to the audit trail",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AeroLogResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The event failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AeroLogError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The authenticated user is not the owner admin",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
