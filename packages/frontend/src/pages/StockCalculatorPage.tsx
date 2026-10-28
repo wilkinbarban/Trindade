@@ -205,9 +205,9 @@ export function StockCalculatorPage() {
           </div>
           <p className="text-sm text-gray-500">{canEdit ? t('stock.subtitle') : t('stock.readOnly')}</p>
         </div>
-        {/* La fecha y el acceso al histórico van juntos, lado a lado también en un teléfono: dos
-            botones apilados a todo el ancho se comían media pantalla antes de llegar al contador. */}
-        <div className="grid grid-cols-2 items-end gap-2 w-full sm:flex sm:items-end sm:gap-2 sm:w-auto shrink-0">
+        {/* Apilados en el teléfono: el campo de fecha nativo de Safari mide ~185px y no entra en media
+            pantalla de iPhone, donde el botón terminaba encima del campo. Desde `sm` comparten fila. */}
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-end sm:shrink-0">
           <div className="w-full sm:w-auto">
             <label htmlFor="stock-date" className="block text-xs font-medium text-gray-600">{t('stock.date')}</label>
             <Input

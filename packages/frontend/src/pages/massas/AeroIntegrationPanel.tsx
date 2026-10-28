@@ -11,7 +11,6 @@ import {
   DEFAULT_AERO_SETTINGS,
   normalizeAeroWsUrl,
   saveAeroSettings,
-  type AeroQuantityUnit,
   type AeroSettings,
 } from '../../lib/aero-integration';
 import { probeAeroConnection, type AeroConnectionProbe } from '../../lib/aero-connection';
@@ -40,8 +39,6 @@ export function AeroIntegrationPanel({ settings, onSettingsSaved }: AeroIntegrat
     wsUrl: settings.wsUrl,
     username: settings.username,
     password: settings.password,
-    quantityUnit: settings.quantityUnit,
-    entrySeries: settings.entrySeries,
   });
   const [busy, setBusy] = useState<'save' | 'test' | null>(null);
   const [probe, setProbe] = useState<AeroConnectionProbe | null>(null);
@@ -74,8 +71,6 @@ export function AeroIntegrationPanel({ settings, onSettingsSaved }: AeroIntegrat
       wsUrl: normalizedUrl,
       username: draft.username.trim(),
       password: draft.password,
-      quantityUnit: draft.quantityUnit,
-      entrySeries: draft.entrySeries.trim() || DEFAULT_AERO_SETTINGS.entrySeries,
     });
     setDraft((current) => ({ ...current, wsUrl: normalizedUrl, username: draft.username.trim() }));
     setNotice({ tone: 'ok', text: t('massas.aero.saved') });
@@ -104,8 +99,6 @@ export function AeroIntegrationPanel({ settings, onSettingsSaved }: AeroIntegrat
         wsUrl: normalizeAeroWsUrl(draft.wsUrl) ?? settings.wsUrl,
         username: draft.username.trim(),
         password: draft.password,
-        quantityUnit: draft.quantityUnit,
-        entrySeries: draft.entrySeries.trim() || DEFAULT_AERO_SETTINGS.entrySeries,
         userCode: outcome.userCode,
       });
       setNotice({ tone: 'ok', text: t('massas.aero.testOk', { name: outcome.userName, code: outcome.userCode }) });
@@ -117,7 +110,7 @@ export function AeroIntegrationPanel({ settings, onSettingsSaved }: AeroIntegrat
   const handleClear = () => {
     if (!window.confirm(t('massas.aero.clearConfirm'))) return;
     clearAeroSettings();
-    setDraft({ wsUrl: '', username: '', password: '', quantityUnit: 'UN', entrySeries: DEFAULT_AERO_SETTINGS.entrySeries });
+    setDraft({ wsUrl: '', username: '', password: '' });
     setProbe(null);
     setNotice({ tone: 'warn', text: t('massas.aero.cleared') });
     onSettingsSaved(DEFAULT_AERO_SETTINGS);
@@ -215,41 +208,7 @@ export function AeroIntegrationPanel({ settings, onSettingsSaved }: AeroIntegrat
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <span className="block text-xs font-semibold text-gray-600">{t('massas.aero.unitLabel')}</span>
-              <div role="group" aria-label={t('massas.aero.unitLabel')} className="flex rounded-lg border border-gray-300 p-0.5">
-                {(['UN', 'CX'] as AeroQuantityUnit[]).map((unit) => (
-                  <button
-                    key={unit}
-                    type="button"
-                    onClick={() => setDraft((current) => ({ ...current, quantityUnit: unit }))}
-                    aria-pressed={draft.quantityUnit === unit}
-                    className={`flex-1 min-h-[44px] rounded-md text-sm font-semibold transition-colors ${
-                      draft.quantityUnit === unit ? 'bg-amber-600 text-white' : 'text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    {unit === 'UN' ? t('massas.aero.unitUn') : t('massas.aero.unitCx')}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <label htmlFor="aero-ws-series" className="block text-xs font-semibold text-gray-600">
-                {t('massas.aero.seriesLabel')}
-              </label>
-              <Input
-                id="aero-ws-series"
-                autoCapitalize="characters"
-                autoCorrect="off"
-                spellCheck={false}
-                maxLength={6}
-                value={draft.entrySeries}
-                onChange={(event) => setDraft((current) => ({ ...current, entrySeries: event.target.value.toUpperCase() }))}
-                className="h-11 text-base"
-              />
-            </div>
-          </div>
+          <p className="text-xs text-gray-500 leading-relaxed">{t('massas.aero.fieldsHint')}</p>
 
           {settings.syncEnabled && settings.userCode === null && (
             <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
@@ -309,8 +268,8 @@ export function AeroIntegrationPanel({ settings, onSettingsSaved }: AeroIntegrat
             <Button
               type="button"
               onClick={() => setShortcutOpen(true)}
-              variant="ghost"
-              className="min-h-[44px] w-full sm:w-auto font-semibold text-gray-700"
+              variant="outline"
+              className="min-h-[44px] w-full sm:w-auto font-semibold"
               data-testid="aero-shortcut-open"
             >
               {t('massas.aero.shortcut')}

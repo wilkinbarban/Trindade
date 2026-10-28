@@ -99,9 +99,10 @@ export function StockHistoryPage() {
           </div>
           <p className="text-sm text-gray-500">{t('stock.historySubtitle')}</p>
         </div>
-        {/* La fecha y la vuelta al contador comparten fila, como en el calculador. Una sola fecha y
-            dos topes: la última noche cerrada hacia atrás y treinta días de archivo. */}
-        <div className="grid grid-cols-2 items-end gap-2 w-full sm:flex sm:items-end sm:gap-2 sm:w-auto shrink-0">
+        {/* Como en el calculador: apilados en el teléfono, porque el campo de fecha de Safari no cabe en
+            media pantalla, y en fila desde `sm`. Una sola fecha y dos topes: la última noche cerrada hacia
+            atrás y treinta días de archivo. */}
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-end sm:shrink-0">
           <div className="w-full sm:w-auto">
             <label className="block text-xs font-medium text-gray-600" htmlFor="stock-history-date">
               {t('stock.date')}

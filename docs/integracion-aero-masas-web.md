@@ -64,14 +64,25 @@ vuelta en otra pestaña.
 Dentro de *Lançamento de Masas*, debajo de la grilla, hay una tarjeta colapsable. Arranca abierta solo
 cuando todavía no hay nada configurado.
 
+El panel pide **tres datos y nada más**, que es lo que un operario puede saber de memoria en la fábrica:
+
 | Campo | Qué es | Validación |
 | --- | --- | --- |
 | URL do WebService | Base del WebService, ej. `http://192.168.1.50:8000/api` | Debe empezar con `http://` o `https://`; se normaliza (sin barra final duplicada) |
-| Usuário da empresa | Usuario del WebService (`ENT_USU`) | No vacío |
+| Usuário da empresa | Usuario del WebService | No vacío |
 | Senha da empresa | Contraseña del WebService | No vacía; se muestra enmascarada |
-| Quantidade enviada ao ERP | `UN` (unidades) o `CX` (cajas) | Por defecto `UN` |
-| Série do lançamento | `ENT_SER` | Por defecto `APL`, hasta 6 caracteres, mayúsculas |
-| — | Código de usuario (`ENT_USU`) | Lo aporta *Testar Conexão* a partir de `CODIGO` |
+
+Todo lo demás lo resuelve el sistema, porque no es una decisión del operario:
+
+| Dato | Cómo se obtiene |
+| --- | --- |
+| Código de usuario (`ENT_USU`) | Lo captura *Testar Conexão* del campo `CODIGO` que devuelve `/usuarios/` y queda guardado en el teléfono |
+| Cantidad (`PRO_QTD`) | Siempre en **unidades**: `cajas × unidades por caja`. No existe lanzamiento por cajas |
+| Serie del asiento (`ENT_SER`) | Fija en `APL`, la que trae quemada el binario Delphi de `base.apk` |
+
+Si el código no se pudo capturar, el lanzamiento **igual se guarda en Trindade** y el motivo queda escrito en
+`logs/aero-integration.log` (`error: "userCode missing"`), para poder reconstruir por qué un día no llegó al
+stock de la empresa.
 
 Los ajustes viven en el `localStorage` de **ese** iPhone, no en el servidor. Dos consecuencias: hay que
 configurar una vez por teléfono, y borrar los datos de Safari equivale a borrar la configuración. El

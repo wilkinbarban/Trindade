@@ -11,15 +11,23 @@ export const AERO_INTEGRATION_USERNAME = 'wilkin';
 export const AERO_DEFAULT_SHORTCUT_NAME = 'Aero32 Estoque';
 export const AERO_TEST_TIMEOUT_MS = 8000;
 
-export type AeroQuantityUnit = 'UN' | 'CX';
+/**
+ * The entry series the ERP expects, and the only one it will ever get.
+ *
+ * `APL` is burnt into the Delphi binary of `base.apk`, so a series is not a decision the operator makes --
+ * it is a fact about the company's system. Keeping it here, out of the settings, is what lets the panel ask
+ * for three things instead of five.
+ */
+export const AERO_ENTRY_SERIES = 'APL';
+
+/** Launches never travel per box: the factory counts boxes, the ERP receives units. */
+export const AERO_QUANTITY_UNIT = 'UN';
 
 export interface AeroSettings {
   wsUrl: string;
   username: string;
   password: string;
   userCode: number | null;
-  quantityUnit: AeroQuantityUnit;
-  entrySeries: string;
   shortcutName: string;
   syncEnabled: boolean;
   lastSyncAt: string | null;
@@ -30,8 +38,6 @@ export const DEFAULT_AERO_SETTINGS: AeroSettings = {
   username: '',
   password: '',
   userCode: null,
-  quantityUnit: 'UN',
-  entrySeries: 'APL',
   shortcutName: AERO_DEFAULT_SHORTCUT_NAME,
   syncEnabled: false,
   lastSyncAt: null,
@@ -71,7 +77,6 @@ export function loadAeroSettings(storage?: Pick<Storage, 'getItem'> | StorageLik
       return { ...DEFAULT_AERO_SETTINGS };
     }
 
-    const quantityUnit: AeroQuantityUnit = parsed.quantityUnit === 'CX' ? 'CX' : 'UN';
     const userCode =
       typeof parsed.userCode === 'number' && Number.isInteger(parsed.userCode) && parsed.userCode > 0
         ? parsed.userCode
@@ -82,11 +87,6 @@ export function loadAeroSettings(storage?: Pick<Storage, 'getItem'> | StorageLik
       username: typeof parsed.username === 'string' ? parsed.username : DEFAULT_AERO_SETTINGS.username,
       password: typeof parsed.password === 'string' ? parsed.password : DEFAULT_AERO_SETTINGS.password,
       userCode,
-      quantityUnit,
-      entrySeries:
-        typeof parsed.entrySeries === 'string' && parsed.entrySeries.trim()
-          ? parsed.entrySeries
-          : DEFAULT_AERO_SETTINGS.entrySeries,
       shortcutName:
         typeof parsed.shortcutName === 'string' && parsed.shortcutName.trim()
           ? parsed.shortcutName
@@ -280,7 +280,8 @@ export function buildEntradaItemPayload(args: {
   quantity: number;
   entryDate: Date | string;
   userCode: number;
-  entrySeries: string;
+  /** Only for a caller that must quote a series: the ERP entry always carries {@link AERO_ENTRY_SERIES}. */
+  entrySeries?: string;
   observation?: string | null;
 }): AeroEntryPayload {
   const dateStr =
@@ -298,7 +299,7 @@ export function buildEntradaItemPayload(args: {
     PRO_QTD: args.quantity,
     ENT_DTA: dateStr,
     ENT_USU: args.userCode,
-    ENT_SER: args.entrySeries,
+    ENT_SER: args.entrySeries ?? AERO_ENTRY_SERIES,
     ENT_DTANOT: dateStr,
     ENT_DTMOVI: dateStr,
     ENT_OBS: obs,
@@ -307,7 +308,10 @@ export function buildEntradaItemPayload(args: {
 }
 
 /**
- * Adapts box/unit counts into an Aero32 entry payload according to the configured quantity unit.
+ * Adapts the day's box count into the units the ERP records.
+ *
+ * There is no per-box launch to choose from: five boxes of ten units are fifty units on the company's stock,
+ * and the series is the one the binary already expects.
  */
 export function buildAeroEntryPayload(args: {
   productCode: string;
@@ -316,18 +320,14 @@ export function buildAeroEntryPayload(args: {
   unitsPerBox: number;
   date: string;
   userCode: number;
-  series: string;
-  quantityUnit: AeroQuantityUnit;
   observation?: string;
 }): AeroEntryPayload {
-  const quantity = args.quantityUnit === 'CX' ? args.boxes : args.boxes * args.unitsPerBox;
   return buildEntradaItemPayload({
     productCode: args.productCode,
     productName: args.productName,
-    quantity,
+    quantity: args.boxes * args.unitsPerBox,
     entryDate: args.date,
     userCode: args.userCode,
-    entrySeries: args.series,
     observation: args.observation,
   });
 }

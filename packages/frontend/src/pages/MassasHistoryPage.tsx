@@ -105,11 +105,11 @@ export function MassasHistoryPage() {
           </div>
           <p className="text-sm text-gray-500 mt-1">{t('massas.historySubtitle')}</p>
         </div>
-        {/* La fecha y la vuelta a hoy van juntas, como en el lanzamiento: dos bloques apilados a todo
-            el ancho separaban dos controles que se usan uno tras otro. Sin los botones de días con
-            lanzamientos ni los carteles de "Hoje"/"Modo Leitura": el rango ya dice cuál es el día más
-            nuevo. */}
-        <div className="grid grid-cols-2 items-end gap-2 w-full sm:flex sm:items-center sm:gap-2 sm:w-auto shrink-0">
+        {/* Misma fila que en el lanzamiento, y por el mismo motivo: el campo de fecha de Safari no cabe
+            en media pantalla de iPhone y el botón se le montaba encima. Apilados en el teléfono, en fila
+            desde `sm`. Sin los botones de días con lanzamientos ni los carteles de "Hoje"/"Modo Leitura":
+            el rango ya dice cuál es el día más nuevo. */}
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-end sm:shrink-0">
           <div className="w-full sm:w-auto">
             <label htmlFor="history-date" className="block text-xs font-medium text-gray-600 sm:sr-only">
               {t('massas.date')}:

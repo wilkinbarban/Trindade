@@ -5,6 +5,7 @@ import {
   AERO_INTEGRATION_USERNAME,
   AERO_PENDING_SYNC_STORAGE_KEY,
   AERO_SETTINGS_STORAGE_KEY,
+  AERO_ENTRY_SERIES,
   AERO_TEST_TIMEOUT_MS,
   DEFAULT_AERO_SETTINGS,
   aeroCallbackUrl,
@@ -30,7 +31,6 @@ import {
   saveAeroPendingSync,
   saveAeroSettings,
   type AeroPendingSync,
-  type AeroQuantityUnit,
   type AeroSettings,
   type StorageLike,
 } from './aero-integration';
@@ -67,8 +67,6 @@ describe('aero-integration: constants & types', () => {
       username: '',
       password: '',
       userCode: null,
-      quantityUnit: 'UN',
-      entrySeries: 'APL',
       shortcutName: 'Aero32 Estoque',
       syncEnabled: false,
       lastSyncAt: null,
@@ -108,8 +106,6 @@ describe('aero-integration: settings persistence', () => {
       username: 'wilkin',
       password: 'secret-password',
       userCode: 12,
-      quantityUnit: 'CX',
-      entrySeries: 'EXP',
       shortcutName: 'Custom Shortcut',
       syncEnabled: true,
       lastSyncAt: '2026-10-27T10:00:00Z',
@@ -132,7 +128,9 @@ describe('aero-integration: settings persistence', () => {
     assert.deepEqual(loadAeroSettings(storage), DEFAULT_AERO_SETTINGS);
   });
 
-  it('falls back quantityUnit to UN if invalid, and sanitizes userCode', () => {
+  it('drops the unit and series a previous build let the operator configure', () => {
+    // The panel used to offer CX and a free-text ENT_SER. Neither is a decision the operator makes, so a
+    // phone that still has them stored must come back with settings that carry no such thing at all.
     const storage = new FakeStorage();
     storage.setItem(
       AERO_SETTINGS_STORAGE_KEY,
@@ -141,16 +139,18 @@ describe('aero-integration: settings persistence', () => {
         username: 'wilkin',
         password: 'pwd',
         userCode: -5,
-        quantityUnit: 'KG', // invalid
-        entrySeries: 'APL',
+        quantityUnit: 'CX',
+        entrySeries: 'EXP',
         shortcutName: 'Aero',
         syncEnabled: true,
       }),
     );
 
     const loaded = loadAeroSettings(storage);
-    assert.equal(loaded.quantityUnit, 'UN');
+    assert.equal('quantityUnit' in loaded, false);
+    assert.equal('entrySeries' in loaded, false);
     assert.equal(loaded.userCode, null);
+    assert.equal(loaded.username, 'wilkin');
   });
 
   it('clears settings from storage', () => {
@@ -169,8 +169,6 @@ describe('aero-integration: aeroSettingsReady', () => {
       username: 'wilkin',
       password: 'pwd',
       userCode: 12,
-      quantityUnit: 'UN',
-      entrySeries: 'APL',
       shortcutName: 'Aero',
       syncEnabled: true,
       lastSyncAt: null,
@@ -284,7 +282,6 @@ describe('aero-integration: payload builders', () => {
       quantity: 50.0,
       entryDate: '2026-10-27',
       userCode: 12,
-      entrySeries: 'APL',
       observation: 'Lanzamiento desde Trindade',
     });
 
@@ -324,7 +321,6 @@ describe('aero-integration: payload builders', () => {
       quantity: 10,
       entryDate: new Date('2026-10-28T12:00:00Z'),
       userCode: 12,
-      entrySeries: 'APL',
     });
 
     assert.equal(payload.ENT_DTA, '2026-10-28');
@@ -333,30 +329,21 @@ describe('aero-integration: payload builders', () => {
     assert.equal(payload.ENT_OBS, 'Lancamento de massas via Trindade');
   });
 
-  it('buildAeroEntryPayload calculates quantity for both UN and CX', () => {
-    const unPayload = buildAeroEntryPayload({
+  it('always launches in units under the fixed APL series', () => {
+    // The factory has no per-box launch and the Delphi binary has APL burnt in: five boxes of ten is fifty
+    // units on the ERP, and neither number is something the operator can pick.
+    const payload = buildAeroEntryPayload({
       productCode: '1045',
       productName: 'MASSA CASEIRA',
       boxes: 5,
       unitsPerBox: 10,
       date: '2026-10-27',
       userCode: 12,
-      series: 'APL',
-      quantityUnit: 'UN',
     });
-    assert.equal(unPayload.PRO_QTD, 50);
 
-    const cxPayload = buildAeroEntryPayload({
-      productCode: '1045',
-      productName: 'MASSA CASEIRA',
-      boxes: 5,
-      unitsPerBox: 10,
-      date: '2026-10-27',
-      userCode: 12,
-      series: 'APL',
-      quantityUnit: 'CX',
-    });
-    assert.equal(cxPayload.PRO_QTD, 5);
+    assert.equal(payload.PRO_QTD, 50);
+    assert.equal(payload.ENT_SER, AERO_ENTRY_SERIES);
+    assert.equal(AERO_ENTRY_SERIES, 'APL');
   });
 });
 
@@ -402,7 +389,6 @@ describe('aero-integration: shortcuts and envelopes', () => {
       quantity: 50,
       entryDate: '2026-10-27',
       userCode: 12,
-      entrySeries: 'APL',
     });
 
     const envelope = aeroLaunchEnvelope({

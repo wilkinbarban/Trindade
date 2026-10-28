@@ -132,6 +132,12 @@ export function MassasLaunchPage() {
     setQuantities((prev) => ({ ...prev, [code]: cleaned }));
   };
 
+  /** Where a launch would land, in the log's terms. */
+  const aeroDestination = useCallback(
+    () => (aeroSettings.wsUrl ? `${aeroSettings.wsUrl.replace(/\/$/, '')}/entradasitem` : ''),
+    [aeroSettings.wsUrl],
+  );
+
   const handleRequestLaunch = () => {
     if (!dayView || submitting) return;
     const items = dayView.products
@@ -163,12 +169,12 @@ export function MassasLaunchPage() {
 
       // The entry is already Trindade's before the company hears about it: whatever happens in the
       // Atajos app, the day's production is on record.
-      const syncable =
-        aeroAllowed && syncToErp && aeroSettingsReady(aeroSettings) && aeroSettings.userCode !== null;
+      const wantsSync = aeroAllowed && syncToErp;
+      const syncable = wantsSync && aeroSettingsReady(aeroSettings);
       const requested = itemsToConfirm.map((i) => ({
         productCode: i.product_code,
         productName: i.name,
-        quantity: aeroSettings.quantityUnit === 'CX' ? i.boxes : i.units,
+        quantity: i.units,
       }));
 
       setQuantities({});
@@ -179,6 +185,20 @@ export function MassasLaunchPage() {
         writeAeroQueue(queue);
         triggerAeroSync(queue);
         return;
+      }
+
+      if (wantsSync) {
+        // The switch said "send it to the company" and the entry stayed home. The operator's launch is safe,
+        // but the reason belongs in the log: the missing piece is usually the ENT_USU that only a successful
+        // connection test can capture.
+        void postAeroAuditEvent({
+          event: 'launch_sync',
+          phase: 'requested',
+          destinationUrl: aeroDestination() || aeroSettings.wsUrl,
+          payload: requested,
+          error: aeroSettings.userCode === null ? 'userCode missing' : 'integration not ready',
+          note: `${requested.length} not sent`,
+        });
       }
 
       setResultModal({
@@ -220,7 +240,6 @@ export function MassasLaunchPage() {
         quantity: next.item.quantity,
         entryDate: queue.date,
         userCode: aeroSettings.userCode ?? 0,
-        entrySeries: aeroSettings.entrySeries,
       });
       const envelope = aeroLaunchEnvelope({
         wsUrl: aeroSettings.wsUrl,
@@ -240,11 +259,6 @@ export function MassasLaunchPage() {
       window.location.href = aeroShortcutTriggerUrl({ name: aeroSettings.shortcutName, envelope });
     },
     [aeroSettings],
-  );
-
-  const aeroDestination = useCallback(
-    () => (aeroSettings.wsUrl ? `${aeroSettings.wsUrl.replace(/\/$/, '')}/entradasitem` : ''),
-    [aeroSettings.wsUrl],
   );
 
   /**
@@ -411,9 +425,10 @@ export function MassasLaunchPage() {
           </div>
           <p className="text-sm text-gray-500 mt-1">{t('massas.subtitle')}</p>
         </div>
-        {/* La fecha y el acceso al histórico van lado a lado también en un teléfono: apilados a todo
-            el ancho se estiraban como dos bloques y empujaban la grilla fuera de la pantalla. */}
-        <div className="grid grid-cols-2 items-end gap-2 w-full sm:flex sm:items-center sm:gap-2 sm:w-auto shrink-0">
+        {/* En un teléfono no comparten fila: el campo de fecha nativo de Safari mide ~185px con
+            "28 de out. de 2026" y la mitad de un iPhone son 150px, así que el botón se le montaba encima.
+            Apilados, cada uno ocupa su renglón a todo el ancho; desde `sm` vuelven lado a lado. */}
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-end sm:shrink-0">
           <div className="w-full sm:w-auto">
             <label htmlFor="massa-date" className="block text-xs font-medium text-gray-600 sm:sr-only">
               {t('massas.date')}:
