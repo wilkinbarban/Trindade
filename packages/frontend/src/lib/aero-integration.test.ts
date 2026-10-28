@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import {
   AERO_DEFAULT_SHORTCUT_NAME,
   AERO_DEFAULT_TEST_SHORTCUT_NAME,
+  AERO_DEFAULT_CST,
   AERO_INTEGRATION_USERNAME,
   AERO_PENDING_SYNC_STORAGE_KEY,
   AERO_SETTINGS_STORAGE_KEY,
@@ -296,6 +297,7 @@ describe('aero-integration: payload builders', () => {
       'PRO_COD',
       'PRO_DES',
       'PRO_QTD',
+      'PRO_CST',
       'ENT_DTA',
       'ENT_USU',
       'ENT_SER',
@@ -310,6 +312,7 @@ describe('aero-integration: payload builders', () => {
       PRO_COD: '1001',
       PRO_DES: 'MASSA TRADICIONAL 500G',
       PRO_QTD: 50.0,
+      PRO_CST: '000',
       ENT_DTA: '2026-10-27',
       ENT_USU: 12,
       ENT_SER: 'APL',
@@ -365,6 +368,35 @@ describe('aero-integration: payload builders', () => {
     assert.equal(payload.PRO_QTD, 50);
     assert.equal(payload.ENT_SER, AERO_ENTRY_SERIES);
     assert.equal(AERO_ENTRY_SERIES, 'APL');
+  });
+
+  it('includes default PRO_CST "000" and respects custom CST when supplied', () => {
+    const base = {
+      productCode: '22',
+      productName: 'MASSA ROLO 500G',
+      quantity: 15,
+      entryDate: '2026-10-28',
+    };
+
+    // Default when omitted or null
+    assert.equal(buildEntradaItemPayload(base).PRO_CST, AERO_DEFAULT_CST);
+    assert.equal(AERO_DEFAULT_CST, '000');
+    assert.equal(buildEntradaItemPayload({ ...base, productCst: null }).PRO_CST, '000');
+    assert.equal(buildEntradaItemPayload({ ...base, productCst: '   ' }).PRO_CST, '000');
+
+    // Custom CST honored
+    assert.equal(buildEntradaItemPayload({ ...base, productCst: '010' }).PRO_CST, '010');
+
+    // Passed via buildAeroEntryPayload
+    const aeroPayload = buildAeroEntryPayload({
+      productCode: '22',
+      productName: 'MASSA ROLO 500G',
+      boxes: 3,
+      unitsPerBox: 5,
+      date: '2026-10-28',
+      productCst: '020',
+    });
+    assert.equal(aeroPayload.PRO_CST, '020');
   });
 });
 

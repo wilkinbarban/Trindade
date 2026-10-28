@@ -628,3 +628,16 @@ servido `assets/MassasLaunchPage-lNRAt0N9.js` contiene `shortcut:no_verdict` y `
 Lo que **no** se puede verificar desde acá: la navegación real al esquema `shortcuts://` y la existencia del
 atajo `Aero32 Prueba` en el teléfono. Queda para la prueba de Wilkin en la fábrica, igual que el
 `Aero32 Estoque` del lanzamiento.
+
+### T14 — Inclusión de `PRO_CST: "000"` para trigger SPED de Firebird (2026-10-28)
+
+Durante la prueba en vivo del lanzamiento de masa (`Aero32 Estoque`, link iCloud `https://www.icloud.com/shortcuts/a5641a2367874b4aa30865c12f586fa2`), el WebService Laravel deserializó exitosamente el payload JSON con `Definir nome: payload.json`, pero el motor Firebird rechazó el `INSERT INTO ENTRADADET` con:
+`SQLSTATE[HY000]: General error: -836 exception 21 EXC_CST Favor informar a CST do Item At trigger 'ENTRADADET_BIU_SPED_VERIFICA' line: 6, col: 49`.
+
+Auditoría de los formularios DFM del sistema Delphi (`TF_RELFISCALENTCST.txt` y `TF_NOTAFISCALENTRADA2.txt`) confirmó que la columna en `ENTRADADET` es `PRO_CST`. Para productos alimenticios manufacturados en Brasil, el código padrão de CST es `'000'` (Tributada integralmente).
+
+**Remediación aplicada**:
+1. `AERO_DEFAULT_CST = '000'` declarado en `packages/frontend/src/lib/aero-integration.ts`.
+2. `AeroEntryPayload` extendido con `PRO_CST: string`.
+3. `buildEntradaItemPayload` y `buildAeroEntryPayload` asignan `PRO_CST: args.productCst?.trim() || AERO_DEFAULT_CST`, permitiendo customización opcional y garantizando `'000'` por defecto.
+4. Tests unitarios en `aero-integration.test.ts` actualizados con orden exacto de claves y validación de fallback/custom CST (`211/211` pasando). Suite backend completa `532/532` pasando. Build Vite limpio.

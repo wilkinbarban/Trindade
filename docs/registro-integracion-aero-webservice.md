@@ -68,6 +68,7 @@ Todos los endpoints esperan `Accept: application/json` y cabecera de autenticaci
     "PRO_COD": "1001",
     "PRO_DES": "MASSA TRADICIONAL 500G",
     "PRO_QTD": 50.0,
+    "PRO_CST": "000",
     "ENT_DTA": "2026-10-27",
     "ENT_USU": 12,
     "ENT_SER": "APL",
@@ -77,6 +78,7 @@ Todos los endpoints esperan `Accept: application/json` y cabecera de autenticaci
     "LOTES": []
   }
   ```
+  *Nota*: `PRO_CST` ("000" - Tributada integralmente) es requerido obligatoriamente por el trigger Firebird `ENTRADADET_BIU_SPED_VERIFICA` (`EXC_CST Favor informar a CST do Item`).
 - **Respuesta Esperada**:
   ```json
   {
@@ -141,4 +143,5 @@ sequenceDiagram
 | 2026-10-27 | Entorno local (fuera de fábrica) | Ingeniería inversa de `base.apk` / `libso.so` | Extraídos contratos de `entradasitem`, `usuarios/`, `movimentoitem` y `produtoconsulta` | Confirmado que no se requiere IMEI. Autenticación HTTP Basic estándar. |
 | 2026-10-28 | Fábrica (red real) | Prueba del panel desde el iPhone | `405` en `/usuarios/`: la ruta solo acepta `POST` | Probe del cliente cambiado a `POST` (`aero-connection.ts`) |
 | 2026-10-28 | Producción (HTTPS) | Test de conexión delegado al atajo | Safari bloquea el `POST` HTTP desde la página HTTPS: el botón no podía probar lo que el lanzamiento sí hace | Segundo atajo `Aero32 Prueba` de 3 acciones; la página lee `aero_test` y escribe `requested` + `result` en la bitácora |
-| *Pendiente* | Fábrica (Wi-Fi) | Test de conexión con IP real | Por ejecutar al suministrar IP:PUERTO y credenciales | Requiere IP, puerto y credenciales para validar respuesta real de `/usuarios/`. |
+| 2026-10-28 | Fábrica (red real) | Lanzamiento con atajo definitivo | Firebird arrojó `EXC_CST Favor informar a CST do Item` en trigger `ENTRADADET_BIU_SPED_VERIFICA` | Agregado `PRO_CST: "000"` (Tributada integralmente) por defecto en `buildEntradaItemPayload` |
+| *Pendiente* | Fábrica (Wi-Fi) | Lanzamiento de 1 caja para verificar confirmación ERP | Validar inserción en base Firebird con `{"success":true,"message":"Gravado com sucesso"}` | Pendiente de prueba por Wilkin en iPhone |

@@ -35,6 +35,15 @@ export const AERO_ENTRY_SERIES = 'APL';
 export const AERO_QUANTITY_UNIT = 'UN';
 
 /**
+ * Default Tax Situation Code (Código de Situação Tributária - CST).
+ *
+ * Trigger ENTRADADET_BIU_SPED_VERIFICA in Firebird ERP requires a non-empty CST
+ * ('EXC_CST Favor informar a CST do Item'). For manufactured food products, '000'
+ * (Tributada integralmente) is the standard default.
+ */
+export const AERO_DEFAULT_CST = '000';
+
+/**
  * The user code an entry carries when nobody captured the real one.
  *
  * `ENT_USU` is the ERP's numeric operator id, and the only place it can be read is `/usuarios/`, which the
@@ -289,6 +298,7 @@ export interface AeroEntryPayload {
   PRO_COD: string;
   PRO_DES: string;
   PRO_QTD: number;
+  PRO_CST: string;
   ENT_DTA: string;
   ENT_USU: number;
   ENT_SER: string;
@@ -321,6 +331,8 @@ export function buildEntradaItemPayload(args: {
   /** Only for a caller that must quote a series: the ERP entry always carries {@link AERO_ENTRY_SERIES}. */
   entrySeries?: string;
   observation?: string | null;
+  /** Tax situation code (CST). Defaults to {@link AERO_DEFAULT_CST} ('000'). */
+  productCst?: string | null;
 }): AeroEntryPayload {
   const dateStr =
     args.entryDate instanceof Date
@@ -335,6 +347,7 @@ export function buildEntradaItemPayload(args: {
     PRO_COD: args.productCode,
     PRO_DES: args.productName,
     PRO_QTD: args.quantity,
+    PRO_CST: args.productCst && args.productCst.trim() ? args.productCst.trim() : AERO_DEFAULT_CST,
     ENT_DTA: dateStr,
     ENT_USU: aeroUserCode(args.userCode),
     ENT_SER: args.entrySeries ?? AERO_ENTRY_SERIES,
@@ -359,6 +372,7 @@ export function buildAeroEntryPayload(args: {
   date: string;
   userCode?: number | null;
   observation?: string;
+  productCst?: string | null;
 }): AeroEntryPayload {
   return buildEntradaItemPayload({
     productCode: args.productCode,
@@ -367,6 +381,7 @@ export function buildAeroEntryPayload(args: {
     entryDate: args.date,
     userCode: args.userCode,
     observation: args.observation,
+    productCst: args.productCst,
   });
 }
 
