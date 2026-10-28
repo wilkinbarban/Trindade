@@ -1,12 +1,14 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, Loader2, Plug, ShieldCheck } from 'lucide-react';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import {
+  aeroConnectionBlocker,
   aeroEndpoint,
   aeroSettingsReady,
+  aeroTestShortcutTriggerUrl,
   clearAeroSettings,
   DEFAULT_AERO_SETTINGS,
   normalizeAeroWsUrl,
@@ -15,11 +17,19 @@ import {
 } from '../../lib/aero-integration';
 import { probeAeroConnection, type AeroConnectionProbe } from '../../lib/aero-connection';
 import { postAeroAuditEvent } from '../../lib/aero-audit';
+import {
+  aeroTestRequestedEvent,
+  saveAeroPendingTest,
+  type AeroTestOutcome,
+} from '../../lib/aero-test';
 import { AeroShortcutDialog } from './AeroShortcutDialog';
 
 interface AeroIntegrationPanelProps {
   settings: AeroSettings;
   onSettingsSaved: (settings: AeroSettings) => void;
+  /** What the phone brought back from the test shortcut, handed down by the page that owns the callback. */
+  testOutcome?: AeroTestOutcome | null;
+  onTestOutcomeHandled?: () => void;
 }
 
 type Notice = { tone: 'ok' | 'warn' | 'error'; text: string };
@@ -32,7 +42,12 @@ type Notice = { tone: 'ok' | 'warn' | 'error'; text: string };
  * for it. It opens by itself only when there is nothing configured yet, which is the state that needs
  * a person.
  */
-export function AeroIntegrationPanel({ settings, onSettingsSaved }: AeroIntegrationPanelProps) {
+export function AeroIntegrationPanel({
+  settings,
+  onSettingsSaved,
+  testOutcome,
+  onTestOutcomeHandled,
+}: AeroIntegrationPanelProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(() => !aeroSettingsReady(settings));
   const [draft, setDraft] = useState({
@@ -44,6 +59,9 @@ export function AeroIntegrationPanel({ settings, onSettingsSaved }: AeroIntegrat
   const [busy, setBusy] = useState<'save' | 'test' | null>(null);
   const [probe, setProbe] = useState<AeroConnectionProbe | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
+  const noticeRef = useRef<HTMLParagraphElement | null>(null);
+  /** Un veredicto que llegó del teléfono pide scroll: el aviso nace fuera de la pantalla. */
+  const scrollToNotice = useRef(false);
   const [shortcutOpen, setShortcutOpen] = useState(false);
 
   const ready = aeroSettingsReady(settings);
@@ -90,19 +108,61 @@ export function AeroIntegrationPanel({ settings, onSettingsSaved }: AeroIntegrat
     setNotice({ tone: 'ok', text: t('massas.aero.saved') });
   };
 
+  /**
+   * The connection test, in whichever channel can actually reach the WebService.
+   *
+   * Safari refuses a plain-HTTP target from an HTTPS page before a packet leaves, so on the deployment the
+   * factory uses the browser can never answer this question. The shortcut can, because it is a native
+   * process with no page origin: it rings `/usuarios/`, reads the `success` field and comes back with it.
+   * When the browser is not blocked -- local development, or an HTTPS WebService -- the probe answers
+   * inline, which is faster and needs no round trip through another app.
+   *
+   * Either way the attempt is written first. A test that never reports is still a fact, and the log line is
+   * what separates "nobody tried" from "the phone tried and never came back".
+   */
   const handleTest = async () => {
     setNotice(null);
-    setBusy('test');
     setProbe(null);
+
+    const normalized = normalizeAeroWsUrl(draft.wsUrl);
+    if (!normalized || !draft.username.trim() || !draft.password) {
+      void postAeroAuditEvent({
+        ...aeroTestRequestedEvent({ destinationUrl: draft.wsUrl.trim(), reason: null }),
+        error: 'invalid_config',
+      });
+      setNotice({ tone: 'error', text: t('massas.aero.testInvalid') });
+      return;
+    }
+
+    const destinationUrl = aeroEndpoint(normalized, 'usuarios/');
+    const pageProtocol = typeof window === 'undefined' ? 'http:' : window.location.protocol;
+    const blocker = aeroConnectionBlocker({ pageProtocol, wsUrl: normalized });
+
+    setBusy('test');
+    await postAeroAuditEvent(aeroTestRequestedEvent({ destinationUrl, reason: blocker }));
+
+    if (blocker) {
+      // The attempt survives the trip in local storage: Safari may reload the page while the phone is in
+      // another app, and the result line still needs to know which attempt it belongs to.
+      saveAeroPendingTest({
+        destinationUrl,
+        startedAt: new Date().toISOString(),
+        reason: blocker,
+      });
+      setNotice({ tone: 'warn', text: t('massas.aero.testShortcutOpening') });
+      setBusy(null);
+      window.location.href = aeroTestShortcutTriggerUrl({ name: settings.testShortcutName });
+      return;
+    }
 
     const outcome = await probeAeroConnection({
       settings: { wsUrl: draft.wsUrl, username: draft.username, password: draft.password },
-      pageProtocol: typeof window === 'undefined' ? 'http:' : window.location.protocol,
+      pageProtocol,
     });
 
     setProbe(outcome);
 
-    // The audit line is written whether the browser succeeded or hit a wall: the factory test is
+    // The audit line is written whether the browser succeeded or hit another wall: the factory test is
     // inspected afterwards from a terminal, and an attempt that never left the phone is the fact that
     // explains the rest.
     await postAeroAuditEvent(probeToAuditEvent(outcome, destination));
@@ -120,6 +180,43 @@ export function AeroIntegrationPanel({ settings, onSettingsSaved }: AeroIntegrat
 
     setBusy(null);
   };
+
+  /**
+   * The verdict the phone brought back.
+   *
+   * Opens the panel first: the operator returns to the page after using another app, and a result hidden
+   * inside a collapsed card reads as no result at all.
+   */
+  useEffect(() => {
+    if (!testOutcome) return;
+    setOpen(true);
+    setProbe(null);
+    setBusy(null);
+    setNotice({
+      tone: testOutcome.verdict === 'ok' ? 'ok' : testOutcome.verdict === 'error' ? 'error' : 'warn',
+      text:
+        testOutcome.verdict === 'ok'
+          ? t('massas.aero.testShortcutOk')
+          : testOutcome.verdict === 'error'
+            ? t('massas.aero.testShortcutError')
+            : t('massas.aero.testShortcutUnknown'),
+    });
+    scrollToNotice.current = true;
+    onTestOutcomeHandled?.();
+  }, [testOutcome, onTestOutcomeHandled, t]);
+
+  /**
+   * El veredicto se lee solo si se ve.
+   *
+   * El operario vuelve de otra app y aterriza en la parte de arriba de la página: un aviso a media
+   * pantalla de distancia es un resultado que no existe. Se desplaza una vez, cuando el aviso ya está en
+   * el DOM, y no en cada re-render.
+   */
+  useEffect(() => {
+    if (!scrollToNotice.current || !notice) return;
+    scrollToNotice.current = false;
+    noticeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [notice]);
 
   const handleClear = () => {
     if (!window.confirm(t('massas.aero.clearConfirm'))) return;
@@ -257,6 +354,8 @@ export function AeroIntegrationPanel({ settings, onSettingsSaved }: AeroIntegrat
 
           {notice && (
             <p
+              ref={noticeRef}
+              data-testid="aero-notice"
               role="status"
               className={`text-xs sm:text-sm rounded-lg border px-3 py-2 ${
                 notice.tone === 'ok'

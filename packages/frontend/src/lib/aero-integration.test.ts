@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   AERO_DEFAULT_SHORTCUT_NAME,
+  AERO_DEFAULT_TEST_SHORTCUT_NAME,
   AERO_INTEGRATION_USERNAME,
   AERO_PENDING_SYNC_STORAGE_KEY,
   AERO_SETTINGS_STORAGE_KEY,
@@ -14,6 +15,9 @@ import {
   aeroSettingsReady,
   aeroShortcutTriggerUrl,
   aeroShortcutRecipe,
+  aeroTestCallbackPrefix,
+  aeroTestShortcutRecipe,
+  aeroTestShortcutTriggerUrl,
   basicAuthHeader,
   buildAeroEntryPayload,
   buildEntradaItemPayload,
@@ -59,6 +63,7 @@ describe('aero-integration: constants & types', () => {
     assert.equal(AERO_PENDING_SYNC_STORAGE_KEY, 'trindade.aero.pending-sync.v1');
     assert.equal(AERO_INTEGRATION_USERNAME, 'wilkin');
     assert.equal(AERO_DEFAULT_SHORTCUT_NAME, 'Aero32 Estoque');
+    assert.equal(AERO_DEFAULT_TEST_SHORTCUT_NAME, 'Aero32 Prueba');
     assert.equal(AERO_TEST_TIMEOUT_MS, 8000);
     assert.deepEqual(DEFAULT_AERO_SETTINGS, {
       wsUrl: '',
@@ -66,6 +71,7 @@ describe('aero-integration: constants & types', () => {
       password: '',
       userCode: null,
       shortcutName: 'Aero32 Estoque',
+      testShortcutName: 'Aero32 Prueba',
       syncEnabled: false,
       lastSyncAt: null,
     });
@@ -105,6 +111,7 @@ describe('aero-integration: settings persistence', () => {
       password: 'secret-password',
       userCode: 12,
       shortcutName: 'Custom Shortcut',
+      testShortcutName: 'Custom Prueba',
       syncEnabled: true,
       lastSyncAt: '2026-10-27T10:00:00Z',
     };
@@ -167,6 +174,7 @@ describe('aero-integration: aeroSettingsReady', () => {
     password: 'pwd',
     userCode: 12,
     shortcutName: 'Aero',
+    testShortcutName: 'Aero Prueba',
     syncEnabled: true,
     lastSyncAt: null,
   };
@@ -459,20 +467,104 @@ describe('aero-integration: callbacks', () => {
     );
   });
 
-  it('parses aero callback from query strings correctly', () => {
-    assert.deepEqual(parseAeroCallback('?aero_sync=ok'), { status: 'ok', message: null });
-    assert.deepEqual(parseAeroCallback('aero_sync=ok'), { status: 'ok', message: null });
+  it('parses the launch callback from a query string', () => {
+    assert.deepEqual(parseAeroCallback('?aero_sync=ok'), { kind: 'sync', status: 'ok', message: null });
+    assert.deepEqual(parseAeroCallback('aero_sync=ok'), { kind: 'sync', status: 'ok', message: null });
     assert.deepEqual(parseAeroCallback('?aero_sync=error&aero_msg=Erro%20ao%20gravar'), {
+      kind: 'sync',
       status: 'error',
       message: 'Erro ao gravar',
     });
-    assert.deepEqual(parseAeroCallback('?aero_sync=ok&aero_msg='), { status: 'ok', message: '' });
+    assert.deepEqual(parseAeroCallback('?aero_sync=ok&aero_msg='), {
+      kind: 'sync',
+      status: 'ok',
+      message: '',
+    });
 
     // Garbage / empty inputs
     assert.equal(parseAeroCallback(''), null);
     assert.equal(parseAeroCallback('?'), null);
     assert.equal(parseAeroCallback('?other=123'), null);
     assert.equal(parseAeroCallback('?aero_sync=unknown'), null);
+  });
+
+  it('reads the connection test verdict the shortcut appends', () => {
+    // The shortcut forwards the `success` field of /usuarios/, and Shortcuts renders a boolean in more than
+    // one way depending on the iOS version. The page accepts every rendering it can produce, and keeps the
+    // raw token so the audit line states exactly what came back instead of an interpretation of it.
+    for (const token of ['true', 'ok', '1', 'sim', 'yes', 'TRUE']) {
+      assert.deepEqual(parseAeroCallback(`?aero_test=${token}`), {
+        kind: 'test',
+        verdict: 'ok',
+        raw: token,
+      });
+    }
+
+    for (const token of ['false', 'error', '0', 'nao', 'no', 'FALSE']) {
+      assert.deepEqual(parseAeroCallback(`?aero_test=${token}`), {
+        kind: 'test',
+        verdict: 'error',
+        raw: token,
+      });
+    }
+
+    // An empty or unrecognised value is not a verdict, and saying otherwise would be a lie in the panel.
+    assert.deepEqual(parseAeroCallback('?aero_test='), { kind: 'test', verdict: 'unknown', raw: '' });
+    assert.deepEqual(parseAeroCallback('?aero_test=hmm'), {
+      kind: 'test',
+      verdict: 'unknown',
+      raw: 'hmm',
+    });
+  });
+});
+
+describe('aero-integration: shortcut recipe for the connection test', () => {
+  const args = {
+    wsUrl: 'http://192.168.25.250:1453/api',
+    username: 'wilkin',
+    password: 'senha',
+  };
+
+  it('points the test at /usuarios/ with the same header the ERP expects', () => {
+    const recipe = aeroTestShortcutRecipe({
+      ...args,
+      callbackPrefix: 'https://trindademasas.duckdns.org/massas-launch?aero_test=',
+    });
+
+    assert.equal(recipe.endpoint, 'http://192.168.25.250:1453/api/usuarios/');
+    assert.equal(recipe.authorization, basicAuthHeader('wilkin', 'senha'));
+    assert.equal(recipe.contentType, 'application/json');
+    assert.equal(recipe.callbackPrefix, 'https://trindademasas.duckdns.org/massas-launch?aero_test=');
+  });
+
+  it('builds a return URL whose value is the variable the shortcut appends', () => {
+    const prefix = aeroTestCallbackPrefix({
+      origin: 'https://trindademasas.duckdns.org',
+      basePath: '/',
+    });
+    assert.equal(prefix, 'https://trindademasas.duckdns.org/massas-launch?aero_test=');
+
+    const sub = aeroTestCallbackPrefix({
+      origin: 'https://trindademasas.duckdns.org/',
+      basePath: '/app/',
+    });
+    assert.equal(sub, 'https://trindademasas.duckdns.org/app/massas-launch?aero_test=');
+
+    // Appending the token must reproduce exactly what the page parses back out of `location.search`.
+    assert.deepEqual(parseAeroCallback(new URL(`${prefix}true`).search), {
+      kind: 'test',
+      verdict: 'ok',
+      raw: 'true',
+    });
+  });
+
+  it('runs the test shortcut without handing it any input', () => {
+    // The test carries no payload: the endpoint, the header and the return URL live inside the shortcut.
+    // Sending it text would make Shortcuts ask for input it does not use.
+    assert.equal(
+      aeroTestShortcutTriggerUrl({ name: 'Aero32 Prueba' }),
+      'shortcuts://x-callback-url/run-shortcut?name=Aero32%20Prueba',
+    );
   });
 });
 

@@ -3,7 +3,13 @@ import { useTranslation } from 'react-i18next';
 import { Check, Copy } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Dialog } from '../../components/ui/dialog';
-import { aeroCallbackUrl, aeroShortcutRecipe, type AeroSettings } from '../../lib/aero-integration';
+import {
+  aeroCallbackUrl,
+  aeroShortcutRecipe,
+  aeroTestCallbackPrefix,
+  aeroTestShortcutRecipe,
+  type AeroSettings,
+} from '../../lib/aero-integration';
 
 interface AeroShortcutDialogProps {
   open: boolean;
@@ -11,7 +17,13 @@ interface AeroShortcutDialogProps {
   settings: AeroSettings;
 }
 
-type CopyKey = 'endpoint' | 'authorization' | 'callbackUrl';
+type CopyKey =
+  | 'endpoint'
+  | 'authorization'
+  | 'callbackUrl'
+  | 'testEndpoint'
+  | 'testAuthorization'
+  | 'testCallback';
 
 interface RecipeValueProps {
   id: CopyKey;
@@ -80,15 +92,24 @@ export function AeroShortcutDialog({ open, onClose, settings }: AeroShortcutDial
   const { t } = useTranslation();
   const [copied, setCopied] = useState<CopyKey | null>(null);
 
-  const recipe = useMemo(() => {
+  const { recipe, testRecipe } = useMemo(() => {
     const origin = typeof window === 'undefined' ? '' : window.location.origin;
     const basePath = (import.meta.env?.BASE_URL ?? '/').replace(/\/$/, '');
-    return aeroShortcutRecipe({
+    const credentials = {
       wsUrl: settings.wsUrl,
       username: settings.username,
       password: settings.password,
-      callbackUrl: aeroCallbackUrl({ origin, basePath, status: 'ok' }),
-    });
+    };
+    return {
+      recipe: aeroShortcutRecipe({
+        ...credentials,
+        callbackUrl: aeroCallbackUrl({ origin, basePath, status: 'ok' }),
+      }),
+      testRecipe: aeroTestShortcutRecipe({
+        ...credentials,
+        callbackPrefix: aeroTestCallbackPrefix({ origin, basePath }),
+      }),
+    };
   }, [settings.wsUrl, settings.username, settings.password]);
 
   const copy = async (key: CopyKey, value: string) => {
@@ -125,6 +146,8 @@ export function AeroShortcutDialog({ open, onClose, settings }: AeroShortcutDial
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+          <h3 className="mb-1.5 text-sm font-bold text-gray-900">{t('massas.aero.shortcutLaunchTitle')}</h3>
+
           {/* El nombre es preparación en la app, no una de las dos acciones: por eso no lleva número y
               la lista numera exactamente las acciones que hay que agregar. */}
           <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
@@ -184,6 +207,73 @@ export function AeroShortcutDialog({ open, onClose, settings }: AeroShortcutDial
           <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-xs leading-relaxed text-emerald-900">
             {t('massas.aero.shortcutDone')}
           </p>
+
+          {/* El atajo de prueba: la razón por la que existe es la misma que obliga a todo lo demás a
+              salir del navegador, y conviene decirla acá, donde se arma, y no en un error después. */}
+          <div className="mt-5 border-t border-gray-200 pt-4">
+            <h3 className="text-sm font-bold text-gray-900">{t('massas.aero.shortcutTestTitle')}</h3>
+            <p className="mt-0.5 text-xs leading-relaxed text-gray-500">
+              {t('massas.aero.shortcutTestIntro')}
+            </p>
+
+            <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+              <div className="flex items-baseline gap-2">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-amber-800">
+                  {t('massas.aero.shortcutName')}
+                </span>
+                <span className="break-all text-sm font-bold text-gray-900">{settings.testShortcutName}</span>
+              </div>
+              <p className="mt-0.5 text-xs leading-relaxed text-amber-900">
+                {t('massas.aero.shortcutTestNameHint')}
+              </p>
+            </div>
+
+            <ol className="mt-3 space-y-3">
+              <StepItem n={1}>
+                <span>{t('massas.aero.shortcutTestStepFetch')}</span>
+                <RecipeValue
+                  id="testEndpoint"
+                  label={t('massas.aero.shortcutEndpointLabel')}
+                  value={testRecipe.endpoint}
+                  copyLabel={copyLabel}
+                  copied={copied === 'testEndpoint'}
+                  onCopy={copy}
+                />
+
+                <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  {t('massas.aero.shortcutHeadersTitle')}
+                </p>
+                <p className="text-xs leading-relaxed text-gray-500">{t('massas.aero.shortcutHeadersHint')}</p>
+                <RecipeValue
+                  id="testAuthorization"
+                  label={t('massas.aero.shortcutAuthLabel')}
+                  value={testRecipe.authorization}
+                  copyLabel={copyLabel}
+                  copied={copied === 'testAuthorization'}
+                  onCopy={copy}
+                />
+              </StepItem>
+
+              <StepItem n={2}>
+                <span>{t('massas.aero.shortcutTestStepDict')}</span>
+              </StepItem>
+
+              <StepItem n={3}>
+                <span>{t('massas.aero.shortcutTestStepBack')}</span>
+                <RecipeValue
+                  id="testCallback"
+                  label={t('massas.aero.shortcutCallbackLabel')}
+                  value={testRecipe.callbackPrefix}
+                  copyLabel={copyLabel}
+                  copied={copied === 'testCallback'}
+                  onCopy={copy}
+                />
+                <p className="mt-2 text-xs leading-relaxed text-gray-500">
+                  {t('massas.aero.shortcutTestVariableHint')}
+                </p>
+              </StepItem>
+            </ol>
+          </div>
 
           <p role="status" aria-live="polite" className="mt-2 min-h-[1rem] text-[11px] font-medium text-emerald-700">
             {copied ? t('massas.aero.shortcutCopied') : ''}

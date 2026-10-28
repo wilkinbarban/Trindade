@@ -34,6 +34,13 @@ import {
   type AeroSettings,
 } from '../lib/aero-integration';
 import { postAeroAuditEvent } from '../lib/aero-audit';
+import {
+  aeroTestNoVerdictEvent,
+  aeroTestResultEvent,
+  clearAeroPendingTest,
+  loadAeroPendingTest,
+  type AeroTestOutcome,
+} from '../lib/aero-test';
 import { clearAeroQueue, readAeroQueue, takeNextAeroItem, writeAeroQueue, type AeroQueue } from '../lib/aero-queue';
 import { AeroIntegrationPanel } from './massas/AeroIntegrationPanel';
 
@@ -68,6 +75,7 @@ export function MassasLaunchPage() {
   // Company integration: kept out of the tree entirely for anyone who is not the owner admin.
   const aeroAllowed = isAeroAllowed(user ? { username: user.username, role: user.role } : null);
   const [aeroSettings, setAeroSettings] = useState<AeroSettings>(loadAeroSettings);
+  const [aeroTestOutcome, setAeroTestOutcome] = useState<AeroTestOutcome | null>(null);
   const [syncToErp, setSyncToErp] = useState(() => aeroSettings.syncEnabled && aeroSettingsReady(aeroSettings));
   const [syncAwaiting, setSyncAwaiting] = useState<{ date: string; remaining: number } | null>(() => {
     const queue = readAeroQueue();
@@ -131,6 +139,9 @@ export function MassasLaunchPage() {
     const cleaned = rawVal.replace(/\D/g, '');
     setQuantities((prev) => ({ ...prev, [code]: cleaned }));
   };
+
+  /** The panel shows the verdict once and the page forgets it, so a later render cannot replay it. */
+  const handleTestOutcomeHandled = useCallback(() => setAeroTestOutcome(null), []);
 
   /** Where a launch would land, in the log's terms. */
   const aeroDestination = useCallback(
@@ -357,9 +368,9 @@ export function MassasLaunchPage() {
   /**
    * The shortcut's way back.
    *
-   * The Atajos app finishes by opening this page with `aero_sync` in the query string, which is the only
-   * channel a native app has to say "the ERP answered". The parameters are consumed and stripped, so a
-   * pull-to-refresh in the factory never replays a confirmation.
+   * The Atajos app finishes by opening this page with `aero_sync` (a launch) or `aero_test` (the connection
+   * test) in the query string, which is the only channel a native app has to say what the ERP answered.
+   * The parameters are consumed and stripped, so a pull-to-refresh in the factory never replays a result.
    */
   useEffect(() => {
     if (aeroCallbackHandled.current) return;
@@ -367,6 +378,18 @@ export function MassasLaunchPage() {
     if (!parsed) return;
     aeroCallbackHandled.current = true;
     window.history.replaceState({}, '', `${window.location.pathname}${window.location.hash}`);
+
+    if (parsed.kind === 'test') {
+      // The attempt was written before the phone left; this line closes it with what the endpoint said.
+      const pending = loadAeroPendingTest();
+      const destinationUrl = pending?.destinationUrl ?? aeroDestination() ?? aeroSettings.wsUrl;
+      clearAeroPendingTest();
+      void postAeroAuditEvent(
+        aeroTestResultEvent({ verdict: parsed.verdict, raw: parsed.raw, destinationUrl }),
+      );
+      setAeroTestOutcome({ verdict: parsed.verdict, raw: parsed.raw, destinationUrl });
+      return;
+    }
 
     const queue = readAeroQueue();
     const destination = aeroDestination();
@@ -392,7 +415,30 @@ export function MassasLaunchPage() {
         ? { type: 'success', message: parsed.message ?? t('massas.aero.syncConfirmYes') }
         : { type: 'error', message: parsed.message ?? t('massas.aero.syncConfirmNo') },
     );
-  }, [aeroDestination, t, triggerAeroSync]);
+  }, [aeroDestination, aeroSettings.wsUrl, t, triggerAeroSync]);
+
+  /**
+   * The operator came back from the phone without a verdict.
+   *
+   * Returning to this page with an open attempt means the shortcut was cancelled, failed before it could
+   * read the answer, or the return URL never opened. Closing the attempt keeps the trail honest: an open
+   * `requested` line forever is noise, and inventing a success would be worse.
+   */
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (aeroCallbackHandled.current) return;
+      // A callback in the URL belongs to the effect above, whatever order the browser fires events in.
+      if (parseAeroCallback(window.location.search)) return;
+      const pending = loadAeroPendingTest();
+      if (!pending) return;
+      clearAeroPendingTest();
+      void postAeroAuditEvent(aeroTestNoVerdictEvent({ destinationUrl: pending.destinationUrl }));
+      setAeroTestOutcome({ verdict: 'unknown', raw: '', destinationUrl: pending.destinationUrl });
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, []);
 
   if (loading) {
     return (
@@ -517,7 +563,12 @@ export function MassasLaunchPage() {
 
       {/* Company integration: settings and the shortcut recipe, only for the owner admin. */}
       {aeroAllowed && (
-        <AeroIntegrationPanel settings={aeroSettings} onSettingsSaved={setAeroSettings} />
+        <AeroIntegrationPanel
+          settings={aeroSettings}
+          onSettingsSaved={setAeroSettings}
+          testOutcome={aeroTestOutcome}
+          onTestOutcomeHandled={handleTestOutcomeHandled}
+        />
       )}
 
       {/* The shortcut does not always call back; the operator's answer is the fallback verdict. */}
