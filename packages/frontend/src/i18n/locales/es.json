@@ -557,7 +557,9 @@
       "syncConfirmYes": "Sincronizado",
       "syncConfirmNo": "Falló",
       "syncRecorded": "Resultado registrado en el servidor"
-    }
+    },
+    "historyShort": "Historial",
+    "todayShort": "Hoy"
   },
   "moduleHelp": {
     "dashboard": {
@@ -755,7 +757,9 @@
     "units": "Unidades",
     "unitsPerBoxHeader": "Un/Cj",
     "unitsShort": "un",
-    "unitsWord": "unidades"
+    "unitsWord": "unidades",
+    "historyShort": "Historial",
+    "counterShort": "Contador"
   },
   "guest": {
     "readonlyTitle": "Modo Solo Lectura",

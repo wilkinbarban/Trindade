@@ -12,7 +12,6 @@ interface MassasLaunchGridProps {
   onQuantityChange: (code: string, rawVal: string) => void;
   onLaunch: () => void;
   submitting: boolean;
-  date: string;
   /** Optional control rendered beside the launch button, e.g. the company-sync switch. */
   erpControl?: ReactNode;
 }
@@ -23,7 +22,6 @@ export function MassasLaunchGrid({
   onQuantityChange,
   onLaunch,
   submitting,
-  date,
   erpControl,
 }: MassasLaunchGridProps) {
   const { t } = useTranslation();
@@ -45,25 +43,19 @@ export function MassasLaunchGrid({
 
   return (
     <Card className="border-gray-200 shadow-sm">
-      <CardContent className="pt-6">
-        {/* En un teléfono el título y el vivo de cajas no caben en un renglón: el título se partía y
-            los totales se comían el ancho que la grilla necesita. Debajo de `sm` bajan a dos filas. */}
-        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">{t('massas.title')}</h2>
-            <p className="text-xs text-gray-500">
-              {t('massas.liveUnits')} · {t('massas.date')}: {date}
-            </p>
+      <CardContent className="p-4 sm:p-6">
+        {/* Sin cabecera propia: la tarjeta de arriba ya dice "Lançamento de Massas" y con el H2
+            repetido quedaban dos títulos iguales seguidos. Tampoco repite la fecha, que el operario
+            acaba de elegir arriba y que el campo muestra en su formato local, no en ISO. Queda solo
+            el vivo de cajas, que sí cambia mientras se escribe, y aparece únicamente si hay algo. */}
+        {totalLaunchBoxes > 0 && (
+          <div className="mb-4 text-right">
+            <span className="block text-xs font-semibold uppercase text-gray-500">{t('massas.liveUnits')}</span>
+            <span className="text-base font-bold text-amber-700">
+              {totalLaunchBoxes} cx · {totalLaunchUnits} un
+            </span>
           </div>
-          {totalLaunchBoxes > 0 && (
-            <div className="text-right sm:shrink-0">
-              <span className="text-xs font-semibold uppercase text-gray-500 block">{t('massas.liveUnits')}</span>
-              <span className="text-base font-bold text-amber-700">
-                {totalLaunchBoxes} cx · {totalLaunchUnits} un
-              </span>
-            </div>
-          )}
-        </div>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           {products.map((product) => {

@@ -4,7 +4,6 @@ import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import { Card, CardContent } from '../components/ui/card';
-import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { LoadingSpinner } from '../components/ui/loading-spinner';
 import { toWhatsAppNumber } from '../lib/phone';
@@ -88,30 +87,32 @@ export function MassasHistoryPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 pb-12">
+    <div className="max-w-6xl mx-auto space-y-4 pb-12 sm:space-y-6">
       {/* Encabezado y Enlace Cruzado a Hoy. Sin la placa del reloj: en un teléfono se llevaba el
           ancho que el título necesitaba. */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 bg-white p-4 rounded-xl border border-gray-200 shadow-sm sm:p-6">
         <div className="min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center justify-between gap-2">
             {/* Un escalón menos en el teléfono: el título entra en dos renglones y el encabezado deja de ser media pantalla. */}
             <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{t('massas.historyTitle')}</h1>
-            <ModuleHelpModal
-              title={t('moduleHelp.massasHistory.title')}
-              subtitle={t('moduleHelp.massasHistory.subtitle')}
-              description={t('moduleHelp.massasHistory.description')}
-              sections={t('moduleHelp.massasHistory.sections', { returnObjects: true }) as any}
-            />
+            <div className="shrink-0">
+              <ModuleHelpModal
+                title={t('moduleHelp.massasHistory.title')}
+                subtitle={t('moduleHelp.massasHistory.subtitle')}
+                description={t('moduleHelp.massasHistory.description')}
+                sections={t('moduleHelp.massasHistory.sections', { returnObjects: true }) as any}
+              />
+            </div>
           </div>
           <p className="text-sm text-gray-500 mt-1">{t('massas.historySubtitle')}</p>
         </div>
-        {/* Misma fila que en el lanzamiento, y por el mismo motivo: el campo de fecha de Safari no cabe
-            en media pantalla de iPhone y el botón se le montaba encima. Apilados en el teléfono, en fila
-            desde `sm`. Sin los botones de días con lanzamientos ni los carteles de "Hoje"/"Modo Leitura":
-            el rango ya dice cuál es el día más nuevo. */}
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-end sm:shrink-0">
-          <div className="w-full sm:w-auto">
-            <label htmlFor="history-date" className="block text-xs font-medium text-gray-600 sm:sr-only">
+        {/* Una fila, la misma que en el lanzamiento: la fecha toma el ancho sobrante y la vuelta a hoy
+            se queda con el suyo, con la palabra corta en el teléfono. Sin los botones de días con
+            lanzamientos ni los carteles de "Hoje"/"Modo Leitura": el rango ya dice cuál es el día más
+            nuevo. */}
+        <div className="flex w-full items-center gap-2 sm:w-auto sm:items-end">
+          <div className="min-w-0 flex-1 sm:flex-none">
+            <label htmlFor="history-date" className="sr-only">
               {t('massas.date')}:
             </label>
             <Input
@@ -121,15 +122,17 @@ export function MassasHistoryPage() {
               max={saoPauloYesterday()}
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full sm:w-auto font-medium"
+              className="h-11 w-full font-medium sm:h-10 sm:w-auto"
               data-testid="massas-history-date"
             />
           </div>
-          <Link to="/massas-launch" className="w-full sm:w-auto">
-            <Button variant="outline" className="w-full sm:w-auto flex items-center justify-center gap-2 text-sm font-semibold">
-              <ArrowLeft className="h-4 w-4" />
-              {t('massas.backToToday')}
-            </Button>
+          <Link
+            to="/massas-launch"
+            className="inline-flex h-11 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-gray-300 bg-white px-3 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 sm:h-10"
+          >
+            <ArrowLeft className="h-4 w-4 shrink-0" />
+            <span className="sm:hidden">{t('massas.todayShort')}</span>
+            <span className="hidden sm:inline">{t('massas.backToToday')}</span>
           </Link>
         </div>
       </div>

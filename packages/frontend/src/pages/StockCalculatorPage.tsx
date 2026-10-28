@@ -22,6 +22,7 @@ import { shareOrCopy, waMeLink } from '../lib/whatsapp';
 import { ModuleHelpModal } from '../components/ui/ModuleHelpModal';
 import { StockCollectiveSummary } from '../components/stock/StockCollectiveSummary';
 import { saoPauloToday } from '../lib/date';
+import { History } from 'lucide-react';
 
 /**
  * The stock counter.
@@ -187,43 +188,53 @@ export function StockCalculatorPage() {
   }
 
   return (
-    <div className="p-4 space-y-4" data-testid="stock-calculator">
+    <div className="space-y-4 p-4 sm:space-y-6 sm:p-6" data-testid="stock-calculator">
       {/* En un teléfono el título, la ayuda y el botón de histórico no entran en una fila: con el
           botón forzado al lado, "Calculador de Estoque" se partía en tres renglones y la ayuda
           quedaba colgada entre ellos. Debajo de `sm` el encabezado se apila, el botón ocupa el ancho
           y el título conserva su renglón. */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center justify-between gap-2">
             <h1 className="text-xl font-semibold text-gray-800">{t('stock.title')}</h1>
-            <ModuleHelpModal
-              title={t('moduleHelp.stock.title')}
-              subtitle={t('moduleHelp.stock.subtitle')}
-              description={t('moduleHelp.stock.description')}
-              sections={t('moduleHelp.stock.sections', { returnObjects: true }) as any}
-            />
+            <div className="shrink-0">
+              <ModuleHelpModal
+                title={t('moduleHelp.stock.title')}
+                subtitle={t('moduleHelp.stock.subtitle')}
+                description={t('moduleHelp.stock.description')}
+                sections={t('moduleHelp.stock.sections', { returnObjects: true }) as any}
+              />
+            </div>
           </div>
           <p className="text-sm text-gray-500">{canEdit ? t('stock.subtitle') : t('stock.readOnly')}</p>
         </div>
-        {/* Apilados en el teléfono: el campo de fecha nativo de Safari mide ~185px y no entra en media
-            pantalla de iPhone, donde el botón terminaba encima del campo. Desde `sm` comparten fila. */}
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-end sm:shrink-0">
-          <div className="w-full sm:w-auto">
-            <label htmlFor="stock-date" className="block text-xs font-medium text-gray-600">{t('stock.date')}</label>
+        {/* La fecha toma el ancho sobrante y el histórico se queda con el suyo en la misma fila, con
+            la palabra corta en el teléfono: apilados costaban media pantalla antes del primer producto.
+            Desde `sm` el botón recupera su nombre completo. La etiqueta visible del campo también vuelve
+            ahí, donde hay ancho para ella. */}
+        <div className="flex w-full items-center gap-2 sm:w-auto sm:items-end">
+          <div className="min-w-0 flex-1 sm:flex-none">
+            <label htmlFor="stock-date" className="sr-only sm:not-sr-only sm:mb-1 sm:block sm:text-xs sm:font-medium sm:text-gray-600">
+              {t('stock.date')}
+            </label>
             <Input
               id="stock-date"
               type="date"
               value={date}
               max={saoPauloToday()}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full sm:w-auto"
+              className="h-11 w-full sm:h-10 sm:w-auto"
               data-testid="stock-date"
             />
           </div>
-          <Link to="/stock-history" className="w-full sm:w-auto">
-            <Button variant="outline" className="w-full sm:w-auto" data-testid="stock-open-history">
-              {t('stock.goToHistory')}
-            </Button>
+          <Link
+            to="/stock-history"
+            className="inline-flex h-11 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-gray-300 bg-white px-3 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 sm:h-10"
+            data-testid="stock-open-history"
+          >
+            <History className="h-4 w-4 shrink-0" />
+            <span className="sm:hidden">{t('stock.historyShort')}</span>
+            <span className="hidden sm:inline">{t('stock.goToHistory')}</span>
           </Link>
         </div>
       </div>

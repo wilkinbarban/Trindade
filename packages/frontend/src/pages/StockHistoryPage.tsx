@@ -11,6 +11,7 @@ import { formatPhoneMask, toWhatsAppNumber } from '../lib/phone';
 import { shareOrCopy, waMeLink } from '../lib/whatsapp';
 import { ModuleHelpModal } from '../components/ui/ModuleHelpModal';
 import { StockCollectiveSummary } from '../components/stock/StockCollectiveSummary';
+import { ArrowLeft } from 'lucide-react';
 
 /**
  * A past day of counting, as a place of its own.
@@ -83,28 +84,33 @@ export function StockHistoryPage() {
   }
 
   return (
-    <div className="p-4 space-y-4" data-testid="stock-history-page">
+    <div className="space-y-4 p-4 sm:space-y-6 sm:p-6" data-testid="stock-history-page">
       {/* Debajo de `sm` el encabezado se apila: con el botón al lado, "Histórico de Contagem" se
           partía en tres renglones y la ayuda quedaba colgada entre ellos. */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center justify-between gap-2">
             <h1 className="text-xl font-semibold text-gray-800">{t('stock.historyTitle')}</h1>
-            <ModuleHelpModal
-              title={t('moduleHelp.stockHistory.title')}
-              subtitle={t('moduleHelp.stockHistory.subtitle')}
-              description={t('moduleHelp.stockHistory.description')}
-              sections={t('moduleHelp.stockHistory.sections', { returnObjects: true }) as any}
-            />
+            <div className="shrink-0">
+              <ModuleHelpModal
+                title={t('moduleHelp.stockHistory.title')}
+                subtitle={t('moduleHelp.stockHistory.subtitle')}
+                description={t('moduleHelp.stockHistory.description')}
+                sections={t('moduleHelp.stockHistory.sections', { returnObjects: true }) as any}
+              />
+            </div>
           </div>
           <p className="text-sm text-gray-500">{t('stock.historySubtitle')}</p>
         </div>
-        {/* Como en el calculador: apilados en el teléfono, porque el campo de fecha de Safari no cabe en
-            media pantalla, y en fila desde `sm`. Una sola fecha y dos topes: la última noche cerrada hacia
-            atrás y treinta días de archivo. */}
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-end sm:shrink-0">
-          <div className="w-full sm:w-auto">
-            <label className="block text-xs font-medium text-gray-600" htmlFor="stock-history-date">
+        {/* Igual que en el calculador: una fila con la fecha flexible y la vuelta al contador a ancho
+            justo. Una sola fecha y dos topes: la última noche cerrada hacia atrás y treinta días de
+            archivo. */}
+        <div className="flex w-full items-center gap-2 sm:w-auto sm:items-end">
+          <div className="min-w-0 flex-1 sm:flex-none">
+            <label
+              className="sr-only sm:not-sr-only sm:mb-1 sm:block sm:text-xs sm:font-medium sm:text-gray-600"
+              htmlFor="stock-history-date"
+            >
               {t('stock.date')}
             </label>
             <Input
@@ -114,14 +120,18 @@ export function StockHistoryPage() {
               min={saoPauloDaysAgo(30)}
               max={saoPauloYesterday()}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full sm:w-auto"
+              className="h-11 w-full sm:h-10 sm:w-auto"
               data-testid="stock-history-date"
             />
           </div>
-          <Link to="/stock-calculator" className="w-full sm:w-auto">
-            <Button variant="outline" className="w-full sm:w-auto" data-testid="stock-history-back">
-              {t('stock.backToCounter')}
-            </Button>
+          <Link
+            to="/stock-calculator"
+            className="inline-flex h-11 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-gray-300 bg-white px-3 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 sm:h-10"
+            data-testid="stock-history-back"
+          >
+            <ArrowLeft className="h-4 w-4 shrink-0" />
+            <span className="sm:hidden">{t('stock.counterShort')}</span>
+            <span className="hidden sm:inline">{t('stock.backToCounter')}</span>
           </Link>
         </div>
       </div>

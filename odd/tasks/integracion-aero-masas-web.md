@@ -65,14 +65,32 @@ ODD y TDD.»; «todos los tests queden en verde»; «commits atómicos en main, 
 healthcheck HTTP 200 en el dominio público y dejalo 100% publicado y listo.» El backend también cambia, así
 que la imagen `api` se reconstruye en el mismo despliegue.
 
-S11 — Fecha y botón nunca se solapan en un iPhone. Pedido: «En móvil (`< sm`), cambiar a apilamiento vertical
-(`flex flex-col gap-2 w-full sm:flex-row sm:items-center sm:w-auto`)» en las cuatro pantallas que hoy usan
-`grid grid-cols-2 items-end gap-2 w-full sm:flex ...`: `MassasLaunchPage` (fecha vs «Ver Histórico»),
-`StockCalculatorPage` (fecha vs «Ir ao Histórico»), `MassasHistoryPage` (fecha vs «Voltar para Hoje») y
-`StockHistoryPage` (fecha vs «Voltar ao contador»). En móvil cada control ocupa el 100% de su fila y el botón
-queda debajo con 44px de alto; desde `sm` vuelven lado a lado en la misma fila. La causa citada: «En Safari
-iOS, el input de fecha nativo formatea `28 de out. de 2026`, cuyo ancho intrínseco excede los 160px que le da
-la grilla en un iPhone de 375-390px».
+S11 — (reescrita por L5, supersede el apilado de L3) Fecha y control de navegación comparten UNA sola fila
+asimétrica en el teléfono, en las cuatro pantallas: `MassasLaunchPage` (fecha vs «Histórico»),
+`StockCalculatorPage` (fecha vs «Histórico»), `MassasHistoryPage` (fecha vs «Hoje») y `StockHistoryPage`
+(fecha vs «Contador»). Pedido textual: «Contenedor en mobile: flex items-center gap-2 w-full sm:w-auto»;
+«Input date: flexible (flex-1 min-w-0), h-10, con label sr-only en mobile»; «Botón de navegación (Histórico /
+Voltar): shrink-0 inline-flex items-center gap-1.5 h-10 px-3 rounded-lg border text-xs font-semibold
+whitespace-nowrap. En mobile texto conciso ("Histórico" con ícono History, "Hoje" / "Contador" con
+ArrowLeft)»; «En 375px y 390px, ~190px de fecha + 8px gap + ~115px de botón suman ~315-325px: entran
+perfectamente en UNA SOLA fila limpia y elegante, sin desborde ni solapamiento.» El apilado a ancho completo
+de S11 original «se comen el 40% del alto útil antes de que el operario vea un solo producto o registro» y
+queda prohibido.
+
+S13 — Jerarquía sin duplicado: «En Lançamento de Massas hay un duplicado visual evidente: la tarjeta superior
+dice "Lançamento de Massas" en H1, y la tarjeta inmediatamente inferior (MassasLaunchGrid) repite "Lançamento
+de Massas" en H2. Remediá esa redundancia para que la jerarquía sea limpia.»
+
+S14 — Densidad en el teléfono: «Ajustá el padding en mobile a p-4 sm:p-6 y el espaciado vertical entre
+secciones a space-y-4 sm:space-y-6 para evitar tarjetas infladas con aire vacío.»
+
+S15 — El CI de GitHub Actions vuelve a quedar completamente verde: el job `android` falla por drift de
+contratos («Contract types check failed: packages/android/contract does not match
+packages/contracts/openapi.json»). Faltan `AeroLogError.kt`, `AeroLogRequest.kt` y `AeroLogResponse.kt` en
+`packages/android/contract/src/main/kotlin/com/trindade/app/contract/models/`; se regeneran con
+`docker run --rm --user "$(id -u):$(id -g)" -v "/home/wilkin/proyectos/Trindade:/work" -w /work
+ghcr.io/cirruslabs/android-sdk:35 bash scripts/generate-android-contract.sh` y se suman al commit de la
+remediación móvil.
 
 S12 — Cierre: «Ejecutar la suite de tests para asegurar 0 fallos»; «Commit atómico directo a `main` sin
 Co-Authored-By y push a `origin main`»; «Reconstruir la imagen de producción en Docker (`docker compose build
@@ -104,10 +122,14 @@ web && docker compose up -d web`)»; «Validar HTTP 200 en `https://trindademasa
   constantes del módulo; payload siempre en unidades; trazabilidad en la bitácora cuando falta el `ENT_USU`
   capturado por «Probar conexión». Tests de la librería reescritos al contrato nuevo. Ruta: inline ·
   commit `refactor(aero)`.
-- T9 (S11): fecha y botón apilados en móvil en las cuatro pantallas, con el piso táctil intacto. Ruta:
-  inline · commit `fix(mobile)`.
-- T10 (S12): suites completas, commit atómico en `main`, push a `origin`, rebuild de la imagen `web` y HTTP
-  200 en producción. Ruta: inline · evidencia en el Log.
+- T9 (S11, S13, S14) — reabierta por L5: en las cuatro pantallas, fecha y navegación en una sola fila
+  asimétrica (`flex-1 min-w-0` para el campo, `shrink-0` para el chip), etiquetas cortas en móvil con ícono y
+  nombre completo desde `sm`; `MassasLaunchGrid` pierde el H2 repetido y la línea de fecha en ISO; padding
+  `p-4 sm:p-6` y `space-y-4 sm:space-y-6` en las cuatro páginas. Ruta: inline · commit `fix(mobile)`
+  (el del cierre). El intento anterior, `e9bb880`, apilaba a ancho completo y queda superseded.
+- T10 (S12, S15): suites completas, contrato Android regenerado (los tres modelos `AeroLog*`), commit
+  atómico en `main`, push a `origin`, rebuild de la imagen `web` y HTTP 200 en producción. Ruta: inline ·
+  evidencia en el Log.
 
 ## Log
 
@@ -271,3 +293,50 @@ por qué el defecto llegó a producción. RED: 8/8 combinaciones con solape (`ov
 375px: `scrollWidth === clientWidth` en todas.
 
 T10 — suites: frontend 195/195, backend 532/532, `tsc --noEmit` sin errores en el paquete frontend.
+
+L5 — pedido del usuario, literal:
+
+  Buenas. Wilkin subió 4 fotos nuevas tomadas directamente desde su iPhone en Safari (en ~/adjuntos/photo_AQAD*.jpg) de los 4 módulos: Lançamento de Massas, Calculador de Estoque, Histórico de Massas e Histórico de Contagem.
+
+  Mirá el diagnóstico visual de por qué "no acaba de encajar en el diseño":
+  1. Al pasar de grid-cols-2 a flex-col con w-full, convertiste el selector de fecha y el botón en dos bloques gigantes apilados de 326px cada uno. En la pantalla del iPhone se comen el 40% del alto útil antes de que el operario vea un solo producto o registro.
+  2. ¿Por qué se montaba antes? Porque grid-cols-2 forzaba un 50/50 estricto (~150px por celda) y el input date nativo de Safari mide ~185px. La solución no era apilar dos rectángulos gigantescos a ancho completo, sino una fila flex asimétrica:
+     - Contenedor en mobile: flex items-center gap-2 w-full sm:w-auto
+     - Input date: flexible (flex-1 min-w-0), h-10, con label sr-only en mobile.
+     - Botón de navegación (Histórico / Voltar): shrink-0 inline-flex items-center gap-1.5 h-10 px-3 rounded-lg border text-xs font-semibold whitespace-nowrap. En mobile texto conciso ("Histórico" con ícono History, "Hoje" / "Contador" con ArrowLeft).
+     - En 375px y 390px, ~190px de fecha + 8px gap + ~115px de botón suman ~315-325px: entran perfectamente en UNA SOLA fila limpia y elegante, sin desborde ni solapamiento.
+  3. En Lançamento de Massas hay un duplicado visual evidente: la tarjeta superior dice "Lançamento de Massas" en H1, y la tarjeta inmediatamente inferior (MassasLaunchGrid) repite "Lançamento de Massas" en H2. Remediá esa redundancia para que la jerarquía sea limpia.
+  4. Ajustá el padding en mobile a p-4 sm:p-6 y el espaciado vertical entre secciones a space-y-4 sm:space-y-6 para evitar tarjetas infladas con aire vacío.
+
+  Aplicá esta remediación en los 4 módulos (MassasLaunchPage, StockCalculatorPage, MassasHistoryPage, StockHistoryPage y MassasLaunchGrid).
+  Reglas de entrega:
+  - Guiate por la skill impecable.
+  - Corré la suite completa (195 frontend, 532 backend) y validá que a 375px y 390px no haya solape ni desborde.
+  - Commit directo a main con conventional commits (nada de Co-Authored-By ni ramas) y push a origin.
+  - Reconstruí la imagen web de Docker (docker compose build web && docker compose up -d web) y verificá HTTP 200 en producción.
+
+  Avisame cuando quede listo.
+
+L6 — pedido del usuario, literal:
+
+  Atención: Wilkin me pidió revisar los CI de GitHub que quedaron en rojo. Revisé el último run (40675665423) y encontré la causa exacta:
+  El job "verify" pasó 100% verde, pero falló el job "android" por drift de contratos:
+  "Contract types check failed: packages/android/contract does not match packages/contracts/openapi.json"
+  Faltan AeroLogError.kt, AeroLogRequest.kt y AeroLogResponse.kt en packages/android/contract/src/main/kotlin/com/trindade/app/contract/models/.
+
+  Regeneralo corriendo:
+  docker run --rm --user "$(id -u):$(id -g)" -v "/home/wilkin/proyectos/Trindade:/work" -w /work ghcr.io/cirruslabs/android-sdk:35 bash scripts/generate-android-contract.sh
+
+  Sumá esos modelos regenerados al commit de la remediación móvil para que el pipeline de GitHub Actions vuelva a quedar completamente verde.
+
+L7 — desvío declarado sobre la altura del chip: L5 pide `h-10` (40px) y el piso táctil acordado en T7 es 44px
+en las primitivas (`max-sm:min-h-[44px]`). Se conserva 44px en móvil (`h-11`) y se usa `sm:h-10` desde `sm`,
+donde hay mouse. La queja de fondo —dos bloques gigantes apilados— se resuelve igual: medido, la fila ocupa
+44px y no 96px, así que el alto recuperado es el mismo que pedía el punto 1. La etiqueta visible de la fecha
+se mantiene en las dos pantallas de stock desde `sm` (`sr-only` en móvil, como pide L5) y se oculta siempre en
+las dos de masas, donde ya era `sm:sr-only`.
+
+L8 — el servidor local de e2e (`packages/backend/src/e2e-server.ts`) no monta las rutas de masas, así que la
+grilla nunca renderiza ahí y la prueba visual del punto 3 no podía verse. Se interceptó `**/api/massas-launch**`
+en Playwright con un día de ejemplo (login real contra la API local) y se midió el DOM resultante. No se tocó
+código de producto para la prueba.

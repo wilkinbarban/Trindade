@@ -408,29 +408,32 @@ export function MassasLaunchPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 pb-12">
+    <div className="max-w-6xl mx-auto space-y-4 pb-12 sm:space-y-6">
       {/* Encabezado y Selección de Fecha. Sin el emoji: en un teléfono la placa del espagueti y el
           botón se llevaban el ancho que el título necesitaba. Debajo de `sm` las acciones bajan a su
           propio renglón y la fecha sigue alcanzable con el pulgar. */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 bg-white p-4 rounded-xl border border-gray-200 shadow-sm sm:p-6">
         <div className="min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center justify-between gap-2">
             <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{t('massas.title')}</h1>
-            <ModuleHelpModal
-              title={t('moduleHelp.massasLaunch.title')}
-              subtitle={t('moduleHelp.massasLaunch.subtitle')}
-              description={t('moduleHelp.massasLaunch.description')}
-              sections={t('moduleHelp.massasLaunch.sections', { returnObjects: true }) as any}
-            />
+            <div className="shrink-0">
+              <ModuleHelpModal
+                title={t('moduleHelp.massasLaunch.title')}
+                subtitle={t('moduleHelp.massasLaunch.subtitle')}
+                description={t('moduleHelp.massasLaunch.description')}
+                sections={t('moduleHelp.massasLaunch.sections', { returnObjects: true }) as any}
+              />
+            </div>
           </div>
           <p className="text-sm text-gray-500 mt-1">{t('massas.subtitle')}</p>
         </div>
-        {/* En un teléfono no comparten fila: el campo de fecha nativo de Safari mide ~185px con
-            "28 de out. de 2026" y la mitad de un iPhone son 150px, así que el botón se le montaba encima.
-            Apilados, cada uno ocupa su renglón a todo el ancho; desde `sm` vuelven lado a lado. */}
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-end sm:shrink-0">
-          <div className="w-full sm:w-auto">
-            <label htmlFor="massa-date" className="block text-xs font-medium text-gray-600 sm:sr-only">
+        {/* Una sola fila también en el teléfono, asimétrica: la fecha se queda con el ancho que le
+            sobra (`flex-1 min-w-0`, así no empuja) y el acceso al histórico mantiene su ancho justo
+            (`shrink-0`) con una palabra corta. Apilarlos a todo el ancho costaba media pantalla antes
+            del primer producto. El nombre completo del destino sigue estando desde `sm`. */}
+        <div className="flex w-full items-center gap-2 sm:w-auto sm:items-end">
+          <div className="min-w-0 flex-1 sm:flex-none">
+            <label htmlFor="massa-date" className="sr-only">
               {t('massas.date')}:
             </label>
             <Input
@@ -439,7 +442,7 @@ export function MassasLaunchPage() {
               max={saoPauloToday()}
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="h-11 w-full px-2.5 text-sm font-medium sm:w-auto"
+              className="h-11 w-full px-2.5 text-sm font-medium sm:h-10 sm:w-auto"
               data-testid="massas-launch-date"
             />
           </div>
@@ -447,10 +450,12 @@ export function MassasLaunchPage() {
               pantalla anuncia dos y el dedo no sabe cuál tocó. El destino vive en el enlace. */}
           <Link
             to="/massas-history"
-            className="inline-flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white px-2.5 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 sm:w-auto sm:min-h-9"
+            className="inline-flex h-11 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-gray-300 bg-white px-3 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 sm:h-10"
+
           >
             <History className="h-4 w-4 shrink-0" />
-            <span>{t('massas.viewHistory')}</span>
+            <span className="sm:hidden">{t('massas.historyShort')}</span>
+            <span className="hidden sm:inline">{t('massas.viewHistory')}</span>
           </Link>
         </div>
       </div>
@@ -482,7 +487,6 @@ export function MassasLaunchPage() {
           onQuantityChange={handleQuantityChange}
           onLaunch={handleRequestLaunch}
           submitting={submitting}
-          date={date}
           erpControl={
             aeroAllowed ? (
               <div className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 sm:py-1">
