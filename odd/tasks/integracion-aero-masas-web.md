@@ -483,3 +483,15 @@ L13 — desvíos declarados del cierre de T11: (a) el diálogo tiene tres pasos 
 nombre del atajo es preparación en la app y no una acción que se agregue — se muestra en una tarjeta aparte,
 sin número, y la lista numera exactamente las dos acciones; (b) el campo del nombre se quedó visible en vez de
 pedirlo por diálogo, porque es la única pieza que el operario puede teclear mal y el payload no viaja con ella.
+
+L14 — cierre de T11 en producción, con evidencia observada: suites `532/532` backend y `197/197` frontend,
+`npm run typecheck` sin errores; commits `327a25e` (cambio) y `0b14a4c` (evidencia) en `origin/main`; imagen
+`web` reconstruida (`docker compose up -d --build web`), ambos contenedores `healthy`; `https://trindademasas.
+duckdns.org` 200 y `/api/health` 200; el bundle servido (`assets/index-JbhjlJUA.js`) contiene
+`shortcutStepFetch` y «Atalho do iPhone (2 ações)», y ya no contiene la clave `shortcutSteps` de la receta
+vieja. Verificación funcional en Chromium con viewport de 375 y 390px: dos ítems numerados, tres botones de
+copiar de 44×44, portapapeles con los tres valores exactos, cero desborde horizontal y acciones dentro del
+viewport. La navegación real al esquema `shortcuts://` no es observable en Chromium (no hay handler y la
+asignación se descarta en silencio), así que queda pendiente de la prueba en el iPhone; lo verificable de
+punta a punta es el contrato: el payload auditado es el cuerpo exacto del `POST` (`PRO_COD`, `PRO_QTD` en
+unidades, `ENT_SER: "APL"`), sin sobre.
