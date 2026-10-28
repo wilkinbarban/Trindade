@@ -340,3 +340,49 @@ L8 — el servidor local de e2e (`packages/backend/src/e2e-server.ts`) no monta 
 grilla nunca renderiza ahí y la prueba visual del punto 3 no podía verse. Se interceptó `**/api/massas-launch**`
 en Playwright con un día de ejemplo (login real contra la API local) y se midió el DOM resultante. No se tocó
 código de producto para la prueba.
+
+### Evidencia — remediación móvil, ronda 2 (commit `2500ad2`)
+
+RED observado antes de tocar: las cuatro pantallas mostraban dos bloques a ancho completo (44px + 8px + 44px
+= 96px de alto) y la cabecera de `MassasLaunchGrid` repetía el título de la página en un H2. Capturas del
+iPhone de Wilkin: `photo_AQADPg1rGzNYEUd-.jpg` (Histórico de Contagem), `photo_AQADPA1rGzNYEUd-.jpg`
+(Calculador de Estoque).
+
+GREEN, medido con Playwright/Chromium a 375x844 y 390x844 (8 combinaciones = 4 rutas x 2 anchos), con login
+real contra la API local:
+
+  375 /massas-launch     fecha 192x44 | chip 109x44 "Histórico" | gap 8 | misma fila | cabecera↓270px
+  375 /massas-history    fecha 222x44 | chip  79x44 "Hoje"      | gap 8 | misma fila | cabecera↓298px
+  375 /stock-calculator  fecha 194x44 | chip 109x44 "Histórico" | gap 8 | misma fila | cabecera↓248px
+  375 /stock-history     fecha 193x44 | chip 110x44 "Contador"  | gap 8 | misma fila | cabecera↓248px
+  390 (las cuatro)       fecha 207-237px, mismos chips, misma fila, cabeceras 248-298px
+
+En las ocho: `overlap: false`, `scrollWidth === clientWidth` (0px de desborde), campo y chip de 44px de alto
+(piso táctil de T7; `sm:h-10` desde `sm`), y la fecha nunca por debajo de 192px, es decir por encima de los
+185px intrínsecos de Safari. El chip queda entre 79px y 110px, dentro del presupuesto de ~315-325px que fija
+L5.
+
+Jerarquía, medido en el DOM de `/massas-launch` a 375px: `H1: Lançamento de Massas`, y de ahí en adelante
+`H2: Lançamentos Individuais`, `H2: Resumo Coletivo do Dia`, `H2: Compartilhar por WhatsApp`. El H2 duplicado
+desapareció y con él la línea de contexto en ISO («unidades calculadas · Data: 2026-10-28»), que repetía la
+fecha recién elegida en el campo de arriba: el vivo de cajas ahora se renderiza solo cuando
+`totalLaunchBoxes > 0`. La prueba visual se hizo interceptando `**/api/massas-launch**` en Playwright con un
+día de ejemplo, porque el servidor local de e2e no monta las rutas de masas (L8); no se tocó código para eso.
+
+Suites: frontend 195/195, backend 532/532, `tsc --noEmit` sin errores. Detector mecánico de `impeccable`
+(`detect --json`) sobre las cinco pantallas tocadas: `[]`, sin hallazgos.
+
+Contrato Android: `scripts/generate-android-contract.sh` dentro de `ghcr.io/cirruslabs/android-sdk:35`
+regeneró 127 → 146 archivos Kotlin. El `git status` del directorio mostró exactamente los tres modelos que
+faltaban (`AeroLogError.kt`, `AeroLogRequest.kt`, `AeroLogResponse.kt`) y ni un archivo existente modificado,
+así que el drift era solo de alta. El contenedor necesita `-e HOME=/tmp`: con `--user "$(id -u)"` el `HOME`
+hereda `/` y el script falla al crear `//.cache` (L9).
+
+Despliegue: commit `2500ad2` en `main` y pusheado a `origin/main`. `docker compose build web && docker compose
+up -d web`: `trindade-api-1 healthy`, `trindade-web-1 healthy`, HTTP 200 en `https://trindademasas.duckdns.org`
+y en `/api/health`. El bundle servido contiene `items-center gap-2 sm:w-auto sm:items-end` y ya no contiene
+`flex-col gap-2 sm:flex-row sm:items-end`, o sea que la fila nueva es la que está en producción.
+
+L9 — obstáculo real del contenedor: el comando que pasó el usuario (L6) falla con `mkdir: cannot create
+directory '//.cache': Permission denied` porque `HOME=/` dentro de la imagen. Se corrió el mismo comando con
+`-e HOME=/tmp` y el script eligió `/tmp/.cache/trindade-openapi-generator`. No se modificó el script.
