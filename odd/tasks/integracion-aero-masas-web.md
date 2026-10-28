@@ -378,6 +378,10 @@ faltaban (`AeroLogError.kt`, `AeroLogRequest.kt`, `AeroLogResponse.kt`) y ni un 
 así que el drift era solo de alta. El contenedor necesita `-e HOME=/tmp`: con `--user "$(id -u)"` el `HOME`
 hereda `/` y el script falla al crear `//.cache` (L9).
 
+CI de GitHub Actions: run 40679350382 sobre `2500ad2`, `verify: success` y `android: success`. El job que
+estaba rojo era `android`, por drift de contratos (L6); con los tres modelos en el árbol, el check de frescura
+del contrato pasa.
+
 Despliegue: commit `2500ad2` en `main` y pusheado a `origin/main`. `docker compose build web && docker compose
 up -d web`: `trindade-api-1 healthy`, `trindade-web-1 healthy`, HTTP 200 en `https://trindademasas.duckdns.org`
 y en `/api/health`. El bundle servido contiene `items-center gap-2 sm:w-auto sm:items-end` y ya no contiene
