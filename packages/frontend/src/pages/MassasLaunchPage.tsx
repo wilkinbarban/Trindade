@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
@@ -22,6 +22,20 @@ import { MassasLaunchGrid } from './massas/MassasLaunchGrid';
 import { MassasCollectiveTable } from './massas/MassasCollectiveTable';
 import { MassasWhatsAppShare } from './massas/MassasWhatsAppShare';
 import { saoPauloToday } from '../lib/date';
+import {
+  aeroSettingsReady,
+  aeroLaunchEnvelope,
+  aeroShortcutTriggerUrl,
+  buildEntradaItemPayload,
+  isAeroAllowed,
+  loadAeroSettings,
+  parseAeroCallback,
+  saveAeroSettings,
+  type AeroSettings,
+} from '../lib/aero-integration';
+import { postAeroAuditEvent } from '../lib/aero-audit';
+import { clearAeroQueue, readAeroQueue, takeNextAeroItem, writeAeroQueue, type AeroQueue } from '../lib/aero-queue';
+import { AeroIntegrationPanel } from './massas/AeroIntegrationPanel';
 
 export function MassasLaunchPage() {
   const { t } = useTranslation();
@@ -50,6 +64,16 @@ export function MassasLaunchPage() {
   // Block 3 state: WhatsApp phone input
   const [phone, setPhone] = useState('');
   const [copyNote, setCopyNote] = useState('');
+
+  // Company integration: kept out of the tree entirely for anyone who is not the owner admin.
+  const aeroAllowed = isAeroAllowed(user ? { username: user.username, role: user.role } : null);
+  const [aeroSettings, setAeroSettings] = useState<AeroSettings>(loadAeroSettings);
+  const [syncToErp, setSyncToErp] = useState(() => aeroSettings.syncEnabled && aeroSettingsReady(aeroSettings));
+  const [syncAwaiting, setSyncAwaiting] = useState<{ date: string; remaining: number } | null>(() => {
+    const queue = readAeroQueue();
+    return queue ? { date: queue.date, remaining: queue.items.length } : null;
+  });
+  const aeroCallbackHandled = useRef(false);
 
   const load = useCallback(
     async (targetDate: string, isSilent = false) => {
@@ -136,12 +160,31 @@ export function MassasLaunchPage() {
         date,
         items: itemsToConfirm.map((i) => ({ product_code: i.product_code, boxes: i.boxes })),
       });
+
+      // The entry is already Trindade's before the company hears about it: whatever happens in the
+      // Atajos app, the day's production is on record.
+      const syncable =
+        aeroAllowed && syncToErp && aeroSettingsReady(aeroSettings) && aeroSettings.userCode !== null;
+      const requested = itemsToConfirm.map((i) => ({
+        productCode: i.product_code,
+        productName: i.name,
+        quantity: aeroSettings.quantityUnit === 'CX' ? i.boxes : i.units,
+      }));
+
       setQuantities({});
+      await load(date);
+
+      if (syncable) {
+        const queue: AeroQueue = { createdAt: new Date().toISOString(), date, items: requested };
+        writeAeroQueue(queue);
+        triggerAeroSync(queue);
+        return;
+      }
+
       setResultModal({
         type: 'success',
         message: t('massas.launchSuccess', 'Lançamento registrado com sucesso!'),
       });
-      await load(date);
     } catch (err) {
       setResultModal({
         type: 'error',
@@ -151,6 +194,87 @@ export function MassasLaunchPage() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  /**
+   * Hands the next pending entry to the Atajos app.
+   *
+   * One product per request is a contract detail of `/entradasitem`, and the page can only open one URL,
+   * so the queue drains one entry per return trip. The navigation happens last: everything that must
+   * survive the trip -- the log line, the remaining queue -- is written before Safari leaves.
+   */
+  const triggerAeroSync = useCallback(
+    (queue: AeroQueue) => {
+      const next = takeNextAeroItem(queue);
+      if (!next) {
+        clearAeroQueue();
+        setSyncAwaiting(null);
+        return;
+      }
+      writeAeroQueue(next.rest);
+      setSyncAwaiting({ date: queue.date, remaining: next.rest.items.length });
+
+      const payload = buildEntradaItemPayload({
+        productCode: next.item.productCode,
+        productName: next.item.productName,
+        quantity: next.item.quantity,
+        entryDate: queue.date,
+        userCode: aeroSettings.userCode ?? 0,
+        entrySeries: aeroSettings.entrySeries,
+      });
+      const envelope = aeroLaunchEnvelope({
+        wsUrl: aeroSettings.wsUrl,
+        username: aeroSettings.username,
+        password: aeroSettings.password,
+        payload,
+      });
+
+      void postAeroAuditEvent({
+        event: 'launch_sync',
+        phase: 'requested',
+        destinationUrl: envelope.url,
+        payload,
+        note: next.rest.items.length > 0 ? `${next.rest.items.length} pending` : 'last entry',
+      });
+
+      window.location.href = aeroShortcutTriggerUrl({ name: aeroSettings.shortcutName, envelope });
+    },
+    [aeroSettings],
+  );
+
+  const aeroDestination = useCallback(
+    () => (aeroSettings.wsUrl ? `${aeroSettings.wsUrl.replace(/\/$/, '')}/entradasitem` : ''),
+    [aeroSettings.wsUrl],
+  );
+
+  /**
+   * Records what the operator says happened when the shortcut never called back.
+   *
+   * A cancelled shortcut, a wrong IP in the Atajos app and a genuine ERP refusal all look identical from
+   * the page. Rather than invent a verdict, the page asks, and the answer goes to the same log line the
+   * automatic path writes.
+   */
+  const handleSyncManualResult = async (ok: boolean) => {
+    await postAeroAuditEvent({
+      event: 'launch_sync',
+      phase: 'result',
+      destinationUrl: aeroDestination(),
+      httpStatus: ok ? 200 : null,
+      note: ok ? 'manual_confirmation:ok' : 'manual_confirmation:failed',
+      error: ok ? null : 'manual_confirmation',
+    });
+    clearAeroQueue();
+    setSyncAwaiting(null);
+    setNotice({ type: ok ? 'success' : 'error', message: t('massas.aero.syncRecorded') });
+  };
+
+  const handleToggleSync = (next: boolean) => {
+    if (!next) {
+      clearAeroQueue();
+      setSyncAwaiting(null);
+    }
+    setSyncToErp(next);
+    setAeroSettings(saveAeroSettings({ ...aeroSettings, syncEnabled: next }));
   };
 
   const startEditing = (launch: MassaIndividualLaunch) => {
@@ -220,6 +344,46 @@ export function MassasLaunchPage() {
       void shareOrCopy(previewMessage);
     }
   };
+
+  /**
+   * The shortcut's way back.
+   *
+   * The Atajos app finishes by opening this page with `aero_sync` in the query string, which is the only
+   * channel a native app has to say "the ERP answered". The parameters are consumed and stripped, so a
+   * pull-to-refresh in the factory never replays a confirmation.
+   */
+  useEffect(() => {
+    if (aeroCallbackHandled.current) return;
+    const parsed = parseAeroCallback(window.location.search);
+    if (!parsed) return;
+    aeroCallbackHandled.current = true;
+    window.history.replaceState({}, '', `${window.location.pathname}${window.location.hash}`);
+
+    const queue = readAeroQueue();
+    const destination = aeroDestination();
+
+    void postAeroAuditEvent({
+      event: 'launch_sync',
+      phase: 'result',
+      destinationUrl: destination,
+      httpStatus: parsed.status === 'ok' ? 200 : null,
+      response: parsed.message,
+      error: parsed.status === 'error' ? parsed.message ?? 'shortcut_error' : null,
+    });
+
+    if (parsed.status === 'ok' && queue) {
+      triggerAeroSync(queue);
+      return;
+    }
+
+    clearAeroQueue();
+    setSyncAwaiting(null);
+    setResultModal(
+      parsed.status === 'ok'
+        ? { type: 'success', message: parsed.message ?? t('massas.aero.syncConfirmYes') }
+        : { type: 'error', message: parsed.message ?? t('massas.aero.syncConfirmNo') },
+    );
+  }, [aeroDestination, t, triggerAeroSync]);
 
   if (loading) {
     return (
@@ -301,7 +465,78 @@ export function MassasLaunchPage() {
           onLaunch={handleRequestLaunch}
           submitting={submitting}
           date={date}
+          erpControl={
+            aeroAllowed ? (
+              <div className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 sm:py-1">
+                <div className="min-w-0">
+                  <span id="aero-sync-label" className="block text-xs font-semibold text-gray-800 leading-tight">
+                    {t('massas.aero.syncLabel')}
+                  </span>
+                  <span className="block text-[11px] text-gray-500 leading-tight">
+                    {aeroSettingsReady(aeroSettings) ? t('massas.aero.syncHint') : t('massas.aero.syncNeedsSetup')}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={syncToErp}
+                  aria-labelledby="aero-sync-label"
+                  onClick={() => handleToggleSync(!syncToErp)}
+                  disabled={!aeroSettingsReady(aeroSettings)}
+                  className="inline-flex h-11 w-14 shrink-0 items-center justify-center rounded-full disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                  data-testid="aero-sync-switch"
+                >
+                  <span
+                    className={`relative flex h-7 w-12 items-center rounded-full transition-colors ${
+                      syncToErp ? 'bg-amber-600' : 'bg-gray-300'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                        syncToErp ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </span>
+                </button>
+              </div>
+            ) : undefined
+          }
         />
+      )}
+
+      {/* Company integration: settings and the shortcut recipe, only for the owner admin. */}
+      {aeroAllowed && (
+        <AeroIntegrationPanel settings={aeroSettings} onSettingsSaved={setAeroSettings} />
+      )}
+
+      {/* The shortcut does not always call back; the operator's answer is the fallback verdict. */}
+      {aeroAllowed && syncAwaiting && (
+        <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3">
+          <div>
+            <p className="text-sm font-semibold text-amber-900">{t('massas.aero.syncConfirmTitle')}</p>
+            <p className="text-xs text-amber-800 mt-0.5">
+              {t('massas.aero.syncConfirmHint')}
+              {syncAwaiting.remaining > 0 && ` · ${syncAwaiting.remaining}`}
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button
+              type="button"
+              onClick={() => void handleSyncManualResult(true)}
+              className="min-h-[44px] w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-semibold"
+            >
+              {t('massas.aero.syncConfirmYes')}
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void handleSyncManualResult(false)}
+              variant="outline"
+              className="min-h-[44px] w-full sm:w-auto font-semibold text-red-700"
+            >
+              {t('massas.aero.syncConfirmNo')}
+            </Button>
+          </div>
+        </div>
       )}
 
       {/* BLOQUE 2 (Intermedio): Resumen Colectivo y Desglose RBAC */}

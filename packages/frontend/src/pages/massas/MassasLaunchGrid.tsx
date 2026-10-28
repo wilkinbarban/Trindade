@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -13,6 +13,8 @@ interface MassasLaunchGridProps {
   onLaunch: () => void;
   submitting: boolean;
   date: string;
+  /** Optional control rendered beside the launch button, e.g. the company-sync switch. */
+  erpControl?: ReactNode;
 }
 
 export function MassasLaunchGrid({
@@ -22,6 +24,7 @@ export function MassasLaunchGrid({
   onLaunch,
   submitting,
   date,
+  erpControl,
 }: MassasLaunchGridProps) {
   const { t } = useTranslation();
 
@@ -111,6 +114,7 @@ export function MassasLaunchGrid({
 
         {/* Action Row: Botón Lançar SIN botón resetear */}
         <div className="mt-6 flex flex-col sm:flex-row items-center justify-end gap-3 pt-4 border-t border-gray-100">
+          {erpControl && <div className="w-full sm:w-auto sm:mr-auto">{erpControl}</div>}
           <Button
             type="button"
             onClick={onLaunch}
