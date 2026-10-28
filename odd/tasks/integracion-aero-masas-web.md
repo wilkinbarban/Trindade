@@ -26,11 +26,13 @@ auditoría.» El resultado exitoso guarda `CODIGO` como `ENT_USU`. Cuando la pá
 WebService en HTTP plano, la petición es imposible por diseño del navegador y el panel lo dice antes de
 intentar, en vez de mostrar un error de red genérico; el intento igual se audita.
 
-S4 — Botón «Instalar Atajo en iPhone»: «permite descargar / abrir la plantilla del Atajo de iOS configurado
-para disparar a /api/entradasitem.» La plantilla es una receta exacta (acciones, método, cabeceras, cuerpo,
-URL de retorno) copiable desde el panel más el enlace profundo a la app Atajos. Un archivo `.shortcut`
-firmado no se puede generar desde el servidor, y una plantilla a medio firmar dejaría a Wilkin con un atajo
-roto en la fábrica; la receta se arma en un minuto con copiar y pegar y es verificable a ojo.
+S4 — (reescrita por L12) Botón «Instalar Atajo en iPhone»: la plantilla del Atajo que dispara a
+`/api/entradasitem` se arma con **dos acciones nativas**, no siete. El deep link transporta como texto el
+payload crudo —el cuerpo exacto del `POST`, sin sobre— y el atajo lo entrega tal cual; la URL del endpoint y
+la cabecera `Authorization` son constantes de la fábrica y viven dentro del atajo, copiadas una vez desde el
+panel. El panel muestra tres valores con botón propio de copiar (URL del POST, cabecera `Authorization`, URL
+de retorno), cada uno dentro del paso que lo usa. Sigue prohibido generar un archivo `.shortcut` en el
+servidor: tiene que estar firmado por el dispositivo que lo instala e iOS solo acepta enlaces de iCloud.
 
 S5 — Formulario de lanzamiento: switch «Sincronizar com ERP da Empresa», «activo por defecto para wilkin si
 hay credenciales configuradas». Al guardar la masa, además de persistir en la base de Trindade, «emite el
@@ -132,6 +134,11 @@ web && docker compose up -d web`)»; «Validar HTTP 200 en `https://trindademasa
 - T10 (S12, S15): suites completas, contrato Android regenerado (los tres modelos `AeroLog*`), commit
   atómico en `main`, push a `origin`, rebuild de la imagen `web` y HTTP 200 en producción. Ruta: inline ·
   evidencia en el Log.
+- T11 (S4, S8): atajo de dos acciones. El deep link entrega el payload crudo y `aeroShortcutRecipe` expone
+  los tres valores fijos; el sobre `{ url, authorization, body }` y su API (`aeroLaunchEnvelope`,
+  `buildAeroShortcutEnvelope`) se retiran. Diálogo reescrito con los valores dentro de cada paso, copy en
+  ambos locales, documentación y verificación del portapapeles a 375 y 390px. Ruta: inline ·
+  commit `feat(aero)`.
 
 ## Log
 
@@ -462,3 +469,17 @@ L11 — dos desvíos mínimos sobre las clases literales de L10, ambos declarado
 artificial; (b) el input lleva además `min-w-0` y la caja `overflow-hidden`, porque un input absoluto con
 `w-full` todavía puede imponer su ancho intrínseco y, sin el recorte, su caja invisible habría robado el tap
 del chip vecino. El piso táctil de 44px se mantiene (`h-11`, `sm:h-10`), igual que en L7.
+
+L12 — pedido del usuario sobre el atajo, reconstruido: el texto original llegó antes de una compactación y
+no está disponible verbatim, así que se conserva su contenido sin comillas. Pedía que el atajo de iOS se
+arme con **dos acciones nativas** y unos 30 segundos: (1) el deep link del disparador manda el payload como
+JSON plano (`input=text&text=…`), no un sobre `{ url, authorization, body }`; (2) `AeroShortcutDialog` pasa a
+una guía de dos pasos con botones de copiar para la URL del endpoint `/entradasitem`, la cabecera
+`Authorization` Basic y la URL de retorno; además actualizar los locales, los tests y la documentación, y
+cerrar con suites en verde, commit a `main` sin Co-Authored-By, push, rebuild de `web` y HTTP 200 en
+producción.
+
+L13 — desvíos declarados del cierre de T11: (a) el diálogo tiene tres pasos numerados, no dos, porque el
+nombre del atajo es preparación en la app y no una acción que se agregue — se muestra en una tarjeta aparte,
+sin número, y la lista numera exactamente las dos acciones; (b) el campo del nombre se quedó visible en vez de
+pedirlo por diálogo, porque es la única pieza que el operario puede teclear mal y el payload no viaja con ella.
