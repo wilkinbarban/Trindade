@@ -246,3 +246,28 @@ la etiqueta es visible, y con `items-center` el botón quedaría flotando ~15px 
 `sm:items-end` en las cuatro para que el botón se apoye en el mismo borde que el campo de fecha, con una sola
 cadena de clases para las cuatro pantallas. El requisito de fondo —apilado a ancho completo en móvil, fila
 lado a lado desde `sm`— se cumple tal cual.
+
+### Evidencia — remediación móvil del 2026-10-28
+
+Commit en `main`: `e9bb880` fix(aero,mobile), pusheado a `origin/main`. Imagen `web` reconstruida y
+contenedor recreado (`trindade-web-1 healthy`); HTTP 200 en `https://trindademasas.duckdns.org`. El bundle
+servido ya no contiene «Quantidade enviada ao ERP» ni «Série do lançamento», trae `fieldsHint` en los dos
+idiomas, el chunk de masas incluye la fila `flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-end` y
+la traza `userCode missing`.
+
+T8 — el contrato se movió a constantes: `AERO_ENTRY_SERIES = 'APL'`, `AERO_QUANTITY_UNIT = 'UN'`;
+`AeroSettings` perdió `quantityUnit` y `entrySeries`, y un test fija que un teléfono con los valores viejos
+guardados vuelve sin ellos (`'quantityUnit' in loaded === false`). RED observado: la suite no cargaba
+(`does not provide an export named 'AERO_ENTRY_SERIES'`). GREEN: 28/28 en `aero-integration.test.ts`,
+195/195 en el paquete. El panel, medido en el DOM a 375px, expone exactamente tres campos: `aero-ws-url`
+(`type=url`), `aero-ws-user` (text) y `aero-ws-pass` (password).
+
+T9 — medición con Playwright/Chromium a 375 y 390, fijando `minWidth = 185px` en el campo de fecha (ancho
+real en Safari, medido sobre el PDF de la captura: la caja del campo va de x=33 a x=218 en 375px de
+viewport). Sin esa restricción Chromium recorta el texto y da falso verde (0/8 solapes), que es exactamente
+por qué el defecto llegó a producción. RED: 8/8 combinaciones con solape (`overlap: true`, fila
+`grid/row`, campo de 185px contra celda de 150px). GREEN: 0/8, `stacked: true` en las ocho, fila
+`flex/column`, y a 900px `flex/row` con los dos controles en la misma línea. Barrido de las diez rutas a
+375px: `scrollWidth === clientWidth` en todas.
+
+T10 — suites: frontend 195/195, backend 532/532, `tsc --noEmit` sin errores en el paquete frontend.
