@@ -590,3 +590,41 @@ lanzamiento. Además: registrar el intento y el resultado completos en `logs/aer
 fases, `requested` y `result`), reflejar el veredicto en el panel en vez de un bloqueo falso, tests primero
 con las suites en verde y `tsc` limpio, y entrega trunk-based a `main` sin `Co-Authored-By` con rebuild de
 `web` y HTTP 200 en `https://trindademasas.duckdns.org`.
+
+### Evidencia — el atajo de prueba en producción (2026-10-28)
+
+T13 cerrada en `main`: commits `223dac2` (vocabulario), `1e3b99f` (comportamiento) y `75c2f14`
+(documentación), pusheados a `origin/main` sin ramas y sin `Co-Authored-By`.
+
+RED observado antes de tocar la implementación, con los tests nuevos corriendo junto a los viejos: dos
+módulos ausentes (`aero-test`) y tres exportaciones que el código todavía no tenía
+(`AERO_DEFAULT_TEST_SHORTCUT_NAME`, `aeroTestShortcutRecipe`, `aeroTestCallbackPrefix`), `# pass 0 · # fail 2`.
+GREEN después: `41/41` en `aero-test.test.ts` + `aero-integration.test.ts`. Un fallo intermedio real, que se
+corrigió en el camino: al extraer el armado de la URL de vuelta, la limpieza del `basePath` perdió el flag `g`
+y un prefijo con barra final daba `/app//massas-launch`; lo cazó la aserción del prefijo, no la del callback.
+
+Suites completas: backend `532/532`, frontend `210/210`, `tsc --noEmit` sin errores.
+
+Verificación funcional en Chromium (Playwright, `/api` stubbeado, `wilkin` admin) con el origen HTTPS
+reproducido por un proxy TLS delante del Vite de desarrollo, porque el bloqueo depende de
+`window.location.protocol`:
+
+| Caso | Resultado observado |
+| --- | --- |
+| `https:` + WebService HTTP, «Testar Conexão» | Una sola línea `requested` con `note: via=shortcut reason=mixed_content`; **ningún** `fetch` al destino; intento guardado en `localStorage`; aviso ámbar «Abrindo o atalho no iPhone…» |
+| Vuelta `?aero_test=true` | Línea `result` con `error: null` y `note: via=shortcut aero_test=true`; tarjeta verde «conexão correta»; query eliminada de la URL; intento borrado |
+| Vuelta `?aero_test=false` | Línea `result` con `error: shortcut:error`; tarjeta roja con el texto de rechazo |
+| Regreso sin ejecutar el atajo | Línea `result` con `error: shortcut:no_verdict`; tarjeta ámbar «sem um veredicto legível» |
+
+El aviso se desplaza a la vista al llegar el veredicto: sin eso el resultado quedaba a media pantalla de
+distancia y el operario volvía a la parte de arriba de la página. Cero desborde horizontal
+(`scrollWidth - clientWidth = 0`) en el diálogo y en la página a 375px, y los tres botones de copiar de la
+receta nueva miden 44×44.
+
+Despliegue: `docker compose up -d --build web` recreó `api` y `web`, ambos `healthy`;
+`https://trindademasas.duckdns.org` responde `200` y `/api/health` `{"status":"ok",…}` con `200`. El chunk
+servido `assets/MassasLaunchPage-lNRAt0N9.js` contiene `shortcut:no_verdict` y `usuarios/`, y responde `200`.
+
+Lo que **no** se puede verificar desde acá: la navegación real al esquema `shortcuts://` y la existencia del
+atajo `Aero32 Prueba` en el teléfono. Queda para la prueba de Wilkin en la fábrica, igual que el
+`Aero32 Estoque` del lanzamiento.
