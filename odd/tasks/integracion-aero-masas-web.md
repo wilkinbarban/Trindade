@@ -82,6 +82,10 @@ que la imagen `api` se reconstruye en el mismo despliegue.
   comando de inspección del log por SSH. Ruta: inline · commit `docs(aero)`.
 - T6 (S10): typecheck, suites completas, build de imágenes `api` y `web`, contenedores sanos y HTTP 200 en
   `https://trindademasas.duckdns.org`. Ruta: inline · evidencia en el Log.
+- T7 (S8, S10): pase de diseño móvil con la skill `impeccable` (auditoría + pulido en modo Operate) sobre el
+  camino de lanzamiento en iPhone: piso táctil de 44px en las primitivas, título del panel, diálogo del atajo
+  con un solo scroll y acciones alcanzables, densidad de la grilla y copy de ambos locales. Ruta: inline ·
+  commit `fix(mobile)`.
 
 ## Log
 
@@ -132,3 +136,33 @@ L1 — pedido del usuario, literal:
      - Al terminar, reconstruí la imagen Docker de producción de la Web (docker compose up -d --build web), validá el healthcheck HTTP 200 en el dominio público y dejalo 100% publicado y listo.
 
   Avanzá con la creación del plan ODD y la implementación. Tenés luz verde.
+
+### Evidencia — implementación y verificación
+
+Commits en `main` (trunk-based, sin ramas, sin Co-Authored-By):
+
+- `66fc56f` feat(integration): record Aero32 WebService events in a rotating audit log — T1.
+- `510bc2f` feat(aero): sync massas launches to the company ERP from the phone — T2, T3, T4, T5.
+- `f5f2be4` fix(mobile): make the massas launch path readable and thumb-sized on iPhone — T7.
+
+Suites: frontend 195/195, backend 532/532, `tsc --noEmit` sin errores en ambos paquetes.
+
+L2 — salida de la auditoría móvil (Chromium con viewport emulado de 375x667, 390x844 y 414x896,
+`isMobile` + `hasTouch`; no es WebKit ni un iPhone físico, y no se sintetizaron gestos táctiles):
+
+- Antes del pulido: 14 controles por debajo de 44px (menú 40x40, «Sair» 49x36, PT 41x32, ES 43x32,
+  «Ajuda» 83x30, fecha y «Ver Histórico» 40 de alto, campos de cantidad 36 de alto, compartir 36 y 38).
+- Antes del pulido: el panel cortaba su propio título en «Configuração I…» y el diálogo del atajo dejaba
+  «Abrir o app Atajos» y «Fechar» fuera del panel, sin scroll que llegara a ellos.
+- Antes del pulido: `pt-BR` decía «Atajo», «Atajos» y «a IP»; `es` decía «Testar Conexão»,
+  «Sincronizar com ERP da Empresa» y «Configuração Integração Empresa».
+- Después del pulido: 0 controles <44px, 0 solapes reales, 0 desborde horizontal en los tres anchos y en
+  las diez rutas barridas; el diálogo queda con un solo scroll (`ol`) y sus tres acciones visibles a 375px.
+- Falsos positivos descartados midiendo: los «solapes» del menú lateral eran cajas de items desplazadas
+  fuera del canvas (el `nav` termina 17px arriba del pie «Sair», con `scrolls: true`); las tablas de
+  `/admin` tienen scroll propio (`min-w-[650px]`) y no desbordan la página.
+
+Pendiente conocido, fuera de este alcance: en `/admin` las pestañas (32px) y en `/assai-calculator` los
+días de la semana (34px) siguen por debajo del piso táctil; el modal de confirmación de masas repite el
+título de la página dentro de la tarjeta de la grilla; la hora del historial se muestra en formato de 12
+horas («05:00 AM»).
