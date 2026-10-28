@@ -531,3 +531,32 @@ Remediación urgente en Trindade Web (integración Aero32):
    - git push origin main.
    - docker compose up -d --build web y verifica HTTP 200 en https://trindademasas.duckdns.org.
 ```
+
+### Evidencia — desbloqueo del switch y `POST /usuarios/` (2026-10-28)
+
+T12 cerrada en `main`: commit `1e3e8f8` fix(aero), pusheado a `origin/main` sin ramas y sin Co-Authored-By.
+
+RED observado antes de tocar la implementación, con los tests nuevos y viejos corriendo juntos: `38` casos,
+`4` fallos — `aeroSettingsReady` con `userCode: null` daba `false`, `buildEntradaItemPayload` sin código no
+compilaba contra el tipo y las dos aserciones de método de la sonda esperaban `POST` contra un `GET`. GREEN
+después: `38/38` en `aero-integration.test.ts` + `aero-connection.test.ts`.
+
+Suites completas: backend `532/532`, frontend `198/198`, `npm run typecheck` sin errores.
+
+Verificación funcional en Chromium a 375px contra el build real (Playwright, `/api` stubbeado, `wilkin`
+admin, `localStorage` vacío):
+
+| Estado | Switch |
+| --- | --- |
+| Sin configuración | `disabled: true`, leyenda «Configure a integração para sincronizar» |
+| Tras guardar URL, usuario y contraseña | `disabled: false` — se habilita en el mismo instante |
+| Tras tocarlo | `aria-checked: true`, `syncEnabled: true` persistido, `userCode: null` |
+| Con código 12 cargado | `userCode: 12` persistido y el switch sigue habilitado |
+
+El campo opcional mide `44px` de alto (piso táctil), es `type=number`, arranca vacío y no genera desborde
+horizontal (`scrollWidth - clientWidth = 0`) a 375px.
+
+Despliegue: `docker compose up -d --build web` reconstruyó `api` y `web`, ambos `healthy`;
+`https://trindademasas.duckdns.org` responde `200` y `/api/health` devuelve `{"status":"ok",…}` con `200`. El
+bundle servido (`assets/index-Dcp1Q8zc.js`) contiene «Código do usuário no ERP» y «Código del usuario en el
+ERP», la frase «lança como usuário 1», y ya no contiene la clave `missingCode`.
