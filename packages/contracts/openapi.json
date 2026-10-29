@@ -989,6 +989,97 @@
         ],
         "additionalProperties": false
       },
+      "ReceiptLine": {
+        "type": "object",
+        "properties": {
+          "entLan": {
+            "type": "integer"
+          },
+          "productCode": {
+            "type": "string"
+          },
+          "productDesc": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "number"
+          },
+          "operatorName": {
+            "type": "string"
+          },
+          "entryDate": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "entLan",
+          "productCode",
+          "productDesc",
+          "quantity",
+          "operatorName",
+          "entryDate"
+        ],
+        "additionalProperties": false
+      },
+      "ReportReceipts": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "migrated": {
+            "type": "boolean"
+          },
+          "syncedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "receipts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "entLan": {
+                  "type": "integer"
+                },
+                "productCode": {
+                  "type": "string"
+                },
+                "productDesc": {
+                  "type": "string"
+                },
+                "quantity": {
+                  "type": "number"
+                },
+                "operatorName": {
+                  "type": "string"
+                },
+                "entryDate": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "entLan",
+                "productCode",
+                "productDesc",
+                "quantity",
+                "operatorName",
+                "entryDate"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "date",
+          "migrated",
+          "syncedAt",
+          "receipts"
+        ],
+        "additionalProperties": false
+      },
       "ReportPhoto": {
         "type": "object",
         "properties": {
@@ -1795,6 +1886,212 @@
         },
         "required": [
           "ok"
+        ],
+        "additionalProperties": false
+      },
+      "AeroMovement": {
+        "type": "object",
+        "properties": {
+          "ent_lan": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "product_code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32
+          },
+          "product_desc": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "quantity": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "entry_date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "operator_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "movement_type": {
+            "type": "string",
+            "enum": [
+              "E",
+              "S"
+            ]
+          },
+          "synced_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ent_lan",
+          "product_code",
+          "product_desc",
+          "quantity",
+          "entry_date",
+          "operator_name",
+          "movement_type",
+          "synced_at"
+        ],
+        "additionalProperties": false
+      },
+      "AeroMovementsBody": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "movements": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "ent_lan": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                "product_code": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 32
+                },
+                "product_desc": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160
+                },
+                "quantity": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1000000
+                },
+                "entry_date": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                },
+                "operator_name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120
+                },
+                "movement_type": {
+                  "type": "string",
+                  "enum": [
+                    "E",
+                    "S"
+                  ]
+                }
+              },
+              "required": [
+                "ent_lan",
+                "product_code",
+                "product_desc",
+                "quantity",
+                "entry_date",
+                "operator_name",
+                "movement_type"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 1000
+          }
+        },
+        "required": [
+          "date",
+          "movements"
+        ],
+        "additionalProperties": false
+      },
+      "AeroMovementsListResponse": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "movements": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "ent_lan": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                "product_code": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 32
+                },
+                "product_desc": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160
+                },
+                "quantity": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1000000
+                },
+                "entry_date": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                },
+                "operator_name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120
+                },
+                "movement_type": {
+                  "type": "string",
+                  "enum": [
+                    "E",
+                    "S"
+                  ]
+                },
+                "synced_at": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "ent_lan",
+                "product_code",
+                "product_desc",
+                "quantity",
+                "entry_date",
+                "operator_name",
+                "movement_type",
+                "synced_at"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "date",
+          "movements"
+        ],
+        "additionalProperties": false
+      },
+      "AeroMovementsSavedResponse": {
+        "type": "object",
+        "properties": {
+          "saved": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "saved"
         ],
         "additionalProperties": false
       },
@@ -5800,6 +6097,68 @@
         }
       }
     },
+    "/api/reports/receipts": {
+      "get": {
+        "summary": "List the incoming supplies the ERP recorded for one day",
+        "description": "Derived from the mirrored Aero32 seats, not stored per report: an entry that is not a massa the plant produces. `syncedAt` separates a consulted day that received nothing from a day nobody asked about, and `migrated` is false only when the mirror table is missing.",
+        "tags": [
+          "reports"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "required": false,
+            "name": "date",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The day, its snapshot time and its incoming lines",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportReceipts"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The date did not match YYYY-MM-DD",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The ERP mirror table is missing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/reports": {
       "get": {
         "summary": "List reports within a period",
@@ -8512,6 +8871,126 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/integration/aero/movements": {
+      "get": {
+        "summary": "Read the company ERP's movement seats mirrored for one day",
+        "description": "A snapshot, not an authority: `ENT_LAN` belongs to Aero32 and this endpoint only serves the copy the bridge left behind, so every device in the plant reads the same day without running the iOS shortcut. Any signed-in operator may read it. Answers 503 until an operator runs `db:migrate` on a database created before revision 7.",
+        "tags": [
+          "integration"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "required": true,
+            "name": "date",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The day's seats, oldest seat first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AeroMovementsListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The date is missing or not YYYY-MM-DD",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AeroLogError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The mirror table has not been migrated yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AeroLogError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Store the snapshot the bridge brought back for one day",
+        "description": "One row per ERP seat: a second sync of the same day updates the seats it recognises instead of appending duplicates, and seats the answer no longer mentions are left alone. Strict validation: a body this module cannot describe is refused and writes nothing.",
+        "tags": [
+          "integration"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AeroMovementsBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The seats that were stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AeroMovementsSavedResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The snapshot failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AeroLogError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The mirror table has not been migrated yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AeroLogError"
                 }
               }
             }

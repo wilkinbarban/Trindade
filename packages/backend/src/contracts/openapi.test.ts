@@ -61,6 +61,7 @@ const EXPECTED_PATHS = [
   '/api/reports/photos/public/{token}',
   '/api/reports/photos/{photoId}',
   '/api/reports/products',
+  '/api/reports/receipts',
   '/api/reports/turno',
   '/api/reports/{id}',
   '/api/reports/{id}/deactivate',

@@ -89,6 +89,9 @@ import {
   ReportItemDetailSchema,
   ReportListItemSchema,
   ReportQuerySchema,
+  ReceiptLineSchema,
+  ReportReceiptsQuerySchema,
+  ReportReceiptsResponseSchema,
   ReportResponseSchema,
   ReportTemperatureDetailSchema,
   ReportUserSchema,
@@ -310,6 +313,8 @@ function buildRegistry(): OpenAPIRegistry {
   registerComponent(registry, 'ReportItemDetail', ReportItemDetailSchema);
   registerComponent(registry, 'ReportTemperatureDetail', ReportTemperatureDetailSchema);
   registerComponent(registry, 'ReportUser', ReportUserSchema);
+  registerComponent(registry, 'ReceiptLine', ReceiptLineSchema);
+  registerComponent(registry, 'ReportReceipts', ReportReceiptsResponseSchema);
   registerComponent(registry, 'ReportPhoto', PhotoSchema);
   registerComponent(registry, 'DashboardSummary', DashboardSummarySchema);
 registerComponent(registry, 'StockProduct', StockProductSchema);
@@ -793,6 +798,24 @@ registerComponent(registry, 'StockHistory', StockHistorySchema);
     responses: {
       200: jsonResponse('Active categories, each carrying its active tasks', CategoriesResponseSchema),
       401: UNAUTHORIZED,
+    },
+  });
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/reports/receipts',
+    summary: 'List the incoming supplies the ERP recorded for one day',
+    description:
+      'Derived from the mirrored Aero32 seats, not stored per report: an entry that is not a massa the ' +
+      'plant produces. `syncedAt` separates a consulted day that received nothing from a day nobody asked ' +
+      'about, and `migrated` is false only when the mirror table is missing.',
+    tags: ['reports'],
+    request: { query: ReportReceiptsQuerySchema },
+    responses: {
+      200: jsonResponse('The day, its snapshot time and its incoming lines', ReportReceiptsResponseSchema),
+      400: errorResponse('The date did not match YYYY-MM-DD'),
+      401: UNAUTHORIZED,
+      503: errorResponse('The ERP mirror table is missing'),
     },
   });
 
