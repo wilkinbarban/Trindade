@@ -17,7 +17,7 @@ describe('aero-mirror: the movements query through the bridge', () => {
       callbackUrl: 'https://trindademasas.duckdns.org/massas-launch?aero_action=movimentos&aero_data=',
     });
 
-    assert.equal(envelope.url, 'http://192.168.25.250:1453/api/movimentoitem');
+    assert.equal(envelope.url, 'http://192.168.25.250:1453/api/movimentoitem?_method=PATCH');
     assert.equal(envelope.method, 'POST');
     assert.equal(envelope.headers.Authorization, basicAuthHeader('wilkin', 'senha'));
     assert.equal(envelope.headers['Content-Type'], 'application/json');
@@ -27,6 +27,7 @@ describe('aero-mirror: the movements query through the bridge', () => {
     );
 
     assert.deepEqual(JSON.parse(envelope.body), {
+      _method: 'PATCH',
       CODFOR: null,
       NOMUSU: null,
       CODPRO: null,

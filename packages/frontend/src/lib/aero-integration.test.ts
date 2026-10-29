@@ -881,13 +881,13 @@ describe('aero-integration: the bridge shortcut recipe', () => {
       entrada: 'http://192.168.25.250:1453/api/entradasitem',
       saida: 'http://192.168.25.250:1453/api/saidasitem',
       movimentos: 'http://192.168.25.250:1453/api/movimentoitem',
-      test: 'http://192.168.25.250:1453/api/usuarios/',
+      test: 'http://192.168.25.250:1453/api/usuarios',
     });
   });
 
   it('carries a ready envelope for the connection test, the one that needs no launch data', () => {
     const envelope = recipe.sampleEnvelope;
-    assert.equal(envelope.url, 'http://192.168.25.250:1453/api/usuarios/');
+    assert.equal(envelope.url, 'http://192.168.25.250:1453/api/usuarios');
     assert.equal(envelope.headers.Authorization, basicAuthHeader('wilkin', 'senha'));
     assert.equal(
       envelope.callback,

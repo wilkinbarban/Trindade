@@ -70,7 +70,7 @@ describe('probeAeroConnection', () => {
     assert.equal(probe.httpStatus, 200);
 
     assert.equal(calls.length, 1);
-    assert.equal(calls[0]!.url, 'http://192.168.1.50:8000/api/usuarios/');
+    assert.equal(calls[0]!.url, 'http://192.168.1.50:8000/api/usuarios');
     // The factory routes /usuarios/ as POST only: a GET comes back as a 405 from Laravel.
     assert.equal(calls[0]!.init.method, 'POST');
     const headers = calls[0]!.init.headers as Record<string, string>;

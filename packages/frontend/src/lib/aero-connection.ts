@@ -69,7 +69,7 @@ export async function probeAeroConnection(args: AeroConnectionProbeArgs): Promis
     return { kind: 'blocked', reason: blocker };
   }
 
-  const target = aeroEndpoint(wsUrl, 'usuarios/');  const fetchImpl = args.fetchImpl ?? fetch;
+  const target = aeroEndpoint(wsUrl, 'usuarios');  const fetchImpl = args.fetchImpl ?? fetch;
   const controller = new AbortController();
   const timeoutMs = args.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const timer = setTimeout(() => controller.abort(), timeoutMs);

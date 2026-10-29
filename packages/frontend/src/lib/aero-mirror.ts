@@ -39,13 +39,16 @@ export function aeroMovementsEnvelope(args: {
     wsUrl: args.wsUrl,
     username: args.username,
     password: args.password,
-    endpoint: 'movimentoitem',
-    payload: buildMovimentoItemPayload({
-      userName: args.userName ?? null,
-      startDate: args.date,
-      endDate: args.date,
-      entrySaida: 'E',
-    }),
+    endpoint: 'movimentoitem?_method=PATCH',
+    payload: {
+      _method: 'PATCH',
+      ...buildMovimentoItemPayload({
+        userName: args.userName ?? null,
+        startDate: args.date,
+        endDate: args.date,
+        entrySaida: 'E',
+      }),
+    },
     callbackUrl: args.callbackUrl,
   });
 }

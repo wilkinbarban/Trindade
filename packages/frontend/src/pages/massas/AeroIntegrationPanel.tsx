@@ -69,7 +69,7 @@ export function AeroIntegrationPanel({
 
   const normalizedUrl = useMemo(() => normalizeAeroWsUrl(draft.wsUrl), [draft.wsUrl]);
   const destination = useMemo(
-    () => (normalizedUrl ? aeroEndpoint(normalizedUrl, 'usuarios/') : draft.wsUrl.trim()),
+    () => (normalizedUrl ? aeroEndpoint(normalizedUrl, 'usuarios') : draft.wsUrl.trim()),
     [normalizedUrl, draft.wsUrl],
   );
 
@@ -122,7 +122,7 @@ export function AeroIntegrationPanel({
       return;
     }
 
-    const destinationUrl = aeroEndpoint(normalized, 'usuarios/');
+    const destinationUrl = aeroEndpoint(normalized, 'usuarios');
     const pageProtocol = typeof window === 'undefined' ? 'http:' : window.location.protocol;
     const blocker = aeroConnectionBlocker({ pageProtocol, wsUrl: normalized });
 
@@ -139,12 +139,12 @@ export function AeroIntegrationPanel({
       });
       setNotice({ tone: 'warn', text: t('massas.aero.testShortcutOpening') });
       setBusy(null);
-      // One bridge for everything: the same envelope a launch carries, pointed at `/usuarios/` with no body.
+      // One bridge for everything: the same envelope a launch carries, pointed at `/usuarios` with no body.
       const envelope = buildAeroBridgeEnvelope({
         wsUrl: normalized,
         username: draft.username.trim(),
         password: draft.password,
-        endpoint: 'usuarios/',
+        endpoint: 'usuarios',
         payload: {},
         callbackUrl: aeroBridgeCallbackFor('test'),
       });

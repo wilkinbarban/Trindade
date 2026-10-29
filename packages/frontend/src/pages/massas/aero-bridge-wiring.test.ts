@@ -26,7 +26,7 @@ describe('aero bridge wiring: the panel asks for three things and dispatches the
 
   it('sends the connection test through the same bridge every launch uses', () => {
     assert.ok(panel.includes('buildAeroBridgeEnvelope('));
-    assert.ok(panel.includes("endpoint: 'usuarios/'"));
+    assert.ok(panel.includes("endpoint: 'usuarios'"));
     assert.ok(panel.includes("aeroBridgeCallbackFor('test')"));
     assert.ok(panel.includes('buildAeroBridgeTriggerUrl({ name: settings.shortcutName, envelope })'));
     // Nada del diseño partido sobrevive en el panel.
