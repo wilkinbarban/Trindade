@@ -4,6 +4,8 @@ import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Edit2, Trash2, Check, X, ShieldAlert } from 'lucide-react';
+import { ErpMirrorCard, type AeroImportRequest } from './ErpMirrorCard';
+import type { AeroMovementSnapshot } from '../../lib/aero-mirror';
 import {
   extractOperators,
   filterLaunchesByOperator,
@@ -34,6 +36,19 @@ interface MassasCollectiveTableProps {
   onDelete?: (launchId: number) => void;
   deletingId?: number | null;
   readOnly?: boolean;
+  /**
+   * The company ERP's side of the same day. Only the launch screen passes it; the history screen reads past
+   * days and has no mirror, so it keeps the single list instead of a tab that would always be empty.
+   */
+  erpMirror?: {
+    snapshot: AeroMovementSnapshot | null;
+    loading: boolean;
+    error: string | null;
+    canSync: boolean;
+    onSync: () => void;
+    onImport?: (request: AeroImportRequest) => void;
+    importingEntLan?: number | null;
+  };
 }
 
 export function MassasCollectiveTable({
@@ -51,9 +66,11 @@ export function MassasCollectiveTable({
   onDelete,
   deletingId = null,
   readOnly = false,
+  erpMirror,
 }: MassasCollectiveTableProps) {
   const { t } = useTranslation();
   const [selectedOperatorId, setSelectedOperatorId] = useState<number | 'all'>('all');
+  const [view, setView] = useState<'trindade' | 'erp'>('trindade');
 
   const operators = useMemo(() => extractOperators(launches), [launches]);
 
@@ -90,8 +107,65 @@ export function MassasCollectiveTable({
     return map;
   }, [activeProducts, displayedLaunches]);
 
+  const showingErp = Boolean(erpMirror) && view === 'erp';
+
   return (
     <div className="space-y-6">
+      {/* Dos lecturas del mismo día. La pestaña del ERP sólo existe donde hay espejo, y su contador avisa
+          si la empresa registró algo antes de que el operario toque nada. */}
+      {erpMirror && (
+        <div
+          role="tablist"
+          aria-label={t('massas.erp.tabsLabel')}
+          className="grid grid-cols-2 gap-2 rounded-xl border border-gray-200 bg-gray-50 p-1.5"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={!showingErp}
+            onClick={() => setView('trindade')}
+            className={`min-h-[44px] rounded-lg px-2 text-xs font-semibold transition-colors ${
+              !showingErp ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-600 hover:bg-white/60'
+            }`}
+            data-testid="massas-tab-trindade"
+          >
+            {t('massas.erp.tabTrindade')}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={showingErp}
+            onClick={() => setView('erp')}
+            className={`min-h-[44px] rounded-lg px-2 text-xs font-semibold transition-colors ${
+              showingErp ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-600 hover:bg-white/60'
+            }`}
+            data-testid="massas-tab-erp"
+          >
+            {t('massas.erp.tabErp')}
+            {erpMirror.snapshot && erpMirror.snapshot.movements.length > 0 && (
+              <span className="ml-1 inline-flex items-center rounded-full bg-slate-900/10 px-1.5 text-[10px] font-bold tabular-nums text-slate-700">
+                {erpMirror.snapshot.movements.length}
+              </span>
+            )}
+          </button>
+        </div>
+      )}
+
+      {showingErp && erpMirror && (
+        <ErpMirrorCard
+          snapshot={erpMirror.snapshot}
+          loading={erpMirror.loading}
+          error={erpMirror.error}
+          canSync={erpMirror.canSync}
+          onSync={erpMirror.onSync}
+          launches={launches}
+          products={products}
+          onImport={erpMirror.onImport}
+          importingEntLan={erpMirror.importingEntLan ?? null}
+        />
+      )}
+
+      <div className={showingErp ? 'hidden' : 'space-y-6'}>
       {/* Desglose Individual de Lanzamientos por Operario con RBAC */}
       <Card className="border-gray-200 shadow-sm">
         <CardContent className="pt-6">
@@ -365,6 +439,7 @@ export function MassasCollectiveTable({
           )}
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

@@ -574,7 +574,32 @@
       "shortcutSampleHint": "É o que o atalho recebe quando você toca em «Testar conexão». Serve para conferir o formato."
     },
     "historyShort": "Histórico",
-    "todayShort": "Hoje"
+    "todayShort": "Hoje",
+    "erp": {
+      "tabsLabel": "Visões do dia",
+      "tabTrindade": "Lançamentos Trindade",
+      "tabErp": "Espelho do ERP",
+      "title": "Espelho do ERP",
+      "subtitle": "O que a empresa registrou no WebService Aero32 para este dia. Somente leitura.",
+      "sync": "Sincronizar do ERP",
+      "needSetup": "A integração precisa estar configurada neste aparelho para buscar o ERP.",
+      "loading": "Lendo o espelho…",
+      "notMigrated": "A base ainda não foi migrada: rode db:migrate para habilitar o espelho.",
+      "error": "Não foi possível ler o espelho do ERP.",
+      "empty": "Nenhum movimento no ERP para este dia.",
+      "neverSynced": "Este dia ainda não foi sincronizado.",
+      "lastSync": "Sincronizado às {{time}}",
+      "seat": "Lançamento ERP #{{entLan}}",
+      "quantity": "{{units}} un",
+      "conciliated": "Conciliado",
+      "pending": "Só no ERP",
+      "import": "Importar para Trindade",
+      "importing": "Importando…",
+      "imported": "Lançamento importado para Trindade.",
+      "importError": "Não foi possível importar o lançamento.",
+      "skipped": "{{count}} lançamento(s) ilegível(is) ignorado(s).",
+      "readOnly": "O espelho é somente leitura: importar cria um lançamento novo em Trindade."
+    }
   },
   "moduleHelp": {
     "dashboard": {

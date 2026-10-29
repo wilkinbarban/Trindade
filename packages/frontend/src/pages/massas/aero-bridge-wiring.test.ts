@@ -11,6 +11,8 @@ const read = (...parts: string[]) => fs.readFileSync(path.resolve(__dirname, ...
 
 const panel = read('AeroIntegrationPanel.tsx');
 const launch = read('..', 'MassasLaunchPage.tsx');
+const collective = read('MassasCollectiveTable.tsx');
+const mirrorCard = read('ErpMirrorCard.tsx');
 
 describe('aero bridge wiring: the panel asks for three things and dispatches the bridge', () => {
   it('asks the operator for the address, the user and the password, and nothing else', () => {
@@ -59,5 +61,52 @@ describe('aero bridge wiring: the launch hands the bridge a full envelope', () =
     assert.ok(launch.includes("parsed.action !== 'entrada'"));
     // La rama legacy sigue viva mientras un teléfono no rehaga el atajo.
     assert.ok(launch.includes("parsed.kind !== 'sync'"));
+  });
+});
+
+describe('aero bridge wiring: the ERP mirror', () => {
+  it('asks /movimentoitem through the bridge, with its own callback', () => {
+    assert.ok(launch.includes('aeroMovementsEnvelope('));
+    assert.ok(launch.includes("aeroBridgeCallbackFor('movimentos')"));
+    assert.ok(launch.includes("parsed.action === 'movimentos'"));
+    // La consulta se publica como lectura del historial, no como lanzamiento.
+    assert.ok(launch.includes("event: 'read_history'"));
+  });
+
+  it('keeps the day in Trindade, so the plant reads it without running the shortcut', () => {
+    assert.ok(launch.includes("api.post('/integration/aero/movements'"));
+    assert.ok(launch.includes('/integration/aero/movements?date='));
+    assert.ok(launch.includes('buildAeroMovementsSnapshot('));
+    assert.ok(launch.includes('readAeroMovementsSnapshot('));
+  });
+
+  it('says the installation is not migrated instead of showing an empty day', () => {
+    assert.ok(launch.includes('err.status === 503'));
+    assert.ok(launch.includes("t('massas.erp.notMigrated')"));
+  });
+
+  it('imports a seat as a new local launch and never writes to the company record', () => {
+    assert.ok(launch.includes("api.post('/massas-launch'"));
+    assert.equal(/api\.(put|del)\(`\/integration\/aero/.test(launch), false);
+    assert.equal(/integration\/aero\/movements`\s*,\s*\{?\s*method: 'PUT'/.test(launch), false);
+  });
+
+  it('opens the mirror in its own tab, next to the local launches', () => {
+    assert.ok(collective.includes('role="tablist"'));
+    assert.ok(collective.includes('data-testid="massas-tab-trindade"'));
+    assert.ok(collective.includes('data-testid="massas-tab-erp"'));
+    assert.ok(collective.includes('<ErpMirrorCard'));
+    // El historial no tiene espejo y no debe inventar una pestaña vacía.
+    assert.ok(collective.includes('erpMirror?:'));
+  });
+
+  it('keeps the mirror read-only and every control at the 44px touch floor', () => {
+    assert.equal(mirrorCard.includes('onDelete'), false);
+    assert.equal(mirrorCard.includes('onStartEdit'), false);
+    const buttons = [...mirrorCard.matchAll(/<Button[\s\S]*?className="([^"]*)"/g)].map((m) => m[1]);
+    assert.ok(buttons.length > 0);
+    for (const className of buttons) {
+      assert.ok(className.includes('min-h-[44px]'), `a mirror control lost its 44px floor: ${className}`);
+    }
   });
 });

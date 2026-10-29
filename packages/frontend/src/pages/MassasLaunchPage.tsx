@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { api } from '../api/client';
+import { api, ApiClientError } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { DateField } from '../components/ui/date-field';
@@ -28,11 +28,13 @@ import {
   aeroEndpoint,
   buildAeroBridgeEnvelope,
   buildAeroBridgeTriggerUrl,
+  buildAeroMovementsSnapshot,
   buildEntradaItemPayload,
   isAeroAllowed,
   loadAeroSettings,
   parseAeroCallback,
   readAeroBridgeResult,
+  readAeroMovements,
   saveAeroSettings,
   type AeroSettings,
 } from '../lib/aero-integration';
@@ -46,6 +48,11 @@ import {
 } from '../lib/aero-test';
 import { clearAeroQueue, readAeroQueue, takeNextAeroItem, writeAeroQueue, type AeroQueue } from '../lib/aero-queue';
 import { AeroIntegrationPanel } from './massas/AeroIntegrationPanel';
+import {
+  aeroMovementsEnvelope,
+  readAeroMovementsSnapshot,
+  type AeroMovementSnapshot,
+} from '../lib/aero-mirror';
 
 export function MassasLaunchPage() {
   const { t } = useTranslation();
@@ -86,6 +93,15 @@ export function MassasLaunchPage() {
   });
   const aeroCallbackHandled = useRef(false);
 
+  // The company's side of the day. It lives in the backend so any phone in the plant reads the same
+  // snapshot, and it survives a reload that the callback never reaches.
+  const [mirror, setMirror] = useState<{
+    loading: boolean;
+    error: string | null;
+    snapshot: AeroMovementSnapshot | null;
+  }>({ loading: false, error: null, snapshot: null });
+  const [importingEntLan, setImportingEntLan] = useState<number | null>(null);
+
   const load = useCallback(
     async (targetDate: string, isSilent = false) => {
       if (!isSilent) {
@@ -107,10 +123,45 @@ export function MassasLaunchPage() {
     [t]
   );
 
+  /**
+   * Reads the mirrored day from Trindade's own database.
+   *
+   * A 503 is not a failure of the request but of the installation: the revision is pending, and the plant
+   * must be told to run `db:migrate` instead of reading an empty day as "nothing was produced".
+   */
+  const loadMirror = useCallback(
+    async (targetDate: string) => {
+      setMirror((prev) => ({ ...prev, loading: true, error: null }));
+      try {
+        const body = await api.get<unknown>(`/integration/aero/movements?date=${targetDate}`);
+        const snapshot = readAeroMovementsSnapshot(body);
+        if (!snapshot) {
+          setMirror({ loading: false, error: t('massas.erp.error'), snapshot: null });
+          return;
+        }
+        setMirror({ loading: false, error: null, snapshot });
+      } catch (err) {
+        const message =
+          err instanceof ApiClientError && err.status === 503
+            ? t('massas.erp.notMigrated')
+            : err instanceof Error
+              ? err.message
+              : t('massas.erp.error');
+        setMirror({ loading: false, error: message, snapshot: null });
+      }
+    },
+    [t],
+  );
+
   // Initial load or date switch
   useEffect(() => {
     void load(date);
   }, [date, load]);
+
+  // The mirror follows the same day as the launch list.
+  useEffect(() => {
+    void loadMirror(date);
+  }, [date, loadMirror]);
 
   // Passive live-reload polling every 15s with visibility and interaction guards
   useEffect(() => {
@@ -283,6 +334,118 @@ export function MassasLaunchPage() {
   );
 
   /**
+   * Asks the company for the day's movements through the same bridge every launch uses.
+   *
+   * The query leaves the operator filter open on purpose: the boxes are the factory's, and any operator may
+   * have launched them. Publishing it as `read_history` keeps the audit trail honest about what this phone
+   * actually asked for.
+   */
+  const handleSyncFromErp = () => {
+    if (!aeroSettingsReady(aeroSettings)) return;
+
+    const envelope = aeroMovementsEnvelope({
+      wsUrl: aeroSettings.wsUrl,
+      username: aeroSettings.username,
+      password: aeroSettings.password,
+      date,
+      userName: null,
+      callbackUrl: aeroBridgeCallbackFor('movimentos'),
+    });
+
+    void postAeroAuditEvent({
+      event: 'read_history',
+      phase: 'requested',
+      destinationUrl: aeroEndpoint(aeroSettings.wsUrl, 'movimentoitem'),
+      payload: JSON.parse(envelope.body),
+      note: 'via=bridge',
+    });
+
+    window.location.href = buildAeroBridgeTriggerUrl({ name: aeroSettings.shortcutName, envelope });
+  };
+
+  /**
+   * Closes the movements round trip: stores the snapshot and re-reads the day.
+   *
+   * The ERP answered the phone, not this page, so the answer travels back in the URL and becomes the
+   * snapshot every other device will read. Failing to store it does not discard what came back: the mirror
+   * shows the seats and the error at the same time, so the operator can still see the factory's record.
+   */
+  const handleMovementsCallback = useCallback(
+    async (data: unknown) => {
+      const read = readAeroMovements(data);
+      if (read.status === 'error') {
+        void postAeroAuditEvent({
+          event: 'read_history',
+          phase: 'result',
+          destinationUrl: aeroEndpoint(aeroSettings.wsUrl, 'movimentoitem'),
+          error: read.message ?? 'movements_unreadable',
+          note: 'via=bridge',
+        });
+        setMirror({
+          loading: false,
+          error: read.message ?? t('massas.erp.error'),
+          snapshot: null,
+        });
+        return;
+      }
+
+      void postAeroAuditEvent({
+        event: 'read_history',
+        phase: 'result',
+        destinationUrl: aeroEndpoint(aeroSettings.wsUrl, 'movimentoitem'),
+        httpStatus: 200,
+        note: `seats=${read.movements.length} skipped=${read.skipped} · via=bridge`,
+      });
+
+      try {
+        await api.post('/integration/aero/movements', buildAeroMovementsSnapshot(date, read.movements));
+      } catch {
+        // The snapshot is a cache of the company's record, so failing to store it must not throw away what
+        // came back: the seats stay on screen, next to the reason they will not survive a reload.
+        setMirror({
+          loading: false,
+          error: t('massas.erp.error'),
+          snapshot: { date, movements: read.movements, syncedAt: new Date().toISOString() },
+        });
+        return;
+      }
+
+      await loadMirror(date);
+    },
+    [aeroSettings.wsUrl, date, loadMirror, t],
+  );
+
+  /**
+   * Brings one ERP seat into Trindade as a new local launch.
+   *
+   * Never an edit: the company's seat stays where it is. The boxes were computed from the ERP units and the
+   * catalog, so a seat whose quantity does not fit whole boxes offers no button at all.
+   */
+  const handleImportErpSeat = async (request: {
+    entLan: number;
+    productCode: string;
+    boxes: number;
+    date: string;
+  }) => {
+    setImportingEntLan(request.entLan);
+    try {
+      await api.post('/massas-launch', {
+        date: request.date,
+        items: [{ product_code: request.productCode, boxes: request.boxes }],
+      });
+      setNotice({ type: 'success', message: t('massas.erp.imported') });
+      await Promise.all([load(date), loadMirror(date)]);
+    } catch (err) {
+      setNotice({
+        type: 'error',
+        message: err instanceof Error ? err.message : t('massas.erp.importError'),
+      });
+    } finally {
+      setImportingEntLan(null);
+    }
+  };
+
+  /**
    * Records what the operator says happened when the shortcut never called back.
    *
    * A cancelled shortcut, a wrong IP in the Atajos app and a genuine ERP refusal all look identical from
@@ -408,6 +571,13 @@ export function MassasLaunchPage() {
     }
 
     if (parsed.kind === 'bridge') {
+      // La consulta de movimientos no es un lanzamiento: viene con la respuesta del ERP y se guarda como
+      // snapshot del día, que es lo que el resto de la planta va a leer.
+      if (parsed.action === 'movimentos') {
+        void handleMovementsCallback(parsed.data);
+        return;
+      }
+
       // El puente devuelve la respuesta del ERP sin interpretarla: acá se decide qué significa.
       const outcome = readAeroBridgeResult(parsed.data);
       void postAeroAuditEvent({
@@ -466,7 +636,7 @@ export function MassasLaunchPage() {
         ? { type: 'success', message: parsed.message ?? t('massas.aero.syncConfirmYes') }
         : { type: 'error', message: parsed.message ?? t('massas.aero.syncConfirmNo') },
     );
-  }, [aeroDestination, aeroSettings.wsUrl, t, triggerAeroSync]);
+  }, [aeroDestination, aeroSettings.wsUrl, handleMovementsCallback, t, triggerAeroSync]);
 
   /**
    * The operator came back from the phone without a verdict.
@@ -668,6 +838,15 @@ export function MassasLaunchPage() {
           onEditBoxesChange={setEditingBoxes}
           onDelete={handleDeleteLaunch}
           deletingId={deletingLaunchId}
+          erpMirror={{
+            snapshot: mirror.snapshot,
+            loading: mirror.loading,
+            error: mirror.error,
+            canSync: aeroSettingsReady(aeroSettings),
+            onSync: handleSyncFromErp,
+            onImport: (request) => void handleImportErpSeat(request),
+            importingEntLan,
+          }}
         />
       )}
 

@@ -574,7 +574,32 @@
       "shortcutSampleHint": "Es lo que recibe el atajo cuando tocás «Probar conexión». Sirve para verificar el formato."
     },
     "historyShort": "Historial",
-    "todayShort": "Hoy"
+    "todayShort": "Hoy",
+    "erp": {
+      "tabsLabel": "Vistas del día",
+      "tabTrindade": "Lanzamientos Trindade",
+      "tabErp": "Espejo del ERP",
+      "title": "Espejo del ERP",
+      "subtitle": "Lo que la empresa registró en el WebService Aero32 para este día. Solo lectura.",
+      "sync": "Sincronizar del ERP",
+      "needSetup": "La integración tiene que estar configurada en este equipo para consultar el ERP.",
+      "loading": "Leyendo el espejo…",
+      "notMigrated": "La base todavía no fue migrada: ejecutá db:migrate para habilitar el espejo.",
+      "error": "No se pudo leer el espejo del ERP.",
+      "empty": "Sin movimientos en el ERP para este día.",
+      "neverSynced": "Este día todavía no fue sincronizado.",
+      "lastSync": "Sincronizado a las {{time}}",
+      "seat": "Asiento ERP #{{entLan}}",
+      "quantity": "{{units}} un",
+      "conciliated": "Conciliado",
+      "pending": "Solo en el ERP",
+      "import": "Importar para Trindade",
+      "importing": "Importando…",
+      "imported": "Asiento importado a Trindade.",
+      "importError": "No se pudo importar el asiento.",
+      "skipped": "{{count}} asiento(s) ilegible(s) ignorado(s).",
+      "readOnly": "El espejo es solo lectura: importar crea un lanzamiento nuevo en Trindade."
+    }
   },
   "moduleHelp": {
     "dashboard": {
