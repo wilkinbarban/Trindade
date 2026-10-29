@@ -1,7 +1,7 @@
 import type Database from 'better-sqlite3';
 import { parseSelectedProducts } from './reports.schema.js';
 import { massasLaunchDayView } from '../massas/massas.service.js';
-import { ERP_RECEIPT_CATEGORY_ID, dayReceipts } from './receipts.service.js';
+import { ERP_RECEIPT_CATEGORY_ID, dayReceipts, usesErpReceipts } from './receipts.service.js';
 
 /**
  * Generador Inteligente — WhatsApp text export engine.
@@ -145,18 +145,19 @@ export function generateWhatsAppText(
   // printed set when the day was mirrored, or when the report still carries rows for it -- which is how a
   // report made before this change asks for its own historical ticks instead of disappearing.
   const receiptDay = dayReceipts(db, report.report_date);
-  const receiptRowsExist =
+  const erpReceipts = usesErpReceipts(report.report_date);
+  const hasLegacyTicks =
     db
       .prepare(
         `SELECT EXISTS(
            SELECT 1
            FROM report_items ri
            JOIN report_tasks rt ON rt.id = ri.task_id
-           WHERE ri.report_id = ? AND rt.category_id = ?
+           WHERE ri.report_id = ? AND rt.category_id = ? AND ri.checked = 1
          ) AS present`,
       )
       .get(reportId, ERP_RECEIPT_CATEGORY_ID) as { present: number };
-  if (receiptDay.syncedAt !== null || receiptRowsExist.present === 1) {
+  if (erpReceipts || hasLegacyTicks.present === 1) {
     relevantIds.add(ERP_RECEIPT_CATEGORY_ID);
   }
 
@@ -172,7 +173,7 @@ export function generateWhatsAppText(
     const categoryLines: string[] = [];
 
     // --- Recebimento: the ERP is the answer while the day has a snapshot ---
-    if (cat.id === ERP_RECEIPT_CATEGORY_ID && receiptDay.syncedAt !== null) {
+    if (cat.id === ERP_RECEIPT_CATEGORY_ID && erpReceipts && receiptDay.syncedAt !== null) {
       if (receiptDay.receipts.length === 0) {
         categoryLines.push('_Nenhum insumo recebido no dia._');
       } else {
@@ -184,7 +185,8 @@ export function generateWhatsAppText(
       }
     }
 
-    const skipChecks = cat.id === ERP_RECEIPT_CATEGORY_ID && receiptDay.syncedAt !== null;
+    const skipChecks =
+      cat.id === ERP_RECEIPT_CATEGORY_ID && (erpReceipts || receiptDay.syncedAt !== null);
 
     // --- Checks ---
     const items = skipChecks
@@ -221,11 +223,7 @@ export function generateWhatsAppText(
 
     // The section belongs to the report, but no snapshot answered it: say so instead of printing fifteen
     // unticked tasks, which read as "nothing arrived" when the truth is "nobody asked".
-    if (
-      cat.id === ERP_RECEIPT_CATEGORY_ID &&
-      receiptDay.syncedAt === null &&
-      !categoryLines.some((line) => line.startsWith('✅'))
-    ) {
+    if (cat.id === ERP_RECEIPT_CATEGORY_ID && erpReceipts && receiptDay.syncedAt === null) {
       categoryLines.push('_Pendente de sincronização ERP._');
     }
 

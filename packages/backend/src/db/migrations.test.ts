@@ -477,7 +477,7 @@ describe('schema migration', () => {
          (movement_date, ent_lan, product_code, product_desc, quantity, entry_date, operator_name, movement_type, synced_at)
        VALUES ('2026-10-29', 35911, '000084', 'MASSA PARA PASTEL DISCO 500G', 500, '2026-10-29', 'VIVIANE', 'E', '2026-10-29T18:00:00.000Z')`,
     ).run();
-    assert.equal(db.prepare('SELECT COUNT(*) AS n FROM aero_movements').get<{ n: number }>()!.n, 2);
+    assert.deepEqual(db.prepare('SELECT COUNT(*) AS n FROM aero_movements').get(), { n: 2 });
 
     // The key is the seat plus the product: the same line stored twice is still refused.
     assert.throws(() =>

@@ -19,6 +19,20 @@ import { MASSAS } from '../stock/stock.catalog.js';
  */
 export const ERP_RECEIPT_CATEGORY_ID = 4;
 
+/**
+ * The day Recebimento stopped being a checklist.
+ *
+ * A report dated before this keeps its own ticks and prints them: rewriting what the plant already sent to
+ * the group would be inventing history. A report from this day on answers from the snapshot, and when the
+ * day was never mirrored it says that instead of printing fifteen unticked tasks.
+ */
+export const ERP_RECEIPT_SINCE = '2026-10-29';
+
+/** Whether a report dated `date` takes its Recebimento section from the ERP mirror. */
+export function usesErpReceipts(date: string): boolean {
+  return date >= ERP_RECEIPT_SINCE;
+}
+
 /** One incoming line as the report shows it: the document, the product, how much and who brought it. */
 export interface ReceiptLine {
   entLan: number;

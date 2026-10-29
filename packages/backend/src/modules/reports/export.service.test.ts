@@ -410,9 +410,9 @@ describe('Export Service — recebimento desde el espejo del ERP', () => {
   });
 
   it('prints the ERP supplies instead of the old checkboxes', () => {
-    const id = newReport(401, '2026-07-01');
+    const id = newReport(401, '2026-11-03');
     receiptItem(id, 43, 1);
-    mirror('2026-07-01', [
+    mirror('2026-11-03', [
       { ent_lan: 35911, product_code: '001774', product_desc: 'CAIXA DE PAPELAO PEQUENA MISTA', quantity: 3606, operator_name: 'VIVIANE' },
       { ent_lan: 35911, product_code: '002108', product_desc: 'QUEIJO RALADO', quantity: 40, operator_name: 'VIVIANE' },
     ]);
@@ -425,9 +425,9 @@ describe('Export Service — recebimento desde el espejo del ERP', () => {
   });
 
   it('says a consulted day received nothing', () => {
-    const id = newReport(402, '2026-07-02');
+    const id = newReport(402, '2026-11-02');
     receiptItem(id, 43, 0);
-    mirror('2026-07-02', [
+    mirror('2026-11-02', [
       { ent_lan: 35920, product_code: '000084', product_desc: 'MASSA PARA PASTEL DISCO 500G', quantity: 500, operator_name: 'VINICIUS R' },
     ]);
 
@@ -438,7 +438,7 @@ describe('Export Service — recebimento desde el espejo del ERP', () => {
   });
 
   it('asks for a sync when the report has the section but the day was never mirrored', () => {
-    const id = newReport(403, '2026-07-03');
+    const id = newReport(403, '2026-11-01');
     receiptItem(id, 43, 0);
 
     const text = generateWhatsAppText(db, id)!;

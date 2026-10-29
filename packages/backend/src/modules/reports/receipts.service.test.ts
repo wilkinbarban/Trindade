@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { after, describe, it } from 'node:test';
 import type Database from 'better-sqlite3';
 import { closeReportDatabases, setupReportsDb } from './reports-test-helper.js';
-import { dayReceipts, supplyReceipts } from './receipts.service.js';
+import { dayReceipts, supplyReceipts, usesErpReceipts } from './receipts.service.js';
 import type { AeroMovement } from '../integration/aero.movements.service.js';
 
 /**
@@ -167,5 +167,13 @@ describe('dayReceipts', () => {
       syncedAt: null,
       receipts: [],
     });
+  });
+});
+
+describe('usesErpReceipts', () => {
+  it('switches the section from the checklist to the mirror on the cutover day', () => {
+    assert.equal(usesErpReceipts('2026-10-28'), false, 'the day before still has its own ticks');
+    assert.equal(usesErpReceipts('2026-10-29'), true, 'the cutover day already reads the ERP');
+    assert.equal(usesErpReceipts('2026-11-15'), true);
   });
 });
