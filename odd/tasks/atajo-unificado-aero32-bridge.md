@@ -70,7 +70,7 @@ bridge quedan listos para ellas, pero no se construye esa UI acá.
 - T3 (S7, S11) — hecho, commit `fc31515`: el panel pierde el campo del código y dispara el bridge hacia `/usuarios/`; la página de
   lanzamiento lo despacha para `entrada` con `ENT_USU` en mayúsculas y procesa el retorno; prueba de
   cableado por fuente. Ruta: inline · commit `feat(aero)`.
-- T4 (S8, S12) — en curso: suites completas, typecheck, documentación (incluido el ejemplo de `PRO_QTD`), commit,
+- T4 (S8, S12) — hecho, commits `38af238` y el que cierra este log: suites completas, typecheck, documentación (incluido el ejemplo de `PRO_QTD`), commit,
   push, rebuild de contenedores y salud. Ruta: inline · evidencia en el Log.
 
 ## Log
@@ -132,3 +132,27 @@ L2 — directivas del usuario, literal:
      - Ajustá la documentación / ejemplo de PRO_QTD en movimentoitem con el formato humano que descubriste.
 
   Procedé con T1 inmediatamente bajo TDD estricto y ODD. Te superviso cada 5 minutos.
+
+L3 — ejecución y evidencia, T1–T4:
+
+  T1 · commit 47fa57d. RED: `aero-integration.test.ts` importaba símbolos que no existían y el typecheck
+  fallaba con TS2305. GREEN: `npx tsx --test src/lib/aero-integration.test.ts` → 52/52.
+
+  T2 · commit 0058e66. RED: `aero-shortcut-copy.test.ts` contra el diálogo de dos atajos → 5 de 6
+  subpruebas fallando. GREEN: 6/6 con la receta única.
+
+  T3 · commit fc31515. RED: `aero-bridge-wiring.test.ts` con el panel y la página de HEAD (54986ac) → 5 de
+  6 fallando. GREEN tras el cambio: 6/6, y `npm test` del frontend 241/241.
+
+  T4 · commit 38af238 (documentación) + este. `npm run typecheck` (ambos workspaces) exit 0; `npm test`
+  backend 532/532 y frontend 241/241. `docker compose up -d --build` reconstruyó `api` y `web`; ambos
+  `healthy` en 127.0.0.1:3005 y :8085; el bundle publicado (`assets/index-BaUejZPi.js`) contiene
+  «Aero32 Bridge» y `aero_action` en `MassasLaunchPage-*.js`; https://trindademasas.duckdns.org/ responde
+  200 con el mismo hash de asset.
+
+  Desvío detectado y corregido dentro del alcance: la primera redacción de §7 del documento de integración
+  atribuía a la bitácora notas (`via=bridge`) que el código no emite. Se corrigió el documento, no el
+  código: `via=shortcut` nombra el medio y `launch_sync` es la línea que distingue el puente.
+
+  Queda para la fábrica, fuera de esta entrega: armar el atajo en el iPhone y probar el lanzamiento real
+  contra el ERP (checklist del §8 del documento de integración). No hay prueba que lo pueda sustituir.

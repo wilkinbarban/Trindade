@@ -329,13 +329,13 @@ credenciales en base64) y el payload/respuesta se truncan para que una línea si
 
 | `phase` | `note` | `error` |
 | --- | --- | --- |
-| `requested` | `via=bridge reason=mixed_content` (o `via=browser`) | `null`, o `invalid_config` si faltaban datos |
-| `result` | `action=test · via=bridge` | `null` si la empresa contestó; `shortcut:error` si no |
+| `requested` | `via=shortcut reason=mixed_content` (o `via=browser`) | `null`, o `invalid_config` si faltaban datos |
+| `result` | `via=shortcut aero_test=<cuerpo del ERP>` (`true`, `false` o el JSON crudo) | `null` si fue `true`; `shortcut:error` si fue `false`; `shortcut:unknown` si no se pudo leer |
 | `result` | `the operator returned without a shortcut result` | `shortcut:no_verdict` |
 
-`launch_sync` cierra su línea `result` con `via=bridge` y la acción en la nota (`action=entrada`), más la
-respuesta del ERP truncada. Un teléfono con el atajo viejo deja `via=shortcut`: la bitácora distingue el
-camino que realmente se usó.
+`via=shortcut` nombra el medio, no la receta: tanto el atajo único como el viejo escriben esa palabra.
+Quien quiera distinguirlos mira `launch_sync`, que cierra con `via=bridge` y la acción en la nota
+(`action=entrada`), más la respuesta del ERP truncada.
 
 ## 8. Procedimiento de prueba en fábrica
 
