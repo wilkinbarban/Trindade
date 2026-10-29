@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { basicAuthHeader } from './aero-integration';
-import { aeroImportPlan, aeroMovementsEnvelope, readAeroMovementsSnapshot } from './aero-mirror';
+import {
+  aeroImportPlan,
+  aeroMirrorSeats,
+  aeroMovementsEnvelope,
+  readAeroMovementsSnapshot,
+} from './aero-mirror';
 
 const credentials = {
   wsUrl: 'http://192.168.25.250:1453/api',
@@ -181,5 +186,57 @@ describe('aero-mirror: bringing an ERP seat into Trindade', () => {
   it('refuses an empty or fractional quantity', () => {
     assert.equal(aeroImportPlan(seat({ quantity: 0 }), catalog), null);
     assert.equal(aeroImportPlan(seat({ quantity: 4.5 }), catalog), null);
+  });
+});
+
+describe('aero-mirror: the seats this tab is about', () => {
+  const catalog = [
+    { code: '1192', name: 'MASSA TRADICIONAL 500G', unitsPerBox: 10 },
+    { code: '5000', name: 'MASSA ROLO 1KG', unitsPerBox: 15 },
+  ];
+  const seat = (overrides: Partial<Parameters<typeof aeroImportPlan>[0]> = {}) => ({
+    entLan: 10542,
+    productCode: '001192',
+    productDesc: 'MASSA TRADICIONAL 500G',
+    quantity: 90,
+    entryDate: '2026-10-28',
+    operatorName: 'WILKIN',
+    movementType: 'E' as const,
+    ...overrides,
+  });
+
+  it("drops the supplies, which are the report's business and have no button here", () => {
+    const day = [
+      seat({ entLan: 35911, productCode: '001774', productDesc: 'CAIXA DE PAPELAO', quantity: 3606 }),
+      seat({ entLan: 35918, productCode: '001805', productDesc: 'FARINHA', quantity: 500 }),
+      seat({ entLan: 35914, productCode: '005000', productDesc: 'MASSA ROLO 1KG', quantity: 15 }),
+    ];
+
+    assert.deepEqual(
+      aeroMirrorSeats(day, catalog).map((movement) => movement.entLan),
+      [35914],
+    );
+  });
+
+  it('matches a catalogue code with or without its leading zeros', () => {
+    const day = [seat({ entLan: 7, productCode: '1192' }), seat({ entLan: 8, productCode: '005000' })];
+    assert.deepEqual(
+      aeroMirrorSeats(day, catalog).map((movement) => movement.entLan),
+      [7, 8],
+    );
+  });
+
+  it('answers nothing for a day that only carried supplies', () => {
+    const day = [seat({ entLan: 35923, productCode: '001774', productDesc: 'CAIXA', quantity: 100 })];
+    assert.deepEqual(aeroMirrorSeats(day, catalog), []);
+  });
+
+  it('keeps a stock exit of a catalogue product out of the entry mirror nothing to reconcile', () => {
+    const day = [seat({ entLan: 9, productCode: '001192', movementType: 'S' })];
+    // The tab is an entry mirror: whether a product is in the catalogue is the filter, not the direction.
+    assert.deepEqual(
+      aeroMirrorSeats(day, catalog).map((movement) => movement.entLan),
+      [9],
+    );
   });
 });

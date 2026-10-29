@@ -142,6 +142,26 @@ function importCodeKey(code: string): string {
 }
 
 /**
+ * The seats this tab is about.
+ *
+ * The bridge asks the ERP for the whole day, and the day carries more than what the plant produced: a box of
+ * packaging, bags of flour and straws arrive through the same endpoint. Those are supplies, they belong to
+ * Recebimento, and a screen that shows them without an import button is a screen telling the operator about a
+ * problem it cannot solve.
+ *
+ * The catalogue is the filter, not the direction: a mass that left the plant is still a mass, and this tab
+ * shows what the company recorded so the launch can be found here.
+ */
+export function aeroMirrorSeats(
+  movements: readonly AeroErpMovementItem[],
+  products: readonly AeroImportProduct[],
+): AeroErpMovementItem[] {
+  const codes = new Set(products.map((product) => importCodeKey(product.code)));
+  if (codes.size === 0) return [];
+  return movements.filter((movement) => codes.has(importCodeKey(movement.productCode)));
+}
+
+/**
  * Decides whether an ERP seat can become a Trindade launch, and in what boxes.
  *
  * The mirror is read-only, so "import" always means a new local launch, never an edit of the company's

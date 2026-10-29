@@ -4,7 +4,7 @@ import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { BadgeCheck, CloudDownload, RefreshCw, Users } from 'lucide-react';
 import type { AeroErpMovementItem } from '../../lib/aero-integration';
-import { aeroImportPlan, type AeroMovementSnapshot } from '../../lib/aero-mirror';
+import { aeroImportPlan, aeroMirrorSeats, type AeroMovementSnapshot } from '../../lib/aero-mirror';
 import { reconcileAeroMovements } from '../../lib/aero-integration';
 import type { MassaIndividualLaunch, MassaProductTotal } from '../../lib/massas';
 
@@ -50,16 +50,23 @@ export function ErpMirrorCard({
 }: ErpMirrorCardProps) {
   const { t } = useTranslation();
 
+  // The bridge reads the whole day; this tab is the plant's own production. The supplies that come back
+  // from the same endpoint belong to Recebimento, where they have a screen and a lens of their own.
+  const seats: AeroErpMovementItem[] = useMemo(
+    () => aeroMirrorSeats(snapshot?.movements ?? [], products),
+    [snapshot, products],
+  );
+
   const reconciliation = useMemo(
-    () => reconcileAeroMovements(snapshot?.movements ?? [], launches),
-    [snapshot, launches],
+    () => reconcileAeroMovements(seats, launches),
+    [seats, launches],
   );
 
   const reconciled = useMemo(() => new Set(reconciliation.reconciled), [reconciliation]);
 
   const importable = useMemo(() => {
     const map = new Map<number, AeroImportRequest>();
-    for (const movement of snapshot?.movements ?? []) {
+    for (const movement of seats) {
       if (reconciled.has(movement.entLan)) continue;
       const plan = aeroImportPlan(movement, products);
       if (plan) {
@@ -67,7 +74,7 @@ export function ErpMirrorCard({
       }
     }
     return map;
-  }, [snapshot, products, reconciled]);
+  }, [seats, products, reconciled]);
 
   const syncedAtLabel = useMemo(() => {
     if (!snapshot?.syncedAt) return null;
@@ -75,8 +82,6 @@ export function ErpMirrorCard({
     if (Number.isNaN(parsed.getTime())) return null;
     return parsed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }, [snapshot]);
-
-  const seats: AeroErpMovementItem[] = snapshot?.movements ?? [];
 
   return (
     <Card className="border-gray-200 shadow-sm">
