@@ -7,7 +7,7 @@ import { afterEach, describe, it } from 'node:test';
 import Database from 'better-sqlite3';
 import { openDatabase } from './index.js';
 import { schemaNoticeForStartup } from './schema-notice.js';
-import { SCHEMA_VERSION } from './schema-version.js';
+import { SCHEMA_TABLES, SCHEMA_VERSION } from './schema-version.js';
 
 const digest = (path: string) => createHash('sha256').update(readFileSync(path)).digest('hex');
 
@@ -31,7 +31,7 @@ describe('startup schema notice', () => {
     assert.equal(notice.message, 'database schema notice');
     assert.equal(notice.payload.verdict, 'current');
     assert.equal(notice.payload.revision, SCHEMA_VERSION);
-    assert.equal(notice.payload.tables, 17);
+    assert.equal(notice.payload.tables, SCHEMA_TABLES.length);
     assert.deepEqual(notice.payload.missingTables, []);
   });
 

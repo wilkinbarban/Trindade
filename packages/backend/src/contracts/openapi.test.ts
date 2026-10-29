@@ -41,6 +41,7 @@ const EXPECTED_PATHS = [
   '/api/dashboard/summary',
   '/api/health',
   '/api/integration/aero/log',
+  '/api/integration/aero/movements',
   '/api/loading/drivers',
   '/api/loading/export',
   '/api/loading/schedules',

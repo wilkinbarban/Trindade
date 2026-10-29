@@ -362,6 +362,7 @@ describe('schema migration', () => {
       .all() as string[];
     assert.ok(tables.includes('auth_sessions'), 'a revision 0 migration must also reach revision 2');
     assert.ok(tables.includes('massa_launches'), 'a revision 0 migration must also reach revision 6');
+    assert.ok(tables.includes('aero_movements'), 'a revision 0 migration must also reach revision 7');
     db.close();
   });
 
@@ -380,12 +381,41 @@ describe('schema migration', () => {
     assert.equal(result.outcome, 'migrated');
     assert.equal(result.from, 5);
     assert.equal(result.to, SCHEMA_VERSION);
-    assert.equal(db.pragma('user_version', { simple: true }), 6);
+    assert.equal(db.pragma('user_version', { simple: true }), SCHEMA_VERSION);
     const tables = db
       .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
       .pluck()
       .all() as string[];
     assert.ok(tables.includes('massa_launches'), 'revision 6 must add massa_launches');
+    db.close();
+  });
+
+  it('creates aero_movements for a revision 6 database and reaches revision 7', () => {
+    const path = join(fixtureRoot(), 'revision-six.db');
+    const build = new Database(path);
+    build.exec(schema);
+    build.exec(seed);
+    build.exec('DROP TABLE aero_movements');
+    build.pragma('user_version = 6');
+    build.close();
+
+    const db = new Database(path);
+    assert.equal(readSchemaReport(db).version, 6);
+    const result = migrateDatabase(db);
+    assert.equal(result.outcome, 'migrated');
+    assert.equal(result.from, 6);
+    assert.equal(result.to, SCHEMA_VERSION);
+    assert.equal(db.pragma('user_version', { simple: true }), SCHEMA_VERSION);
+
+    const tables = db
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
+      .pluck()
+      .all() as string[];
+    assert.ok(tables.includes('aero_movements'), 'revision 7 must add aero_movements');
+
+    // Creating a table rewrites nothing: the seats are the only new thing, and an empty table is
+    // the correct starting point because the ERP is the authority for them.
+    assert.deepEqual(db.prepare('SELECT COUNT(*) AS n FROM aero_movements').get(), { n: 0 });
     db.close();
   });
 

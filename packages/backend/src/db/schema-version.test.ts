@@ -10,6 +10,7 @@ import {
   BASELINE_TABLES,
   REVISION_FIVE_TABLES,
   REVISION_SIX_TABLES,
+  REVISION_SEVEN_TABLES,
   REVISION_TWO_TABLES,
   SCHEMA_TABLES,
   SCHEMA_VERSION,
@@ -88,7 +89,13 @@ describe('schema revision', () => {
     assert.deepEqual([...requiredTablesFor(1)].sort(), [...BASELINE_TABLES].sort());
     assert.deepEqual(
       [...SCHEMA_TABLES].sort(),
-      [...BASELINE_TABLES, ...REVISION_TWO_TABLES, ...REVISION_FIVE_TABLES, ...REVISION_SIX_TABLES].sort(),
+      [
+        ...BASELINE_TABLES,
+        ...REVISION_TWO_TABLES,
+        ...REVISION_FIVE_TABLES,
+        ...REVISION_SIX_TABLES,
+        ...REVISION_SEVEN_TABLES,
+      ].sort(),
     );
   });
 

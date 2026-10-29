@@ -1,0 +1,268 @@
+import assert from 'node:assert/strict';
+import { after, before, describe, it } from 'node:test';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
+import { buildTestApp, type TestFixtures } from '../../test-helper.js';
+import { REFERENCE_DATASET } from '../../db/reference-data.js';
+
+/**
+ * The ERP mirror is a snapshot, not an authority: the company WebService owns `ENT_LAN`, and these
+ * endpoints only keep a copy so every device in the plant reads the same day without running the
+ * shortcut again. The tests treat the HTTP surface as the contract -- storage is never inspected
+ * directly except to prove that a refused request wrote nothing.
+ */
+describe('Aero movements routes', () => {
+  let app: import('fastify').FastifyInstance;
+  let db: import('better-sqlite3').Database;
+  let fixtures: TestFixtures;
+  let wilkinToken: string;
+  let workerToken: string;
+
+  const seat = {
+    ent_lan: 10542,
+    product_code: '001192',
+    product_desc: 'MASSA QUADRADA',
+    quantity: 90,
+    entry_date: '2026-10-28',
+    operator_name: 'WILKIN',
+    movement_type: 'E' as const,
+  };
+
+  const url = (date?: string) =>
+    date === undefined
+      ? '/api/integration/aero/movements'
+      : `/api/integration/aero/movements?date=${date}`;
+
+  before(async () => {
+    const built = await buildTestApp();
+    app = built.app;
+    db = built.db;
+    fixtures = built.fixtures;
+
+    const adminRoleId = REFERENCE_DATASET.roles.find((r) => r.name === 'Administrador')!.id;
+    const passwordHash = await bcrypt.hash('wilkin-pass', 4);
+    const inserted = db
+      .prepare(
+        'INSERT INTO users (username, password_hash, display_name, role_id, is_active, security_version) VALUES (?, ?, ?, ?, 1, 1)',
+      )
+      .run('wilkin', passwordHash, 'Wilkin Admin', adminRoleId);
+    const wilkinId = Number(inserted.lastInsertRowid);
+
+    wilkinToken = jwt.sign(
+      { sub: wilkinId, username: 'wilkin', role: 'Administrador', security_version: 1 },
+      fixtures.jwtSecret,
+    );
+    workerToken = jwt.sign(
+      { sub: fixtures.worker.id, username: fixtures.worker.username, role: 'Trabalhador', security_version: 1 },
+      fixtures.jwtSecret,
+    );
+  });
+
+  after(async () => {
+    await app.close();
+    db.close();
+  });
+
+  it('answers 401 without a token, for reading and for writing', async () => {
+    const read = await app.inject({ method: 'GET', url: url('2026-10-28') });
+    assert.equal(read.statusCode, 401);
+
+    const write = await app.inject({
+      method: 'POST',
+      url: url(),
+      payload: { date: '2026-10-28', movements: [seat] },
+    });
+    assert.equal(write.statusCode, 401);
+  });
+
+  it('answers an empty list for a day with no snapshot', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: url('2026-01-02'),
+      headers: { authorization: `Bearer ${workerToken}` },
+    });
+
+    assert.equal(res.statusCode, 200);
+    assert.deepEqual(JSON.parse(res.body), { date: '2026-01-02', movements: [] });
+  });
+
+  it('requires a date in YYYY-MM-DD', async () => {
+    const missing = await app.inject({
+      method: 'GET',
+      url: url(),
+      headers: { authorization: `Bearer ${workerToken}` },
+    });
+    assert.equal(missing.statusCode, 400);
+    assert.equal(JSON.parse(missing.body).code, 'INVALID_DATE_FORMAT');
+
+    const malformed = await app.inject({
+      method: 'GET',
+      url: url('28-10-2026'),
+      headers: { authorization: `Bearer ${workerToken}` },
+    });
+    assert.equal(malformed.statusCode, 400);
+    assert.equal(JSON.parse(malformed.body).code, 'INVALID_DATE_FORMAT');
+  });
+
+  it('stores the snapshot and reads it back with every field the mirror renders', async () => {
+    const stored = await app.inject({
+      method: 'POST',
+      url: url(),
+      headers: { authorization: `Bearer ${workerToken}` },
+      payload: { date: '2026-10-28', movements: [seat] },
+    });
+    assert.equal(stored.statusCode, 201);
+    assert.deepEqual(JSON.parse(stored.body), { saved: 1 });
+
+    const res = await app.inject({
+      method: 'GET',
+      url: url('2026-10-28'),
+      headers: { authorization: `Bearer ${workerToken}` },
+    });
+
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+    assert.equal(body.date, '2026-10-28');
+    assert.equal(body.movements.length, 1);
+    const [movement] = body.movements;
+    assert.equal(movement.ent_lan, 10542);
+    assert.equal(movement.product_code, '001192');
+    assert.equal(movement.product_desc, 'MASSA QUADRADA');
+    assert.equal(movement.quantity, 90);
+    assert.equal(movement.entry_date, '2026-10-28');
+    assert.equal(movement.operator_name, 'WILKIN');
+    assert.equal(movement.movement_type, 'E');
+    assert.match(movement.synced_at, /^\d{4}-\d{2}-\d{2}T/);
+  });
+
+  it('keeps one row per ERP seat: a second sync of the same seat updates it instead of duplicating it', async () => {
+    await app.inject({
+      method: 'POST',
+      url: url(),
+      headers: { authorization: `Bearer ${workerToken}` },
+      payload: {
+        date: '2026-10-28',
+        movements: [{ ...seat, quantity: 90, operator_name: 'wilkin' }],
+      },
+    });
+
+    // The ERP answers the operator in uppercase; the stored name is normalised so two spellings of the
+    // same operator do not render as two chips.
+    const first = await app.inject({
+      method: 'GET',
+      url: url('2026-10-28'),
+      headers: { authorization: `Bearer ${workerToken}` },
+    });
+    assert.equal(JSON.parse(first.body).movements.length, 1);
+    assert.equal(JSON.parse(first.body).movements[0].operator_name, 'WILKIN');
+
+    const stored = await app.inject({
+      method: 'POST',
+      url: url(),
+      headers: { authorization: `Bearer ${workerToken}` },
+      payload: { date: '2026-10-28', movements: [{ ...seat, quantity: 120 }] },
+    });
+    assert.equal(stored.statusCode, 201);
+
+    const res = await app.inject({
+      method: 'GET',
+      url: url('2026-10-28'),
+      headers: { authorization: `Bearer ${workerToken}` },
+    });
+    const body = JSON.parse(res.body);
+    assert.equal(body.movements.length, 1, 'a seat is unique: the second sync must not add a row');
+    assert.equal(body.movements[0].quantity, 120);
+  });
+
+  it('leaves another day untouched when one day is stamped again', async () => {
+    await app.inject({
+      method: 'POST',
+      url: url(),
+      headers: { authorization: `Bearer ${workerToken}` },
+      payload: {
+        date: '2026-10-29',
+        movements: [{ ...seat, ent_lan: 10600, entry_date: '2026-10-29' }],
+      },
+    });
+
+    const other = await app.inject({
+      method: 'GET',
+      url: url('2026-10-29'),
+      headers: { authorization: `Bearer ${workerToken}` },
+    });
+    assert.equal(JSON.parse(other.body).movements.length, 1);
+    assert.equal(JSON.parse(other.body).movements[0].ent_lan, 10600);
+  });
+
+  it('refuses a malformed snapshot and writes nothing', async () => {
+    const before = await app.inject({
+      method: 'GET',
+      url: url('2026-10-30'),
+      headers: { authorization: `Bearer ${workerToken}` },
+    });
+    assert.deepEqual(JSON.parse(before.body).movements, []);
+
+    const cases: Array<[string, Record<string, unknown>]> = [
+      ['ent_lan not an integer', { date: '2026-10-30', movements: [{ ...seat, ent_lan: 'AB-12' }] }],
+      ['quantity not a number', { date: '2026-10-30', movements: [{ ...seat, quantity: 'noventa' }] }],
+      ['entry_date in the wrong format', { date: '2026-10-30', movements: [{ ...seat, entry_date: '28/10/2026' }] }],
+      ['movement_type outside E/S', { date: '2026-10-30', movements: [{ ...seat, movement_type: 'X' }] }],
+      ['an empty operator is not an operator', { date: '2026-10-30', movements: [{ ...seat, operator_name: '   ' }] }],
+      ['the snapshot carries no movements array', { date: '2026-10-30', movements: 'none' }],
+      ['an unknown field is smuggled in', { date: '2026-10-30', movements: [{ ...seat, secret: 'x' }] }],
+    ];
+
+    for (const [name, payload] of cases) {
+      const res = await app.inject({
+        method: 'POST',
+        url: url(),
+        headers: { authorization: `Bearer ${workerToken}` },
+        payload,
+      });
+      assert.equal(res.statusCode, 400, name);
+      assert.equal(JSON.parse(res.body).code, 'INVALID_MOVEMENTS', name);
+    }
+
+    const after = await app.inject({
+      method: 'GET',
+      url: url('2026-10-30'),
+      headers: { authorization: `Bearer ${workerToken}` },
+    });
+    assert.deepEqual(JSON.parse(after.body).movements, [], 'a refused snapshot must write nothing');
+  });
+
+  it('answers 503 with a named code when the database has not been migrated', async () => {
+    db.exec('ALTER TABLE aero_movements RENAME TO aero_movements_missing');
+
+    try {
+      const read = await app.inject({
+        method: 'GET',
+        url: url('2026-10-28'),
+        headers: { authorization: `Bearer ${workerToken}` },
+      });
+      assert.equal(read.statusCode, 503);
+      assert.equal(JSON.parse(read.body).code, 'AERO_MOVEMENTS_NOT_MIGRATED');
+
+      const write = await app.inject({
+        method: 'POST',
+        url: url(),
+        headers: { authorization: `Bearer ${workerToken}` },
+        payload: { date: '2026-10-28', movements: [seat] },
+      });
+      assert.equal(write.statusCode, 503);
+      assert.equal(JSON.parse(write.body).code, 'AERO_MOVEMENTS_NOT_MIGRATED');
+    } finally {
+      db.exec('ALTER TABLE aero_movements_missing RENAME TO aero_movements');
+    }
+  });
+
+  it('reads the snapshot for whoever is signed in, because the plant reads the same mirror', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: url('2026-10-28'),
+      headers: { authorization: `Bearer ${wilkinToken}` },
+    });
+    assert.equal(res.statusCode, 200);
+    assert.ok(JSON.parse(res.body).movements.length >= 1);
+  });
+});

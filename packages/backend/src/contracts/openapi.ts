@@ -125,6 +125,12 @@ import {
   AeroLogResponseSchema,
 } from '../modules/integration/aero.schema.js';
 import {
+  AeroMovementSchema,
+  AeroMovementsBodySchema,
+  AeroMovementsListResponseSchema,
+  AeroMovementsSavedResponseSchema,
+} from '../modules/integration/aero.movements.schema.js';
+import {
   HealthResponseSchema,
   PaginationSchema,
   SuccessResponseSchema,
@@ -324,6 +330,10 @@ registerComponent(registry, 'StockHistory', StockHistorySchema);
   registerComponent(registry, 'MassasHistoryResponse', MassasHistoryResponseSchema);
   registerComponent(registry, 'AeroLogRequest', AeroLogBodySchema);
   registerComponent(registry, 'AeroLogResponse', AeroLogResponseSchema);
+  registerComponent(registry, 'AeroMovement', AeroMovementSchema);
+  registerComponent(registry, 'AeroMovementsBody', AeroMovementsBodySchema);
+  registerComponent(registry, 'AeroMovementsListResponse', AeroMovementsListResponseSchema);
+  registerComponent(registry, 'AeroMovementsSavedResponse', AeroMovementsSavedResponseSchema);
   registerComponent(registry, 'AeroLogError', AeroErrorResponseSchema);
 
   // Response envelopes. These existed as schemas and were used in the paths below, but were never
@@ -1558,6 +1568,43 @@ registerComponent(registry, 'StockHistory', StockHistorySchema);
       400: jsonResponse('The event failed validation', AeroErrorResponseSchema),
       401: errorResponse('Missing or invalid token'),
       403: errorResponse('The authenticated user is not the owner admin'),
+    },
+  });
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/integration/aero/movements',
+    summary: "Read the company ERP's movement seats mirrored for one day",
+    description:
+      'A snapshot, not an authority: `ENT_LAN` belongs to Aero32 and this endpoint only serves the copy ' +
+      'the bridge left behind, so every device in the plant reads the same day without running the iOS ' +
+      'shortcut. Any signed-in operator may read it. Answers 503 until an operator runs `db:migrate` on a ' +
+      'database created before revision 7.',
+    tags: ['integration'],
+    request: { query: z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }) },
+    responses: {
+      200: jsonResponse("The day's seats, oldest seat first", AeroMovementsListResponseSchema),
+      400: jsonResponse('The date is missing or not YYYY-MM-DD', AeroErrorResponseSchema),
+      401: UNAUTHORIZED,
+      503: jsonResponse('The mirror table has not been migrated yet', AeroErrorResponseSchema),
+    },
+  });
+
+  registry.registerPath({
+    method: 'post',
+    path: '/api/integration/aero/movements',
+    summary: 'Store the snapshot the bridge brought back for one day',
+    description:
+      "One row per ERP seat: a second sync of the same day updates the seats it recognises instead of " +
+      'appending duplicates, and seats the answer no longer mentions are left alone. Strict validation: ' +
+      'a body this module cannot describe is refused and writes nothing.',
+    tags: ['integration'],
+    request: jsonRequest(AeroMovementsBodySchema),
+    responses: {
+      201: jsonResponse('The seats that were stored', AeroMovementsSavedResponseSchema),
+      400: jsonResponse('The snapshot failed validation', AeroErrorResponseSchema),
+      401: UNAUTHORIZED,
+      503: jsonResponse('The mirror table has not been migrated yet', AeroErrorResponseSchema),
     },
   });
 

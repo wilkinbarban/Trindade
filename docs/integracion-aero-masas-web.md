@@ -304,6 +304,28 @@ Los códigos de producto (`PRO_COD`) salen tal cual de `stock.catalog.ts` (`5000
 `1045` = CASEIRA, …): son idénticos a los del ERP. Las fechas van en `YYYY-MM-DD` y en la zona de São
 Paulo, no en UTC.
 
+### 6.4 Espejo persistido del día (`/api/integration/aero/movements`)
+
+El atajo corre en un solo teléfono, pero el espejo lo lee toda la planta. La respuesta del ERP se guarda
+como snapshot del día para que cualquier dispositivo la vea sin volver a ejecutar el atajo:
+
+- `POST /api/integration/aero/movements` — cuerpo `{ date: "YYYY-MM-DD", movements: [...] }`, un elemento
+  por asiento con `ent_lan`, `product_code`, `product_desc`, `quantity`, `entry_date`, `operator_name` y
+  `movement_type` (`"E"` o `"S"`). Responde `201 { saved }`. Validación estricta: un cuerpo que el módulo
+  no sabe describir se rechaza con `400 INVALID_MOVEMENTS` y no escribe nada.
+- `GET /api/integration/aero/movements?date=YYYY-MM-DD` — responde `{ date, movements }` ordenado por
+  `ent_lan`. Cualquier operario autenticado puede leerlo: es una copia de lo que la empresa ya registró.
+- `UNIQUE(movement_date, ent_lan)`: una segunda sincronización del mismo día actualiza los asientos que
+  reconoce en lugar de duplicarlos. Los asientos que la respuesta ya no menciona **no** se borran — en
+  Aero32 un asiento no desaparece, y una respuesta parcial es más probable que un borrado.
+- `operator_name` se normaliza a mayúsculas al guardar: el ERP responde `ENT_USU` en mayúsculas y dos
+  grafías del mismo operador no deben renderizarse como dos chips distintos.
+- La tabla `aero_movements` es la **revisión 7** del esquema: se crea con `npm run db:migrate`, nunca al
+  arrancar (Production Immutability Gate). Contra una base sin migrar los dos endpoints responden
+  `503 AERO_MOVEMENTS_NOT_MIGRATED`.
+- `synced_at` es cuándo Trindade supo del ERP, no cuándo ocurrió el movimiento: el asiento es inmutable
+  en Aero32 y `entry_date` es lo que hizo la fábrica.
+
 ## 7. Bitácora
 
 Ruta interna: `POST /api/integration/aero/log`, restringida al admin. El archivo se escribe en
@@ -384,10 +406,16 @@ funcionalidades clave a incorporar. El contrato ya está listo -- el atajo únic
   - Reutiliza la cola y el mismo atajo único, con `aero_action=saida` en la vuelta.
   - Escala la cantidad x100 y formatea el código a 6 dígitos con ceros a la izquierda.
 
-### 10.2 Vista de Movimientos del Usuario (ERP vs Trindade)
-- **Objetivo**: Mostrar en la interfaz de Trindade qué se registró efectivamente en el ERP bajo el usuario logueado (`NOMUSU`).
-- **Ruta WebService**: `POST /movimentoitem` enviando `{"NOMUSU": "WILKIN", "DTINI": "...", "DTFIM": "...", "ENTSAI": "E"}` (o `"S"` para bajas).
+### 10.2 Vista de Movimientos del Usuario (ERP vs Trindade) — implementado
+- **Objetivo**: Mostrar en la interfaz de Trindade qué se registró efectivamente en el ERP, y permitir
+  importar al lanzamiento local lo que se hizo desde otra vía.
+- **Ruta WebService**: `POST /movimentoitem` con `{"NOMUSU": "WILKIN", "DTINI": "...", "DTFIM": "...", "ENTSAI": "E"}`.
+  Enviando `NOMUSU: null` el ERP devuelve los movimientos de todos los operarios de la planta.
 - **Implementación**:
-  - Cruza el historial local de Trindade con el número de asiento Firebird (`ENT_LAN`).
-  - Muestra badges en el historial: entrada confirmada en ERP con su número de asiento (`ENT_LAN: 10542`), o baja registrada (`ENTSAI: "S"`).
+  - Pestaña «Espelho do ERP» en Lançamento de Massas, con el snapshot del día persistido (§6.4) y
+    operario por asiento en chips.
+  - Cruza el historial local de Trindade con el número de asiento Firebird (`ENT_LAN`) y marca
+    «Conciliado» cuando ambos lados coinciden.
+  - Los asientos del ERP son **solo lectura** en Trindade; importar crea un lanzamiento local nuevo,
+    nunca edita el asiento de la empresa.
 

@@ -10,11 +10,15 @@ import type Database from 'better-sqlite3';
  * - 2: adds `auth_sessions` for refresh-token persistence (token hash, rotation
  *   family, revocation), bringing the schema to 15 user tables.
  * - 3: adds users.security_version and revokes preexisting live sessions.
+ * - 4: adds the driver phone column the loading schedules print.
+ * - 5: adds `stock_counts`, the daily count of boxes per product.
+ * - 6: adds `massa_launches`, the daily launches of massa boxes per product and user.
+ * - 7: adds `aero_movements`, the company ERP's movement seats mirrored as a read-only snapshot.
  *
  * Databases created before versioning carry `user_version = 0` and are reported as
  * `unversioned`; nothing about them is assumed, and no startup path rewrites them.
  */
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 
 /**
  * The tables a database created by revision 1 must contain: the baseline the
@@ -48,6 +52,9 @@ export const REVISION_FIVE_TABLES = ['stock_counts'] as const;
 /** Tables introduced by revision 6: the daily launches of massas per product and user. */
 export const REVISION_SIX_TABLES = ['massa_launches'] as const;
 
+/** Tables introduced by revision 7: the company ERP's movement seats, mirrored for the plant. */
+export const REVISION_SEVEN_TABLES = ['aero_movements'] as const;
+
 /**
  * The user tables the approved schema defines. Kept in code because the read-only
  * status report needs an expectation to compare against; the test suite ties this
@@ -58,6 +65,7 @@ export const SCHEMA_TABLES: readonly string[] = [
   ...REVISION_TWO_TABLES,
   ...REVISION_FIVE_TABLES,
   ...REVISION_SIX_TABLES,
+  ...REVISION_SEVEN_TABLES,
 ].sort();
 
 /**
@@ -73,7 +81,10 @@ export const SCHEMA_TABLES: readonly string[] = [
  * further is known about it.
  */
 export function requiredTablesFor(version: number): readonly string[] {
-  if (version >= 6) return SCHEMA_TABLES;
+  if (version >= 7) return SCHEMA_TABLES;
+  if (version >= 6) {
+    return [...BASELINE_TABLES, ...REVISION_TWO_TABLES, ...REVISION_FIVE_TABLES, ...REVISION_SIX_TABLES].sort();
+  }
   if (version >= 5) return [...BASELINE_TABLES, ...REVISION_TWO_TABLES, ...REVISION_FIVE_TABLES].sort();
   // A database stamped below 5 is asked only for what its own revision introduced: asking it for
   // `stock_counts` would call it incompatible and would refuse the very migration that gives it one.

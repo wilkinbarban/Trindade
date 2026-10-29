@@ -36,6 +36,7 @@ describe('Database Initialization', () => {
       'drivers',
       'loading_schedules',
       'massa_launches',
+      'aero_movements',
       'report_categories',
       'report_items',
       'report_photos',
