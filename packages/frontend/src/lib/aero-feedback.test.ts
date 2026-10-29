@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  batchSyncFeedback,
   connectionVerdictTone,
   launchMirrorHint,
   movementsSyncFeedback,
+  readAeroBatchResult,
   receiptsSyncFeedback,
 } from './aero-feedback';
 
@@ -80,5 +82,109 @@ describe('connectionVerdictTone', () => {
     assert.equal(connectionVerdictTone('ok'), 'ok');
     assert.equal(connectionVerdictTone('error'), 'error');
     assert.equal(connectionVerdictTone('unknown'), 'warn');
+  });
+});
+
+describe('readAeroBatchResult', () => {
+  const ok = { success: true, message: 'Gravado' };
+  const refused = { success: false, message: 'Item sem CST' };
+
+  it('reads three answers for three products as one complete batch', () => {
+    const outcome = readAeroBatchResult([ok, ok, ok], 3);
+
+    assert.equal(outcome.state, 'complete');
+    assert.equal(outcome.total, 3);
+    assert.equal(outcome.ok, 3);
+    assert.equal(outcome.failed, 0);
+    assert.deepEqual(outcome.failedIndexes, []);
+    assert.equal(outcome.message, null);
+  });
+
+  it('keeps the batch partial when the ERP refused one item, and names which one', () => {
+    const outcome = readAeroBatchResult([ok, refused, ok], 3);
+
+    assert.equal(outcome.state, 'partial');
+    assert.equal(outcome.ok, 2);
+    assert.equal(outcome.failed, 1);
+    // El índice es la posición en `bodies`: la página sabe qué producto reencolar sin adivinar.
+    assert.deepEqual(outcome.failedIndexes, [1]);
+    assert.equal(outcome.message, 'Item sem CST');
+  });
+
+  it('counts a missing answer as a failure instead of quietly shrinking the batch', () => {
+    const outcome = readAeroBatchResult([ok, ok], 3);
+
+    assert.equal(outcome.state, 'partial');
+    assert.equal(outcome.ok, 2);
+    assert.equal(outcome.failed, 1);
+    assert.deepEqual(outcome.failedIndexes, [2]);
+  });
+
+  it('calls the batch failed when no answer was a success', () => {
+    const outcome = readAeroBatchResult([refused, refused], 2);
+
+    assert.equal(outcome.state, 'failed');
+    assert.equal(outcome.ok, 0);
+    assert.equal(outcome.failed, 2);
+    assert.equal(outcome.message, 'Item sem CST');
+  });
+
+  it('treats an answer it cannot read as that item failing, not as the batch being unreadable', () => {
+    const outcome = readAeroBatchResult([ok, 'Could not connect to the server', ok], 3);
+
+    assert.equal(outcome.state, 'partial');
+    assert.equal(outcome.ok, 2);
+    assert.deepEqual(outcome.failedIndexes, [1]);
+    assert.equal(outcome.message, null);
+  });
+
+  it('says the batch is unreadable only when the answer is not an array at all', () => {
+    const outcome = readAeroBatchResult(null, 3);
+
+    assert.equal(outcome.state, 'unreadable');
+    assert.equal(outcome.failed, 3);
+    assert.equal(batchSyncFeedback(outcome)?.messageKey, 'massas.erp.batchUnreadable');
+  });
+
+  it('falls back to the single-product result when a phone without the batch branch answered', () => {
+    // El atajo viejo ignora `bodies` y contesta un objeto suelto: el lote degrada al flujo de siempre.
+    const outcome = readAeroBatchResult(ok, 3);
+
+    assert.equal(outcome.state, 'legacy');
+    assert.equal(outcome.ok, 1);
+    // Un lote degradado no abre modal de lote: la página sigue drenando producto por producto.
+    assert.equal(batchSyncFeedback(outcome), null);
+  });
+});
+
+describe('batchSyncFeedback', () => {
+  const ok = { success: true, message: 'Gravado' };
+  const refused = { success: false, message: 'Item sem CST' };
+
+  it('celebrates once for the whole batch, with the count of products', () => {
+    const feedback = batchSyncFeedback(readAeroBatchResult([ok, ok, ok], 3));
+
+    assert.equal(feedback?.tone, 'ok');
+    assert.equal(feedback?.titleKey, 'massas.erp.batchOkTitle');
+    assert.equal(feedback?.messageKey, 'massas.erp.batchOk');
+    assert.equal(feedback?.count, 3);
+  });
+
+  it('warns with both numbers when part of the batch did not make it', () => {
+    const feedback = batchSyncFeedback(readAeroBatchResult([ok, refused, ok], 3));
+
+    assert.equal(feedback?.tone, 'warn');
+    assert.equal(feedback?.titleKey, 'massas.erp.batchPartialTitle');
+    assert.equal(feedback?.messageKey, 'massas.erp.batchPartial');
+    assert.deepEqual(feedback?.params, { ok: 2, failed: 1, total: 3 });
+  });
+
+  it('does not dress a total failure as a partial one', () => {
+    const feedback = batchSyncFeedback(readAeroBatchResult([refused, refused], 2));
+
+    assert.equal(feedback?.tone, 'error');
+    assert.equal(feedback?.titleKey, 'massas.erp.batchErrorTitle');
+    assert.equal(feedback?.messageKey, 'massas.erp.batchFailed');
+    assert.equal(feedback?.count, 2);
   });
 });

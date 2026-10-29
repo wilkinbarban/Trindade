@@ -630,7 +630,17 @@
       "syncEmpty": "Ninguna masa sincronizada del ERP para {{date}}.",
       "syncError": "No se pudieron leer las masas del ERP. Probá de nuevo con el atajo.",
       "mirrorHint": "Sincronizado con el ERP. Actualizá la pestaña «Espelho do ERP» para ver tu nuevo asiento contable.",
-      "storeFailed": "Las masas llegaron, pero no se pudieron guardar. Sincronizá otra vez."
+      "storeFailed": "Las masas llegaron, pero no se pudieron guardar. Sincronizá otra vez.",
+      "batchOkTitle": "Lanzamientos Sincronizados",
+      "batchPartialTitle": "Sincronización Parcial",
+      "batchErrorTitle": "Falló la Sincronización",
+      "batchOk_one": "{{count}} lanzamiento sincronizado con el ERP para {{date}}.",
+      "batchOk_other": "{{count}} lanzamientos sincronizados con el ERP para {{date}}.",
+      "batchPartial_one": "{{ok}} de {{total}} sincronizados — {{count}} falló: {{detail}}",
+      "batchPartial_other": "{{ok}} de {{total}} sincronizados — {{count}} fallaron: {{detail}}",
+      "batchFailed": "Ninguno de los {{count}} lanzamientos se sincronizó: {{detail}}",
+      "batchUnreadable": "No se pudo leer la respuesta del ERP. Ningún lanzamiento quedó confirmado.",
+      "batchRetry": "Reenviar fallas ({{count}})"
     }
   },
   "moduleHelp": {
