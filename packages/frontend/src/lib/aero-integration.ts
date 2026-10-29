@@ -25,15 +25,12 @@ export const AERO_INTEGRATION_USERNAME = 'wilkin';
 export const AERO_DEFAULT_BRIDGE_SHORTCUT_NAME = 'Aero32 Bridge';
 
 /**
- * The names the split design used, kept only as the key of the settings migration.
+ * The name the split design used for the launch shortcut, kept only as the key of the settings migration.
  *
- * A phone that stored them gets {@link AERO_DEFAULT_BRIDGE_SHORTCUT_NAME} instead, because those shortcuts no
- * longer exist in the factory's phone.
+ * A phone that stored it gets {`Aero32 Bridge` instead, because that shortcut no
+ * longer exists in the factory's phone.
  */
 export const AERO_DEFAULT_SHORTCUT_NAME = 'Aero32 Estoque';
-
-/** @deprecated The test shortcut is the bridge: kept as a migration key only. */
-export const AERO_DEFAULT_TEST_SHORTCUT_NAME = 'Aero32 Prueba';
 export const AERO_TEST_TIMEOUT_MS = 8000;
 
 /**
@@ -79,9 +76,7 @@ export interface AeroSettings {
   wsUrl: string;
   username: string;
   password: string;
-  userCode: number | null;
   shortcutName: string;
-  testShortcutName: string;
   syncEnabled: boolean;
   lastSyncAt: string | null;
 }
@@ -90,9 +85,7 @@ export const DEFAULT_AERO_SETTINGS: AeroSettings = {
   wsUrl: '',
   username: '',
   password: '',
-  userCode: null,
   shortcutName: AERO_DEFAULT_BRIDGE_SHORTCUT_NAME,
-  testShortcutName: AERO_DEFAULT_BRIDGE_SHORTCUT_NAME,
   syncEnabled: false,
   lastSyncAt: null,
 };
@@ -144,18 +137,11 @@ export function loadAeroSettings(storage?: Pick<Storage, 'getItem'> | StorageLik
       return { ...DEFAULT_AERO_SETTINGS };
     }
 
-    const userCode =
-      typeof parsed.userCode === 'number' && Number.isInteger(parsed.userCode) && parsed.userCode > 0
-        ? parsed.userCode
-        : null;
-
     return {
       wsUrl: typeof parsed.wsUrl === 'string' ? parsed.wsUrl : DEFAULT_AERO_SETTINGS.wsUrl,
       username: typeof parsed.username === 'string' ? parsed.username : DEFAULT_AERO_SETTINGS.username,
       password: typeof parsed.password === 'string' ? parsed.password : DEFAULT_AERO_SETTINGS.password,
-      userCode,
       shortcutName: aeroShortcutName(parsed.shortcutName, AERO_DEFAULT_SHORTCUT_NAME),
-      testShortcutName: aeroShortcutName(parsed.testShortcutName, AERO_DEFAULT_TEST_SHORTCUT_NAME),
       syncEnabled:
         typeof parsed.syncEnabled === 'boolean' ? parsed.syncEnabled : DEFAULT_AERO_SETTINGS.syncEnabled,
       lastSyncAt: typeof parsed.lastSyncAt === 'string' ? parsed.lastSyncAt : null,
@@ -192,9 +178,9 @@ export function clearAeroSettings(storage?: Pick<Storage, 'removeItem'> | Storag
 /**
  * Indicates whether the settings contain everything the operator is responsible for.
  *
- * Deliberately three fields. `userCode` is not one of them: it is a value the ERP reveals, not a value a person
- * types, and the only probe able to read it is blocked by the browser over HTTPS. Gating readiness on it would
- * keep the sync switch disabled forever on the exact deployment the factory uses.
+ * Deliberately three fields: where the ERP is, and who it is. Nothing else is asked of a person at the counter,
+ * and no value the ERP reveals gates the switch -- the identity travels as the username in uppercase, which is
+ * what `ENT_USU` carries in the Delphi binary.
  */
 export function aeroSettingsReady(settings: AeroSettings): boolean {
   if (!settings) return false;
@@ -626,6 +612,18 @@ export function aeroBridgeCallbackPrefix(args: {
   return `${aeroLaunchPageUrl(args)}?aero_action=${args.action}&aero_data=`;
 }
 
+/**
+ * The callback the running page has to come back to, for one action.
+ *
+ * The panel's test, the dialog's sample and every launch build the same URL from the page they are on, so the
+ * derivation lives here instead of being retyped in three places.
+ */
+export function aeroBridgeCallbackFor(action: AeroBridgeAction): string {
+  const origin = typeof window === 'undefined' ? '' : window.location.origin;
+  const basePath = (import.meta.env?.BASE_URL ?? '/').replace(/\/$/, '');
+  return aeroBridgeCallbackPrefix({ origin, basePath, action });
+}
+
 export interface AeroBridgeShortcutRecipe {
   /** The one shortcut the phone must have installed. */
   name: string;
@@ -692,15 +690,6 @@ export function aeroBridgeShortcutRecipe(args: {
 export function aeroShortcutTriggerUrl(args: { name: string; payload: unknown }): string {
   const body = JSON.stringify(args.payload);
   return `shortcuts://x-callback-url/run-shortcut?name=${encodeURIComponent(args.name)}&input=text&text=${encodeURIComponent(body)}`;
-}
-
-/**
- * Runs a shortcut that takes no input at all.
- *
- * Legacy path of the split design, kept until the panel sends the bridge envelope for its connection test.
- */
-export function aeroTestShortcutTriggerUrl(args: { name: string }): string {
-  return `shortcuts://x-callback-url/run-shortcut?name=${encodeURIComponent(args.name)}`;
 }
 
 /**

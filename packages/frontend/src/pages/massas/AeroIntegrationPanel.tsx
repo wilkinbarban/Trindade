@@ -5,10 +5,12 @@ import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import {
+  aeroBridgeCallbackFor,
   aeroConnectionBlocker,
   aeroEndpoint,
   aeroSettingsReady,
-  aeroTestShortcutTriggerUrl,
+  buildAeroBridgeEnvelope,
+  buildAeroBridgeTriggerUrl,
   clearAeroSettings,
   DEFAULT_AERO_SETTINGS,
   normalizeAeroWsUrl,
@@ -54,7 +56,6 @@ export function AeroIntegrationPanel({
     wsUrl: settings.wsUrl,
     username: settings.username,
     password: settings.password,
-    userCode: settings.userCode === null ? '' : String(settings.userCode),
   });
   const [busy, setBusy] = useState<'save' | 'test' | null>(null);
   const [probe, setProbe] = useState<AeroConnectionProbe | null>(null);
@@ -77,18 +78,6 @@ export function AeroIntegrationPanel({
     onSettingsSaved(next);
   };
 
-  /**
-   * Reads the optional code box.
-   *
-   * Empty is a legitimate answer, not an error: over HTTPS the probe cannot read the code, so most phones will
-   * never have one. Anything that is not a positive integer is treated as empty rather than refused, because
-   * the field is a convenience and must never be the reason a launch cannot be configured.
-   */
-  const draftUserCode = (): number | null => {
-    const parsed = Number.parseInt(draft.userCode, 10);
-    return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
-  };
-
   const handleSave = () => {
     setNotice(null);
     setProbe(null);
@@ -102,7 +91,6 @@ export function AeroIntegrationPanel({
       wsUrl: normalizedUrl,
       username: draft.username.trim(),
       password: draft.password,
-      userCode: draftUserCode(),
     });
     setDraft((current) => ({ ...current, wsUrl: normalizedUrl, username: draft.username.trim() }));
     setNotice({ tone: 'ok', text: t('massas.aero.saved') });
@@ -151,7 +139,16 @@ export function AeroIntegrationPanel({
       });
       setNotice({ tone: 'warn', text: t('massas.aero.testShortcutOpening') });
       setBusy(null);
-      window.location.href = aeroTestShortcutTriggerUrl({ name: settings.testShortcutName });
+      // One bridge for everything: the same envelope a launch carries, pointed at `/usuarios/` with no body.
+      const envelope = buildAeroBridgeEnvelope({
+        wsUrl: normalized,
+        username: draft.username.trim(),
+        password: draft.password,
+        endpoint: 'usuarios/',
+        payload: {},
+        callbackUrl: aeroBridgeCallbackFor('test'),
+      });
+      window.location.href = buildAeroBridgeTriggerUrl({ name: settings.shortcutName, envelope });
       return;
     }
 
@@ -173,7 +170,6 @@ export function AeroIntegrationPanel({
         wsUrl: normalizeAeroWsUrl(draft.wsUrl) ?? settings.wsUrl,
         username: draft.username.trim(),
         password: draft.password,
-        userCode: outcome.userCode,
       });
       setNotice({ tone: 'ok', text: t('massas.aero.testOk', { name: outcome.userName, code: outcome.userCode }) });
     }
@@ -221,7 +217,7 @@ export function AeroIntegrationPanel({
   const handleClear = () => {
     if (!window.confirm(t('massas.aero.clearConfirm'))) return;
     clearAeroSettings();
-    setDraft({ wsUrl: '', username: '', password: '', userCode: '' });
+    setDraft({ wsUrl: '', username: '', password: '' });
     setProbe(null);
     setNotice({ tone: 'warn', text: t('massas.aero.cleared') });
     onSettingsSaved(DEFAULT_AERO_SETTINGS);
@@ -317,24 +313,6 @@ export function AeroIntegrationPanel({
                 data-testid="aero-ws-pass"
               />
             </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <label htmlFor="aero-user-code" className="block text-xs font-semibold text-gray-600">
-              {t('massas.aero.userCodeLabel')}
-            </label>
-            <Input
-              id="aero-user-code"
-              type="number"
-              inputMode="numeric"
-              min={1}
-              placeholder="1"
-              value={draft.userCode}
-              onChange={(event) => setDraft((current) => ({ ...current, userCode: event.target.value }))}
-              className="h-11 text-base sm:max-w-[12rem]"
-              data-testid="aero-user-code"
-            />
-            <p className="text-xs text-gray-500 leading-relaxed">{t('massas.aero.userCodeHint')}</p>
           </div>
 
           <p className="text-xs text-gray-500 leading-relaxed">{t('massas.aero.fieldsHint')}</p>
@@ -447,7 +425,7 @@ function probeToAuditEvent(probe: AeroConnectionProbe, destinationUrl: string) {
         destinationUrl,
         httpStatus: probe.httpStatus,
         response: probe.snippet,
-        note: `userCode=${probe.userCode}`,
+        note: `erp_code=${probe.userCode}`,
       };
     case 'http_error':
       return {

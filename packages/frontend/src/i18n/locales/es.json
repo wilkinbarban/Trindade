@@ -534,7 +534,7 @@
       "cleared": "Configuración eliminada de este iPhone",
       "test": "Probar conexión",
       "testing": "Probando...",
-      "testOk": "Conectado como {{name}} · código {{code}}",
+      "testOk": "Conectado como {{name}}. La empresa informa el código {{code}}, que no hace falta cargar.",
       "testHttpError": "El WebService respondió {{status}}: {{message}}",
       "testNoCors": "La red respondió, pero el WebService no libera CORS. Usá el Atajo del iPhone.",
       "testBlockedMixed": "Safari bloquea HTTP desde una página HTTPS. Usá el Atajo del iPhone.",

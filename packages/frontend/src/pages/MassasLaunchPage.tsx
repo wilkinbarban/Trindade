@@ -23,13 +23,16 @@ import { MassasCollectiveTable } from './massas/MassasCollectiveTable';
 import { MassasWhatsAppShare } from './massas/MassasWhatsAppShare';
 import { saoPauloToday } from '../lib/date';
 import {
+  aeroBridgeCallbackFor,
   aeroSettingsReady,
   aeroEndpoint,
-  aeroShortcutTriggerUrl,
+  buildAeroBridgeEnvelope,
+  buildAeroBridgeTriggerUrl,
   buildEntradaItemPayload,
   isAeroAllowed,
   loadAeroSettings,
   parseAeroCallback,
+  readAeroBridgeResult,
   saveAeroSettings,
   type AeroSettings,
 } from '../lib/aero-integration';
@@ -244,10 +247,9 @@ export function MassasLaunchPage() {
       writeAeroQueue(next.rest);
       setSyncAwaiting({ date: queue.date, remaining: next.rest.items.length });
 
-      const operatorUser =
-        aeroSettings.userCode ??
-        (aeroSettings.username?.trim() ? aeroSettings.username.trim() : null) ??
-        (user?.username?.trim() ? user.username.trim() : null);
+      // `ENT_USU` lleva el usuario en mayúsculas: es lo que el binario Delphi manda y lo que el ERP acepta.
+      // No hay código que cargar, así que el de la sesión es el que firma el lanzamiento.
+      const operatorUser = aeroSettings.username?.trim() || user?.username?.trim() || null;
 
       const payload = buildEntradaItemPayload({
         productCode: next.item.productCode,
@@ -256,18 +258,26 @@ export function MassasLaunchPage() {
         entryDate: queue.date,
         userCode: operatorUser,
       });
-      // El atajo recibe el cuerpo del POST y nada más: la URL y el encabezado son constantes de la
-      // fábrica y viven dentro del atajo. Cuanto menos tenga que armar el teléfono, más probable es
-      // que el atajo exista y siga funcionando.
+      // El atajo no sabe de massas: recibe dónde, quién, qué y a dónde volver. Cambiar la clave o la IP es
+      // un cambio en la web, y el iPhone no se toca.
+      const envelope = buildAeroBridgeEnvelope({
+        wsUrl: aeroSettings.wsUrl,
+        username: aeroSettings.username,
+        password: aeroSettings.password,
+        endpoint: 'entradasitem',
+        payload,
+        callbackUrl: aeroBridgeCallbackFor('entrada'),
+      });
+
       void postAeroAuditEvent({
         event: 'launch_sync',
         phase: 'requested',
         destinationUrl: aeroEndpoint(aeroSettings.wsUrl, 'entradasitem'),
         payload,
-        note: next.rest.items.length > 0 ? `${next.rest.items.length} pending` : 'last entry',
+        note: `${next.rest.items.length > 0 ? `${next.rest.items.length} pending` : 'last entry'} · via=bridge`,
       });
 
-      window.location.href = aeroShortcutTriggerUrl({ name: aeroSettings.shortcutName, payload });
+      window.location.href = buildAeroBridgeTriggerUrl({ name: aeroSettings.shortcutName, envelope });
     },
     [aeroSettings, user],
   );
@@ -373,9 +383,10 @@ export function MassasLaunchPage() {
   /**
    * The shortcut's way back.
    *
-   * The Atajos app finishes by opening this page with `aero_sync` (a launch) or `aero_test` (the connection
-   * test) in the query string, which is the only channel a native app has to say what the ERP answered.
-   * The parameters are consumed and stripped, so a pull-to-refresh in the factory never replays a result.
+   * The Atajos app finishes by opening this page with `aero_action` and `aero_data` -- the ERP answer, as it
+   * came -- which is the only channel a native app has to say what happened. The legacy `aero_sync` and
+   * `aero_test` parameters are still read, so a phone that has not rebuilt its shortcut keeps working. The
+   * query string is consumed and stripped, so a pull-to-refresh in the factory never replays a result.
    */
   useEffect(() => {
     if (aeroCallbackHandled.current) return;
@@ -396,10 +407,40 @@ export function MassasLaunchPage() {
       return;
     }
 
-    if (parsed.kind !== 'sync') {
-      // A bridge answer is handled by its own branch; nothing here may read it as a legacy sync status.
+    if (parsed.kind === 'bridge') {
+      // El puente devuelve la respuesta del ERP sin interpretarla: acá se decide qué significa.
+      const outcome = readAeroBridgeResult(parsed.data);
+      void postAeroAuditEvent({
+        event: 'launch_sync',
+        phase: 'result',
+        destinationUrl: aeroDestination(),
+        httpStatus: outcome.status === 'ok' ? 200 : null,
+        response: outcome.message,
+        error: outcome.status === 'error' ? outcome.message ?? 'bridge_unreadable' : null,
+        note: `action=${parsed.action} · via=bridge`,
+      });
+
+      // Sólo la entrada es un lanzamiento que esta página tiene que cerrar. Una baja o una consulta vuelven
+      // igual, y quedan como evidencia en el log.
+      if (parsed.action !== 'entrada') return;
+
+      const queue = readAeroQueue();
+      if (outcome.status === 'ok' && queue) {
+        triggerAeroSync(queue);
+        return;
+      }
+
+      clearAeroQueue();
+      setSyncAwaiting(null);
+      setResultModal(
+        outcome.status === 'ok'
+          ? { type: 'success', message: outcome.message ?? t('massas.aero.syncConfirmYes') }
+          : { type: 'error', message: outcome.message ?? t('massas.aero.syncConfirmNo') },
+      );
       return;
     }
+
+    if (parsed.kind !== 'sync') return;
 
     const queue = readAeroQueue();
     const destination = aeroDestination();

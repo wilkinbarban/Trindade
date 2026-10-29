@@ -3,7 +3,6 @@ import { describe, it } from 'node:test';
 import {
   AERO_DEFAULT_BRIDGE_SHORTCUT_NAME,
   AERO_DEFAULT_SHORTCUT_NAME,
-  AERO_DEFAULT_TEST_SHORTCUT_NAME,
   AERO_DEFAULT_CST,
   AERO_INTEGRATION_USERNAME,
   AERO_PENDING_SYNC_STORAGE_KEY,
@@ -17,7 +16,6 @@ import {
   aeroEndpoint,
   aeroSettingsReady,
   aeroShortcutTriggerUrl,
-  aeroTestShortcutTriggerUrl,
   basicAuthHeader,
   buildAeroBridgeEnvelope,
   buildAeroBridgeTriggerUrl,
@@ -71,15 +69,12 @@ describe('aero-integration: constants & types', () => {
     assert.equal(AERO_PENDING_SYNC_STORAGE_KEY, 'trindade.aero.pending-sync.v1');
     assert.equal(AERO_INTEGRATION_USERNAME, 'wilkin');
     assert.equal(AERO_DEFAULT_SHORTCUT_NAME, 'Aero32 Estoque');
-    assert.equal(AERO_DEFAULT_TEST_SHORTCUT_NAME, 'Aero32 Prueba');
     assert.equal(AERO_TEST_TIMEOUT_MS, 8000);
     assert.deepEqual(DEFAULT_AERO_SETTINGS, {
       wsUrl: '',
       username: '',
       password: '',
-      userCode: null,
       shortcutName: 'Aero32 Bridge',
-      testShortcutName: 'Aero32 Bridge',
       syncEnabled: false,
       lastSyncAt: null,
     });
@@ -117,9 +112,7 @@ describe('aero-integration: settings persistence', () => {
       wsUrl: 'http://192.168.1.50:8000/api',
       username: 'wilkin',
       password: 'secret-password',
-      userCode: 12,
       shortcutName: 'Custom Shortcut',
-      testShortcutName: 'Custom Prueba',
       syncEnabled: true,
       lastSyncAt: '2026-10-27T10:00:00Z',
     };
@@ -141,9 +134,10 @@ describe('aero-integration: settings persistence', () => {
     assert.deepEqual(loadAeroSettings(storage), DEFAULT_AERO_SETTINGS);
   });
 
-  it('drops the unit and series a previous build let the operator configure', () => {
-    // The panel used to offer CX and a free-text ENT_SER. Neither is a decision the operator makes, so a
-    // phone that still has them stored must come back with settings that carry no such thing at all.
+  it('drops the unit, the series, the ERP code and the second shortcut a previous build configured', () => {
+    // The panel used to offer CX, a free-text ENT_SER, a numeric ERP user code and a second shortcut name.
+    // None of them is a decision the operator makes -- ENT_USU is the username in uppercase, and one bridge
+    // covers every call -- so a phone that still has them stored must come back without them.
     const storage = new FakeStorage();
     storage.setItem(
       AERO_SETTINGS_STORAGE_KEY,
@@ -162,7 +156,8 @@ describe('aero-integration: settings persistence', () => {
     const loaded = loadAeroSettings(storage);
     assert.equal('quantityUnit' in loaded, false);
     assert.equal('entrySeries' in loaded, false);
-    assert.equal(loaded.userCode, null);
+    assert.equal('userCode' in loaded, false);
+    assert.equal('testShortcutName' in loaded, false);
     assert.equal(loaded.username, 'wilkin');
   });
 
@@ -180,9 +175,7 @@ describe('aero-integration: aeroSettingsReady', () => {
     wsUrl: 'http://192.168.1.50:8000/api',
     username: 'wilkin',
     password: 'pwd',
-    userCode: 12,
     shortcutName: 'Aero',
-    testShortcutName: 'Aero Prueba',
     syncEnabled: true,
     lastSyncAt: null,
   };
@@ -190,8 +183,8 @@ describe('aero-integration: aeroSettingsReady', () => {
   it('decides on the three fields the operator types, not on the code only the ERP can reveal', () => {
     assert.equal(aeroSettingsReady(valid), true);
 
-    // The code is captured by a probe the browser cannot complete over HTTPS, so it must never gate the switch.
-    assert.equal(aeroSettingsReady({ ...valid, userCode: null }), true);
+    // Nada que el ERP revela puede condicionar el interruptor: la identidad viaja como el username.
+    assert.equal('userCode' in valid, false);
 
     // Missing credentials
     assert.equal(aeroSettingsReady({ ...valid, username: '' }), false);
@@ -549,23 +542,6 @@ describe('aero-integration: callbacks', () => {
   });
 });
 
-describe('aero-integration: the legacy test shortcut trigger', () => {
-  const args = {
-    wsUrl: 'http://192.168.25.250:1453/api',
-    username: 'wilkin',
-    password: 'senha',
-  };
-
-  it('runs the test shortcut without handing it any input', () => {
-    // The test carries no payload: the endpoint, the header and the return URL live inside the shortcut.
-    // Sending it text would make Shortcuts ask for input it does not use.
-    assert.equal(
-      aeroTestShortcutTriggerUrl({ name: 'Aero32 Prueba' }),
-      'shortcuts://x-callback-url/run-shortcut?name=Aero32%20Prueba',
-    );
-  });
-});
-
 describe('aero-integration: pending sync storage', () => {
   it('round-trips and clears pending sync object through fake storage', () => {
     const storage = new FakeStorage();
@@ -598,11 +574,10 @@ describe('aero-integration: the unified Aero32 Bridge shortcut', () => {
   it('names one bridge shortcut and points both settings defaults at it', () => {
     assert.equal(AERO_DEFAULT_BRIDGE_SHORTCUT_NAME, 'Aero32 Bridge');
     assert.equal(DEFAULT_AERO_SETTINGS.shortcutName, 'Aero32 Bridge');
-    assert.equal(DEFAULT_AERO_SETTINGS.testShortcutName, 'Aero32 Bridge');
+    assert.equal('testShortcutName' in DEFAULT_AERO_SETTINGS, false);
 
-    // Los nombres viejos siguen exportados: son la llave de la migración de un teléfono que ya los tenía.
+    // El nombre viejo sigue exportado: es la llave de la migración de un teléfono que ya lo tenía.
     assert.equal(AERO_DEFAULT_SHORTCUT_NAME, 'Aero32 Estoque');
-    assert.equal(AERO_DEFAULT_TEST_SHORTCUT_NAME, 'Aero32 Prueba');
   });
 
   it('migrates a phone that still stores the shortcut names of the split design', () => {
@@ -620,7 +595,6 @@ describe('aero-integration: the unified Aero32 Bridge shortcut', () => {
 
     const loaded = loadAeroSettings(storage);
     assert.equal(loaded.shortcutName, 'Aero32 Bridge');
-    assert.equal(loaded.testShortcutName, 'Aero32 Bridge');
 
     // Un nombre elegido a propósito no es un default viejo y sobrevive tal cual.
     storage.setItem(

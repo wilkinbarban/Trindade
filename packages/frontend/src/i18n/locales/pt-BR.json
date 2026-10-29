@@ -534,7 +534,7 @@
       "cleared": "Configuração removida deste iPhone",
       "test": "Testar Conexão",
       "testing": "Testando...",
-      "testOk": "Conectado como {{name}} · código {{code}}",
+      "testOk": "Conectado como {{name}}. A empresa informa o código {{code}}, que não precisa ser digitado.",
       "testHttpError": "O WebService respondeu {{status}}: {{message}}",
       "testNoCors": "A rede respondeu, mas o WebService não libera CORS. Use o Atalho do iPhone.",
       "testBlockedMixed": "O Safari bloqueia HTTP a partir de uma página HTTPS. Use o Atalho do iPhone.",
