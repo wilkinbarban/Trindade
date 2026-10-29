@@ -145,3 +145,14 @@ GET /api/reports/receipts?date=2026-10-29
 - **L4 — Evidencia (2026-10-29)**: `004225e` (rev 8), `87d06b2` (servicio + ruta), `a29bd6a` (contrato),
   `51e134d` (export). Backend `npm test`: 565/565. Frontend `npm test`: 294/294. Playwright: 63/63. `tsc
   --noEmit` limpio en ambos paquetes.
+- **L5 — Despliegue y verificación en producción (2026-10-29)**: backup consistente con `VACUUM INTO` antes de tocar
+  nada (`/home/wilkin/backups/trindade-pre-rev8-2026-10-29.db`, 664 KB, rev 7, 14 filas en `aero_movements`, 65
+  reportes). `docker compose up -d --build`; el arranque rechazó la base con «outdated — revision 7 is older than
+  the supported revision 8», como debe, y la migración corrió por invocación explícita
+  (`node packages/backend/dist/db/migrate.js`): `stamped user_version = 8`, integridad `ok`, 18 tablas. Las 14
+  filas sobrevivieron y la clave nueva es `UNIQUE(movement_date, ent_lan, product_code)`. `GET
+  /api/reports/receipts?date=2026-10-29` en producción devuelve `syncedAt 2026-10-29T18:46:50Z` y cuatro insumos:
+  35911 caja 3.606 un y 001040 FARINHA DE TRIGO DIVERSAS en tres asientos (100/50/150, VIVIANE). El export del
+  reporte 67 (28/10, anterior al corte) sigue imprimiendo sus tildes de RECEBIMENTO y no menciona sincronización.
+  `api` y `web` en `healthy`; `/api/health` 200 y el bundle servido contiene la sección nueva.
+
