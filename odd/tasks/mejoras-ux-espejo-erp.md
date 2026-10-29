@@ -44,3 +44,6 @@ que decir qué pasó, en una ventana que se pueda cerrar con el pulgar.
   «Movimentos Sincronizados» con el conteo, cierre de 44px y cero desborde; respuesta fallida → «Falha ao
   Sincronizar» con el mensaje del ERP tal cual; «Testar Conexão» roto → «Falha no Teste»; entrada confirmada →
   aviso del Espelho; entrada rechazada → sin aviso. E2E 62/62.
+- **Desplegado (2026-10-29)**: push a `main` y `docker compose up -d --build web`. `api` y `web` **healthy**;
+  `/api/health` ok, `/massas-launch` 200 y el bundle servido (`index-Cs1WfXyH.js`) contiene los textos nuevos
+  («Movimentos Sincronizados»).
