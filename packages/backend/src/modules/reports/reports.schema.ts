@@ -197,6 +197,9 @@ export const ReportItemDetailSchema = z
     task_name: z.string(),
     task_name_es: z.string(),
     task_type: TaskTypeSchema,
+    // The category's identity, not its translated name: a client that has to single one section out
+    // -- Recebimento, today -- must not depend on whichever label the database happens to carry.
+    category_id: z.number().int(),
     category_name: z.string(),
     category_name_es: z.string(),
     checked: z.boolean(),

@@ -58,6 +58,7 @@ interface ReportItemRow {
   task_name: string;
   task_name_es: string;
   task_type: string;
+  category_id: number;
   category_name: string;
   category_name_es: string;
   checked: number;
@@ -187,7 +188,8 @@ function enrichReport(db: Database.Database, row: ReportRow, actor?: HistoryActo
   const itemRows = db
     .prepare(
       `SELECT ri.task_id, rt.name_pt AS task_name, rt.name_es AS task_name_es, rc.category_type AS task_type,
-              rc.name_pt AS category_name, rc.name_es AS category_name_es, ri.checked, ri.selected_products
+              rc.id AS category_id, rc.name_pt AS category_name, rc.name_es AS category_name_es,
+              ri.checked, ri.selected_products
        FROM report_items ri
        JOIN report_tasks rt ON ri.task_id = rt.id
        JOIN report_categories rc ON rt.category_id = rc.id
@@ -201,6 +203,7 @@ function enrichReport(db: Database.Database, row: ReportRow, actor?: HistoryActo
     task_name: r.task_name,
     task_name_es: r.task_name_es,
     task_type: narrowTaskType(r.task_type),
+    category_id: r.category_id,
     category_name: r.category_name,
     category_name_es: r.category_name_es,
     checked: Boolean(r.checked),
