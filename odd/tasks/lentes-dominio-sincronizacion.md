@@ -81,3 +81,18 @@ Relatório puede pedir la consulta sin salir de su página.
   (<= 400 líneas) con Conventional Commits y sin Co-Authored-By ni mención a IA. - Viewport móvil 375px con
   botones táctiles >= 44px. - Actualizar i18n (pt-BR / es) y tests (unitarios + Playwright E2E). - Al finalizar:
   docker compose up -d --build web y validación de HTTP 200 en producción. ¡Adelante!»
+
+## Evidencia
+
+- **T1** — `4ec895d` · `pdf` → `POST /integration/aero/movements` responde `{ saved: 1, massas: 0, insumos: 1 }`
+  en producción con una caja sola (verificado contra `trindade-api-1`, 2026-10-29).
+- **T2** — `a9b2260` · `aero-feedback.test.ts` 13/13 y `aero-integration.test.ts` cubren el retorno válido y los
+  intentos `https://evil.example` y `//evil`.
+- **T3** — `4f1761e` · `erp-result-dialogs.spec.ts` (once asientos de masa) espera «11 massas sincronizadas».
+- **T4** — `995ef7e` · `receipts-sync-wiring.test.ts` + `aero-sync-lenses.spec.ts` (Relatório cuenta el insumo,
+  lo lista y cierra el modal con 44 px).
+- **T5** — `995ef7e` · `aero-sync-lenses.spec.ts`: mismo payload de 11 asientos, 10 masas en `/massas-launch` y
+  1 insumo en `/reports`; desborde horizontal 0 en 375 px.
+- **T6** — backend 569/569, frontend 302/302, `tsc --noEmit` limpio, Playwright 66/66.
+  `docker compose up -d --build` → `trindade-api-1` y `trindade-web-1` healthy, `/api/health` 200, web 200,
+  `https://trindademasas.duckdns.org/` 200. El bundle servido (`index-C9LsnGm5.js`) contiene los textos nuevos.
