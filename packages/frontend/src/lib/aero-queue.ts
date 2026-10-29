@@ -66,6 +66,10 @@ function isItem(value: unknown): value is AeroQueueItem {
  *
  * A half-written queue is worse than none: it would send a product with the wrong quantity. Anything
  * unexpected clears itself instead of being repaired.
+ *
+ * A queue whose products are all in the phone has an empty `items` and a full `inFlight`, and that is a
+ * valid queue: it is the one the shortcut returns to. Only a queue with nothing pending *and* nothing in
+ * flight says nothing and can go.
  */
 export function readAeroQueue(storage: StorageLike | null = safeStorage(), now = Date.now()): AeroQueue | null {
   if (!storage) return null;
@@ -87,8 +91,8 @@ export function readAeroQueue(storage: StorageLike | null = safeStorage(), now =
       throw new Error('stale');
     }
     const items = parsed.items.filter(isItem);
-    if (items.length === 0) throw new Error('empty');
     const inFlight = Array.isArray(parsed.inFlight) ? parsed.inFlight.filter(isItem) : [];
+    if (items.length === 0 && inFlight.length === 0) throw new Error('empty');
     return { createdAt: parsed.createdAt, date: parsed.date, items, inFlight };
   } catch {
     try {

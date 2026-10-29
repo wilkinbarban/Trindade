@@ -55,6 +55,23 @@ describe('aero queue', () => {
     assert.equal(storage.getItem(AERO_QUEUE_KEY), null);
   });
 
+  it('keeps a queue whose products are already in the phone, with nothing left to send', () => {
+    // Un lote toma todo lo pendiente: `items` queda vacío y `inFlight` dice qué viajó. Si la lectura
+    // considerase eso una cola rota y la borrara, la vuelta del atajo no sabría qué producto falló --
+    // y un lote parcial se cerraría como completo.
+    const travelling: AeroQueue = { ...queue, items: [], inFlight: queue.items };
+    const storage = memoryStorage({ [AERO_QUEUE_KEY]: JSON.stringify(travelling) });
+
+    assert.deepEqual(readAeroQueue(storage, NOW), travelling);
+    assert.notEqual(storage.getItem(AERO_QUEUE_KEY), null, 'the queue in flight is not deleted');
+  });
+
+  it('still deletes a queue with nothing pending and nothing in the phone', () => {
+    const storage = memoryStorage({ [AERO_QUEUE_KEY]: JSON.stringify({ ...queue, items: [], inFlight: [] }) });
+    assert.equal(readAeroQueue(storage, NOW), null);
+    assert.equal(storage.getItem(AERO_QUEUE_KEY), null);
+  });
+
   it('survives storage that cannot be read, written or cleaned', () => {
     const hostile = {
       getItem: () => {

@@ -93,6 +93,21 @@ describe('aero bridge wiring: a launch of many products leaves once', () => {
     assert.ok(launch.includes('`batch ${payloads.length}'));
   });
 
+  it('closes the single-product trip instead of draining an empty queue', () => {
+    // Un producto viaja por `entrada` y vuelve confirmado: la cola ya no tiene nada pendiente. Antes el
+    // cierre miraba sólo `items`, que ahora está vacío porque el producto espera en `inFlight`, y el
+    // operario volvía a una pantalla sin veredicto.
+    assert.ok(launch.includes('const rest = { ...queue, inFlight: [] };'));
+    assert.ok(launch.includes('if (rest.items.length > 0) {'));
+    assert.ok(launch.includes("message: outcome.message ?? t('massas.aero.syncConfirmYes')"));
+  });
+
+  it('returns a refused single product to the queue instead of dropping it', () => {
+    assert.ok(launch.includes("items: [...queue.inFlight, ...queue.items]"));
+    // El rechazo queda en la bitácora como error, no como una respuesta cualquiera.
+    assert.ok(launch.includes("error: outcome.status === 'error' ? outcome.message ?? 'bridge_unreadable' : null"));
+  });
+
   it('offers the retry to the operator and never sends it by itself', () => {
     assert.ok(launch.includes('const retryFailedLaunches = useCallback'));
     assert.ok(launch.includes('onClick={retryFailedLaunches}'));

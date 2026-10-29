@@ -738,13 +738,29 @@ export function MassasLaunchPage() {
       if (parsed.action !== 'entrada') return;
 
       const queue = readAeroQueue();
+
+      // El producto que viajó ya está confirmado, así que sale de `inFlight`: lo que quede pendiente es lo
+      // que todavía no salió, y eso es lo único que puede disparar otro viaje. Mirar sólo `items` dejaba al
+      // operario sin veredicto justo en el caso normal, un producto que vuelve y no deja nada detrás.
       if (outcome.status === 'ok' && queue) {
-        triggerAeroSync(queue);
-        return;
+        const rest = { ...queue, inFlight: [] };
+        if (rest.items.length > 0) {
+          writeAeroQueue(rest);
+          triggerAeroSync(rest);
+          return;
+        }
       }
 
-      clearAeroQueue();
-      setSyncAwaiting(null);
+      // Una entrada rechazada no se pierde: vuelve al frente de la cola para que el reintento la encuentre.
+      const refused = outcome.status !== 'ok' && queue ? { ...queue, items: [...queue.inFlight, ...queue.items], inFlight: [] } : null;
+      if (refused && refused.items.length > 0) {
+        writeAeroQueue(refused);
+        setSyncAwaiting({ date: refused.date, remaining: refused.items.length });
+      } else {
+        clearAeroQueue();
+        setSyncAwaiting(null);
+      }
+
       setResultModal(
         outcome.status === 'ok'
           ? { type: 'success', message: outcome.message ?? t('massas.aero.syncConfirmYes'), sentToErp: true }
