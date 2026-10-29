@@ -3,7 +3,19 @@ import { writeFile, unlink, readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { ASSAI_PRODUCTS, NORMAL_PRODUCTS, CreateReportBodySchema, UpdateReportBodySchema, ReportQuerySchema, HistoryQuerySchema } from './reports.schema.js';
+import {
+  ASSAI_PRODUCTS,
+  NORMAL_PRODUCTS,
+  CreateReportBodySchema,
+  UpdateReportBodySchema,
+  ReportQuerySchema,
+  HistoryQuerySchema,
+  ReportReceiptsQuerySchema,
+} from './reports.schema.js';
+import { apiError } from '../../utils/api-error.js';
+import { getSaoPauloDateString } from '../../utils/date.js';
+import { AERO_MOVEMENTS_ERROR_CODES } from '../integration/aero.movements.schema.js';
+import { dayReceipts } from './receipts.service.js';
 import * as query from './reports.query.service.js';
 import * as command from './reports.command.service.js';
 import * as lifecycle from './reports.lifecycle.service.js';
@@ -63,6 +75,40 @@ export async function reportsRoutes(fastify: FastifyInstance, opts: ReportsRoute
     { preHandler: [fastify.authenticate] },
     async (_request: FastifyRequest, reply: FastifyReply) => {
       return reply.send({ assai: ASSAI_PRODUCTS, normal: NORMAL_PRODUCTS });
+    }
+  );
+
+  // ---- Incoming supplies ----
+
+  /**
+   * GET /api/reports/receipts?date=YYYY-MM-DD
+   *
+   * The day's incoming supplies, derived from the ERP mirror. It lives here rather than in the SPA so the
+   * screen and the WhatsApp export read the same classification: an entry that is not a massa the plant
+   * produces. Any signed-in operator reads it, because the mirror is a copy of what the company recorded.
+   */
+  fastify.get(
+    '/receipts',
+    { preHandler: [fastify.authenticate] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const parsed = ReportReceiptsQuerySchema.safeParse(request.query);
+      if (!parsed.success) {
+        return reply.status(400).send(apiError('date must be YYYY-MM-DD', 'INVALID_DATE_FORMAT'));
+      }
+
+      const day = dayReceipts(fastify.db, parsed.data.date ?? getSaoPauloDateString());
+      if (!day.migrated) {
+        return reply
+          .status(503)
+          .send(
+            apiError(
+              'The ERP mirror table is missing: run db:migrate',
+              AERO_MOVEMENTS_ERROR_CODES.NOT_MIGRATED,
+            ),
+          );
+      }
+
+      return reply.send(day);
     }
   );
 

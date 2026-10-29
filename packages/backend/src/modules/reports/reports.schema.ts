@@ -52,6 +52,21 @@ export const ReportQuerySchema = z.object({
 
 export type ReportQuery = z.infer<typeof ReportQuerySchema>;
 
+/**
+ * The day whose incoming supplies a report shows.
+ *
+ * Optional so a client opening a fresh report can omit it and get today in São Paulo, which is the day
+ * the plant is working. The format is the one the ERP and every other date in this API use.
+ */
+export const ReportReceiptsQuerySchema = z.object({
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format. Use YYYY-MM-DD.')
+    .optional(),
+});
+
+export type ReportReceiptsQuery = z.infer<typeof ReportReceiptsQuerySchema>;
+
 export const HistoryQuerySchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   month: z.string().regex(/^\d{4}-\d{2}$/).optional(),
@@ -200,6 +215,38 @@ export const ReportTemperatureDetailSchema = z
   })
   .strict();
 
+/**
+ * One incoming line of the day, as the report and its WhatsApp export print it.
+ *
+ * `entLan` is the company's document number and `operatorName` is who recorded it in the ERP. The report
+ * never stores these lines; it reads them from the mirror, so the shape here is a read contract only.
+ */
+export const ReceiptLineSchema = z
+  .object({
+    entLan: z.number().int(),
+    productCode: z.string(),
+    productDesc: z.string(),
+    quantity: z.number(),
+    operatorName: z.string(),
+    entryDate: z.string(),
+  })
+  .strict();
+
+/**
+ * A day's receipts plus what the page needs to tell "nothing came" from "nobody asked".
+ *
+ * `syncedAt` is null when the day has no mirrored rows at all. A consulted day whose snapshot carried only
+ * massas answers a stamp and an empty list, which is a different sentence on screen.
+ */
+export const ReportReceiptsResponseSchema = z
+  .object({
+    date: z.string(),
+    migrated: z.boolean(),
+    syncedAt: z.string().nullable(),
+    receipts: z.array(ReceiptLineSchema),
+  })
+  .strict();
+
 export const ReportDetailSchema = ReportListItemSchema.extend({
   updated_at: z.string(),
   items: z.array(ReportItemDetailSchema),
@@ -262,6 +309,8 @@ export type CategoryResponse = z.infer<typeof CategoryResponseSchema>;
 export type TaskResponse = z.infer<typeof TaskResponseSchema>;
 export type ReportListItem = z.infer<typeof ReportListItemSchema>;
 export type ReportDetail = z.infer<typeof ReportDetailSchema>;
+export type ReceiptLineResponse = z.infer<typeof ReceiptLineSchema>;
+export type ReportReceiptsResponse = z.infer<typeof ReportReceiptsResponseSchema>;
 export type ReportItemDetail = z.infer<typeof ReportItemDetailSchema>;
 export type ReportTemperatureDetail = z.infer<typeof ReportTemperatureDetailSchema>;
 export type ReportPhoto = z.infer<typeof PhotoSchema>;
