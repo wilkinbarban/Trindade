@@ -800,7 +800,7 @@ function aeroReconciledKey(movementKey: string, operator: string | null | undefi
  * The word travels in the callback query string and in the envelope's `url`, so it is also the name the page
  * uses to decide what a returning phone means.
  */
-export type AeroBridgeAction = 'entrada' | 'saida' | 'movimentos' | 'test';
+export type AeroBridgeAction = 'entrada' | 'entrada_lote' | 'saida' | 'movimentos' | 'test';
 
 /**
  * The one thing the bridge shortcut receives: where to post, who it is, what to send and where to come back.
@@ -815,6 +815,14 @@ export interface AeroBridgeEnvelope {
   method: 'POST';
   headers: { Authorization: string; 'Content-Type': string; Accept: string };
   body: string;
+  /**
+   * The same request repeated for every product of a batch, as serialised texts.
+   *
+   * Present only when the over envelope carries two or more payloads: one product keeps the shape it has had
+   * since the bridge was built, and a phone with the old shortcut ignores this key instead of rejecting the
+   * envelope. The shortcut's "Repeat with each item" reads it as a list of texts and posts each one.
+   */
+  bodies?: string[];
   callback: string;
 }
 
@@ -943,6 +951,8 @@ export function aeroBridgeShortcutRecipe(args: {
     actionCount: 8,
     endpoints: {
       entrada: aeroEndpoint(args.wsUrl, 'entradasitem'),
+      // El lote va al mismo endpoint, una vez por producto: el atajo repite la petición.
+      entrada_lote: aeroEndpoint(args.wsUrl, 'entradasitem'),
       saida: aeroEndpoint(args.wsUrl, 'saidasitem'),
       movimentos: aeroEndpoint(args.wsUrl, 'movimentoitem'),
       test: aeroEndpoint(args.wsUrl, 'usuarios'),
@@ -999,7 +1009,13 @@ export type AeroCallbackResult =
   | { kind: 'sync'; status: 'ok' | 'error'; message: string | null };
 
 /** The words the bridge understands, and the only ones a callback may carry. */
-const AERO_BRIDGE_ACTIONS: readonly AeroBridgeAction[] = ['entrada', 'saida', 'movimentos', 'test'];
+const AERO_BRIDGE_ACTIONS: readonly AeroBridgeAction[] = [
+  'entrada',
+  'entrada_lote',
+  'saida',
+  'movimentos',
+  'test',
+];
 
 function isAeroBridgeAction(value: string): value is AeroBridgeAction {
   return (AERO_BRIDGE_ACTIONS as readonly string[]).includes(value);

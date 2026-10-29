@@ -867,6 +867,42 @@ describe('aero-integration: bridge callbacks', () => {
     });
   });
 
+  it('reads a batch answer as the array the shortcut sent, in the order it was sent', () => {
+    const answers = [
+      { success: true, message: 'Gravado 1' },
+      { success: false, message: 'Item sem CST' },
+      { success: true, message: 'Gravado 3' },
+    ];
+
+    const parsed = parseAeroCallback(
+      `?aero_action=entrada_lote&aero_data=${encodeURIComponent(JSON.stringify(answers))}`,
+    );
+
+    assert.deepEqual(parsed, { kind: 'bridge', action: 'entrada_lote', data: answers, raw: JSON.stringify(answers) });
+  });
+
+  it('still accepts a lone object for entrada_lote, because a phone may not have the batch branch yet', () => {
+    // El atajo viejo ignora `bodies` y hace su POST de siempre: la web recibe un objeto y lo trata como lote
+    // de uno, en vez de romper el lanzamiento de un teléfono que todavía no se actualizó.
+    const parsed = parseAeroCallback(
+      `?aero_action=entrada_lote&aero_data=${encodeURIComponent('{"success":true,"message":"Gravado"}')}`,
+    );
+
+    assert.equal(parsed?.kind, 'bridge');
+    assert.deepEqual(parsed?.kind === 'bridge' ? parsed.data : null, { success: true, message: 'Gravado' });
+  });
+
+  it('keeps an unreadable batch answer as raw text instead of inventing an array', () => {
+    const parsed = parseAeroCallback('?aero_action=entrada_lote&aero_data=Could%20not%20connect%20to%20the%20server');
+
+    assert.deepEqual(parsed, {
+      kind: 'bridge',
+      action: 'entrada_lote',
+      data: null,
+      raw: 'Could not connect to the server',
+    });
+  });
+
   it('keeps reading the callbacks the previous design produced', () => {
     // Retrocompatibilidad: un teléfono que todavía tiene los atajos viejos sigue funcionando igual.
     assert.deepEqual(parseAeroCallback('?aero_sync=ok'), { kind: 'sync', status: 'ok', message: null });
