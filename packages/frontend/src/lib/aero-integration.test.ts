@@ -21,7 +21,10 @@ import {
   buildAeroBridgeTriggerUrl,
   buildAeroEntryPayload,
   buildEntradaItemPayload,
+  buildAeroMovementsSnapshot,
   buildMovimentoItemPayload,
+  readAeroMovements,
+  reconcileAeroMovements,
   buildSaidaItemPayload,
   clearAeroPendingSync,
   clearAeroSettings,
@@ -891,5 +894,207 @@ describe('aero-integration: the bridge shortcut recipe', () => {
       'https://trindademasas.duckdns.org/massas-launch?aero_action=test&aero_data=',
     );
     assert.deepEqual(JSON.parse(envelope.body), {});
+  });
+});
+
+describe('aero-integration: ERP movements mirror', () => {
+  const answer = {
+    success: true,
+    data: [
+      {
+        ENT_LAN: 10542,
+        PRO_COD: '001192',
+        PRO_DES: 'MASSA TRADICIONAL 500G',
+        PRO_QTD: 90,
+        ENT_DTA: '2026-10-28',
+        ENT_USU: 'WILKIN',
+        ENTSAI: 'E',
+      },
+      {
+        ENT_LAN: 10543,
+        PRO_COD: '005000',
+        PRO_DES: 'MASSA ROLO 1KG',
+        PRO_QTD: 45,
+        ENT_DTA: '2026-10-28',
+        ENT_USU: 'MARCOS',
+        ENTSAI: 'E',
+      },
+    ],
+  };
+
+  it('asks for every operator of the plant when no operator is named', () => {
+    for (const userName of [null, '', '   ', 'all', 'ALL']) {
+      const payload = buildMovimentoItemPayload({ userName, startDate: '2026-10-28', entrySaida: 'E' });
+      assert.equal(payload.NOMUSU, null, `expected NOMUSU null for ${JSON.stringify(userName)}`);
+    }
+  });
+
+  it('still narrows to one operator when a name is named', () => {
+    const payload = buildMovimentoItemPayload({ userName: ' wilkin ', startDate: '2026-10-28' });
+    assert.equal(payload.NOMUSU, 'WILKIN');
+  });
+
+  it('reads the ERP answer into seats, one per ENT_LAN', () => {
+    const result = readAeroMovements(answer);
+    assert.equal(result.status, 'ok');
+    if (result.status !== 'ok') return;
+
+    assert.equal(result.skipped, 0);
+    assert.deepEqual(result.movements, [
+      {
+        entLan: 10542,
+        productCode: '001192',
+        productDesc: 'MASSA TRADICIONAL 500G',
+        quantity: 90,
+        entryDate: '2026-10-28',
+        operatorName: 'WILKIN',
+        movementType: 'E',
+      },
+      {
+        entLan: 10543,
+        productCode: '005000',
+        productDesc: 'MASSA ROLO 1KG',
+        quantity: 45,
+        entryDate: '2026-10-28',
+        operatorName: 'MARCOS',
+        movementType: 'E',
+      },
+    ]);
+  });
+
+  it('keeps the quantities the ERP answered in units, never scaled by a hundred', () => {
+    const result = readAeroMovements(answer);
+    assert.equal(result.status, 'ok');
+    if (result.status !== 'ok') return;
+    assert.deepEqual(
+      result.movements.map((movement) => movement.quantity),
+      [90, 45],
+      'PRO_QTD already comes back human: scaling it again reports 100x the boxes the factory made',
+    );
+  });
+
+  it('refuses an answer the ERP marked as failed, with the message it gave', () => {
+    const result = readAeroMovements({ success: false, message: 'Usuario invalido' });
+    assert.deepEqual(result, { status: 'error', message: 'Usuario invalido' });
+  });
+
+  it('refuses a body that is not a list of seats', () => {
+    assert.deepEqual(readAeroMovements(null), { status: 'error', message: null });
+    assert.deepEqual(readAeroMovements({ success: true, data: 'none' }), { status: 'error', message: null });
+  });
+
+  it('skips a seat it cannot describe and keeps the rest of the day', () => {
+    const result = readAeroMovements({
+      success: true,
+      data: [
+        answer.data[0],
+        { ENT_LAN: 'AB-12', PRO_COD: '001192', PRO_DES: 'X', PRO_QTD: 1, ENT_DTA: '2026-10-28', ENT_USU: 'W', ENTSAI: 'E' },
+        { ...answer.data[1], ENTSAI: 'X' },
+      ],
+    });
+
+    assert.equal(result.status, 'ok');
+    if (result.status !== 'ok') return;
+    assert.equal(result.skipped, 2);
+    assert.deepEqual(result.movements.map((movement) => movement.entLan), [10542]);
+  });
+
+  it('turns the seats into the snapshot the backend stores', () => {
+    const result = readAeroMovements(answer);
+    if (result.status !== 'ok') return assert.fail('expected the seats to be read');
+
+    assert.deepEqual(buildAeroMovementsSnapshot('2026-10-28', result.movements), {
+      date: '2026-10-28',
+      movements: [
+        {
+          ent_lan: 10542,
+          product_code: '001192',
+          product_desc: 'MASSA TRADICIONAL 500G',
+          quantity: 90,
+          entry_date: '2026-10-28',
+          operator_name: 'WILKIN',
+          movement_type: 'E',
+        },
+        {
+          ent_lan: 10543,
+          product_code: '005000',
+          product_desc: 'MASSA ROLO 1KG',
+          quantity: 45,
+          entry_date: '2026-10-28',
+          operator_name: 'MARCOS',
+          movement_type: 'E',
+        },
+      ],
+    });
+  });
+
+  it('marks a seat reconciled only when Trindade also has that launch', () => {
+    const result = readAeroMovements(answer);
+    if (result.status !== 'ok') return assert.fail('expected the seats to be read');
+
+    const reconciliation = reconcileAeroMovements(result.movements, [
+      { id: 7, launch_date: '2026-10-28', product_code: '1192', units: 90 },
+      { id: 8, launch_date: '2026-10-28', product_code: '5000', units: 45 },
+      { id: 9, launch_date: '2026-10-28', product_code: '1045', units: 30 },
+    ]);
+
+    assert.deepEqual(reconciliation.reconciled, [10542, 10543]);
+    assert.deepEqual(reconciliation.matchedLaunchIds, [7, 8]);
+    assert.deepEqual(reconciliation.unmatchedLaunchIds, [9]);
+  });
+
+  it('matches the ERP code with or without its leading zeros, because the two sides pad differently', () => {
+    const result = readAeroMovements(answer);
+    if (result.status !== 'ok') return assert.fail('expected the seats to be read');
+
+    const reconciliation = reconcileAeroMovements(result.movements, [
+      { id: 3, launch_date: '2026-10-28', product_code: '001192', units: 90 },
+    ]);
+
+    assert.deepEqual(reconciliation.reconciled, [10542]);
+  });
+
+  it('consumes one local launch per seat, so two equal seats need two local launches', () => {
+    const seats = [
+      { entLan: 1, productCode: '001192', productDesc: 'X', quantity: 90, entryDate: '2026-10-28', operatorName: 'A', movementType: 'E' as const },
+      { entLan: 2, productCode: '001192', productDesc: 'X', quantity: 90, entryDate: '2026-10-28', operatorName: 'B', movementType: 'E' as const },
+    ];
+
+    const oneLocal = reconcileAeroMovements(seats, [
+      { id: 4, launch_date: '2026-10-28', product_code: '1192', units: 90 },
+    ]);
+    assert.deepEqual(oneLocal.reconciled, [1]);
+    assert.deepEqual(oneLocal.matchedLaunchIds, [4]);
+
+    const twoLocal = reconcileAeroMovements(seats, [
+      { id: 4, launch_date: '2026-10-28', product_code: '1192', units: 90 },
+      { id: 5, launch_date: '2026-10-28', product_code: '1192', units: 90 },
+    ]);
+    assert.deepEqual(twoLocal.reconciled, [1, 2]);
+  });
+
+  it('never reconciles a stock exit against a Trindade launch, because Trindade only records entries', () => {
+    const seats = [
+      { entLan: 9, productCode: '001192', productDesc: 'X', quantity: 90, entryDate: '2026-10-28', operatorName: 'A', movementType: 'S' as const },
+    ];
+
+    const reconciliation = reconcileAeroMovements(seats, [
+      { id: 4, launch_date: '2026-10-28', product_code: '1192', units: 90 },
+    ]);
+
+    assert.deepEqual(reconciliation.reconciled, []);
+    assert.deepEqual(reconciliation.unmatchedLaunchIds, [4]);
+  });
+
+  it('does not reconcile across days', () => {
+    const seats = [
+      { entLan: 9, productCode: '001192', productDesc: 'X', quantity: 90, entryDate: '2026-10-27', operatorName: 'A', movementType: 'E' as const },
+    ];
+
+    const reconciliation = reconcileAeroMovements(seats, [
+      { id: 4, launch_date: '2026-10-28', product_code: '1192', units: 90 },
+    ]);
+
+    assert.deepEqual(reconciliation.reconciled, []);
   });
 });

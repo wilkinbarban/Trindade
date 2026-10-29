@@ -501,7 +501,8 @@ export function buildSaidaItemPayload(args: {
 
 export interface AeroMovimentoPayload {
   CODFOR: null;
-  NOMUSU: string;
+  /** The operator to filter by, or `null` to ask the plant for everybody's movements. */
+  NOMUSU: string | null;
   CODPRO: string | null;
   DTINI: string;
   DTFIM: string;
@@ -517,7 +518,8 @@ export interface AeroMovimentoPayload {
  * when both sides of the movement are wanted.
  */
 export function buildMovimentoItemPayload(args: {
-  userName: string;
+  /** An operator name, or `null`/`'all'`/blank to ask for the whole plant. */
+  userName: string | null | undefined;
   startDate: Date | string;
   endDate?: Date | string | null;
   productCode?: string | number | null;
@@ -528,12 +530,229 @@ export function buildMovimentoItemPayload(args: {
 
   return {
     CODFOR: null,
-    NOMUSU: String(args.userName ?? '').trim().toUpperCase(),
+    NOMUSU: aeroMovementUserName(args.userName),
     CODPRO: code ? formatAeroProductCode(code) : null,
     DTINI: start,
     DTFIM: args.endDate === undefined || args.endDate === null ? start : aeroDateOnly(args.endDate),
     ENTSAI: args.entrySaida ?? null,
   };
+}
+
+/**
+ * Resolves the operator filter for a movements query.
+ *
+ * The ERP asks in uppercase and answers every operator when the filter is null. A caller that wants the
+ * whole plant may say so with `null`, with `'all'`, or by leaving the field blank; anything else is one
+ * operator's name.
+ */
+function aeroMovementUserName(userName: string | null | undefined): string | null {
+  const name = String(userName ?? '').trim();
+  if (!name || name.toLowerCase() === 'all') return null;
+  return name.toUpperCase();
+}
+
+/**
+ * One movement seat as the company ERP answered it, already read into the names this side uses.
+ *
+ * `entLan` is `ENT_LAN`, the seat's own identifier in Firebird, and it is the key everything reconciles on:
+ * it is unique per day and Trindade never invents one.
+ */
+export interface AeroErpMovementItem {
+  entLan: number;
+  /** The ERP's six-digit code, kept as the company wrote it. */
+  productCode: string;
+  productDesc: string;
+  /** In units, human: the ERP answers `PRO_QTD` already unscaled. */
+  quantity: number;
+  /** The day the factory did it, `YYYY-MM-DD` in São Paulo. */
+  entryDate: string;
+  /** `ENT_USU`, uppercase, as the ERP records the operator. */
+  operatorName: string;
+  movementType: 'E' | 'S';
+}
+
+/**
+ * What came back from the movements query: the seats, or the reason there are none.
+ *
+ * `skipped` counts seats the ERP sent that this module could not describe. They are dropped instead of
+ * throwing, because one odd seat must not hide the rest of the day; the page shows the count so a factory
+ * with a serial printing something new notices.
+ */
+export type AeroMovementsReadResult =
+  | { status: 'ok'; movements: AeroErpMovementItem[]; skipped: number }
+  | { status: 'error'; message: string | null };
+
+function aeroMovementText(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function aeroMovementDate(value: unknown): string | null {
+  const text = aeroMovementText(value);
+  return text && /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : null;
+}
+
+/**
+ * Reads one seat, or refuses it.
+ *
+ * Strict on purpose: the seat is the company's record, and a shape this module half-understands is worse
+ * than an absent one -- a seat with a made-up quantity reconciles against the wrong launch.
+ */
+function readAeroMovementSeat(raw: unknown): AeroErpMovementItem | null {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null;
+  const record = raw as Record<string, unknown>;
+
+  const entLan = record.ENT_LAN;
+  const quantity = record.PRO_QTD;
+  const productCode = aeroMovementText(record.PRO_COD);
+  const productDesc = aeroMovementText(record.PRO_DES);
+  const entryDate = aeroMovementDate(record.ENT_DTA);
+  const operatorName = aeroMovementText(record.ENT_USU);
+  const movementType = record.ENTSAI;
+
+  if (typeof entLan !== 'number' || !Number.isInteger(entLan) || entLan <= 0) return null;
+  if (typeof quantity !== 'number' || !Number.isFinite(quantity) || quantity < 0) return null;
+  if (!productCode || !productDesc || !entryDate || !operatorName) return null;
+  if (movementType !== 'E' && movementType !== 'S') return null;
+
+  return {
+    entLan,
+    productCode,
+    productDesc,
+    quantity,
+    entryDate,
+    operatorName: operatorName.toUpperCase(),
+    movementType,
+  };
+}
+
+/**
+ * Reads the ERP's answer to `POST /movimentoitem`.
+ *
+ * The answer is `{ success, data: [seats] }` and `success` is what decides: a body that fails is an error
+ * even when it carries seats, exactly like the stock writes. A `data` that is not a list is an error too,
+ * but a list whose seats are partly unreadable is still the day -- those seats are counted in `skipped`.
+ */
+export function readAeroMovements(data: unknown): AeroMovementsReadResult {
+  if (typeof data !== 'object' || data === null || Array.isArray(data)) {
+    return { status: 'error', message: null };
+  }
+  const record = data as Record<string, unknown>;
+  const message = aeroBridgeMessage(record);
+
+  if (record.success !== true) {
+    return { status: 'error', message };
+  }
+  if (!Array.isArray(record.data)) {
+    return { status: 'error', message };
+  }
+
+  const movements: AeroErpMovementItem[] = [];
+  let skipped = 0;
+  for (const raw of record.data) {
+    const seat = readAeroMovementSeat(raw);
+    if (seat) movements.push(seat);
+    else skipped += 1;
+  }
+
+  return { status: 'ok', movements, skipped };
+}
+
+/** The snapshot body the backend stores for one day, in the names its route validates. */
+export interface AeroMovementsSnapshot {
+  date: string;
+  movements: Array<{
+    ent_lan: number;
+    product_code: string;
+    product_desc: string;
+    quantity: number;
+    entry_date: string;
+    operator_name: string;
+    movement_type: 'E' | 'S';
+  }>;
+}
+
+export function buildAeroMovementsSnapshot(
+  date: string,
+  movements: readonly AeroErpMovementItem[],
+): AeroMovementsSnapshot {
+  return {
+    date: aeroDateOnly(date),
+    movements: movements.map((movement) => ({
+      ent_lan: movement.entLan,
+      product_code: movement.productCode,
+      product_desc: movement.productDesc,
+      quantity: movement.quantity,
+      entry_date: movement.entryDate,
+      operator_name: movement.operatorName,
+      movement_type: movement.movementType,
+    })),
+  };
+}
+
+/** The parts of a Trindade launch the mirror compares, so the page can pass its own rows. */
+export interface AeroLocalLaunchLike {
+  id: number;
+  launch_date: string;
+  product_code: string;
+  /** The launch in units: the ERP records units, and boxes are only how the operator counted them. */
+  units: number;
+}
+
+export interface AeroMovementReconciliation {
+  /** `ENT_LAN` of the seats Trindade also has. */
+  reconciled: number[];
+  /** Local launches already present in the ERP. */
+  matchedLaunchIds: number[];
+  /** Local launches the ERP did not report, so the page can offer to resend them. */
+  unmatchedLaunchIds: number[];
+}
+
+/**
+ * Compares the ERP seats against the local launches of the day.
+ *
+ * Two sides describe the same boxes with different padding and different rounding, so the code is compared
+ * without its leading zeros (`001192` is `1192` here) and the quantity to three decimals. Each local launch
+ * reconciles at most one seat: two identical seats mean the operator launched twice, and consuming the
+ * launches in order is what keeps a duplicate from being reported as reconciled twice over.
+ *
+ * A stock exit is never reconciled: Trindade records entries only, and a seat on the other side has nothing
+ * here to answer for it.
+ */
+export function reconcileAeroMovements(
+  movements: readonly AeroErpMovementItem[],
+  launches: readonly AeroLocalLaunchLike[],
+): AeroMovementReconciliation {
+  const byKey = new Map<string, number[]>();
+  for (const launch of launches) {
+    const key = aeroMovementKey(launch.launch_date, launch.product_code, launch.units);
+    const ids = byKey.get(key);
+    if (ids) ids.push(launch.id);
+    else byKey.set(key, [launch.id]);
+  }
+
+  const reconciled: number[] = [];
+  const matchedLaunchIds: number[] = [];
+  for (const movement of movements) {
+    if (movement.movementType !== 'E') continue;
+    const key = aeroMovementKey(movement.entryDate, movement.productCode, movement.quantity);
+    const ids = byKey.get(key);
+    if (!ids || ids.length === 0) continue;
+    reconciled.push(movement.entLan);
+    matchedLaunchIds.push(ids.shift() as number);
+  }
+
+  const matched = new Set(matchedLaunchIds);
+  return {
+    reconciled,
+    matchedLaunchIds,
+    unmatchedLaunchIds: launches.filter((launch) => !matched.has(launch.id)).map((launch) => launch.id),
+  };
+}
+
+/** The same physical boxes, written as one comparable key on both sides. */
+function aeroMovementKey(date: string, code: string, quantity: number): string {
+  const digits = String(code).trim().replace(/^0+/, '') || '0';
+  return `${aeroDateOnly(date)}|${digits}|${Math.round(quantity * 1000) / 1000}`;
 }
 
 /**
