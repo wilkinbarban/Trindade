@@ -11,7 +11,7 @@ interface AeroShortcutDialogProps {
   settings: AeroSettings;
 }
 
-type CopyKey = 'url' | 'auth' | 'body' | 'callback' | 'sample';
+type CopyKey = 'url' | 'headers' | 'authorization' | 'body' | 'bodies' | 'callback' | 'sample';
 
 interface RecipeValueProps {
   id: CopyKey;
@@ -25,10 +25,11 @@ interface RecipeValueProps {
 /**
  * One value with its own copy button.
  *
- * What the operator copies here is a dictionary key -- `url`, `auth`, `body`, `callback` -- which has to be
- * typed exactly, on a phone, in the middle of a recipe. Selecting a short word by hand on iOS is a long press,
- * two handles and a scroll; the button is the whole point of the card. Declared at module level so it keeps
- * its identity across renders instead of remounting every time the parent re-renders on a copy.
+ * What the operator copies here is a dictionary key -- `url`, `headers`, `Authorization`, `body`, `bodies`,
+ * `callback` -- which has to be typed exactly, on a phone, in the middle of a recipe. Selecting a short word by
+ * hand on iOS is a long press, two handles and a scroll; the button is the whole point of the card. Declared
+ * at module level so it keeps its identity across renders instead of remounting every time the parent
+ * re-renders on a copy.
  */
 function RecipeValue({ id, label, value, copyLabel, copied, onCopy }: RecipeValueProps) {
   return (
@@ -72,9 +73,10 @@ function StepItem({ n, children }: { n: number; children: ReactNode }) {
  * that installs it, and iOS refuses anything served from the web that is not an iCloud link.
  *
  * One bridge replaces the two shortcuts the factory used to need. It knows nothing about massas: it receives
- * `{ url, auth, body, callback }`, posts it, and opens the callback with the answer. That is what lets the
- * same shortcut carry the entry, the stock exit, the movement query and the connection test -- and what keeps
- * the iPhone untouched when a credential or an address changes in the panel.
+ * `{ url, method, headers, body, callback }`, posts it, and opens the callback with the answer. When the
+ * envelope also carries `bodies`, it repeats that POST once per element and brings every answer back at once.
+ * That is what lets the same shortcut carry the entry, the stock exit, the movement query and the connection
+ * test -- and what keeps the iPhone untouched when a credential or an address changes in the panel.
  *
  * Credentials travel inside the envelope on purpose ("opción B"): the price is two more dictionary reads on
  * the phone, and what it buys is a password the factory can rotate without anyone editing a shortcut. The body
@@ -143,7 +145,7 @@ export function AeroShortcutDialog({ open, onClose, settings }: AeroShortcutDial
             {t('massas.aero.shortcutLaunchTitle', { count: recipe.actionCount })}
           </h3>
 
-          {/* El nombre es preparación en la app, no una de las ocho acciones: por eso no lleva número y
+          {/* El nombre es preparación en la app, no una de las diecisiete acciones: por eso no lleva número y
               la lista numera exactamente las acciones que hay que agregar. */}
           <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
             <div className="flex items-baseline gap-2">
@@ -165,33 +167,35 @@ export function AeroShortcutDialog({ open, onClose, settings }: AeroShortcutDial
               <RecipeValue
                 id="url"
                 label={keyLabel}
-                value="url"
+                value={recipe.keys.url}
                 copyLabel={copyLabel}
                 copied={copied === 'url'}
                 onCopy={copy}
               />
             </StepItem>
 
+            {/* Opción (a): el Authorization sale del diccionario `headers`, que es lo que el sobre trae.
+                La receta anterior pedía una clave `auth` que nunca viajó. */}
             <StepItem n={3}>
-              <span>{t('massas.aero.shortcutStepAuth')}</span>
+              <span>{t('massas.aero.shortcutStepHeaders')}</span>
               <RecipeValue
-                id="auth"
+                id="headers"
                 label={keyLabel}
-                value="auth"
+                value={recipe.keys.headers}
                 copyLabel={copyLabel}
-                copied={copied === 'auth'}
+                copied={copied === 'headers'}
                 onCopy={copy}
               />
             </StepItem>
 
             <StepItem n={4}>
-              <span>{t('massas.aero.shortcutStepBody')}</span>
+              <span>{t('massas.aero.shortcutStepAuthorization')}</span>
               <RecipeValue
-                id="body"
+                id="authorization"
                 label={keyLabel}
-                value="body"
+                value={recipe.keys.authorization}
                 copyLabel={copyLabel}
-                copied={copied === 'body'}
+                copied={copied === 'authorization'}
                 onCopy={copy}
               />
             </StepItem>
@@ -201,7 +205,7 @@ export function AeroShortcutDialog({ open, onClose, settings }: AeroShortcutDial
               <RecipeValue
                 id="callback"
                 label={keyLabel}
-                value="callback"
+                value={recipe.keys.callback}
                 copyLabel={copyLabel}
                 copied={copied === 'callback'}
                 onCopy={copy}
@@ -209,18 +213,70 @@ export function AeroShortcutDialog({ open, onClose, settings }: AeroShortcutDial
             </StepItem>
 
             <StepItem n={6}>
-              <span>{t('massas.aero.shortcutStepFetch')}</span>
-              <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
+              <span>{t('massas.aero.shortcutStepBodiesCheck')}</span>
+              <RecipeValue
+                id="bodies"
+                label={keyLabel}
+                value={recipe.keys.bodies}
+                copyLabel={copyLabel}
+                copied={copied === 'bodies'}
+                onCopy={copy}
+              />
+            </StepItem>
+
+            <StepItem n={7}>
+              <span>{t('massas.aero.shortcutStepRepeat')}</span>
+            </StepItem>
+
+            <StepItem n={8}>
+              <span>{t('massas.aero.shortcutStepBatchFetch')}</span>
+              <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
                 {t('massas.aero.shortcutHeadersTitle')}
               </p>
               <p className="text-xs leading-relaxed text-gray-500">{t('massas.aero.shortcutHeadersHint')}</p>
             </StepItem>
 
-            <StepItem n={7}>
-              <span>{t('massas.aero.shortcutStepEncode')}</span>
+            <StepItem n={9}>
+              <span>{t('massas.aero.shortcutStepBatchCollect')}</span>
             </StepItem>
 
-            <StepItem n={8}>
+            <StepItem n={10}>
+              <span>{t('massas.aero.shortcutStepRepeatEnd')}</span>
+            </StepItem>
+
+            <StepItem n={11}>
+              <span>{t('massas.aero.shortcutStepJoin')}</span>
+            </StepItem>
+
+            <StepItem n={12}>
+              <span>{t('massas.aero.shortcutStepBracket')}</span>
+            </StepItem>
+
+            <StepItem n={13}>
+              <span>{t('massas.aero.shortcutStepBatchEncode')}</span>
+            </StepItem>
+
+            <StepItem n={14}>
+              <span>{t('massas.aero.shortcutStepElse')}</span>
+            </StepItem>
+
+            <StepItem n={15}>
+              <span>{t('massas.aero.shortcutStepSingleFetch')}</span>
+              <RecipeValue
+                id="body"
+                label={keyLabel}
+                value={recipe.keys.body}
+                copyLabel={copyLabel}
+                copied={copied === 'body'}
+                onCopy={copy}
+              />
+            </StepItem>
+
+            <StepItem n={16}>
+              <span>{t('massas.aero.shortcutStepSingleEncode')}</span>
+            </StepItem>
+
+            <StepItem n={17}>
               <span>{t('massas.aero.shortcutStepBack')}</span>
             </StepItem>
           </ol>

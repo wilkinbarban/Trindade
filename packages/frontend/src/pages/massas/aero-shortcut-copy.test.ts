@@ -19,9 +19,10 @@ const catalogues = ['pt-BR', 'es'].map((lang) => ({
 }));
 
 describe('aero-shortcut dialog: the one bridge the phone has to build', () => {
-  it('numbers exactly the eight actions the bridge takes, and nothing else', () => {
+  it('numbers exactly the seventeen actions the bridge takes, and nothing else', () => {
     const steps = [...source.matchAll(/<StepItem n=\{(\d+)\}/g)].map((match) => Number(match[1]));
-    assert.deepEqual(steps, [1, 2, 3, 4, 5, 6, 7, 8]);
+    // Dos ramas: el lote (6-13) y el producto suelto (14-16), con el mismo cierre para las dos.
+    assert.deepEqual(steps, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]);
     // El título no escribe el número a mano: lo lee del recipe, así que no puede quedar desactualizado.
     assert.ok(source.includes("t('massas.aero.shortcutLaunchTitle', { count: recipe.actionCount })"));
     for (const { lang, aero } of catalogues) {
@@ -32,13 +33,19 @@ describe('aero-shortcut dialog: the one bridge the phone has to build', () => {
     }
   });
 
-  it('reads the four dictionary keys the envelope carries, and no fifth', () => {
-    // Las claves las arma `aeroBridgeShortcutRecipe`; el diálogo las muestra con su botón de copiar.
-    for (const key of ['url', 'auth', 'body', 'callback']) {
+  it('reads the dictionary keys the envelope carries, and takes the Authorization from inside headers', () => {
+    // Las claves las arma `aeroBridgeShortcutRecipe`; el diálogo las muestra con su botón de copiar. El
+    // Authorization no es una clave del sobre: se lee del diccionario `headers`, que es lo que viaja.
+    for (const key of ['url', 'headers', 'authorization', 'body', 'bodies', 'callback']) {
       assert.ok(root.includes(`id="${key}"`), `missing copyable key ${key}`);
-      assert.ok(root.includes(`value="${key}"`), `the ${key} step must show the key name it copies`);
+      assert.ok(
+        root.includes(`value={recipe.keys.${key}}`),
+        `the ${key} step must show the key name it copies`,
+      );
     }
-    assert.equal(root.includes('id="authorization"'), false);
+    // La receta anterior pedía una clave `auth` que el sobre nunca trajo.
+    assert.equal(root.includes('id="auth"'), false);
+    assert.equal(root.includes('value="auth"'), false);
     assert.equal(root.includes('id="endpoint"'), false);
   });
 

@@ -912,15 +912,33 @@ export function aeroBridgeCallbackFor(action: AeroBridgeAction, path?: string): 
 export interface AeroBridgeShortcutRecipe {
   /** The one shortcut the phone must have installed. */
   name: string;
-  /** The four dictionary keys every action reads, in the order they are built. */
-  keys: { url: string; auth: string; body: string; callback: string };
+  /**
+   * The dictionary keys every action reads, in the order they are built.
+   *
+   * `authorization` is not a key of the envelope: it is read from inside `headers`, which is the shape the
+   * envelope really has. The recipe used to name an `auth` key the envelope never carried, and an operator
+   * following it to the letter read a key that was not there.
+   */
+  keys: {
+    url: string;
+    headers: string;
+    authorization: string;
+    body: string;
+    /** Only present in a batch envelope: the phone repeats this list instead of posting one body. */
+    bodies: string;
+    callback: string;
+  };
   /** What the POST action must declare it is sending. */
   contentType: string;
   /** What the POST action must declare it accepts, the same one every ERP call carries. */
   accept: string;
   /** The header value the page now puts in each envelope, quoted so the panel can show it. */
   authorization: string;
-  /** How many actions the recipe really takes on the phone: four reads, one POST, one encode, one open. */
+  /**
+   * How many actions the recipe really takes on the phone: the dictionary read, the five values, the
+   * `bodies` test, the repeat with its two steps, the join, the bracket, the encode, the single-product
+   * branch with its two steps, and the open. Seventeen counting both branches.
+   */
   actionCount: number;
   /** The endpoints the one bridge can reach, so the dialog never understates what it covers. */
   endpoints: Record<AeroBridgeAction, string>;
@@ -931,9 +949,10 @@ export interface AeroBridgeShortcutRecipe {
 /**
  * The bridge recipe, in the shape the dialog copies it.
  *
- * Counted honestly: getting the dictionary out of the shortcut input, four "get dictionary value" reads (url,
- * auth, body, callback), the POST, the URL encode of the answer and the open. Seven actions is what the phone
- * shows for the reduced variant; eight is what "opción B" costs, and the panel says eight.
+ * Counted honestly, and in two branches: the batch branch (a `bodies` test, a repeat that posts each element
+ * and appends it, a join, a bracket and an encode) and the single-product branch that was already in
+ * production (one POST and its encode). Seventeen actions, one shortcut, and a phone with the old eight
+ * still works because it ignores `bodies` and posts `body`.
  */
 export function aeroBridgeShortcutRecipe(args: {
   wsUrl: string;
@@ -944,11 +963,18 @@ export function aeroBridgeShortcutRecipe(args: {
 }): AeroBridgeShortcutRecipe {
   return {
     name: AERO_DEFAULT_BRIDGE_SHORTCUT_NAME,
-    keys: { url: 'url', auth: 'auth', body: 'body', callback: 'callback' },
+    keys: {
+      url: 'url',
+      headers: 'headers',
+      authorization: 'Authorization',
+      body: 'body',
+      bodies: 'bodies',
+      callback: 'callback',
+    },
     contentType: 'application/json',
     accept: 'application/json',
     authorization: basicAuthHeader(args.username, args.password),
-    actionCount: 8,
+    actionCount: 17,
     endpoints: {
       entrada: aeroEndpoint(args.wsUrl, 'entradasitem'),
       // El lote va al mismo endpoint, una vez por producto: el atajo repite la petición.

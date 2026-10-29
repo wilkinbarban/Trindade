@@ -940,11 +940,46 @@ describe('aero-integration: the bridge shortcut recipe', () => {
     basePath: '/',
   });
 
-  it('names the single shortcut and the four dictionary keys its actions read', () => {
+  it('names the single shortcut and the dictionary keys its actions really read', () => {
     assert.equal(recipe.name, 'Aero32 Bridge');
-    assert.deepEqual(recipe.keys, { url: 'url', auth: 'auth', body: 'body', callback: 'callback' });
+    // Opción (a): la receta lee `headers` y de ahí saca `Authorization`. No existe una clave `auth` en el
+    // sobre, y la receta no puede pedirle al operario que lea algo que nunca viaja.
+    assert.deepEqual(recipe.keys, {
+      url: 'url',
+      headers: 'headers',
+      authorization: 'Authorization',
+      body: 'body',
+      bodies: 'bodies',
+      callback: 'callback',
+    });
     assert.equal(recipe.contentType, 'application/json');
-    assert.equal(recipe.actionCount, 8);
+    // Diecisiete contando las dos ramas: la de un producto y la del lote.
+    assert.equal(recipe.actionCount, 17);
+  });
+
+  it('asks the recipe to read only keys the envelope really carries', () => {
+    const envelope = aeroBridgeShortcutRecipe({
+      wsUrl: 'http://192.168.25.250:1453/api',
+      username: 'wilkin',
+      password: 'senha',
+      origin: 'https://trindademasas.duckdns.org',
+    }).sampleEnvelope as unknown as Record<string, unknown>;
+
+    const carried = new Set(Object.keys(envelope));
+    for (const [name, key] of Object.entries(recipe.keys)) {
+      if (name === 'authorization') {
+        // Sale de la cabecera, no de una clave propia: el atajo la lee del diccionario `headers`.
+        const headers = envelope.headers as Record<string, string>;
+        assert.ok(headers[key], `the sample envelope has no ${key} header`);
+        continue;
+      }
+      if (name === 'bodies') {
+        // `bodies` sólo viaja en un lote: el sobre de la prueba es de un producto y no lo lleva.
+        assert.equal(carried.has(key), false);
+        continue;
+      }
+      assert.ok(carried.has(key), `the recipe reads ${name}, but the envelope has no such key`);
+    }
   });
 
   it('lists the endpoints the one bridge can reach, so the dialog does not lie about them', () => {
