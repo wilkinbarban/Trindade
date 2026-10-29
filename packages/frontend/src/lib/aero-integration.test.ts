@@ -1108,9 +1108,9 @@ describe('aero-integration: ERP movements mirror', () => {
     if (result.status !== 'ok') return assert.fail('expected the seats to be read');
 
     const reconciliation = reconcileAeroMovements(result.movements, [
-      { id: 7, launch_date: '2026-10-28', product_code: '1192', units: 90 },
-      { id: 8, launch_date: '2026-10-28', product_code: '5000', units: 45 },
-      { id: 9, launch_date: '2026-10-28', product_code: '1045', units: 30 },
+      { id: 7, launch_date: '2026-10-28', product_code: '1192', units: 90, username: 'wilkin' },
+      { id: 8, launch_date: '2026-10-28', product_code: '5000', units: 45, username: 'marcos' },
+      { id: 9, launch_date: '2026-10-28', product_code: '1045', units: 30, username: 'wilkin' },
     ]);
 
     assert.deepEqual(reconciliation.reconciled, [10542, 10543]);
@@ -1123,10 +1123,52 @@ describe('aero-integration: ERP movements mirror', () => {
     if (result.status !== 'ok') return assert.fail('expected the seats to be read');
 
     const reconciliation = reconcileAeroMovements(result.movements, [
-      { id: 3, launch_date: '2026-10-28', product_code: '001192', units: 90 },
+      { id: 3, launch_date: '2026-10-28', product_code: '001192', units: 90, username: 'WILKIN' },
     ]);
 
     assert.deepEqual(reconciliation.reconciled, [10542]);
+  });
+
+  it('never hands another operator\'s seat to a local launch, however equal the boxes look', () => {
+    // Jefferson launched a rolo on the Delphi tablet and never opened Trindade. Wilkin launched the same
+    // rolo in the app. Matching on date, code and quantity alone marked Jefferson as reconciled and left
+    // Wilkin's own seat "only in the ERP", which is the opposite of what the plant needs to see.
+    const seats = [
+      { entLan: 35914, productCode: '005000', productDesc: 'MASSA ROLO 1KG', quantity: 15, entryDate: '2026-10-28', operatorName: 'JEFFERSON', movementType: 'E' as const },
+      { entLan: 35916, productCode: '005000', productDesc: 'MASSA ROLO 1KG', quantity: 15, entryDate: '2026-10-28', operatorName: 'WILKIN', movementType: 'E' as const },
+    ];
+    const wilkinLaunch = [
+      { id: 21, launch_date: '2026-10-28', product_code: '5000', units: 15, username: 'wilkin' },
+    ];
+
+    const reconciliation = reconcileAeroMovements(seats, wilkinLaunch);
+
+    assert.deepEqual(reconciliation.reconciled, [35916]);
+    assert.deepEqual(reconciliation.matchedLaunchIds, [21]);
+  });
+
+  it('leaves every seat unmatched when no local launch belongs to that operator', () => {
+    const seats = [
+      { entLan: 35914, productCode: '005000', productDesc: 'MASSA ROLO 1KG', quantity: 15, entryDate: '2026-10-28', operatorName: 'JEFFERSON', movementType: 'E' as const },
+    ];
+    const reconciliation = reconcileAeroMovements(seats, [
+      { id: 21, launch_date: '2026-10-28', product_code: '5000', units: 15, username: 'wilkin' },
+    ]);
+
+    assert.deepEqual(reconciliation.reconciled, []);
+    assert.deepEqual(reconciliation.matchedLaunchIds, []);
+    assert.deepEqual(reconciliation.unmatchedLaunchIds, [21]);
+  });
+
+  it('compares the operator the way both sides write it: padded, cased and trimmed differently', () => {
+    const seats = [
+      { entLan: 1, productCode: '001192', productDesc: 'X', quantity: 90, entryDate: '2026-10-28', operatorName: '  wilkin ', movementType: 'E' as const },
+    ];
+    const reconciliation = reconcileAeroMovements(seats, [
+      { id: 2, launch_date: '2026-10-28', product_code: '1192', units: 90, username: 'WILKIN' },
+    ]);
+
+    assert.deepEqual(reconciliation.reconciled, [1]);
   });
 
   it('consumes one local launch per seat, so two equal seats need two local launches', () => {
@@ -1136,14 +1178,14 @@ describe('aero-integration: ERP movements mirror', () => {
     ];
 
     const oneLocal = reconcileAeroMovements(seats, [
-      { id: 4, launch_date: '2026-10-28', product_code: '1192', units: 90 },
+      { id: 4, launch_date: '2026-10-28', product_code: '1192', units: 90, username: 'a' },
     ]);
     assert.deepEqual(oneLocal.reconciled, [1]);
     assert.deepEqual(oneLocal.matchedLaunchIds, [4]);
 
     const twoLocal = reconcileAeroMovements(seats, [
-      { id: 4, launch_date: '2026-10-28', product_code: '1192', units: 90 },
-      { id: 5, launch_date: '2026-10-28', product_code: '1192', units: 90 },
+      { id: 4, launch_date: '2026-10-28', product_code: '1192', units: 90, username: 'a' },
+      { id: 5, launch_date: '2026-10-28', product_code: '1192', units: 90, username: 'b' },
     ]);
     assert.deepEqual(twoLocal.reconciled, [1, 2]);
   });
@@ -1154,7 +1196,7 @@ describe('aero-integration: ERP movements mirror', () => {
     ];
 
     const reconciliation = reconcileAeroMovements(seats, [
-      { id: 4, launch_date: '2026-10-28', product_code: '1192', units: 90 },
+      { id: 4, launch_date: '2026-10-28', product_code: '1192', units: 90, username: 'a' },
     ]);
 
     assert.deepEqual(reconciliation.reconciled, []);
@@ -1167,7 +1209,7 @@ describe('aero-integration: ERP movements mirror', () => {
     ];
 
     const reconciliation = reconcileAeroMovements(seats, [
-      { id: 4, launch_date: '2026-10-28', product_code: '1192', units: 90 },
+      { id: 4, launch_date: '2026-10-28', product_code: '1192', units: 90, username: 'a' },
     ]);
 
     assert.deepEqual(reconciliation.reconciled, []);

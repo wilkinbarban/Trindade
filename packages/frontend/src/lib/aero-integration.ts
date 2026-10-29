@@ -705,6 +705,11 @@ export interface AeroLocalLaunchLike {
   product_code: string;
   /** The launch in units: the ERP records units, and boxes are only how the operator counted them. */
   units: number;
+  /**
+   * Who made the launch here. The mirror compares it against the seat's operator, because two operators can
+   * record the same boxes on the same day and one of them may never have opened Trindade.
+   */
+  username: string;
 }
 
 export interface AeroMovementReconciliation {
@@ -724,6 +729,11 @@ export interface AeroMovementReconciliation {
  * reconciles at most one seat: two identical seats mean the operator launched twice, and consuming the
  * launches in order is what keeps a duplicate from being reported as reconciled twice over.
  *
+ * The operator is part of the identity of a launch, not a detail: Jefferson can record fifteen units of rolo on
+ * the Delphi tablet and Wilkin the same fifteen in Trindade, and matching only on date, code and quantity
+ * marked Jefferson as reconciled while Wilkin's own seat looked like it never came from the app. A seat whose
+ * operator is unknown reconciles with nothing, because that would be a guess dressed as a confirmation.
+ *
  * A stock exit is never reconciled: Trindade records entries only, and a seat on the other side has nothing
  * here to answer for it.
  */
@@ -733,7 +743,10 @@ export function reconcileAeroMovements(
 ): AeroMovementReconciliation {
   const byKey = new Map<string, number[]>();
   for (const launch of launches) {
-    const key = aeroMovementKey(launch.launch_date, launch.product_code, launch.units);
+    const key = aeroReconciledKey(
+      aeroMovementKey(launch.launch_date, launch.product_code, launch.units),
+      launch.username,
+    );
     const ids = byKey.get(key);
     if (ids) ids.push(launch.id);
     else byKey.set(key, [launch.id]);
@@ -743,7 +756,12 @@ export function reconcileAeroMovements(
   const matchedLaunchIds: number[] = [];
   for (const movement of movements) {
     if (movement.movementType !== 'E') continue;
-    const key = aeroMovementKey(movement.entryDate, movement.productCode, movement.quantity);
+    const operator = aeroOperatorKey(movement.operatorName);
+    if (!operator) continue;
+    const key = aeroReconciledKey(
+      aeroMovementKey(movement.entryDate, movement.productCode, movement.quantity),
+      movement.operatorName,
+    );
     const ids = byKey.get(key);
     if (!ids || ids.length === 0) continue;
     reconciled.push(movement.entLan);
@@ -762,6 +780,18 @@ export function reconcileAeroMovements(
 function aeroMovementKey(date: string, code: string, quantity: number): string {
   const digits = String(code).trim().replace(/^0+/, '') || '0';
   return `${aeroDateOnly(date)}|${digits}|${Math.round(quantity * 1000) / 1000}`;
+}
+
+/**
+ * The operator as both sides write it: the ERP sends `ENT_USU` in capitals, the app stores the username as
+ * the person typed it at login. Padding and case are noise; a different name is not.
+ */
+function aeroOperatorKey(value: string | null | undefined): string {
+  return (value ?? '').trim().toUpperCase().replace(/\s+/g, ' ');
+}
+
+function aeroReconciledKey(movementKey: string, operator: string | null | undefined): string {
+  return `${movementKey}|${aeroOperatorKey(operator)}`;
 }
 
 /**
