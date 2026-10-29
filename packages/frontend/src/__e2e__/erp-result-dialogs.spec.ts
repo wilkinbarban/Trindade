@@ -39,9 +39,10 @@ test.describe('result dialogs on a phone screen', () => {
 
     const dialog = page.locator('[data-testid="aero-sync-result-modal"]');
     await expect(dialog).toBeVisible();
-    await expect(dialog).toContainText('Movimentos Sincronizados');
+    // Eleven seats, all of them dough: the window counts the masses lens, not the raw answer.
+    await expect(dialog).toContainText('Massas Sincronizadas');
     await expect(page.locator('[data-testid="aero-result-message"]')).toHaveText(
-      /11 movimentos lidos do ERP para \d{2}\/\d{2}\/\d{4}\./,
+      /11 massas sincronizadas do ERP para \d{2}\/\d{2}\/\d{4}\./,
     );
 
     const close = page.locator('[data-testid="aero-result-close"]');
@@ -67,7 +68,7 @@ test.describe('result dialogs on a phone screen', () => {
     await expect(dialog).toBeVisible();
     await expect(dialog).toContainText('Falha ao Sincronizar');
     await expect(page.locator('[data-testid="aero-result-message"]')).toContainText(
-      'Não foi possível ler os movimentos do ERP',
+      'Não foi possível ler as massas do ERP',
     );
     // The company's own words, kept as written.
     await expect(page.locator('[data-testid="aero-result-hint"]')).toContainText('Firebird indisponível');

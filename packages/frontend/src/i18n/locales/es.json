@@ -165,7 +165,15 @@
     "receiptsSyncedAt": "Espejo de {{time}}",
     "receiptsUnits": "{{quantity}} un",
     "receiptsSeat": "Lanzamiento #{{entLan}}",
-    "receiptsOpenMassas": "Ir a Lanzamiento de Masas"
+    "receiptsOpenMassas": "Ir a Lanzamiento de Masas",
+    "receiptsSync": "Sincronizar insumos del ERP",
+    "receiptsSyncTitle": "Insumos Sincronizados",
+    "receiptsSyncOk_one": "{{count}} insumo recibido sincronizado del ERP.",
+    "receiptsSyncOk_other": "{{count}} insumos recibidos sincronizados del ERP.",
+    "receiptsSyncEmpty": "Ningún insumo recibido en el día.",
+    "receiptsSyncError": "No se pudieron leer los insumos del ERP. Probá de nuevo con el atajo.",
+    "receiptsSyncNotConfigured": "Configurá la integración en Lanzamiento de Masas para sincronizar del ERP.",
+    "receiptsSyncErrorTitle": "Falla al Sincronizar Insumos"
   },
   "loading": {
     "vehiclesError": "No se pudieron cargar los vehículos.",
@@ -615,13 +623,14 @@
       "importError": "No se pudo importar el asiento.",
       "skipped": "{{count}} asiento(s) ilegible(s) ignorado(s).",
       "readOnly": "El espejo es solo lectura: importar crea un lanzamiento nuevo en Trindade.",
-      "syncOkTitle": "Movimientos Sincronizados",
+      "syncOkTitle": "Masas Sincronizadas",
       "syncErrorTitle": "Falla al Sincronizar",
-      "syncOk_one": "{{count}} movimiento leído del ERP para {{date}}.",
-      "syncOk_other": "{{count}} movimientos leídos del ERP para {{date}}.",
-      "syncEmpty": "El ERP no tiene movimientos para {{date}}.",
-      "syncError": "No se pudieron leer los movimientos del ERP. Probá de nuevo con el atajo.",
-      "mirrorHint": "Sincronizado con el ERP. Actualizá la pestaña «Espelho do ERP» para ver tu nuevo asiento contable."
+      "syncOk_one": "{{count}} masa sincronizada del ERP para {{date}}.",
+      "syncOk_other": "{{count}} masas sincronizadas del ERP para {{date}}.",
+      "syncEmpty": "Ninguna masa sincronizada del ERP para {{date}}.",
+      "syncError": "No se pudieron leer las masas del ERP. Probá de nuevo con el atajo.",
+      "mirrorHint": "Sincronizado con el ERP. Actualizá la pestaña «Espelho do ERP» para ver tu nuevo asiento contable.",
+      "storeFailed": "Las masas llegaron, pero no se pudieron guardar. Sincronizá otra vez."
     }
   },
   "moduleHelp": {

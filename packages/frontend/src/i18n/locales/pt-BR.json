@@ -165,7 +165,15 @@
     "receiptsSyncedAt": "Espelho de {{time}}",
     "receiptsUnits": "{{quantity}} un",
     "receiptsSeat": "Lançamento #{{entLan}}",
-    "receiptsOpenMassas": "Ir para Lançamento de Masas"
+    "receiptsOpenMassas": "Ir para Lançamento de Masas",
+    "receiptsSync": "Sincronizar insumos do ERP",
+    "receiptsSyncTitle": "Insumos Sincronizados",
+    "receiptsSyncOk_one": "{{count}} insumo recebido sincronizado do ERP.",
+    "receiptsSyncOk_other": "{{count}} insumos recebidos sincronizados do ERP.",
+    "receiptsSyncEmpty": "Nenhum insumo recebido no dia.",
+    "receiptsSyncError": "Não foi possível ler os insumos do ERP. Tente de novo pelo atalho.",
+    "receiptsSyncNotConfigured": "Configure a integração em Lançamento de Masas para sincronizar do ERP.",
+    "receiptsSyncErrorTitle": "Falha ao Sincronizar Insumos"
   },
   "loading": {
     "vehiclesError": "Não foi possível carregar os veículos.",
@@ -615,13 +623,14 @@
       "importError": "Não foi possível importar o lançamento.",
       "skipped": "{{count}} lançamento(s) ilegível(is) ignorado(s).",
       "readOnly": "O espelho é somente leitura: importar cria um lançamento novo em Trindade.",
-      "syncOkTitle": "Movimentos Sincronizados",
+      "syncOkTitle": "Massas Sincronizadas",
       "syncErrorTitle": "Falha ao Sincronizar",
-      "syncOk_one": "{{count}} movimento lido do ERP para {{date}}.",
-      "syncOk_other": "{{count}} movimentos lidos do ERP para {{date}}.",
-      "syncEmpty": "O ERP não tem movimentos para {{date}}.",
-      "syncError": "Não foi possível ler os movimentos do ERP. Tente de novo pelo atalho.",
-      "mirrorHint": "Sincronizado com o ERP. Atualize a aba «Espelho do ERP» para ver seu novo lançamento contábil."
+      "syncOk_one": "{{count}} massa sincronizada do ERP para {{date}}.",
+      "syncOk_other": "{{count}} massas sincronizadas do ERP para {{date}}.",
+      "syncEmpty": "Nenhuma massa sincronizada do ERP para {{date}}.",
+      "syncError": "Não foi possível ler as massas do ERP. Tente de novo pelo atalho.",
+      "mirrorHint": "Sincronizado com o ERP. Atualize a aba «Espelho do ERP» para ver seu novo lançamento contábil.",
+      "storeFailed": "As massas chegaram, mas não foi possível guardá-las. Sincronize de novo."
     }
   },
   "moduleHelp": {

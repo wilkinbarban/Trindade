@@ -74,7 +74,7 @@ describe('aero bridge wiring: the ERP mirror', () => {
   });
 
   it('keeps the day in Trindade, so the plant reads it without running the shortcut', () => {
-    assert.ok(launch.includes("api.post('/integration/aero/movements'"));
+    assert.ok(launch.includes("'/integration/aero/movements'"));
     assert.ok(launch.includes('/integration/aero/movements?date='));
     assert.ok(launch.includes('buildAeroMovementsSnapshot('));
     assert.ok(launch.includes('readAeroMovementsSnapshot('));

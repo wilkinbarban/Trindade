@@ -18,8 +18,10 @@ const panel = read('AeroIntegrationPanel.tsx');
 const dialog = read('AeroResultDialog.tsx');
 
 describe('result dialogs wiring', () => {
-  it('opens the movements window with the count the ERP brought back', () => {
-    assert.ok(page.includes('movementsSyncFeedback(read)'));
+  it('opens the movements window with only the massas the ERP brought back', () => {
+    // The dialog counts the lens, never the raw answer: a day with boxes must not read as eleven massas.
+    assert.ok(page.includes("movementsSyncFeedback({ status: 'ok', count: stored?.massas ?? 0 })"));
+    assert.ok(page.includes('movementsSyncFeedback({ status: \'error\', count: 0 })'));
     assert.ok(page.includes('testId="aero-sync-result-modal"'));
     assert.ok(page.includes("t('massas.erp.syncOkTitle'") || page.includes("'massas.erp.syncOkTitle'"));
   });

@@ -388,11 +388,8 @@ export function MassasLaunchPage() {
   const handleMovementsCallback = useCallback(
     async (data: unknown) => {
       const read = readAeroMovements(data);
-      setSyncResult({
-        feedback: movementsSyncFeedback(read),
-        detail: read.status === 'error' ? read.message : null,
-      });
       if (read.status === 'error') {
+        setSyncResult({ feedback: movementsSyncFeedback({ status: 'error', count: 0 }), detail: read.message });
         void postAeroAuditEvent({
           event: 'read_history',
           phase: 'result',
@@ -417,7 +414,17 @@ export function MassasLaunchPage() {
       });
 
       try {
-        await api.post('/integration/aero/movements', buildAeroMovementsSnapshot(date, read.movements));
+        // The mirror answers how the day splits, so this page counts its own lens without carrying a copy
+        // of the catalogue: the boxes are not this screen's business and must never appear in its dialog.
+        const stored = await api.post<{ massas?: number }>(
+          '/integration/aero/movements',
+          buildAeroMovementsSnapshot(date, read.movements),
+        );
+        await loadMirror(date);
+        setSyncResult({
+          feedback: movementsSyncFeedback({ status: 'ok', count: stored?.massas ?? 0 }),
+          detail: null,
+        });
       } catch {
         // The snapshot is a cache of the company's record, so failing to store it must not throw away what
         // came back: the seats stay on screen, next to the reason they will not survive a reload.
@@ -426,10 +433,11 @@ export function MassasLaunchPage() {
           error: t('massas.erp.error'),
           snapshot: { date, movements: read.movements, syncedAt: new Date().toISOString() },
         });
-        return;
+        setSyncResult({
+          feedback: movementsSyncFeedback({ status: 'ok', count: 0 }),
+          detail: t('massas.erp.storeFailed'),
+        });
       }
-
-      await loadMirror(date);
     },
     [aeroSettings.wsUrl, date, loadMirror, t],
   );
