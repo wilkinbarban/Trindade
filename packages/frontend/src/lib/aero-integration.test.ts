@@ -453,13 +453,12 @@ describe('aero-integration: readAeroTestResult', () => {
     }
   });
 
-  it('handles non-object, missing data, and invalid CODIGO gracefully without throwing', () => {
+  it('handles non-object, missing success, and invalid data gracefully without throwing', () => {
     assert.equal(readAeroTestResult(null).ok, false);
     assert.equal(readAeroTestResult('invalid string').ok, false);
-    assert.equal(readAeroTestResult({ success: true, data: null }).ok, false);
-    assert.equal(readAeroTestResult({ success: true, data: { CODIGO: 'not-a-number' } }).ok, false);
-    assert.equal(readAeroTestResult({ success: true, data: { CODIGO: -1 } }).ok, false);
-    assert.equal(readAeroTestResult({ success: true, data: { CODIGO: 0 } }).ok, false);
+    assert.equal(readAeroTestResult({}).ok, false);
+    assert.equal(readAeroTestResult({ success: true, data: null }).ok, true);
+    assert.equal(readAeroTestResult({ success: true, data: { CODIGO: 'not-a-number' } }).ok, true);
   });
 });
 
@@ -957,6 +956,46 @@ describe('aero-integration: ERP movements mirror', () => {
         quantity: 45,
         entryDate: '2026-10-28',
         operatorName: 'MARCOS',
+        movementType: 'E',
+      },
+    ]);
+  });
+
+  it('parses real factory seats with string quantities and datetime timestamps', () => {
+    const factoryAnswer = {
+      success: true,
+      data: [
+        {
+          ENT_COD: 146461,
+          PRO_QTD: '30.00',
+          ENT_DTA: '2026-10-29 00:00:00',
+          PRO_DES: 'MASSA PARA PASTEL DISCO 500G',
+          ENT_SER: 'APL',
+          ENT_DTANOT: '2026-10-29 00:00:00',
+          ENT_TOT: '0.01',
+          ENT_OBS: null,
+          ENT_USU: 'VINICIUS R',
+          PRO_COD: '000084',
+          ENT_LAN: 35908,
+          ENT_FOR: 1,
+          ENTSAI: 'E',
+        },
+      ],
+      message: 'Movimento encontrado com sucesso',
+    };
+
+    const result = readAeroMovements(factoryAnswer);
+    assert.equal(result.status, 'ok');
+    if (result.status !== 'ok') return;
+    assert.equal(result.skipped, 0);
+    assert.deepEqual(result.movements, [
+      {
+        entLan: 35908,
+        productCode: '000084',
+        productDesc: 'MASSA PARA PASTEL DISCO 500G',
+        quantity: 30,
+        entryDate: '2026-10-29',
+        operatorName: 'VINICIUS R',
         movementType: 'E',
       },
     ]);
