@@ -68,7 +68,8 @@ Permite consultar e importar en el módulo de Lanzamiento de Masas (`/massas-lau
   movimientos, callback `aero_action=movimentos`, snapshot en el backend y lectura del día por fecha.
 - T3 (S4, S5) — **hecho**, commit `51df511`: pestañas en `MassasCollectiveTable.tsx`, `ErpMirrorCard.tsx`
   con chips de operario, badges de conciliación e importación, controles de 44px y textos en `pt-BR.json`/`es.json`.
-- T4 (S6): Verificación completa, typecheck, suites completas, commit en `main`, push, rebuild de Docker y validación de salud en producción.
+- T4 (S6) — **hecho**, commits `19b671c` (registro ODD) y evidencia de despliegue: `tsc --noEmit` limpio, suites
+  completas en verde, push a `main`, migración revisión 6 → 7 y rebuild de Docker con salud verificada.
 
 ## Log
 
@@ -113,3 +114,8 @@ L1 — pedido del usuario, literal:
   /api/integration/aero/movements`, asiento 90 un de MASSA QUADRADA con chip `WILKIN` y badge «Só no ERP»,
   importación de 6 cajas, badge «Conciliado» y el lanzamiento local `1192` visible en la pestaña Trindade.
   Suites: frontend 274/274 unitarios, backend 542/542, E2E 57/57. `tsc --noEmit` limpio.
+- **T4 desplegado (2026-10-29)**: `docker compose run --rm --no-deps --entrypoint node api
+  /app/packages/backend/dist/db/migrate.js` llevó la base de revisión 6 a 7 (integridad `ok`, 18 tablas, 0
+  faltantes, 0 inesperadas); `docker compose up -d` recreó `api` y `web` (**healthy**). En producción:
+  `GET /api/health` → `{"status":"ok"}`, `/massas-launch` → 200 y `GET /api/integration/aero/movements`
+  sin token → 401 (la ruta existe, no es 404).
