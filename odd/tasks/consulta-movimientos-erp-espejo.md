@@ -58,9 +58,16 @@ Permite consultar e importar en el módulo de Lanzamiento de Masas (`/massas-lau
 
 ## Tasks
 
-- T1 (S1, S2): Backend — endpoints y persistencia de movimientos en `packages/backend/src/modules/integration/` con tests unitarios. Core frontend en `packages/frontend/src/lib/aero-integration.ts` con soporte `NOMUSU: null` y tipado.
-- T2 (S3): Frontend — cableado del disparador de movimientos y procesamiento del callback en `MassasLaunchPage.tsx`.
-- T3 (S4, S5): UI Móvil — Pestañas en `MassasCollectiveTable.tsx` («Lançamentos Trindade» vs «Espelho do ERP»), tarjetas adaptadas a iPhone, badges `ENT_LAN`, operarios y conciliación. Textos en `pt-BR.json` y `es.json`.
+- T1a (S1, S2) — **hecho**, commit `267eb94`: Backend — esquema revisión 7 (`aero_movements`), servicio y
+  rutas `GET/POST /api/integration/aero/movements` con tests RED→GREEN (9 casos de ruta, 1 de migración),
+  contrato OpenAPI y documentación.
+- T1b (S2) — **hecho**, commit `2bb7dd2`: Core frontend — `packages/frontend/src/lib/aero-integration.ts`:
+  `NOMUSU: null` para consultar toda la planta, tipos del asiento ERP, parseo de la respuesta del atajo y
+  conciliación con los lanzamientos locales, con tests unitarios (254/254).
+- T2 (S3) — **hecho**, commits `dba3d33` (núcleo `aero-mirror`) y `51df511` (cableado): disparador de
+  movimientos, callback `aero_action=movimentos`, snapshot en el backend y lectura del día por fecha.
+- T3 (S4, S5) — **hecho**, commit `51df511`: pestañas en `MassasCollectiveTable.tsx`, `ErpMirrorCard.tsx`
+  con chips de operario, badges de conciliación e importación, controles de 44px y textos en `pt-BR.json`/`es.json`.
 - T4 (S6): Verificación completa, typecheck, suites completas, commit en `main`, push, rebuild de Docker y validación de salud en producción.
 
 ## Log
@@ -101,3 +108,8 @@ L1 — pedido del usuario, literal:
        https://trindademasas.duckdns.org.
 
   Procedé inmediatamente con T1 y T2. Te superviso con pausas de 5 minutos.
+- **T2/T3 verificados en navegador (375px)** — `packages/frontend/src/__e2e__/erp-mirror.spec.ts` recorre el
+  día completo: pestañas de 44px, cero desborde horizontal, siembra del snapshot por `POST
+  /api/integration/aero/movements`, asiento 90 un de MASSA QUADRADA con chip `WILKIN` y badge «Só no ERP»,
+  importación de 6 cajas, badge «Conciliado» y el lanzamiento local `1192` visible en la pestaña Trindade.
+  Suites: frontend 274/274 unitarios, backend 542/542, E2E 57/57. `tsc --noEmit` limpio.
