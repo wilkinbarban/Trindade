@@ -836,8 +836,27 @@ export function aeroBridgeCallbackPrefix(args: {
   origin: string;
   basePath?: string;
   action: AeroBridgeAction;
+  /** Router route to come back to, such as `/reports/67`. Only a same-origin path is honoured. */
+  path?: string;
 }): string {
-  return `${aeroLaunchPageUrl(args)}?aero_action=${args.action}&aero_data=`;
+  const route = aeroInternalRoute(args.path);
+  const target = route ? aeroRouteUrl(args, route) : aeroLaunchPageUrl(args);
+  return `${target}?aero_action=${args.action}&aero_data=`;
+}
+
+/**
+ * A route this app can come back to, or nothing.
+ *
+ * The return URL travels through the iPhone and comes back as whatever the shortcut was handed, so it is
+ * the one part of the callback a page chooses. Accepting an absolute URL or a protocol-relative path would
+ * let a crafted link end the sync on another site; anything that is not a plain same-origin route is
+ * dropped and the operator comes back to the launch page instead.
+ */
+function aeroInternalRoute(path: string | undefined): string | null {
+  if (!path) return null;
+  if (!/^\/[A-Za-z0-9\-_/]*$/.test(path)) return null;
+  if (path.startsWith('//')) return null;
+  return path;
 }
 
 /**
@@ -846,10 +865,10 @@ export function aeroBridgeCallbackPrefix(args: {
  * The panel's test, the dialog's sample and every launch build the same URL from the page they are on, so the
  * derivation lives here instead of being retyped in three places.
  */
-export function aeroBridgeCallbackFor(action: AeroBridgeAction): string {
+export function aeroBridgeCallbackFor(action: AeroBridgeAction, path?: string): string {
   const origin = typeof window === 'undefined' ? '' : window.location.origin;
   const basePath = (import.meta.env?.BASE_URL ?? '/').replace(/\/$/, '');
-  return aeroBridgeCallbackPrefix({ origin, basePath, action });
+  return aeroBridgeCallbackPrefix({ origin, basePath, action, path });
 }
 
 export interface AeroBridgeShortcutRecipe {
@@ -923,11 +942,19 @@ export function aeroShortcutTriggerUrl(args: { name: string; payload: unknown })
 /**
  * The page the phone comes back to, before any query string.
  */
-function aeroLaunchPageUrl(args: { origin: string; basePath?: string }): string {
+function aeroBaseUrl(args: { origin: string; basePath?: string }): string {
   const cleanOrigin = args.origin.replace(/\/+$/, '');
   const rawBase = args.basePath ?? '';
   const cleanBase = !rawBase || rawBase === '/' ? '' : `/${rawBase.replace(/^\/+|\/+$/g, '')}`;
-  return `${cleanOrigin}${cleanBase}/massas-launch`;
+  return `${cleanOrigin}${cleanBase}`;
+}
+
+function aeroRouteUrl(args: { origin: string; basePath?: string }, route: string): string {
+  return `${aeroBaseUrl(args)}/${route.replace(/^\/+/, '')}`;
+}
+
+function aeroLaunchPageUrl(args: { origin: string; basePath?: string }): string {
+  return aeroRouteUrl(args, 'massas-launch');
 }
 
 /**

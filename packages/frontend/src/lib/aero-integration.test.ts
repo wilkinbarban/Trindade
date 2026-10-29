@@ -778,6 +778,42 @@ describe('aero-integration: bridge envelope', () => {
   });
 });
 
+describe('aero-integration: the return path of a bridge callback', () => {
+  const origin = 'https://trindademasas.duckdns.org';
+
+  it('comes back to the page the operator left from', () => {
+    // The shortcut is a blind proxy: it opens the callback it was handed. Sending the report's own route
+    // is what makes the sync start from Recebimento and end there.
+    assert.equal(
+      aeroBridgeCallbackPrefix({ origin, basePath: '/', action: 'movimentos', path: '/reports/67' }),
+      `${origin}/reports/67?aero_action=movimentos&aero_data=`,
+    );
+  });
+
+  it('keeps the base path in front of the return route', () => {
+    assert.equal(
+      aeroBridgeCallbackPrefix({ origin, basePath: '/app', action: 'movimentos', path: '/reports/new' }),
+      `${origin}/app/reports/new?aero_action=movimentos&aero_data=`,
+    );
+  });
+
+  it('falls back to the launch page instead of trusting a route that could leave the site', () => {
+    for (const path of [
+      'https://evil.example/reports/67',
+      '//evil.example/reports/67',
+      '/reports/67?next=https://evil.example',
+      '/reports/67#fragment',
+      'reports/67',
+    ]) {
+      assert.equal(
+        aeroBridgeCallbackPrefix({ origin, action: 'movimentos', path }),
+        `${origin}/massas-launch?aero_action=movimentos&aero_data=`,
+        `${path} must not become the return URL`,
+      );
+    }
+  });
+});
+
 describe('aero-integration: bridge callbacks', () => {
   const answer = { success: true, message: 'Gravado com sucesso' };
 

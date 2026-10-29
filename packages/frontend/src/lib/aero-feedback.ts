@@ -8,12 +8,81 @@
 
 export type AeroResultTone = 'ok' | 'warn' | 'error';
 
+/** Every sentence a sync dialog can say, so a renamed key fails here instead of at runtime. */
+export type AeroFeedbackKey =
+  | 'massas.erp.syncOkTitle'
+  | 'massas.erp.syncErrorTitle'
+  | 'massas.erp.syncOk'
+  | 'massas.erp.syncEmpty'
+  | 'massas.erp.syncError'
+  | 'reports.receiptsSyncTitle'
+  | 'reports.receiptsSyncErrorTitle'
+  | 'reports.receiptsSyncOk'
+  | 'reports.receiptsSyncEmpty'
+  | 'reports.receiptsSyncError';
+
 /** The two keys a result dialog needs: what happened, and how many seats it was about. */
 export interface AeroSyncFeedback {
   tone: AeroResultTone;
-  titleKey: 'massas.erp.syncOkTitle' | 'massas.erp.syncErrorTitle';
-  messageKey: 'massas.erp.syncOk' | 'massas.erp.syncEmpty' | 'massas.erp.syncError';
+  titleKey: AeroFeedbackKey;
+  messageKey: AeroFeedbackKey;
   count: number;
+}
+
+/** The three sentences a lens can use. Each screen brings its own, so neither borrows the other's words. */
+interface SyncVocabulary {
+  okTitle: AeroFeedbackKey;
+  errorTitle: AeroFeedbackKey;
+  ok: AeroFeedbackKey;
+  empty: AeroFeedbackKey;
+  error: AeroFeedbackKey;
+}
+
+const MASSAS_VOCABULARY: SyncVocabulary = {
+  okTitle: 'massas.erp.syncOkTitle',
+  errorTitle: 'massas.erp.syncErrorTitle',
+  ok: 'massas.erp.syncOk',
+  empty: 'massas.erp.syncEmpty',
+  error: 'massas.erp.syncError',
+};
+
+const RECEIPTS_VOCABULARY: SyncVocabulary = {
+  okTitle: 'reports.receiptsSyncTitle',
+  errorTitle: 'reports.receiptsSyncErrorTitle',
+  ok: 'reports.receiptsSyncOk',
+  empty: 'reports.receiptsSyncEmpty',
+  error: 'reports.receiptsSyncError',
+};
+
+/**
+ * Reads a movements round trip through one lens.
+ *
+ * The count is the lens's number, not the day's: an empty day for the masses can be a busy one for the
+ * report, and each dialog says only what its screen is about.
+ */
+function syncFeedback(
+  result: { status: 'ok' | 'error'; count: number },
+  vocabulary: SyncVocabulary,
+): AeroSyncFeedback {
+  if (result.status === 'error') {
+    return {
+      tone: 'error',
+      titleKey: vocabulary.errorTitle,
+      messageKey: vocabulary.error,
+      count: 0,
+    };
+  }
+
+  if (result.count === 0) {
+    return {
+      tone: 'warn',
+      titleKey: vocabulary.okTitle,
+      messageKey: vocabulary.empty,
+      count: 0,
+    };
+  }
+
+  return { tone: 'ok', titleKey: vocabulary.okTitle, messageKey: vocabulary.ok, count: result.count };
 }
 
 /**
@@ -24,29 +93,18 @@ export interface AeroSyncFeedback {
  */
 export function movementsSyncFeedback(result: {
   status: 'ok' | 'error';
-  /** Absent when the answer was unreadable, which is an error and never an empty day. */
-  movements?: readonly unknown[];
+  /** How many massas the day carried. The supplies the same snapshot holds are not this screen's business. */
+  count: number;
 }): AeroSyncFeedback {
-  if (result.status === 'error') {
-    return {
-      tone: 'error',
-      titleKey: 'massas.erp.syncErrorTitle',
-      messageKey: 'massas.erp.syncError',
-      count: 0,
-    };
-  }
+  return syncFeedback(result, MASSAS_VOCABULARY);
+}
 
-  const count = result.movements?.length ?? 0;
-  if (count === 0) {
-    return {
-      tone: 'warn',
-      titleKey: 'massas.erp.syncOkTitle',
-      messageKey: 'massas.erp.syncEmpty',
-      count: 0,
-    };
-  }
-
-  return { tone: 'ok', titleKey: 'massas.erp.syncOkTitle', messageKey: 'massas.erp.syncOk', count };
+/** The same round trip read from Recebimento: only the supplies, never the massas. */
+export function receiptsSyncFeedback(result: {
+  status: 'ok' | 'error';
+  count: number;
+}): AeroSyncFeedback {
+  return syncFeedback(result, RECEIPTS_VOCABULARY);
 }
 
 /**
