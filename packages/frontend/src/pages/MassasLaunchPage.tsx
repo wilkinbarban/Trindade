@@ -48,6 +48,9 @@ import {
 } from '../lib/aero-test';
 import { clearAeroQueue, readAeroQueue, takeNextAeroItem, writeAeroQueue, type AeroQueue } from '../lib/aero-queue';
 import { AeroIntegrationPanel } from './massas/AeroIntegrationPanel';
+import { formatDateLabel } from '../lib/date';
+import { AeroResultDialog } from './massas/AeroResultDialog';
+import { launchMirrorHint, movementsSyncFeedback, type AeroSyncFeedback } from '../lib/aero-feedback';
 import {
   aeroMovementsEnvelope,
   readAeroMovementsSnapshot,
@@ -70,7 +73,12 @@ export function MassasLaunchPage() {
   const [itemsToConfirm, setItemsToConfirm] = useState<
     Array<{ product_code: string; name: string; boxes: number; units: number }>
   >([]);
-  const [resultModal, setResultModal] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [resultModal, setResultModal] = useState<{
+    type: 'success' | 'error';
+    message: string;
+    /** El lanzamiento viajó a la empresa: el espejo ya tiene un asiento nuevo que mostrar. */
+    sentToErp?: boolean;
+  } | null>(null);
 
   // Block 2 state: inline editing of an individual launch
   const [editingLaunchId, setEditingLaunchId] = useState<number | null>(null);
@@ -101,6 +109,12 @@ export function MassasLaunchPage() {
     snapshot: AeroMovementSnapshot | null;
   }>({ loading: false, error: null, snapshot: null });
   const [importingEntLan, setImportingEntLan] = useState<number | null>(null);
+  /** Lo que la consulta de movimientos tiene para decir cuando el teléfono vuelve. */
+  const [syncResult, setSyncResult] = useState<{
+    feedback: AeroSyncFeedback;
+    /** What the ERP said when it refused, shown as written instead of paraphrased. */
+    detail: string | null;
+  } | null>(null);
 
   const load = useCallback(
     async (targetDate: string, isSilent = false) => {
@@ -268,6 +282,7 @@ export function MassasLaunchPage() {
       setResultModal({
         type: 'success',
         message: t('massas.launchSuccess', 'Lançamento registrado com sucesso!'),
+        sentToErp: false,
       });
     } catch (err) {
       setResultModal({
@@ -373,6 +388,10 @@ export function MassasLaunchPage() {
   const handleMovementsCallback = useCallback(
     async (data: unknown) => {
       const read = readAeroMovements(data);
+      setSyncResult({
+        feedback: movementsSyncFeedback(read),
+        detail: read.status === 'error' ? read.message : null,
+      });
       if (read.status === 'error') {
         void postAeroAuditEvent({
           event: 'read_history',
@@ -604,7 +623,7 @@ export function MassasLaunchPage() {
       setSyncAwaiting(null);
       setResultModal(
         outcome.status === 'ok'
-          ? { type: 'success', message: outcome.message ?? t('massas.aero.syncConfirmYes') }
+          ? { type: 'success', message: outcome.message ?? t('massas.aero.syncConfirmYes'), sentToErp: true }
           : { type: 'error', message: outcome.message ?? t('massas.aero.syncConfirmNo') },
       );
       return;
@@ -860,6 +879,20 @@ export function MassasLaunchPage() {
         copyNote={copyNote}
       />
 
+      {/* Resultado da consulta ao ERP: quantos assentos vieram, ou por que não vieram */}
+      <AeroResultDialog
+        open={syncResult !== null}
+        tone={syncResult?.feedback.tone ?? 'ok'}
+        title={t(syncResult?.feedback.titleKey ?? 'massas.erp.syncOkTitle')}
+        message={t(syncResult?.feedback.messageKey ?? 'massas.erp.syncError', {
+          count: syncResult?.feedback.count ?? 0,
+          date: formatDateLabel(date),
+        })}
+        hint={syncResult?.detail ?? null}
+        onClose={() => setSyncResult(null)}
+        testId="aero-sync-result-modal"
+      />
+
       {/* Modal de Confirmação Prévio ao Lançamento */}
       {isConfirmOpen && (
         <Dialog
@@ -935,6 +968,14 @@ export function MassasLaunchPage() {
             <p className="text-sm text-gray-600">
               {resultModal.message}
             </p>
+            {launchMirrorHint(resultModal) && (
+              <p
+                className="rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-xs leading-relaxed text-amber-900"
+                data-testid="massa-result-mirror-hint"
+              >
+                {t('massas.erp.mirrorHint')}
+              </p>
+            )}
             <div className="pt-2">
               <Button
                 onClick={() => setResultModal(null)}

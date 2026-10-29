@@ -571,7 +571,10 @@
       "shortcutEndpointMovimentos": "Movimentos do dia",
       "shortcutEndpointTest": "Teste de conexão",
       "shortcutSampleTitle": "Sobre de teste",
-      "shortcutSampleHint": "É o que o atalho recebe quando você toca em «Testar conexão». Serve para conferir o formato."
+      "shortcutSampleHint": "É o que o atalho recebe quando você toca em «Testar conexão». Serve para conferir o formato.",
+      "resultTestOkTitle": "Teste Concluído",
+      "resultTestErrorTitle": "Falha no Teste",
+      "resultTestWarnTitle": "Teste sem Resposta"
     },
     "historyShort": "Histórico",
     "todayShort": "Hoje",
@@ -598,7 +601,14 @@
       "imported": "Lançamento importado para Trindade.",
       "importError": "Não foi possível importar o lançamento.",
       "skipped": "{{count}} lançamento(s) ilegível(is) ignorado(s).",
-      "readOnly": "O espelho é somente leitura: importar cria um lançamento novo em Trindade."
+      "readOnly": "O espelho é somente leitura: importar cria um lançamento novo em Trindade.",
+      "syncOkTitle": "Movimentos Sincronizados",
+      "syncErrorTitle": "Falha ao Sincronizar",
+      "syncOk_one": "{{count}} movimento lido do ERP para {{date}}.",
+      "syncOk_other": "{{count}} movimentos lidos do ERP para {{date}}.",
+      "syncEmpty": "O ERP não tem movimentos para {{date}}.",
+      "syncError": "Não foi possível ler os movimentos do ERP. Tente de novo pelo atalho.",
+      "mirrorHint": "Sincronizado com o ERP. Atualize a aba «Espelho do ERP» para ver seu novo lançamento contábil."
     }
   },
   "moduleHelp": {

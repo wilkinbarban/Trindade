@@ -18,6 +18,8 @@ import {
   type AeroSettings,
 } from '../../lib/aero-integration';
 import { probeAeroConnection, type AeroConnectionProbe } from '../../lib/aero-connection';
+import { connectionVerdictTone, type AeroResultTone } from '../../lib/aero-feedback';
+import { AeroResultDialog } from './AeroResultDialog';
 import { postAeroAuditEvent } from '../../lib/aero-audit';
 import {
   aeroTestRequestedEvent,
@@ -59,6 +61,9 @@ export function AeroIntegrationPanel({
   });
   const [busy, setBusy] = useState<'save' | 'test' | null>(null);
   const [probe, setProbe] = useState<AeroConnectionProbe | null>(null);
+  // El veredicto del test viaja desde otra app: sin esta ventana el operario vuelve a una pantalla idéntica
+  // a la que dejó y no sabe si la conexión quedó probada.
+  const [testResult, setTestResult] = useState<{ tone: AeroResultTone; message: string } | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const noticeRef = useRef<HTMLParagraphElement | null>(null);
   /** Un veredicto que llegó del teléfono pide scroll: el aviso nace fuera de la pantalla. */
@@ -158,6 +163,7 @@ export function AeroIntegrationPanel({
     });
 
     setProbe(outcome);
+    setTestResult({ tone: outcome.kind === 'ok' ? 'ok' : 'error', message: describeProbe(outcome, t) });
 
     // The audit line is written whether the browser succeeded or hit another wall: the factory test is
     // inspected afterwards from a terminal, and an attempt that never left the phone is the fact that
@@ -188,15 +194,17 @@ export function AeroIntegrationPanel({
     setOpen(true);
     setProbe(null);
     setBusy(null);
+    const text =
+      testOutcome.verdict === 'ok'
+        ? t('massas.aero.testShortcutOk')
+        : testOutcome.verdict === 'error'
+          ? t('massas.aero.testShortcutError')
+          : t('massas.aero.testShortcutUnknown');
     setNotice({
       tone: testOutcome.verdict === 'ok' ? 'ok' : testOutcome.verdict === 'error' ? 'error' : 'warn',
-      text:
-        testOutcome.verdict === 'ok'
-          ? t('massas.aero.testShortcutOk')
-          : testOutcome.verdict === 'error'
-            ? t('massas.aero.testShortcutError')
-            : t('massas.aero.testShortcutUnknown'),
+      text,
     });
+    setTestResult({ tone: connectionVerdictTone(testOutcome.verdict), message: text });
     scrollToNotice.current = true;
     onTestOutcomeHandled?.();
   }, [testOutcome, onTestOutcomeHandled, t]);
@@ -389,6 +397,15 @@ export function AeroIntegrationPanel({
           </div>
         </div>
       )}
+
+      <AeroResultDialog
+        open={testResult !== null}
+        tone={testResult?.tone ?? 'ok'}
+        title={t(testResult?.tone === 'ok' ? 'massas.aero.resultTestOkTitle' : testResult?.tone === 'warn' ? 'massas.aero.resultTestWarnTitle' : 'massas.aero.resultTestErrorTitle')}
+        message={testResult?.message ?? ''}
+        onClose={() => setTestResult(null)}
+        testId="aero-test-result-modal"
+      />
 
       <AeroShortcutDialog open={shortcutOpen} onClose={() => setShortcutOpen(false)} settings={settings} />
     </Card>

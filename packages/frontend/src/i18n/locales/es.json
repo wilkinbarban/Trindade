@@ -571,7 +571,10 @@
       "shortcutEndpointMovimentos": "Movimientos del día",
       "shortcutEndpointTest": "Prueba de conexión",
       "shortcutSampleTitle": "Sobre de prueba",
-      "shortcutSampleHint": "Es lo que recibe el atajo cuando tocás «Probar conexión». Sirve para verificar el formato."
+      "shortcutSampleHint": "Es lo que recibe el atajo cuando tocás «Probar conexión». Sirve para verificar el formato.",
+      "resultTestOkTitle": "Prueba Realizada",
+      "resultTestErrorTitle": "Falla en la Prueba",
+      "resultTestWarnTitle": "Prueba sin Respuesta"
     },
     "historyShort": "Historial",
     "todayShort": "Hoy",
@@ -598,7 +601,14 @@
       "imported": "Asiento importado a Trindade.",
       "importError": "No se pudo importar el asiento.",
       "skipped": "{{count}} asiento(s) ilegible(s) ignorado(s).",
-      "readOnly": "El espejo es solo lectura: importar crea un lanzamiento nuevo en Trindade."
+      "readOnly": "El espejo es solo lectura: importar crea un lanzamiento nuevo en Trindade.",
+      "syncOkTitle": "Movimientos Sincronizados",
+      "syncErrorTitle": "Falla al Sincronizar",
+      "syncOk_one": "{{count}} movimiento leído del ERP para {{date}}.",
+      "syncOk_other": "{{count}} movimientos leídos del ERP para {{date}}.",
+      "syncEmpty": "El ERP no tiene movimientos para {{date}}.",
+      "syncError": "No se pudieron leer los movimientos del ERP. Probá de nuevo con el atajo.",
+      "mirrorHint": "Sincronizado con el ERP. Actualizá la pestaña «Espelho do ERP» para ver tu nuevo asiento contable."
     }
   },
   "moduleHelp": {
