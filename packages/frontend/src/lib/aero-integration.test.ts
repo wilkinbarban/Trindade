@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  AERO_DEFAULT_BRIDGE_SHORTCUT_NAME,
   AERO_DEFAULT_SHORTCUT_NAME,
   AERO_DEFAULT_TEST_SHORTCUT_NAME,
   AERO_DEFAULT_CST,
@@ -10,6 +11,8 @@ import {
   AERO_ENTRY_SERIES,
   AERO_TEST_TIMEOUT_MS,
   DEFAULT_AERO_SETTINGS,
+  aeroBridgeCallbackPrefix,
+  aeroBridgeShortcutRecipe,
   aeroCallbackUrl,
   aeroConnectionBlocker,
   aeroEndpoint,
@@ -20,8 +23,12 @@ import {
   aeroTestShortcutRecipe,
   aeroTestShortcutTriggerUrl,
   basicAuthHeader,
+  buildAeroBridgeEnvelope,
+  buildAeroBridgeTriggerUrl,
   buildAeroEntryPayload,
   buildEntradaItemPayload,
+  buildMovimentoItemPayload,
+  buildSaidaItemPayload,
   clearAeroPendingSync,
   clearAeroSettings,
   formatAeroCst,
@@ -33,6 +40,7 @@ import {
   loadAeroSettings,
   normalizeAeroWsUrl,
   parseAeroCallback,
+  readAeroBridgeResult,
   readAeroTestResult,
   saveAeroPendingSync,
   saveAeroSettings,
@@ -74,8 +82,8 @@ describe('aero-integration: constants & types', () => {
       username: '',
       password: '',
       userCode: null,
-      shortcutName: 'Aero32 Estoque',
-      testShortcutName: 'Aero32 Prueba',
+      shortcutName: 'Aero32 Bridge',
+      testShortcutName: 'Aero32 Bridge',
       syncEnabled: false,
       lastSyncAt: null,
     });
@@ -654,5 +662,331 @@ describe('aero-integration: pending sync storage', () => {
 
     storage.setItem(AERO_PENDING_SYNC_STORAGE_KEY, JSON.stringify({ launchIds: 'not-an-array' }));
     assert.equal(loadAeroPendingSync(storage), null);
+  });
+});
+
+describe('aero-integration: the unified Aero32 Bridge shortcut', () => {
+  it('names one bridge shortcut and points both settings defaults at it', () => {
+    assert.equal(AERO_DEFAULT_BRIDGE_SHORTCUT_NAME, 'Aero32 Bridge');
+    assert.equal(DEFAULT_AERO_SETTINGS.shortcutName, 'Aero32 Bridge');
+    assert.equal(DEFAULT_AERO_SETTINGS.testShortcutName, 'Aero32 Bridge');
+
+    // Los nombres viejos siguen exportados: son la llave de la migración de un teléfono que ya los tenía.
+    assert.equal(AERO_DEFAULT_SHORTCUT_NAME, 'Aero32 Estoque');
+    assert.equal(AERO_DEFAULT_TEST_SHORTCUT_NAME, 'Aero32 Prueba');
+  });
+
+  it('migrates a phone that still stores the shortcut names of the split design', () => {
+    const storage = new FakeStorage();
+    storage.setItem(
+      AERO_SETTINGS_STORAGE_KEY,
+      JSON.stringify({
+        wsUrl: 'http://192.168.1.50:8000/api',
+        username: 'wilkin',
+        password: 'pwd',
+        shortcutName: 'Aero32 Estoque',
+        testShortcutName: 'Aero32 Prueba',
+      }),
+    );
+
+    const loaded = loadAeroSettings(storage);
+    assert.equal(loaded.shortcutName, 'Aero32 Bridge');
+    assert.equal(loaded.testShortcutName, 'Aero32 Bridge');
+
+    // Un nombre elegido a propósito no es un default viejo y sobrevive tal cual.
+    storage.setItem(
+      AERO_SETTINGS_STORAGE_KEY,
+      JSON.stringify({ ...DEFAULT_AERO_SETTINGS, shortcutName: 'Minha Ponte' }),
+    );
+    assert.equal(loadAeroSettings(storage).shortcutName, 'Minha Ponte');
+  });
+});
+
+describe('aero-integration: saida payload for the bridge', () => {
+  it('uses PED_* prefixes, units scaled by 100, a six-digit code and the operator in uppercase', () => {
+    const payload = buildSaidaItemPayload({
+      productCode: '1192',
+      productName: 'MASSA QUADRADA',
+      quantity: 15,
+      exitDate: '2026-10-28',
+      userCode: 'wilkin',
+    });
+
+    assert.deepEqual(payload, {
+      PRO_COD: '001192',
+      PRO_DES: 'MASSA QUADRADA',
+      PRO_QTD: 1500,
+      PED_DTA: '2026-10-28',
+      PED_USU: 'WILKIN',
+      PED_SER: 'APL',
+      PED_DTANOT: '2026-10-28',
+      PED_OBS: 'Saida de massas via Trindade',
+      LOTES: [],
+    });
+
+    // El orden es el del contrato: la salida no lleva CST ni PED_DTMOVI, y no debe inventarlos.
+    assert.deepEqual(Object.keys(payload), [
+      'PRO_COD',
+      'PRO_DES',
+      'PRO_QTD',
+      'PED_DTA',
+      'PED_USU',
+      'PED_SER',
+      'PED_DTANOT',
+      'PED_OBS',
+      'LOTES',
+    ]);
+    assert.equal('PRO_CST' in payload, false);
+    assert.equal('PED_DTMOVI' in payload, false);
+  });
+
+  it('accepts a Date and keeps the observation the caller states', () => {
+    const payload = buildSaidaItemPayload({
+      productCode: '1192',
+      productName: 'MASSA QUADRADA',
+      quantity: 2.5,
+      exitDate: new Date('2026-10-28T12:00:00Z'),
+      userCode: 12,
+      observation: '  Desejo de cliente  ',
+    });
+
+    assert.equal(payload.PED_DTA, '2026-10-28');
+    assert.equal(payload.PED_DTANOT, '2026-10-28');
+    assert.equal(payload.PED_USU, 12);
+    assert.equal(payload.PRO_QTD, 250);
+    assert.equal(payload.PED_OBS, 'Desejo de cliente');
+  });
+});
+
+describe('aero-integration: movimento payload for the bridge', () => {
+  it('asks for the day with every filter open, the operator in uppercase and no invented value', () => {
+    const payload = buildMovimentoItemPayload({
+      userName: 'wilkin',
+      startDate: '2026-10-28',
+    });
+
+    assert.deepEqual(payload, {
+      CODFOR: null,
+      NOMUSU: 'WILKIN',
+      CODPRO: null,
+      DTINI: '2026-10-28',
+      DTFIM: '2026-10-28',
+      ENTSAI: null,
+    });
+    assert.deepEqual(Object.keys(payload), ['CODFOR', 'NOMUSU', 'CODPRO', 'DTINI', 'DTFIM', 'ENTSAI']);
+  });
+
+  it('narrows by product, range and movement side when the caller asks', () => {
+    const payload = buildMovimentoItemPayload({
+      userName: '  wilkin ',
+      productCode: 22,
+      startDate: '2026-10-01',
+      endDate: '2026-10-28',
+      entrySaida: 'S',
+    });
+
+    assert.equal(payload.NOMUSU, 'WILKIN');
+    assert.equal(payload.CODPRO, '000022');
+    assert.equal(payload.DTINI, '2026-10-01');
+    assert.equal(payload.DTFIM, '2026-10-28');
+    assert.equal(payload.ENTSAI, 'S');
+  });
+});
+
+describe('aero-integration: bridge envelope', () => {
+  const credentials = {
+    wsUrl: 'http://192.168.1.50:8000/api',
+    username: 'wilkin',
+    password: 'senha',
+  };
+
+  const saida = buildSaidaItemPayload({
+    productCode: '1192',
+    productName: 'MASSA QUADRADA',
+    quantity: 15,
+    exitDate: '2026-10-28',
+    userCode: 'wilkin',
+  });
+
+  it('carries the credentials inside the envelope so the phone never has to be edited again', () => {
+    const envelope = buildAeroBridgeEnvelope({
+      ...credentials,
+      endpoint: 'saidasitem',
+      payload: saida,
+      callbackUrl: aeroBridgeCallbackPrefix({ origin: 'https://trindademasas.duckdns.org', action: 'saida' }),
+    });
+
+    assert.deepEqual(Object.keys(envelope), ['url', 'method', 'headers', 'body', 'callback']);
+    assert.equal(envelope.url, 'http://192.168.1.50:8000/api/saidasitem');
+    assert.equal(envelope.method, 'POST');
+    assert.deepEqual(envelope.headers, {
+      Authorization: basicAuthHeader('wilkin', 'senha'),
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    });
+    assert.equal(
+      envelope.callback,
+      'https://trindademasas.duckdns.org/massas-launch?aero_action=saida&aero_data=',
+    );
+  });
+
+  it('serialises the body as a plain JSON string, because a dictionary is not JSON on the phone', () => {
+    const envelope = buildAeroBridgeEnvelope({
+      ...credentials,
+      endpoint: 'saidasitem',
+      payload: saida,
+      callbackUrl: aeroBridgeCallbackPrefix({ origin: 'https://trindademasas.duckdns.org', action: 'saida' }),
+    });
+
+    assert.equal(typeof envelope.body, 'string');
+    assert.deepEqual(JSON.parse(envelope.body), saida);
+    // Sin espacios ni saltos: el texto se pega tal cual en «Cuerpo de la petición» del atajo.
+    assert.equal(envelope.body, JSON.stringify(saida));
+  });
+
+  it('hands the whole envelope to the shortcut as its one text input', () => {
+    const envelope = buildAeroBridgeEnvelope({
+      ...credentials,
+      endpoint: 'usuarios/',
+      payload: {},
+      callbackUrl: aeroBridgeCallbackPrefix({ origin: 'https://trindademasas.duckdns.org', action: 'test' }),
+    });
+
+    const url = buildAeroBridgeTriggerUrl({ name: 'Aero32 Bridge', envelope });
+    const parsed = new URL(url);
+
+    assert.equal(parsed.protocol, 'shortcuts:');
+    assert.equal(parsed.searchParams.get('name'), 'Aero32 Bridge');
+    assert.equal(parsed.searchParams.get('input'), 'text');
+    assert.deepEqual(JSON.parse(parsed.searchParams.get('text') ?? ''), envelope);
+  });
+
+  it('leaves the data slot open in the callback, for every action', () => {
+    assert.equal(
+      aeroBridgeCallbackPrefix({ origin: 'https://trindademasas.duckdns.org', basePath: '/', action: 'entrada' }),
+      'https://trindademasas.duckdns.org/massas-launch?aero_action=entrada&aero_data=',
+    );
+    assert.equal(
+      aeroBridgeCallbackPrefix({ origin: 'https://trindademasas.duckdns.org/', basePath: '/app', action: 'movimentos' }),
+      'https://trindademasas.duckdns.org/app/massas-launch?aero_action=movimentos&aero_data=',
+    );
+  });
+});
+
+describe('aero-integration: bridge callbacks', () => {
+  const answer = { success: true, message: 'Gravado com sucesso' };
+
+  it('decodes the ERP answer the bridge brings back for an entry', () => {
+    const raw = JSON.stringify(answer);
+    assert.deepEqual(parseAeroCallback(`?aero_action=entrada&aero_data=${encodeURIComponent(raw)}`), {
+      kind: 'bridge',
+      action: 'entrada',
+      data: answer,
+      raw,
+    });
+  });
+
+  it('decodes the movement list the bridge brings back', () => {
+    const list = [{ ENT_LAN: 10542, PRO_COD: '001192', PRO_QTD: 15.0, ENTSAI: 'E' }];
+    const raw = JSON.stringify(list);
+    const parsed = parseAeroCallback(`aero_action=movimentos&aero_data=${encodeURIComponent(raw)}`);
+    assert.deepEqual(parsed, { kind: 'bridge', action: 'movimentos', data: list, raw });
+  });
+
+  it('reads the bridge connection test as the same verdict the panel already understands', () => {
+    const okBody = { success: true, data: { CODIGO: 12, NOME: 'WILKIN' } };
+    assert.deepEqual(parseAeroCallback(`?aero_action=test&aero_data=${encodeURIComponent(JSON.stringify(okBody))}`), {
+      kind: 'test',
+      verdict: 'ok',
+      raw: JSON.stringify(okBody),
+    });
+
+    const rejectedBody = { success: false, message: 'Senha inválida' };
+    assert.deepEqual(
+      parseAeroCallback(`?aero_action=test&aero_data=${encodeURIComponent(JSON.stringify(rejectedBody))}`),
+      { kind: 'test', verdict: 'error', raw: JSON.stringify(rejectedBody) },
+    );
+  });
+
+  it('keeps the ERP text exactly as the shortcut appended it, percent signs included', () => {
+    const raw = '{"success":true,"message":"Soma 1+1 e 2%3D2"}';
+    const parsed = parseAeroCallback(`?aero_action=entrada&aero_data=${encodeURIComponent(raw)}`);
+    assert.equal(parsed?.kind, 'bridge');
+    assert.equal(parsed?.raw, raw);
+    assert.deepEqual(parsed?.kind === 'bridge' ? parsed.data : null, { success: true, message: 'Soma 1+1 e 2%3D2' });
+  });
+
+  it('refuses an action it does not know and keeps a missing body honest', () => {
+    assert.equal(parseAeroCallback('?aero_action=baixa&aero_data=%7B%7D'), null);
+    assert.deepEqual(parseAeroCallback('?aero_action=saida'), {
+      kind: 'bridge',
+      action: 'saida',
+      data: null,
+      raw: '',
+    });
+  });
+
+  it('keeps reading the callbacks the previous design produced', () => {
+    // Retrocompatibilidad: un teléfono que todavía tiene los atajos viejos sigue funcionando igual.
+    assert.deepEqual(parseAeroCallback('?aero_sync=ok'), { kind: 'sync', status: 'ok', message: null });
+    assert.deepEqual(parseAeroCallback('?aero_test=true'), { kind: 'test', verdict: 'ok', raw: 'true' });
+  });
+});
+
+describe('aero-integration: reading the bridge result', () => {
+  it('turns the ERP answer into the two outcomes the page acts on', () => {
+    assert.deepEqual(readAeroBridgeResult({ success: true, message: 'Gravado com sucesso' }), {
+      status: 'ok',
+      message: 'Gravado com sucesso',
+    });
+    assert.deepEqual(readAeroBridgeResult({ success: false, message: 'Item sem CST' }), {
+      status: 'error',
+      message: 'Item sem CST',
+    });
+  });
+
+  it('never reports success for an answer it could not read', () => {
+    assert.deepEqual(readAeroBridgeResult(null), { status: 'error', message: null });
+    assert.deepEqual(readAeroBridgeResult('not json'), { status: 'error', message: null });
+    assert.deepEqual(readAeroBridgeResult({ data: [] }), { status: 'error', message: null });
+    // Un mensaje que no es texto no se inventa como texto.
+    assert.deepEqual(readAeroBridgeResult({ success: false, message: 42 }), { status: 'error', message: null });
+  });
+});
+
+describe('aero-integration: the bridge shortcut recipe', () => {
+  const recipe = aeroBridgeShortcutRecipe({
+    wsUrl: 'http://192.168.25.250:1453/api',
+    username: 'wilkin',
+    password: 'senha',
+    origin: 'https://trindademasas.duckdns.org',
+    basePath: '/',
+  });
+
+  it('names the single shortcut and the four dictionary keys its actions read', () => {
+    assert.equal(recipe.name, 'Aero32 Bridge');
+    assert.deepEqual(recipe.keys, { url: 'url', auth: 'auth', body: 'body', callback: 'callback' });
+    assert.equal(recipe.contentType, 'application/json');
+    assert.equal(recipe.actionCount, 8);
+  });
+
+  it('lists the endpoints the one bridge can reach, so the dialog does not lie about them', () => {
+    assert.deepEqual(recipe.endpoints, {
+      entrada: 'http://192.168.25.250:1453/api/entradasitem',
+      saida: 'http://192.168.25.250:1453/api/saidasitem',
+      movimentos: 'http://192.168.25.250:1453/api/movimentoitem',
+      test: 'http://192.168.25.250:1453/api/usuarios/',
+    });
+  });
+
+  it('carries a ready envelope for the connection test, the one that needs no launch data', () => {
+    const envelope = recipe.sampleEnvelope;
+    assert.equal(envelope.url, 'http://192.168.25.250:1453/api/usuarios/');
+    assert.equal(envelope.headers.Authorization, basicAuthHeader('wilkin', 'senha'));
+    assert.equal(
+      envelope.callback,
+      'https://trindademasas.duckdns.org/massas-launch?aero_action=test&aero_data=',
+    );
+    assert.deepEqual(JSON.parse(envelope.body), {});
   });
 });

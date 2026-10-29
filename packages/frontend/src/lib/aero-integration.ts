@@ -10,15 +10,29 @@ import { aeroTestVerdictFromToken, type AeroTestVerdict } from './aero-test';
 export const AERO_SETTINGS_STORAGE_KEY = 'trindade.aero.integration.v1';
 export const AERO_PENDING_SYNC_STORAGE_KEY = 'trindade.aero.pending-sync.v1';
 export const AERO_INTEGRATION_USERNAME = 'wilkin';
-export const AERO_DEFAULT_SHORTCUT_NAME = 'Aero32 Estoque';
 
 /**
- * The second shortcut: the one that proves the connection instead of sending an entry.
+ * The one shortcut: a blind HTTP proxy that posts whatever envelope the page hands it.
  *
- * It exists because the browser cannot reach a plain-HTTP WebService from an HTTPS page, and the button
- * that says "test" has to test with the only instrument that can. Named here so the dialog and the deep
- * link cannot drift apart.
+ * The factory used to need two shortcuts -- one for the entry, one that only proved the connection -- and the
+ * person installing them had to build each recipe by hand. One bridge that carries `{ url, auth, body,
+ * callback }` covers the entry, the stock exit, the movement query and the connection test, so only one thing
+ * is ever installed and the iPhone never has to be edited again when a credential or an address changes.
+ *
+ * It exists at all because the browser cannot reach a plain-HTTP WebService from an HTTPS page: the bridge is
+ * the only instrument on the phone that can, and the envelope is what lets it stay ignorant of the business.
  */
+export const AERO_DEFAULT_BRIDGE_SHORTCUT_NAME = 'Aero32 Bridge';
+
+/**
+ * The names the split design used, kept only as the key of the settings migration.
+ *
+ * A phone that stored them gets {@link AERO_DEFAULT_BRIDGE_SHORTCUT_NAME} instead, because those shortcuts no
+ * longer exist in the factory's phone.
+ */
+export const AERO_DEFAULT_SHORTCUT_NAME = 'Aero32 Estoque';
+
+/** @deprecated The test shortcut is the bridge: kept as a migration key only. */
 export const AERO_DEFAULT_TEST_SHORTCUT_NAME = 'Aero32 Prueba';
 export const AERO_TEST_TIMEOUT_MS = 8000;
 
@@ -30,6 +44,14 @@ export const AERO_TEST_TIMEOUT_MS = 8000;
  * for three things instead of five.
  */
 export const AERO_ENTRY_SERIES = 'APL';
+
+/**
+ * The series a stock exit carries, and the only one the ERP will ever get.
+ *
+ * `PED_SER` is `APL` in the Delphi binary of `base.apk` for the same reason as the entry series: it is a fact
+ * about the company's system, not a decision the operator makes at the counter.
+ */
+export const AERO_EXIT_SERIES = 'APL';
 
 /** Launches never travel per box: the factory counts boxes, the ERP receives units. */
 export const AERO_QUANTITY_UNIT = 'UN';
@@ -69,8 +91,8 @@ export const DEFAULT_AERO_SETTINGS: AeroSettings = {
   username: '',
   password: '',
   userCode: null,
-  shortcutName: AERO_DEFAULT_SHORTCUT_NAME,
-  testShortcutName: AERO_DEFAULT_TEST_SHORTCUT_NAME,
+  shortcutName: AERO_DEFAULT_BRIDGE_SHORTCUT_NAME,
+  testShortcutName: AERO_DEFAULT_BRIDGE_SHORTCUT_NAME,
   syncEnabled: false,
   lastSyncAt: null,
 };
@@ -92,6 +114,19 @@ export function isAeroAllowed(
 }
 
 export const isAeroIntegrationOwner = isAeroAllowed;
+
+/**
+ * Resolves a stored shortcut name, migrating the ones the split design wrote.
+ *
+ * The page used to trigger two shortcuts that the factory no longer has on its phone. A stored name that is
+ * exactly one of those legacy defaults is not a choice the operator made, so it becomes the bridge; any other
+ * name was typed on purpose and survives verbatim.
+ */
+function aeroShortcutName(parsed: unknown, legacyDefault: string): string {
+  const name = typeof parsed === 'string' && parsed.trim() ? parsed.trim() : '';
+  if (!name || name === legacyDefault) return AERO_DEFAULT_BRIDGE_SHORTCUT_NAME;
+  return name;
+}
 
 /**
  * Loads company WebService settings from local storage, merging with defaults.
@@ -119,14 +154,8 @@ export function loadAeroSettings(storage?: Pick<Storage, 'getItem'> | StorageLik
       username: typeof parsed.username === 'string' ? parsed.username : DEFAULT_AERO_SETTINGS.username,
       password: typeof parsed.password === 'string' ? parsed.password : DEFAULT_AERO_SETTINGS.password,
       userCode,
-      shortcutName:
-        typeof parsed.shortcutName === 'string' && parsed.shortcutName.trim()
-          ? parsed.shortcutName
-          : DEFAULT_AERO_SETTINGS.shortcutName,
-      testShortcutName:
-        typeof parsed.testShortcutName === 'string' && parsed.testShortcutName.trim()
-          ? parsed.testShortcutName
-          : DEFAULT_AERO_SETTINGS.testShortcutName,
+      shortcutName: aeroShortcutName(parsed.shortcutName, AERO_DEFAULT_SHORTCUT_NAME),
+      testShortcutName: aeroShortcutName(parsed.testShortcutName, AERO_DEFAULT_TEST_SHORTCUT_NAME),
       syncEnabled:
         typeof parsed.syncEnabled === 'boolean' ? parsed.syncEnabled : DEFAULT_AERO_SETTINGS.syncEnabled,
       lastSyncAt: typeof parsed.lastSyncAt === 'string' ? parsed.lastSyncAt : null,
@@ -321,6 +350,16 @@ export function formatAeroQuantity(quantity: number | null | undefined): number 
 }
 
 /**
+ * Renders a date as the `YYYY-MM-DD` the ERP reads, in one place.
+ *
+ * A `Date` is formatted in UTC by `toISOString`, which is what the launch already sends; a string is kept as
+ * written, trimmed to the date part so an ISO timestamp never leaks its time into the payload.
+ */
+function aeroDateOnly(value: Date | string): string {
+  return value instanceof Date ? value.toISOString().slice(0, 10) : String(value).trim().slice(0, 10);
+}
+
+/**
  * Formats CST item code for Aero32 / Firebird ERP. Defaults to '000' (Tributada integralmente).
  */
 export function formatAeroCst(cst: string | null | undefined): string {
@@ -376,10 +415,7 @@ export function buildEntradaItemPayload(args: {
   /** Tax situation code (CST). Defaults to {@link AERO_DEFAULT_CST} ('000'). */
   productCst?: string | null;
 }): AeroEntryPayload {
-  const dateStr =
-    args.entryDate instanceof Date
-      ? args.entryDate.toISOString().slice(0, 10)
-      : String(args.entryDate).trim().slice(0, 10);
+  const dateStr = aeroDateOnly(args.entryDate);
   const obs =
     args.observation && args.observation.trim()
       ? args.observation.trim()
@@ -427,9 +463,229 @@ export function buildAeroEntryPayload(args: {
   });
 }
 
+export interface AeroSaidaPayload {
+  PRO_COD: string;
+  PRO_DES: string;
+  PRO_QTD: number;
+  PED_DTA: string;
+  PED_USU: number | string;
+  PED_SER: string;
+  PED_DTANOT: string;
+  PED_OBS: string;
+  LOTES: unknown[];
+}
+
+/**
+ * Constructs the exact JSON payload expected by POST /saidasitem in Aero32 ERP.
+ *
+ * Property order matches docs/registro-integracion-aero-webservice.md §2.4, which was recovered from
+ * `libso.so` and confirmed against the Delphi client. A stock exit is not a mirror of the entry: the header
+ * fields carry `PED_*` prefixes, there is no `PED_DTMOVI`, and the item carries no `PRO_CST`, because the
+ * Firebird trigger that demands the CST hangs off the entry detail table and not off the order.
+ */
+export function buildSaidaItemPayload(args: {
+  productCode: string;
+  productName: string;
+  quantity: number;
+  exitDate: Date | string;
+  /** The ERP operator id or username; anything unusable falls back to {@link AERO_FALLBACK_USER_CODE}. */
+  userCode?: string | number | null;
+  /** Only for a caller that must quote a series: the ERP exit always carries {@link AERO_EXIT_SERIES}. */
+  exitSeries?: string;
+  observation?: string | null;
+}): AeroSaidaPayload {
+  const dateStr = aeroDateOnly(args.exitDate);
+  const obs =
+    args.observation && args.observation.trim()
+      ? args.observation.trim()
+      : 'Saida de massas via Trindade';
+
+  return {
+    PRO_COD: formatAeroProductCode(args.productCode),
+    PRO_DES: args.productName,
+    PRO_QTD: formatAeroQuantity(args.quantity),
+    PED_DTA: dateStr,
+    PED_USU: aeroUserCode(args.userCode),
+    PED_SER: args.exitSeries ?? AERO_EXIT_SERIES,
+    PED_DTANOT: dateStr,
+    PED_OBS: obs,
+    LOTES: [],
+  };
+}
+
+export interface AeroMovimentoPayload {
+  CODFOR: null;
+  NOMUSU: string;
+  CODPRO: string | null;
+  DTINI: string;
+  DTFIM: string;
+  ENTSAI: 'E' | 'S' | null;
+}
+
+/**
+ * Constructs the exact JSON payload expected by POST /movimentoitem in Aero32 ERP.
+ *
+ * Property order matches docs/registro-integracion-aero-webservice.md §2.5. The query is the ERP's own answer
+ * to "what did this operator actually record?", so the filters it leaves open it leaves explicitly null rather
+ * than absent: `CODFOR` is always null, `CODPRO` is null when every product is asked for, and `ENTSAI` is null
+ * when both sides of the movement are wanted.
+ */
+export function buildMovimentoItemPayload(args: {
+  userName: string;
+  startDate: Date | string;
+  endDate?: Date | string | null;
+  productCode?: string | number | null;
+  entrySaida?: 'E' | 'S' | null;
+}): AeroMovimentoPayload {
+  const start = aeroDateOnly(args.startDate);
+  const code = args.productCode === undefined || args.productCode === null ? '' : String(args.productCode).trim();
+
+  return {
+    CODFOR: null,
+    NOMUSU: String(args.userName ?? '').trim().toUpperCase(),
+    CODPRO: code ? formatAeroProductCode(code) : null,
+    DTINI: start,
+    DTFIM: args.endDate === undefined || args.endDate === null ? start : aeroDateOnly(args.endDate),
+    ENTSAI: args.entrySaida ?? null,
+  };
+}
+
+/**
+ * What the bridge can be asked to do, one word each.
+ *
+ * The word travels in the callback query string and in the envelope's `url`, so it is also the name the page
+ * uses to decide what a returning phone means.
+ */
+export type AeroBridgeAction = 'entrada' | 'saida' | 'movimentos' | 'test';
+
+/**
+ * The one thing the bridge shortcut receives: where to post, who it is, what to send and where to come back.
+ *
+ * `body` is a string on purpose. A dictionary value dropped into the phone's "Request Body: Text" field is
+ * not re-serialised as JSON -- Shortcuts renders it as a property list -- so an object here would produce a
+ * body the ERP refuses while the header still claimed `application/json`. The page serialises it before the
+ * phone ever sees it.
+ */
+export interface AeroBridgeEnvelope {
+  url: string;
+  method: 'POST';
+  headers: { Authorization: string; 'Content-Type': string; Accept: string };
+  body: string;
+  callback: string;
+}
+
+/**
+ * Builds the envelope the bridge posts, credentials included.
+ *
+ * The header travels in the envelope rather than inside the shortcut ("opción B"): the factory changes a
+ * password in the web panel and the iPhone keeps working without editing anything. The cost is two more
+ * dictionary reads on the phone, which is cheaper than a shortcut nobody can update.
+ */
+export function buildAeroBridgeEnvelope(args: {
+  wsUrl: string;
+  username: string;
+  password: string;
+  /** The endpoint path the bridge posts to, such as `saidasitem` or `usuarios/`. */
+  endpoint: string;
+  /** Serialised into the envelope's `body`; never handed to the phone as a dictionary. */
+  payload: unknown;
+  /** Where the bridge opens once it is done, with the data slot left open. */
+  callbackUrl: string;
+}): AeroBridgeEnvelope {
+  return {
+    url: aeroEndpoint(args.wsUrl, args.endpoint),
+    method: 'POST',
+    headers: {
+      Authorization: basicAuthHeader(args.username, args.password),
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify(args.payload),
+    callback: args.callbackUrl,
+  };
+}
+
+/**
+ * Builds the deep link that runs the bridge, handing it the whole envelope as one text input.
+ */
+export function buildAeroBridgeTriggerUrl(args: { name: string; envelope: AeroBridgeEnvelope }): string {
+  return aeroShortcutTriggerUrl({ name: args.name, payload: args.envelope });
+}
+
+/**
+ * The callback the bridge opens, with the slot the ERP answer is appended to.
+ *
+ * One prefix per action, all on the same page: the phone appends whatever the ERP answered, URL-encoded, and
+ * the page reads it back as `aero_action` plus `aero_data`.
+ */
+export function aeroBridgeCallbackPrefix(args: {
+  origin: string;
+  basePath?: string;
+  action: AeroBridgeAction;
+}): string {
+  return `${aeroLaunchPageUrl(args)}?aero_action=${args.action}&aero_data=`;
+}
+
+export interface AeroBridgeShortcutRecipe {
+  /** The one shortcut the phone must have installed. */
+  name: string;
+  /** The four dictionary keys every action reads, in the order they are built. */
+  keys: { url: string; auth: string; body: string; callback: string };
+  /** What the POST action must declare it is sending. */
+  contentType: string;
+  /** What the POST action must declare it accepts, the same one every ERP call carries. */
+  accept: string;
+  /** The header value the page now puts in each envelope, quoted so the panel can show it. */
+  authorization: string;
+  /** How many actions the recipe really takes on the phone: four reads, one POST, one encode, one open. */
+  actionCount: number;
+  /** The endpoints the one bridge can reach, so the dialog never understates what it covers. */
+  endpoints: Record<AeroBridgeAction, string>;
+  /** A ready envelope for the connection test, the only action that needs no launch data. */
+  sampleEnvelope: AeroBridgeEnvelope;
+}
+
+/**
+ * The bridge recipe, in the shape the dialog copies it.
+ *
+ * Counted honestly: getting the dictionary out of the shortcut input, four "get dictionary value" reads (url,
+ * auth, body, callback), the POST, the URL encode of the answer and the open. Seven actions is what the phone
+ * shows for the reduced variant; eight is what "opción B" costs, and the panel says eight.
+ */
+export function aeroBridgeShortcutRecipe(args: {
+  wsUrl: string;
+  username: string;
+  password: string;
+  origin: string;
+  basePath?: string;
+}): AeroBridgeShortcutRecipe {
+  return {
+    name: AERO_DEFAULT_BRIDGE_SHORTCUT_NAME,
+    keys: { url: 'url', auth: 'auth', body: 'body', callback: 'callback' },
+    contentType: 'application/json',
+    accept: 'application/json',
+    authorization: basicAuthHeader(args.username, args.password),
+    actionCount: 8,
+    endpoints: {
+      entrada: aeroEndpoint(args.wsUrl, 'entradasitem'),
+      saida: aeroEndpoint(args.wsUrl, 'saidasitem'),
+      movimentos: aeroEndpoint(args.wsUrl, 'movimentoitem'),
+      test: aeroEndpoint(args.wsUrl, 'usuarios/'),
+    },
+    sampleEnvelope: buildAeroBridgeEnvelope({
+      wsUrl: args.wsUrl,
+      username: args.username,
+      password: args.password,
+      endpoint: 'usuarios/',
+      payload: {},
+      callbackUrl: aeroBridgeCallbackPrefix({ origin: args.origin, basePath: args.basePath, action: 'test' }),
+    }),
+  };
+}
+
 /**
  * Builds the deep link that runs the shortcut, handing it one string: the entry payload.
- *
+ * *
  * What the shortcut receives is the exact request body for `/entradasitem`, not a transport envelope.
  * That is a deliberate reduction of what the person installing it has to build on the phone. A payload
  * wrapped in `{ url, authorization, body }` forces three "get dictionary value" actions before the POST
@@ -506,24 +762,61 @@ export function aeroCallbackUrl(args: {
 }
 
 /**
- * What the phone brought back, in the two shapes this integration produces.
+ * What the phone brought back, in the shapes this integration produces.
+ *
+ * `bridge` is the unified one; `test` and `sync` are the two the split design produced and are still read so a
+ * phone that has not rebuilt its shortcut keeps working for a while.
  */
 export type AeroCallbackResult =
-  | { kind: 'sync'; status: 'ok' | 'error'; message: string | null }
-  | { kind: 'test'; verdict: AeroTestVerdict; raw: string };
+  | { kind: 'bridge'; action: AeroBridgeAction; data: unknown; raw: string }
+  | { kind: 'test'; verdict: AeroTestVerdict; raw: string }
+  | { kind: 'sync'; status: 'ok' | 'error'; message: string | null };
+
+/** The words the bridge understands, and the only ones a callback may carry. */
+const AERO_BRIDGE_ACTIONS: readonly AeroBridgeAction[] = ['entrada', 'saida', 'movimentos', 'test'];
+
+function isAeroBridgeAction(value: string): value is AeroBridgeAction {
+  return (AERO_BRIDGE_ACTIONS as readonly string[]).includes(value);
+}
+
+/**
+ * Parses the ERP answer the bridge appended to the callback, keeping the text exactly as it arrived.
+ *
+ * A body that is not JSON -- a truncated URL, an HTML error page, nothing at all -- becomes `null` instead of
+ * throwing: the page still has to say what came back, and the raw text is what the audit line records.
+ */
+function readAeroBridgeData(raw: string): unknown {
+  if (!raw.trim()) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Parses query parameters returning from the iOS shortcut callback.
  *
- * Two callbacks share one page: the launch, which says whether the entry reached the ERP, and the
- * connection test, which carries the `success` field of `/usuarios/` the shortcut read for us. The raw
- * token travels with the verdict so the audit line can show what actually came back.
+ * Three callbacks share one page: the bridge, which brings the ERP's answer for one action; the connection
+ * test, which carries the `success` field of `/usuarios/` the phone read for us, either as the raw verdict it
+ * used to pass or as the whole body the bridge now brings; and the legacy sync status. The raw token travels
+ * with the verdict so the audit line can show what actually came back.
  */
 export function parseAeroCallback(search: string): AeroCallbackResult | null {
   if (!search) return null;
   const queryString = search.startsWith('?') ? search.slice(1) : search;
   if (!queryString) return null;
   const params = new URLSearchParams(queryString);
+
+  const action = params.get('aero_action');
+  if (action !== null && isAeroBridgeAction(action)) {
+    const raw = params.get('aero_data') ?? '';
+    const data = readAeroBridgeData(raw);
+    if (action === 'test') {
+      return { kind: 'test', verdict: readAeroTestResult(data).ok ? 'ok' : 'error', raw };
+    }
+    return { kind: 'bridge', action, data, raw };
+  }
 
   const testToken = params.get('aero_test');
   if (testToken !== null) {
@@ -539,6 +832,27 @@ export function parseAeroCallback(search: string): AeroCallbackResult | null {
     status,
     message: params.get('aero_msg'),
   };
+}
+
+/**
+ * Turns the ERP's answer to a stock write into the two outcomes the launch page acts on.
+ *
+ * A confirmation is only a confirmation when the ERP said `success: true`: an unreadable body, a missing field
+ * or a message that is not text all leave the launch exactly where it was, instead of marking it synced.
+ */
+export function readAeroBridgeResult(data: unknown): { status: 'ok' | 'error'; message: string | null } {
+  if (typeof data !== 'object' || data === null || Array.isArray(data)) {
+    return { status: 'error', message: null };
+  }
+  const record = data as Record<string, unknown>;
+  if (record.success !== true) {
+    return { status: 'error', message: aeroBridgeMessage(record) };
+  }
+  return { status: 'ok', message: aeroBridgeMessage(record) };
+}
+
+function aeroBridgeMessage(record: Record<string, unknown>): string | null {
+  return typeof record.message === 'string' && record.message.trim() ? record.message.trim() : null;
 }
 
 /**

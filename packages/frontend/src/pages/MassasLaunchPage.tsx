@@ -396,6 +396,11 @@ export function MassasLaunchPage() {
       return;
     }
 
+    if (parsed.kind !== 'sync') {
+      // A bridge answer is handled by its own branch; nothing here may read it as a legacy sync status.
+      return;
+    }
+
     const queue = readAeroQueue();
     const destination = aeroDestination();
 
