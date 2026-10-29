@@ -37,6 +37,31 @@ function insertUser(db: Database.Database, username: string): number {
   );
 }
 
+/**
+ * Build the revision 7 shape: `aero_movements` keyed by `(movement_date, ent_lan)` only.
+ *
+ * That key came from reading one seat as one product. A document that carries several products under
+ * the same `ENT_LAN` collapsed into a single row, so revision 8 rekeys the table.
+ */
+function makeRevisionSevenShape(db: Database.Database): void {
+  db.exec('DROP TABLE aero_movements');
+  db.exec(`CREATE TABLE aero_movements (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    movement_date   TEXT NOT NULL,
+    ent_lan         INTEGER NOT NULL,
+    product_code    TEXT NOT NULL,
+    product_desc    TEXT NOT NULL,
+    quantity        REAL NOT NULL,
+    entry_date      TEXT NOT NULL,
+    operator_name   TEXT NOT NULL,
+    movement_type   TEXT NOT NULL CHECK (movement_type IN ('E', 'S')),
+    synced_at       TEXT NOT NULL,
+    UNIQUE(movement_date, ent_lan)
+  )`);
+  db.exec('CREATE INDEX idx_aero_movements_date ON aero_movements(movement_date)');
+  db.pragma('user_version = 7');
+}
+
 /** Replace report_temperatures with the pre-`reading_index` shape it had before versioning. */function makeLegacyShape(db: Database.Database): void {
   db.pragma('foreign_keys = OFF');
   try {
@@ -390,7 +415,7 @@ describe('schema migration', () => {
     db.close();
   });
 
-  it('creates aero_movements for a revision 6 database and reaches revision 7', () => {
+  it('creates aero_movements for a revision 6 database and reaches the supported revision', () => {
     const path = join(fixtureRoot(), 'revision-six.db');
     const build = new Database(path);
     build.exec(schema);
@@ -416,6 +441,54 @@ describe('schema migration', () => {
     // Creating a table rewrites nothing: the seats are the only new thing, and an empty table is
     // the correct starting point because the ERP is the authority for them.
     assert.deepEqual(db.prepare('SELECT COUNT(*) AS n FROM aero_movements').get(), { n: 0 });
+    db.close();
+  });
+
+  it('rekeys aero_movements so one seat can carry several line items (revision 8)', () => {
+    const path = join(fixtureRoot(), 'revision-seven.db');
+    const build = new Database(path);
+    build.exec(schema);
+    build.exec(seed);
+    makeRevisionSevenShape(build);
+    build
+      .prepare(
+        `INSERT INTO aero_movements
+           (movement_date, ent_lan, product_code, product_desc, quantity, entry_date, operator_name, movement_type, synced_at)
+         VALUES ('2026-10-29', 35911, '001774', 'CAIXA DE PAPELAO PEQUENA MISTA', 3606, '2026-10-29', 'VIVIANE', 'E', '2026-10-29T18:00:00.000Z')`,
+      )
+      .run();
+    build.close();
+
+    const db = new Database(path);
+    assert.equal(readSchemaReport(db).version, 7);
+    const result = migrateDatabase(db);
+    assert.equal(result.outcome, 'migrated');
+    assert.equal(result.from, 7);
+    assert.equal(result.to, SCHEMA_VERSION);
+
+    // The one seat the plant had already mirrored survives the rebuild untouched.
+    assert.deepEqual(db.prepare('SELECT ent_lan, product_code, quantity FROM aero_movements').all(), [
+      { ent_lan: 35911, product_code: '001774', quantity: 3606 },
+    ]);
+
+    // A document with two products now keeps both lines of the same seat instead of collapsing them.
+    db.prepare(
+      `INSERT INTO aero_movements
+         (movement_date, ent_lan, product_code, product_desc, quantity, entry_date, operator_name, movement_type, synced_at)
+       VALUES ('2026-10-29', 35911, '000084', 'MASSA PARA PASTEL DISCO 500G', 500, '2026-10-29', 'VIVIANE', 'E', '2026-10-29T18:00:00.000Z')`,
+    ).run();
+    assert.equal(db.prepare('SELECT COUNT(*) AS n FROM aero_movements').get<{ n: number }>()!.n, 2);
+
+    // The key is the seat plus the product: the same line stored twice is still refused.
+    assert.throws(() =>
+      db
+        .prepare(
+          `INSERT INTO aero_movements
+             (movement_date, ent_lan, product_code, product_desc, quantity, entry_date, operator_name, movement_type, synced_at)
+           VALUES ('2026-10-29', 35911, '001774', 'CAIXA DE PAPELAO PEQUENA MISTA', 3606, '2026-10-29', 'VIVIANE', 'E', '2026-10-29T18:05:00.000Z')`,
+        )
+        .run(),
+    );
     db.close();
   });
 

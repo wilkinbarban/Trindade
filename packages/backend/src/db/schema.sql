@@ -259,6 +259,8 @@ CREATE INDEX IF NOT EXISTS idx_massa_launches_date ON massa_launches(launch_date
 
 -- Revision 7: the company ERP's movement seats, mirrored so the plant reads one snapshot.
 -- The ERP is the authority for ENT_LAN; this table never edits it, only copies what the bridge brought.
+-- Revision 8 rekeys it: a purchase document is one ENT_LAN with one line per product, so the seat alone
+-- is not unique and the product completes the key.
 CREATE TABLE IF NOT EXISTS aero_movements (
   id              INTEGER PRIMARY KEY AUTOINCREMENT,
   movement_date   TEXT NOT NULL,
@@ -270,7 +272,7 @@ CREATE TABLE IF NOT EXISTS aero_movements (
   operator_name   TEXT NOT NULL,
   movement_type   TEXT NOT NULL CHECK (movement_type IN ('E', 'S')),
   synced_at       TEXT NOT NULL,
-  UNIQUE(movement_date, ent_lan)
+  UNIQUE(movement_date, ent_lan, product_code)
 );
 CREATE INDEX IF NOT EXISTS idx_aero_movements_date ON aero_movements(movement_date);
 

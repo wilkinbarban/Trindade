@@ -174,6 +174,58 @@ describe('Aero movements routes', () => {
     assert.equal(body.movements[0].quantity, 120);
   });
 
+  it('keeps every line item of one seat when the document carries several products', async () => {
+    // A purchase document is one `ENT_LAN` with one line per product. Reading the seat as one product
+    // lost every line but the last, so the mirror stores the seat plus the product.
+    const stored = await app.inject({
+      method: 'POST',
+      url: url(),
+      headers: { authorization: `Bearer ${workerToken}` },
+      payload: {
+        date: '2026-10-31',
+        movements: [
+          {
+            ...seat,
+            ent_lan: 35911,
+            product_code: '001774',
+            product_desc: 'CAIXA DE PAPELAO PEQUENA MISTA',
+            quantity: 3606,
+            entry_date: '2026-10-31',
+            operator_name: 'VIVIANE',
+          },
+          {
+            ...seat,
+            ent_lan: 35911,
+            product_code: '000084',
+            product_desc: 'MASSA PARA PASTEL DISCO 500G',
+            quantity: 500,
+            entry_date: '2026-10-31',
+            operator_name: 'VIVIANE',
+          },
+        ],
+      },
+    });
+    assert.equal(stored.statusCode, 201);
+
+    const res = await app.inject({
+      method: 'GET',
+      url: url('2026-10-31'),
+      headers: { authorization: `Bearer ${workerToken}` },
+    });
+    const body = JSON.parse(res.body);
+    assert.deepEqual(
+      body.movements.map((movement: { ent_lan: number; product_code: string; quantity: number }) => ({
+        ent_lan: movement.ent_lan,
+        product_code: movement.product_code,
+        quantity: movement.quantity,
+      })),
+      [
+        { ent_lan: 35911, product_code: '001774', quantity: 3606 },
+        { ent_lan: 35911, product_code: '000084', quantity: 500 },
+      ],
+    );
+  });
+
   it('leaves another day untouched when one day is stamped again', async () => {
     await app.inject({
       method: 'POST',

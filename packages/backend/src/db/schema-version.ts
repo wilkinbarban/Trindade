@@ -14,11 +14,12 @@ import type Database from 'better-sqlite3';
  * - 5: adds `stock_counts`, the daily count of boxes per product.
  * - 6: adds `massa_launches`, the daily launches of massa boxes per product and user.
  * - 7: adds `aero_movements`, the company ERP's movement seats mirrored as a read-only snapshot.
+ * - 8: rekeys `aero_movements` by seat and product, because one document carries several line items.
  *
  * Databases created before versioning carry `user_version = 0` and are reported as
  * `unversioned`; nothing about them is assumed, and no startup path rewrites them.
  */
-export const SCHEMA_VERSION = 7;
+export const SCHEMA_VERSION = 8;
 
 /**
  * The tables a database created by revision 1 must contain: the baseline the

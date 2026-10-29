@@ -40,10 +40,11 @@ export function aeroMovementsTableExists(db: Database.Database): boolean {
 /**
  * Stores one day's answer, one row per ERP seat.
  *
- * `ENT_LAN` is unique per day in the ERP and the mirror never invents one, so a second sync of the same
- * day updates the seats it recognises instead of appending duplicates. Rows the snapshot no longer
- * mentions are left alone: a seat does not disappear from Aero32, and an absent one is far more likely
- * to be a partial answer than a deletion -- erasing it here would destroy the only copy the plant reads.
+ * `ENT_LAN` identifies the document, and a document carries one line per product, so the stored key is
+ * the seat plus the product. A second sync of the same day updates the lines it recognises instead of
+ * appending duplicates. Rows the snapshot no longer mentions are left alone: a seat does not disappear
+ * from Aero32, and an absent one is far more likely to be a partial answer than a deletion -- erasing it
+ * here would destroy the only copy the plant reads.
  */
 export function saveAeroMovements(
   db: Database.Database,
@@ -55,7 +56,7 @@ export function saveAeroMovements(
        (movement_date, ent_lan, product_code, product_desc, quantity, entry_date, operator_name, movement_type, synced_at)
      VALUES
        (@date, @ent_lan, @product_code, @product_desc, @quantity, @entry_date, @operator_name, @movement_type, @synced_at)
-     ON CONFLICT(movement_date, ent_lan) DO UPDATE SET
+     ON CONFLICT(movement_date, ent_lan, product_code) DO UPDATE SET
        product_code  = excluded.product_code,
        product_desc  = excluded.product_desc,
        quantity      = excluded.quantity,
@@ -93,7 +94,7 @@ export function listAeroMovements(db: Database.Database, date: string): AeroMove
       `SELECT id, ent_lan, product_code, product_desc, quantity, entry_date, operator_name, movement_type, synced_at
          FROM aero_movements
         WHERE movement_date = ?
-        ORDER BY ent_lan`,
+        ORDER BY ent_lan, id`,
     )
     .all(date) as RawAeroMovementRow[];
 
