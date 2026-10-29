@@ -12,6 +12,9 @@ import {
   type CategoryType,
   type FormState,
 } from '../components/reports/CategorySection';
+import { ReceiptsSection } from '../components/reports/ReceiptsSection';
+import { ERP_RECEIPT_CATEGORY_ID, usesErpReceipts } from '../lib/receipts';
+import { saoPauloToday } from '../lib/date';
 
 
 interface PendingPhoto {
@@ -312,6 +315,11 @@ export function ReportsPage() {
         {categories.filter((cat) => !cat.parent_category_id).map((cat) => (
           <Card key={cat.id} className="mb-6">
             <CardContent className="pt-6">
+              {cat.id === ERP_RECEIPT_CATEGORY_ID && usesErpReceipts(saoPauloToday()) ? (
+                // Recebimento já não se marca: o ERP responde pelo dia. O relatório novo nunca é de um dia
+                // anterior ao corte, porque o servidor carimba a data de hoje.
+                <ReceiptsSection date={saoPauloToday()} />
+              ) : (
               <CategorySection
                 category={cat}
                 children={categories.filter((child) => child.parent_category_id === cat.id)}
@@ -320,6 +328,7 @@ export function ReportsPage() {
                 onTemperatureChange={handleTemperatureChange}
                 onSelectedProductsChange={handleSelectedProductsChange}
               />
+              )}
             </CardContent>
           </Card>
         ))}

@@ -7,6 +7,8 @@ import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { LoadingSpinner } from '../components/ui/loading-spinner';
 import { ExportPreview } from '../components/reports/ExportPreview';
+import { ReceiptsSection } from '../components/reports/ReceiptsSection';
+import { ERP_RECEIPT_CATEGORY_ID, usesErpReceipts } from '../lib/receipts';
 
 // ---- Types ----
 
@@ -35,6 +37,7 @@ interface ReportItemDetail {
   task_name: string;
   task_name_es?: string;
   task_type: string;
+  category_id: number;
   category_name: string;
   category_name_es?: string;
   checked: boolean;
@@ -193,17 +196,26 @@ export function ReportViewPage() {
   const isSpanish = i18n.language?.startsWith('es');
 
   // Group items by category
-  const itemsByCategory = new Map<string, { displayCatName: string; items: ReportItemDetail[] }>();
+  const itemsByCategory = new Map<
+    string,
+    { categoryId: number | null; displayCatName: string; items: ReportItemDetail[] }
+  >();
   for (const item of report.items) {
     const ptCat = item.category_name || 'Geral';
     const esCat = item.category_name_es || ptCat;
     const catKey = ptCat; // stable key
     const displayCatName = isSpanish ? esCat : ptCat;
 
-    const group = itemsByCategory.get(catKey) ?? { displayCatName, items: [] };
+    const group = itemsByCategory.get(catKey) ?? { categoryId: item.category_id ?? null, displayCatName, items: [] };
     group.items.push(item);
     itemsByCategory.set(catKey, group);
-  }  return (
+  }
+
+  // Recebimento stops being a list of ticks: from the cutover day on, the day's supplies come from the
+  // mirror and the stored ticks are not shown, or they would contradict the text that was exported.
+  const erpReceipts = usesErpReceipts(report.report_date);
+
+  return (
     <div className="max-w-2xl mx-auto" data-testid="report-detail">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
@@ -230,7 +242,11 @@ export function ReportViewPage() {
       </p>
 
       {/* Items by category */}
-      {Array.from(itemsByCategory.entries()).map(([catKey, group]) => (
+      {Array.from(itemsByCategory.entries()).map(([catKey, group]) => {
+        // Recebimento is printed once, from the mirror, below every other group: a report made after the
+        // cutover stores no rows for it, so the group may not even exist.
+        if (group.categoryId === ERP_RECEIPT_CATEGORY_ID && erpReceipts) return null;
+        return (
         <Card key={catKey} className="mb-4">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold text-gray-700">
@@ -276,7 +292,16 @@ export function ReportViewPage() {
             </ul>
           </CardContent>
         </Card>
-      ))}
+        );
+      })}
+
+      {erpReceipts && (
+        <Card className="mb-4" data-testid="report-receipts-card">
+          <CardContent className="pt-6">
+            <ReceiptsSection date={report.report_date} readOnly />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Temperatures */}
       {report.temperatures.length > 0 && (

@@ -152,7 +152,20 @@
     "photoHelp": "{{count}} de {{max}} fotos selecionadas. JPEG, PNG ou WebP até 5MB.",
     "photoCountError": "Limite de {{max}} fotos por relatório atingido.",
     "photoRemove": "Remover foto",
-    "retryPhotoUpload": "Tentar enviar fotos novamente"
+    "retryPhotoUpload": "Tentar enviar fotos novamente",
+    "receiptsTitle": "Recebimento",
+    "receiptsSubtitle": "Insumos que o ERP registrou para este dia.",
+    "receiptsLoading": "Lendo o espelho do ERP…",
+    "receiptsRefresh": "Atualizar",
+    "receiptsEmpty": "Nenhum insumo recebido no dia.",
+    "receiptsPending": "Pendente de sincronização ERP.",
+    "receiptsPendingHint": "Sincronize o dia em Lançamento de Masas, aba Espelho do ERP.",
+    "receiptsUnmigrated": "Espelho do ERP indisponível. Rode a migração do banco.",
+    "receiptsError": "Não foi possível ler os insumos do dia.",
+    "receiptsSyncedAt": "Espelho de {{time}}",
+    "receiptsUnits": "{{quantity}} un",
+    "receiptsSeat": "Lançamento #{{entLan}}",
+    "receiptsOpenMassas": "Ir para Lançamento de Masas"
   },
   "loading": {
     "vehiclesError": "Não foi possível carregar os veículos.",

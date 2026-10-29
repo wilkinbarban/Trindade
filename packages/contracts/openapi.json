@@ -826,6 +826,9 @@
                     "check_normal"
                   ]
                 },
+                "category_id": {
+                  "type": "integer"
+                },
                 "category_name": {
                   "type": "string"
                 },
@@ -847,6 +850,7 @@
                 "task_name",
                 "task_name_es",
                 "task_type",
+                "category_id",
                 "category_name",
                 "category_name_es",
                 "checked"
@@ -919,6 +923,9 @@
               "check_normal"
             ]
           },
+          "category_id": {
+            "type": "integer"
+          },
           "category_name": {
             "type": "string"
           },
@@ -940,6 +947,7 @@
           "task_name",
           "task_name_es",
           "task_type",
+          "category_id",
           "category_name",
           "category_name_es",
           "checked"
@@ -2818,6 +2826,9 @@
                         "check_normal"
                       ]
                     },
+                    "category_id": {
+                      "type": "integer"
+                    },
                     "category_name": {
                       "type": "string"
                     },
@@ -2839,6 +2850,7 @@
                     "task_name",
                     "task_name_es",
                     "task_type",
+                    "category_id",
                     "category_name",
                     "category_name_es",
                     "checked"

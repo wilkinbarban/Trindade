@@ -11,6 +11,8 @@ import {
   type CategoryType,
   type FormState,
 } from '../components/reports/CategorySection';
+import { ReceiptsSection } from '../components/reports/ReceiptsSection';
+import { ERP_RECEIPT_CATEGORY_ID, usesErpReceipts } from '../lib/receipts';
 
 interface ReportDetail {
   id: number;
@@ -441,15 +443,22 @@ export function ReportEditPage() {
         {categories.filter((cat) => !cat.parent_category_id).map((cat) => (
           <Card key={cat.id} className="mb-6">
             <CardContent className="pt-6">
-              <CategorySection
-                category={cat}
-                children={categories.filter((child) => child.parent_category_id === cat.id)}
-                form={form}
-                onItemChange={handleItemChange}
-                onTemperatureChange={handleTemperatureChange}
-                onSelectedProductsChange={handleSelectedProductsChange}
-                readOnly={readOnly}
-              />
+              {cat.id === ERP_RECEIPT_CATEGORY_ID && usesErpReceipts(report?.report_date ?? '') ? (
+                // Un reporte del día del corte en adelante lee el espejo. Uno anterior conserva sus propias
+                // marcas editables: guardar el reporte reescribe sus items, y perderlas sería borrarle la
+                // historia a un turno que ya se mandó.
+                <ReceiptsSection date={report?.report_date ?? ''} readOnly />
+              ) : (
+                <CategorySection
+                  category={cat}
+                  children={categories.filter((child) => child.parent_category_id === cat.id)}
+                  form={form}
+                  onItemChange={handleItemChange}
+                  onTemperatureChange={handleTemperatureChange}
+                  onSelectedProductsChange={handleSelectedProductsChange}
+                  readOnly={readOnly}
+                />
+              )}
             </CardContent>
           </Card>
         ))}
