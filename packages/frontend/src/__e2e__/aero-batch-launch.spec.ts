@@ -1,7 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { getE2EIdentities, loginViaApi } from './auth-helpers';
-
-const API = 'http://localhost:3099/api';
+import { loginAsAeroOwner } from './aero-owner';
 
 /**
  * Three products, one trip out of the page.
@@ -16,25 +14,6 @@ const AERO_QUEUE_KEY = 'trindade.aero.queue.v1';
 
 /** A quiet weekday: every spec shares one database, so today is not guaranteed to be empty. */
 const DAY = '2026-09-16';
-
-/**
- * The integration panel belongs to one named owner: `isAeroAllowed` asks for `wilkin`, role Administrador.
- *
- * The fixture admin is a random name, so the spec creates the owner it needs. A 409 means a previous spec
- * already did, and the fixed password is the same one, so logging in works either way.
- */
-const OWNER = { username: 'wilkin', password: 'e2e-owner-password' };
-
-async function loginAsIntegrationOwner(page: Page) {
-  const identities = await getE2EIdentities(page);
-  const adminLogin = await page.request.post(`${API}/auth/login`, { data: identities.admin });
-  const token = (await adminLogin.json()).token as string;
-  await page.request.post(`${API}/admin/users`, {
-    headers: { authorization: `Bearer ${token}` },
-    data: { ...OWNER, display_name: 'Wilkin', role_id: 1 },
-  });
-  await loginViaApi(page, OWNER);
-}
 
 const SETTINGS = JSON.stringify({
   wsUrl: 'http://192.168.25.250:1453/api',
@@ -98,7 +77,7 @@ test.use({ viewport: { width: 375, height: 667 } });
 
 test.describe('a launch of many products leaves once', () => {
   test('three products travel in one envelope and come back in one dialog', async ({ page }) => {
-    await loginAsIntegrationOwner(page);
+    await loginAsAeroOwner(page);
     await openLaunchPage(page);
     await launchProducts(page, 3);
 
@@ -126,7 +105,7 @@ test.describe('a launch of many products leaves once', () => {
   });
 
   test('one refused product comes back as a warning with the retry in the operator hand', async ({ page }) => {
-    await loginAsIntegrationOwner(page);
+    await loginAsAeroOwner(page);
     await openLaunchPage(page);
     await launchProducts(page, 3, '1');
 
@@ -150,7 +129,7 @@ test.describe('a launch of many products leaves once', () => {
   });
 
   test('a phone still on the old eight actions does not open a batch dialog for one product', async ({ page }) => {
-    await loginAsIntegrationOwner(page);
+    await loginAsAeroOwner(page);
     await openLaunchPage(page);
     await launchProducts(page, 1);
 

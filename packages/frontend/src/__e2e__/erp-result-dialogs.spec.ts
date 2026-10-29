@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { getE2EIdentities, loginViaApi } from './auth-helpers';
+import { AERO_OWNER, ensureAeroOwner } from './aero-owner';
 
 /**
  * The verdicts of the two actions that leave the app.
@@ -8,7 +9,6 @@ import { getE2EIdentities, loginViaApi } from './auth-helpers';
  * that returning to the page says what happened and that the window can be closed with a thumb.
  */
 const API = 'http://localhost:3099/api';
-const OWNER_PASSWORD = 'wilkin-result-dialogs-2026';
 
 /** A movements answer shaped like the ERP's: eleven readable seats plus one the bridge could not read. */
 function movementsAnswer(success: boolean) {
@@ -75,18 +75,9 @@ test.describe('result dialogs on a phone screen', () => {
   });
 
   test('the connection test opens its own verdict window', async ({ page }) => {
-    const identities = await getE2EIdentities(page);
-
     // Only the integration owner sees the panel, so the run needs that account to exist.
-    const login = await page.request.post(`${API}/auth/login`, { data: identities.admin });
-    const token = (await login.json()).token as string;
-    const created = await page.request.post(`${API}/admin/users`, {
-      headers: { authorization: `Bearer ${token}` },
-      data: { username: 'wilkin', password: OWNER_PASSWORD, display_name: 'Wilkin', role_id: 1 },
-    });
-    expect([201, 400]).toContain(created.status());
-
-    await loginViaApi(page, { username: 'wilkin', password: OWNER_PASSWORD });
+    await ensureAeroOwner(page);
+    await loginViaApi(page, AERO_OWNER);
     await page.goto('/massas-launch');
     await expect(page.getByRole('heading', { name: 'Lançamento de Massas' })).toBeVisible();
 
