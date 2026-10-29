@@ -182,20 +182,20 @@ de claves escrita al lado: si la receta dice `headers`, el sobre tiene que traer
 
 ## Tasks
 
-- **T1** (S3, S5, S6, S11, D1, D2, D4, D7) — `aero-batch.ts`: `AERO_BATCH_MAX = 8`,
+- **T1** ✅ `7c7fe9c` (S3, S5, S6, S11, D1, D2, D4, D7) — `aero-batch.ts`: `AERO_BATCH_MAX = 8`,
   `buildAeroLaunchTrips(payloads)` (1 → `entrada` sin `bodies`; 2–8 → `entrada_lote` con `bodies` + `body` del
   primero; 9+ → tandas de 8 y el sobrante de 1 como `entrada`). Tests puros del umbral, del sobre y del tope.
-- **T2** (S3, S5, D3) — `entrada_lote` en `AeroBridgeAction`/`parseAeroCallback`; `body`/`bodies` leídos como
+- **T2** ✅ `7c7fe9c` (S3, S5, D3) — `entrada_lote` en `AeroBridgeAction`/`parseAeroCallback`; `body`/`bodies` leídos como
   textos. Tests de parseo, del objeto suelto y del array.
-- **T3** (S4, D6) — `readAeroBatchResult` y `batchSyncFeedback` (los cuatro estados y los tonos) en
+- **T3** ✅ `6bc93e5` (S4, D6) — `readAeroBatchResult` y `batchSyncFeedback` (los cuatro estados y los tonos) en
   `aero-feedback.ts`. Tests puros.
-- **T4** (S1, S2, S4) — `MassasLaunchPage`: el lanzamiento arma un sobre por lote, la cola drena por lotes y el
+- **T4** ✅ `caf7d03` (S1, S2, S4) — `MassasLaunchPage`: el lanzamiento arma un sobre por lote, la cola drena por lotes y el
   callback `entrada_lote` cierra con el modal de lote; bitácora `requested`/`result` consolidadas;
   `syncAwaiting` en productos.
-- **T5** (S4, D5) — Acción «Reenviar falhas» sobre la cola parcial, con su traducción y su test de cableado.
-- **T6** (S7, S8, S12, D8) — Diálogo del atajo: la receta de 17 acciones con la rama de lote, `keys` leyendo
+- **T5** ✅ `caf7d03` (S4, D5) — Acción «Reenviar falhas» sobre la cola parcial, con su traducción y su test de cableado.
+- **T6** ✅ `f91ce29`, `9bd154c` (S7, S8, S12, D8) — Diálogo del atajo: la receta de 17 acciones con la rama de lote, `keys` leyendo
   `headers` (opción a) con el test validando el sobre real, i18n `pt-BR`/`es`, 375 px y 44 px.
-- **T7** (S9, S10) — E2E: tres productos vuelven en un solo `aero_action=entrada_lote` con tres respuestas →
+- **T7** ✅ `38c963f`, `a42aa61` (S9, S10) — E2E: tres productos vuelven en un solo `aero_action=entrada_lote` con tres respuestas →
   modal «3 sincronizados» y una sola línea de resultado en la bitácora. Suites, typecheck, build y HTTP 200.
 
 ## Riesgos
@@ -241,3 +241,23 @@ de claves escrita al lado: si la receta dice `headers`, el sobre tiene que traer
   Comiteá el artefacto ODD (odd/tasks/lanzamiento-por-lote-aero.md) y arrancá con la implementación bajo TDD
   de las tareas T1 a T7 (aero-batch, entrada_lote, feedback consolidado, MassasLaunchPage, reintento de
   fallas y actualización de la receta en el modal). Manteneme al tanto.»
+- **L4** — Evidencia de la implementación (2026-10-29). Suites y verificación observadas, no inferidas:
+  - Frontend `npm test`: 345/345 en verde, incluidos `aero-batch.test.ts` (umbral 1/2–8/9), `aero-queue.test.ts`
+    (cola en vuelo), `aero-feedback.test.ts` (cuatro estados) y `aero-bridge-wiring.test.ts`.
+  - `npx tsc --noEmit` sin errores.
+  - Backend `npm test`: 569/569. El primer intento falló en `db/index.test.ts` porque `dist/` era viejo
+    (`spawn` de `dist/server.js`); tras `npm run build`, verde. No toca el código de este feature.
+  - Playwright completo: 69/69 sobre 375×667, incluidos `aero-batch-launch.spec.ts` (3 productos en un sobre,
+    lote parcial con «Reenviar falhas (1)», producto suelto con el camino viejo) y
+    `aero-shortcut-dialog.spec.ts` (17 pasos, cero desborde, copiar de 44 px).
+  - `docker compose up -d --build web api`: `web` y `api` healthy; `GET /` 200 y `GET /api/health` 200 en
+    `http://localhost:8085`.
+- **L5** — Dos defectos encontrados por el E2E y corregidos en `3be0eed`, ambos del mismo malentendido: la
+  cola con los productos en el teléfono. (1) `readAeroQueue` borraba una cola con `items` vacío e `inFlight`
+  lleno, así que la vuelta no sabía qué producto había fallado y un lote parcial se cerraba como completo.
+  (2) El cierre de `aero_action=entrada` drenaba `items`, vacío ahora que el producto espera en `inFlight`, y
+  el operario volvía a una pantalla sin veredicto. Un rechazo de un producto suelto ahora vuelve al frente de
+  la cola en lugar de perderse.
+- **L6** — Colisión de specs: `erp-result-dialogs` y el nuevo `aero-batch-launch` creaban `wilkin` con
+  contraseñas distintas y el segundo en correr no podía entrar al panel. Se centralizó en
+  `src/__e2e__/aero-owner.ts` (`a42aa61`). El fallo era del arnés de pruebas, no del producto.
