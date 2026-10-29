@@ -2096,10 +2096,20 @@
           "saved": {
             "type": "integer",
             "minimum": 0
+          },
+          "massas": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "insumos": {
+            "type": "integer",
+            "minimum": 0
           }
         },
         "required": [
-          "saved"
+          "saved",
+          "massas",
+          "insumos"
         ],
         "additionalProperties": false
       },

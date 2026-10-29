@@ -60,9 +60,17 @@ export const AeroMovementsListResponseSchema = z
   })
   .strict();
 
+/**
+ * What the mirror answers after storing a day.
+ *
+ * `saved` is how many lines were written; `massas` and `insumos` are the same lines split by the lens each
+ * screen counts, decided here because the catalogue lives here and the phone must not carry a copy.
+ */
 export const AeroMovementsSavedResponseSchema = z
   .object({
     saved: z.number().int().min(0),
+    massas: z.number().int().min(0),
+    insumos: z.number().int().min(0),
   })
   .strict();
 

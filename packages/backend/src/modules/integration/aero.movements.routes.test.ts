@@ -112,7 +112,7 @@ describe('Aero movements routes', () => {
       payload: { date: '2026-10-28', movements: [seat] },
     });
     assert.equal(stored.statusCode, 201);
-    assert.deepEqual(JSON.parse(stored.body), { saved: 1 });
+    assert.deepEqual(JSON.parse(stored.body), { saved: 1, massas: 1, insumos: 0 });
 
     const res = await app.inject({
       method: 'GET',
@@ -224,6 +224,42 @@ describe('Aero movements routes', () => {
         { ent_lan: 35911, product_code: '000084', quantity: 500 },
       ],
     );
+  });
+
+  it('answers the day split into the lenses each screen counts', async () => {
+    // The same snapshot feeds both screens, so the split is decided once, here, instead of being retyped
+    // by the masses page and the report with a catalogue each.
+    const massas = ['001045', '000039', '000060', '000084', '000091', '001192', '005000', '001047', '000022', '001616'];
+
+    const res = await app.inject({
+      method: 'POST',
+      url: url(),
+      headers: { authorization: `Bearer ${workerToken}` },
+      payload: {
+        date: '2026-10-31',
+        movements: [
+          ...massas.map((product_code, index) => ({
+            ...seat,
+            ent_lan: 36000 + index,
+            product_code,
+            product_desc: `MASSA ${index}`,
+            entry_date: '2026-10-31',
+          })),
+          {
+            ...seat,
+            ent_lan: 36011,
+            product_code: '001774',
+            product_desc: 'CAIXA DE PAPELAO PEQUENA MISTA',
+            quantity: 3606,
+            entry_date: '2026-10-31',
+            operator_name: 'VIVIANE',
+          },
+        ],
+      },
+    });
+
+    assert.equal(res.statusCode, 201);
+    assert.deepEqual(JSON.parse(res.body), { saved: 11, massas: 10, insumos: 1 });
   });
 
   it('leaves another day untouched when one day is stamped again', async () => {

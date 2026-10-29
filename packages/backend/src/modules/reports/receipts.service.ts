@@ -64,6 +64,40 @@ export function erpCodeKey(code: string): string {
 const PRODUCED_CODES: ReadonlySet<string> = new Set(MASSAS.map((product) => erpCodeKey(product.code)));
 
 /**
+ * The one rule both lenses share: an incoming entry is a supply when it is not a massa the plant produces.
+ *
+ * A stock exit is neither: it is the plant sending product out, so it belongs to no lens and must not
+ * inflate the count of a day that only received.
+ */
+function isSupplyReceipt(movement: Pick<AeroMovement, 'movement_type' | 'product_code'>): boolean {
+  return movement.movement_type === 'E' && !PRODUCED_CODES.has(erpCodeKey(movement.product_code));
+}
+
+/** A day's seats split by the lens each screen counts: the plant's massas, and everything it received. */
+export interface MovementLenses {
+  massas: number;
+  insumos: number;
+}
+
+/**
+ * Counts the day as each module reads it.
+ *
+ * Both screens store the whole snapshot; what changes is the lens. The masses screen only celebrates what
+ * the plant produced, and the report only counts what came in from outside -- counting all seats in both
+ * would tell the operator that eleven boxes arrived when one did.
+ */
+export function movementLenses(
+  movements: readonly Pick<AeroMovement, 'movement_type' | 'product_code'>[],
+): MovementLenses {
+  const lenses: MovementLenses = { massas: 0, insumos: 0 };
+  for (const movement of movements) {
+    if (isSupplyReceipt(movement)) lenses.insumos += 1;
+    else if (movement.movement_type === 'E') lenses.massas += 1;
+  }
+  return lenses;
+}
+
+/**
  * The incoming supplies of one day: stock entries that are not a massa the plant produces.
  *
  * A stock exit is the plant sending product out, not receiving it. A massa entry is production coming
@@ -72,8 +106,7 @@ const PRODUCED_CODES: ReadonlySet<string> = new Set(MASSAS.map((product) => erpC
  */
 export function supplyReceipts(movements: readonly AeroMovement[]): ReceiptLine[] {
   return movements
-    .filter((movement) => movement.movement_type === 'E')
-    .filter((movement) => !PRODUCED_CODES.has(erpCodeKey(movement.product_code)))
+    .filter(isSupplyReceipt)
     .map((movement) => ({
       entLan: movement.ent_lan,
       productCode: movement.product_code,

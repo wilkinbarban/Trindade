@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { after, describe, it } from 'node:test';
 import type Database from 'better-sqlite3';
 import { closeReportDatabases, setupReportsDb } from './reports-test-helper.js';
-import { dayReceipts, supplyReceipts, usesErpReceipts } from './receipts.service.js';
+import { dayReceipts, movementLenses, supplyReceipts, usesErpReceipts } from './receipts.service.js';
 import type { AeroMovement } from '../integration/aero.movements.service.js';
 
 /**
@@ -33,6 +33,34 @@ function seed(db: Database.Database, rows: readonly AeroMovement[]): void {
   );
   for (const row of rows) insert.run(row);
 }
+
+describe('movementLenses', () => {
+  // The ten codes the plant produces, as the ERP pads them, plus one supply and one exit.
+  const producidas = ['001045', '000039', '000060', '000084', '000091', '001192', '005000', '001047', '000022', '001616'];
+
+  it('counts the massas the plant produced and the supplies it received separately', () => {
+    const movements = [
+      ...producidas.map((code, index) => movement({ ent_lan: 35900 + index, product_code: code })),
+      movement({ ent_lan: 35911, product_code: '001774', product_desc: 'CAIXA DE PAPELAO PEQUENA MISTA' }),
+      movement({ ent_lan: 35912, product_code: '000084', movement_type: 'S' }),
+    ];
+
+    assert.deepEqual(movementLenses(movements), { massas: 10, insumos: 1 });
+  });
+
+  it('reports a day of supplies with no massas as zero massas, never as an empty day', () => {
+    const movements = [
+      movement({ ent_lan: 35918, product_code: '001040', product_desc: 'FARINHA DE TRIGO DIVERSAS' }),
+      movement({ ent_lan: 35919, product_code: '2108', product_desc: 'QUEIJO RALADO' }),
+    ];
+
+    assert.deepEqual(movementLenses(movements), { massas: 0, insumos: 2 });
+  });
+
+  it('treats a padded code and its catalogue form as the same product', () => {
+    assert.deepEqual(movementLenses([movement({ product_code: '84' })]), { massas: 1, insumos: 0 });
+  });
+});
 
 describe('supplyReceipts', () => {
   it('keeps an entry that is not a massa the plant produces', () => {

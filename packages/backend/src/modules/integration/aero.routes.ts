@@ -9,6 +9,7 @@ import {
   listAeroMovements,
   saveAeroMovements,
 } from './aero.movements.service.js';
+import { movementLenses } from '../reports/receipts.service.js';
 
 /**
  * The only identity the company integration exists for.
@@ -145,7 +146,10 @@ export async function aeroIntegrationRoutes(fastify: FastifyInstance) {
       }
 
       const saved = saveAeroMovements(fastify.db, parsed.data);
-      return reply.status(201).send({ saved });
+      // The day is stored whole and counted twice: each screen asks the lens it cares about, so counting
+      // here keeps the catalogue in one place instead of a copy on the phone.
+      const lenses = movementLenses(parsed.data.movements);
+      return reply.status(201).send({ saved, ...lenses });
     },
   );
 }
