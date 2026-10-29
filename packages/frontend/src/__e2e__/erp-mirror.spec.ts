@@ -21,8 +21,11 @@ test.describe('ERP mirror on a phone screen', () => {
     const token = (await login.json()).token as string;
 
     await page.goto('/massas-launch');
-    const date = await page.locator('[data-testid="massas-launch-date"]').inputValue();
-    expect(date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    // A day of its own: every spec shares one database, so "today" is not guaranteed to be empty by the
+    // time this runs. A quiet weekday carries no seats and no launches to reconcile against.
+    const date = '2026-09-14';
+    await page.locator('[data-testid="massas-launch-date"]').fill(date);
+    await expect(page.locator('[data-testid="massas-launch-date"]')).toHaveValue(date);
 
     // The two readings of the day, next to each other, both reachable with a thumb.
     const trindadeTab = page.locator('[data-testid="massas-tab-trindade"]');
@@ -63,7 +66,11 @@ test.describe('ERP mirror on a phone screen', () => {
     });
     expect(seeded.status()).toBe(201);
 
-    await page.reload();
+    // A reload loses the day the test chose, because the page opens on today; the phone's own return would
+    // carry it, so the test sets it again before reading the mirror.
+    await page.goto('/massas-launch');
+    await page.locator('[data-testid="massas-launch-date"]').fill(date);
+    await expect(page.locator('[data-testid="massas-launch-date"]')).toHaveValue(date);
     await page.locator('[data-testid="massas-tab-erp"]').click();
 
     const seat = page.locator('[data-testid="erp-seat-10542"]');
