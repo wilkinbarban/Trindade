@@ -636,11 +636,11 @@
       "batchErrorTitle": "Falló la Sincronización",
       "batchOk_one": "{{count}} lanzamiento sincronizado con el ERP para {{date}}.",
       "batchOk_other": "{{count}} lanzamientos sincronizados con el ERP para {{date}}.",
-      "batchPartial_one": "{{ok}} de {{total}} sincronizados — {{count}} falló: {{detail}}",
-      "batchPartial_other": "{{ok}} de {{total}} sincronizados — {{count}} fallaron: {{detail}}",
       "batchFailed": "Ninguno de los {{count}} lanzamientos se sincronizó: {{detail}}",
       "batchUnreadable": "No se pudo leer la respuesta del ERP. Ningún lanzamiento quedó confirmado.",
-      "batchRetry": "Reenviar fallas ({{count}})"
+      "batchRetry": "Reenviar fallas ({{count}})",
+      "batchPartial": "{{ok}} de {{total}} sincronizados · fallas: {{failed}}",
+      "batchNoDetail": "sin detalle del ERP"
     }
   },
   "moduleHelp": {

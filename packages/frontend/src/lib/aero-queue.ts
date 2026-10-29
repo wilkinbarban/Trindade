@@ -21,7 +21,16 @@ export interface AeroQueue {
   createdAt: string;
   /** `YYYY-MM-DD` launch date, carried so the log can name the ERP entry day. */
   date: string;
+  /** The products still waiting for a trip. */
   items: AeroQueueItem[];
+  /**
+   * The products already inside the envelope the phone is running right now.
+   *
+   * A batch leaves the queue before the phone leaves the page, so the return has nothing left to say which
+   * products those answers belong to. Keeping them here is what lets a partial batch put exactly the refused
+   * products back at the front instead of asking the operator to remember.
+   */
+  inFlight: AeroQueueItem[];
 }
 
 export const AERO_QUEUE_KEY = 'trindade.aero.queue.v1';
@@ -79,7 +88,8 @@ export function readAeroQueue(storage: StorageLike | null = safeStorage(), now =
     }
     const items = parsed.items.filter(isItem);
     if (items.length === 0) throw new Error('empty');
-    return { createdAt: parsed.createdAt, date: parsed.date, items };
+    const inFlight = Array.isArray(parsed.inFlight) ? parsed.inFlight.filter(isItem) : [];
+    return { createdAt: parsed.createdAt, date: parsed.date, items, inFlight };
   } catch {
     try {
       storage.removeItem(AERO_QUEUE_KEY);
@@ -106,6 +116,18 @@ export function clearAeroQueue(storage: StorageLike | null = safeStorage()): voi
   } catch {
     /* nothing to do */
   }
+}
+
+/**
+ * The products the next envelope carries, plus what stays behind.
+ *
+ * A batch is up to `size` entries; the rest keeps waiting in the queue and becomes the next trip once this
+ * one comes back. The queue is already the list of what is missing, so a long day is several envelopes, not
+ * one oversized link.
+ */
+export function takeAeroBatch(queue: AeroQueue, size: number): { batch: AeroQueueItem[]; rest: AeroQueue } {
+  const batch = queue.items.slice(0, Math.max(0, size));
+  return { batch, rest: { ...queue, items: queue.items.slice(batch.length) } };
 }
 
 /** The entry to send next, plus what remains. */

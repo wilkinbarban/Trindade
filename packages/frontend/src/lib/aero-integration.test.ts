@@ -950,6 +950,8 @@ describe('aero-integration: the bridge shortcut recipe', () => {
   it('lists the endpoints the one bridge can reach, so the dialog does not lie about them', () => {
     assert.deepEqual(recipe.endpoints, {
       entrada: 'http://192.168.25.250:1453/api/entradasitem',
+      // El lote repite la petición contra el mismo endpoint, una vez por producto.
+      entrada_lote: 'http://192.168.25.250:1453/api/entradasitem',
       saida: 'http://192.168.25.250:1453/api/saidasitem',
       movimentos: 'http://192.168.25.250:1453/api/movimentoitem',
       test: 'http://192.168.25.250:1453/api/usuarios',

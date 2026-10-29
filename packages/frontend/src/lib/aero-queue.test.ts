@@ -5,6 +5,7 @@ import {
   AERO_QUEUE_TTL_MS,
   clearAeroQueue,
   readAeroQueue,
+  takeAeroBatch,
   takeNextAeroItem,
   writeAeroQueue,
   type AeroQueue,
@@ -30,6 +31,7 @@ const queue: AeroQueue = {
     { productCode: '5000', productName: 'MASSA ROLO 1KG', quantity: 20 },
     { productCode: '1045', productName: 'CASEIRA', quantity: 8 },
   ],
+  inFlight: [],
 };
 
 describe('aero queue', () => {
@@ -78,5 +80,49 @@ describe('aero queue', () => {
     const second = takeNextAeroItem(first!.rest);
     assert.equal(second?.item.productCode, '1045');
     assert.equal(takeNextAeroItem(second!.rest), null, 'an exhausted queue has nothing to hand over');
+  });
+
+
+  it('hands the whole batch at once, so the phone leaves once for three products', () => {
+    const nine = {
+      ...queue,
+      items: Array.from({ length: 9 }, (_, index) => ({
+        productCode: String(index + 1),
+        productName: `PRODUTO ${index + 1}`,
+        quantity: 1,
+      })),
+    };
+
+    const first = takeAeroBatch(nine, 8);
+
+    assert.equal(first.batch.length, 8);
+    assert.deepEqual(first.rest.items.map((item) => item.productCode), ['9']);
+    // El resto queda en la cola: es el segundo viaje, no parte del primero.
+    assert.deepEqual(first.batch.map((item) => item.productCode), ['1', '2', '3', '4', '5', '6', '7', '8']);
+  });
+
+  it('hands a short queue whole instead of padding the batch', () => {
+    const taken = takeAeroBatch(queue, 8);
+
+    assert.deepEqual(taken.batch.map((item) => item.productCode), ['5000', '1045']);
+    assert.deepEqual(taken.rest.items, []);
+  });
+
+  it('remembers which products are already in the phone, so the return can name the failures', () => {
+    const inFlight = queue.items.slice(0, 1);
+    const storage = memoryStorage({ [AERO_QUEUE_KEY]: JSON.stringify({ ...queue, inFlight }) });
+
+    const read = readAeroQueue(storage, NOW);
+
+    assert.deepEqual(read?.inFlight, inFlight);
+    assert.deepEqual(read?.items, queue.items);
+  });
+
+  it('drops an in-flight list that is not a list of entries', () => {
+    const storage = memoryStorage({
+      [AERO_QUEUE_KEY]: JSON.stringify({ ...queue, inFlight: [{ productCode: '5000' }] }),
+    });
+
+    assert.deepEqual(readAeroQueue(storage, NOW)?.inFlight, []);
   });
 });

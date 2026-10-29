@@ -122,10 +122,14 @@ export function receiptsSyncFeedback(result: {
  * Whether the launch result should point at the mirror.
  *
  * Only when the company actually confirmed the entry: telling the operator to look for a seat that never
- * travelled would send them to an empty tab and make the whole mirror look broken.
+ * travelled would send them to an empty tab and make the whole mirror look broken. A partial batch is the
+ * same promise for the products that did make it, so the warning tone still points at the mirror.
  */
-export function launchMirrorHint(result: { type: 'success' | 'error'; sentToErp?: boolean }): boolean {
-  return result.type === 'success' && result.sentToErp === true;
+export function launchMirrorHint(result: {
+  type: 'success' | 'warn' | 'error';
+  sentToErp?: boolean;
+}): boolean {
+  return result.type !== 'error' && result.sentToErp === true;
 }
 
 /** The colour of the connection test, including the trip that came back without a verdict. */

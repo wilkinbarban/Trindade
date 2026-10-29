@@ -46,11 +46,18 @@ import {
   loadAeroPendingTest,
   type AeroTestOutcome,
 } from '../lib/aero-test';
-import { clearAeroQueue, readAeroQueue, takeNextAeroItem, writeAeroQueue, type AeroQueue } from '../lib/aero-queue';
+import { clearAeroQueue, readAeroQueue, takeAeroBatch, writeAeroQueue, type AeroQueue } from '../lib/aero-queue';
+import { AERO_BATCH_MAX, buildAeroLaunchTrips } from '../lib/aero-batch';
 import { AeroIntegrationPanel } from './massas/AeroIntegrationPanel';
 import { formatDateLabel } from '../lib/date';
 import { AeroResultDialog } from './massas/AeroResultDialog';
-import { launchMirrorHint, movementsSyncFeedback, type AeroSyncFeedback } from '../lib/aero-feedback';
+import {
+  batchSyncFeedback,
+  launchMirrorHint,
+  movementsSyncFeedback,
+  readAeroBatchResult,
+  type AeroSyncFeedback,
+} from '../lib/aero-feedback';
 import {
   aeroMovementsEnvelope,
   readAeroMovementsSnapshot,
@@ -74,10 +81,14 @@ export function MassasLaunchPage() {
     Array<{ product_code: string; name: string; boxes: number; units: number }>
   >([]);
   const [resultModal, setResultModal] = useState<{
-    type: 'success' | 'error';
+    type: 'success' | 'warn' | 'error';
+    /** Already-translated title, for the dialogs whose sentence is not one of the two generic ones. */
+    title?: string;
     message: string;
     /** El lanzamiento viajó a la empresa: el espejo ya tiene un asiento nuevo que mostrar. */
     sentToErp?: boolean;
+    /** Products the ERP refused or never answered: the operator can send exactly those again. */
+    retryCount?: number;
   } | null>(null);
 
   // Block 2 state: inline editing of an individual launch
@@ -97,7 +108,9 @@ export function MassasLaunchPage() {
   const [syncToErp, setSyncToErp] = useState(() => aeroSettings.syncEnabled && aeroSettingsReady(aeroSettings));
   const [syncAwaiting, setSyncAwaiting] = useState<{ date: string; remaining: number } | null>(() => {
     const queue = readAeroQueue();
-    return queue ? { date: queue.date, remaining: queue.items.length } : null;
+    // The indicator counts products, not trips: "3 pendentes" is what the operator launched, and after a
+    // partial batch it says how many are still owed to the company.
+    return queue ? { date: queue.date, remaining: queue.items.length + queue.inFlight.length } : null;
   });
   const aeroCallbackHandled = useRef(false);
 
@@ -260,7 +273,7 @@ export function MassasLaunchPage() {
       await load(date);
 
       if (syncable) {
-        const queue: AeroQueue = { createdAt: new Date().toISOString(), date, items: requested };
+        const queue: AeroQueue = { createdAt: new Date().toISOString(), date, items: requested, inFlight: [] };
         writeAeroQueue(queue);
         triggerAeroSync(queue);
         return;
@@ -296,57 +309,87 @@ export function MassasLaunchPage() {
   };
 
   /**
-   * Hands the next pending entry to the Atajos app.
+   * Hands the next batch of pending entries to the Atajos app.
    *
-   * One product per request is a contract detail of `/entradasitem`, and the page can only open one URL,
-   * so the queue drains one entry per return trip. The navigation happens last: everything that must
-   * survive the trip -- the log line, the remaining queue -- is written before Safari leaves.
+   * One envelope per trip, and one trip per trip: a launch of three products used to be three returns to
+   * Safari, and the operator never knew whether the second one had arrived. Up to `AERO_BATCH_MAX` products
+   * now travel together and the shortcut repeats the request on the phone. What does not fit keeps waiting in
+   * the queue and becomes the next envelope.
+   *
+   * The navigation happens last: everything that must survive the trip -- the log line, the remaining queue,
+   * which products are in the phone -- is written before Safari leaves.
    */
   const triggerAeroSync = useCallback(
     (queue: AeroQueue) => {
-      const next = takeNextAeroItem(queue);
-      if (!next) {
+      const taken = takeAeroBatch(queue, AERO_BATCH_MAX);
+      if (taken.batch.length === 0) {
         clearAeroQueue();
         setSyncAwaiting(null);
         return;
       }
-      writeAeroQueue(next.rest);
-      setSyncAwaiting({ date: queue.date, remaining: next.rest.items.length });
+
+      // The products travel with the queue so the return can name the failures instead of asking the
+      // operator which of the three it was.
+      writeAeroQueue({ ...taken.rest, inFlight: taken.batch });
+      setSyncAwaiting({ date: queue.date, remaining: taken.batch.length + taken.rest.items.length });
 
       // `ENT_USU` lleva el usuario en mayúsculas: es lo que el binario Delphi manda y lo que el ERP acepta.
       // No hay código que cargar, así que el de la sesión es el que firma el lanzamiento.
       const operatorUser = aeroSettings.username?.trim() || user?.username?.trim() || null;
 
-      const payload = buildEntradaItemPayload({
-        productCode: next.item.productCode,
-        productName: next.item.productName,
-        quantity: next.item.quantity,
-        entryDate: queue.date,
-        userCode: operatorUser,
-      });
+      const payloads = taken.batch.map((item) =>
+        buildEntradaItemPayload({
+          productCode: item.productCode,
+          productName: item.productName,
+          quantity: item.quantity,
+          entryDate: queue.date,
+          userCode: operatorUser,
+        }),
+      );
       // El atajo no sabe de massas: recibe dónde, quién, qué y a dónde volver. Cambiar la clave o la IP es
-      // un cambio en la web, y el iPhone no se toca.
-      const envelope = buildAeroBridgeEnvelope({
+      // un cambio en la web, y el iPhone no se toca. Un producto viaja exactamente como siempre.
+      const [trip] = buildAeroLaunchTrips({
+        payloads,
         wsUrl: aeroSettings.wsUrl,
         username: aeroSettings.username,
         password: aeroSettings.password,
         endpoint: 'entradasitem',
-        payload,
-        callbackUrl: aeroBridgeCallbackFor('entrada'),
+        singleCallbackUrl: aeroBridgeCallbackFor('entrada'),
+        batchCallbackUrl: aeroBridgeCallbackFor('entrada_lote'),
       });
+      if (!trip) return;
 
       void postAeroAuditEvent({
         event: 'launch_sync',
         phase: 'requested',
         destinationUrl: aeroEndpoint(aeroSettings.wsUrl, 'entradasitem'),
-        payload,
-        note: `${next.rest.items.length > 0 ? `${next.rest.items.length} pending` : 'last entry'} · via=bridge`,
+        // One line per trip: the products are in the payload, and a log that grows with the plant's output
+        // is unreadable exactly when it is needed.
+        payload: payloads.length === 1 ? payloads[0] : payloads,
+        note:
+          payloads.length === 1
+            ? `${taken.rest.items.length > 0 ? `${taken.rest.items.length} pending` : 'last entry'} · via=bridge`
+            : `batch ${payloads.length}${taken.rest.items.length > 0 ? ` · ${taken.rest.items.length} pending` : ''} · via=bridge`,
       });
 
-      window.location.href = buildAeroBridgeTriggerUrl({ name: aeroSettings.shortcutName, envelope });
+      window.location.href = buildAeroBridgeTriggerUrl({ name: aeroSettings.shortcutName, envelope: trip.envelope });
     },
     [aeroSettings, user],
   );
+
+  /**
+   * Sends the products the ERP refused or never answered, and only those.
+   *
+   * They are already at the front of the queue: the partial batch put them back. A second trip is the
+   * operator's decision, never the page's, because a phone that leaves on its own is the problem this whole
+   * milestone exists to remove.
+   */
+  const retryFailedLaunches = useCallback(() => {
+    setResultModal(null);
+    const queue = readAeroQueue();
+    if (!queue) return;
+    triggerAeroSync(queue);
+  }, [triggerAeroSync]);
 
   /**
    * Asks the company for the day's movements through the same bridge every launch uses.
@@ -602,6 +645,79 @@ export function MassasLaunchPage() {
       // snapshot del día, que es lo que el resto de la planta va a leer.
       if (parsed.action === 'movimentos') {
         void handleMovementsCallback(parsed.data);
+        return;
+      }
+
+      // Un lote vuelve como un array, en el orden en que se envió: cada posición es un producto y las que
+      // falten son productos sin confirmar, no un lote que terminó antes.
+      if (parsed.action === 'entrada_lote') {
+        const queue = readAeroQueue();
+        const sent = queue?.inFlight ?? [];
+        const expected = sent.length > 0 ? sent.length : Array.isArray(parsed.data) ? parsed.data.length : 1;
+        const batch = readAeroBatchResult(parsed.data, expected);
+        const destination = aeroDestination();
+
+        void postAeroAuditEvent({
+          event: 'launch_sync',
+          phase: 'result',
+          destinationUrl: destination,
+          httpStatus: batch.ok === batch.total ? 200 : null,
+          response: `${batch.ok}/${batch.total} ok`,
+          error: batch.failed > 0 ? batch.message ?? 'batch_item_failed' : null,
+          note: `batch ok=${batch.ok} failed=${batch.failed} · via=bridge`,
+        });
+
+        const feedback = batchSyncFeedback(batch);
+
+        // Un atajo sin la rama de lote ignora `bodies` y contesta un objeto suelto: el lote degrada al flujo
+        // de siempre, con el primer producto ya confirmado y el resto todavía esperando en la cola.
+        if (!feedback) {
+          const rest = queue
+            ? {
+                ...queue,
+                items: [...(batch.ok === 1 ? sent.slice(1) : sent), ...queue.items],
+                inFlight: [],
+              }
+            : null;
+          if (rest && rest.items.length > 0) {
+            writeAeroQueue(rest);
+            triggerAeroSync(rest);
+            return;
+          }
+          clearAeroQueue();
+          setSyncAwaiting(null);
+          setResultModal(
+            batch.ok === 1
+              ? { type: 'success', message: t('massas.aero.syncConfirmYes'), sentToErp: true }
+              : { type: 'error', message: batch.message ?? t('massas.aero.syncConfirmNo') },
+          );
+          return;
+        }
+
+        // Sólo lo que el ERP no confirmó vuelve a la cola, y vuelve al frente: un lote completo se limpia, y
+        // uno fallido no se da por bueno. Un reintento es del operario, no de la página.
+        const failedItems = batch.failedIndexes
+          .map((index) => sent[index])
+          .filter((item): item is NonNullable<typeof item> => item !== undefined);
+        const retryItems =
+          batch.state === 'complete' ? [] : batch.state === 'partial' ? failedItems : sent;
+        const rest = queue ? { ...queue, items: [...retryItems, ...queue.items], inFlight: [] } : null;
+        if (rest) writeAeroQueue(rest);
+        else clearAeroQueue();
+        setSyncAwaiting(rest && rest.items.length > 0 ? { date: rest.date, remaining: rest.items.length } : null);
+
+        setResultModal({
+          type: feedback.tone === 'ok' ? 'success' : feedback.tone === 'warn' ? 'warn' : 'error',
+          title: t(feedback.titleKey),
+          message: t(feedback.messageKey, {
+            ...feedback.params,
+            count: feedback.count,
+            date: queue?.date ?? '',
+            detail: batch.message ?? t('massas.erp.batchNoDetail'),
+          }),
+          sentToErp: batch.ok > 0,
+          retryCount: batch.state === 'complete' ? undefined : batch.failed,
+        });
         return;
       }
 
@@ -966,14 +1082,15 @@ export function MassasLaunchPage() {
         >
           <div className="p-6 space-y-4 max-w-sm w-full text-center">
             <div className="text-4xl">
-              {resultModal.type === 'success' ? '✅' : '❌'}
+              {resultModal.type === 'success' ? '✅' : resultModal.type === 'warn' ? '⚠️' : '❌'}
             </div>
             <h2 id="massa-result-title" className="text-lg font-bold text-gray-900">
-              {resultModal.type === 'success'
-                ? t('massas.successTitle', 'Lançamento Concluído')
-                : t('massas.errorTitle', 'Erro no Lançamento')}
+              {resultModal.title ??
+                (resultModal.type === 'success'
+                  ? t('massas.successTitle', 'Lançamento Concluído')
+                  : t('massas.errorTitle', 'Erro no Lançamento'))}
             </h2>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600" data-testid="massa-result-message">
               {resultModal.message}
             </p>
             {launchMirrorHint(resultModal) && (
@@ -984,14 +1101,26 @@ export function MassasLaunchPage() {
                 {t('massas.erp.mirrorHint')}
               </p>
             )}
-            <div className="pt-2">
+            <div className="space-y-2 pt-2">
+              {resultModal.retryCount ? (
+                <Button
+                  onClick={retryFailedLaunches}
+                  className="min-h-[44px] w-full bg-amber-600 font-semibold text-white hover:bg-amber-700"
+                  data-testid="massa-result-retry"
+                >
+                  {t('massas.erp.batchRetry', { count: resultModal.retryCount })}
+                </Button>
+              ) : null}
               <Button
                 onClick={() => setResultModal(null)}
-                className={`w-full font-semibold ${
+                className={`min-h-[44px] w-full font-semibold ${
                   resultModal.type === 'success'
                     ? 'bg-green-600 hover:bg-green-700 text-white'
-                    : 'bg-red-600 hover:bg-red-700 text-white'
+                    : resultModal.type === 'warn'
+                      ? 'bg-amber-600 hover:bg-amber-700 text-white'
+                      : 'bg-red-600 hover:bg-red-700 text-white'
                 }`}
+                data-testid="massa-result-close"
               >
                 {t('massas.close', 'Fechar')}
               </Button>

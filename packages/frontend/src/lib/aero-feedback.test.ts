@@ -75,6 +75,11 @@ describe('launchMirrorHint', () => {
     assert.equal(launchMirrorHint({ type: 'success' }), false);
     assert.equal(launchMirrorHint({ type: 'error', sentToErp: true }), false);
   });
+
+  it('still points at the mirror when only part of the batch made it', () => {
+    // Un lote parcial confirmó al menos un asiento: el aviso es útil para ese producto.
+    assert.equal(launchMirrorHint({ type: 'warn', sentToErp: true }), true);
+  });
 });
 
 describe('connectionVerdictTone', () => {

@@ -64,6 +64,44 @@ describe('aero bridge wiring: the launch hands the bridge a full envelope', () =
   });
 });
 
+describe('aero bridge wiring: a launch of many products leaves once', () => {
+  it('splits the queue into one envelope and keeps what does not fit waiting', () => {
+    assert.ok(launch.includes('takeAeroBatch(queue, AERO_BATCH_MAX)'));
+    assert.ok(launch.includes('buildAeroLaunchTrips({'));
+    // Un producto viaja por `entrada` y un lote por `entrada_lote`: los dos callbacks se piden acá, no en el
+    // atajo, que no sabe de acciones.
+    assert.ok(launch.includes("singleCallbackUrl: aeroBridgeCallbackFor('entrada')"));
+    assert.ok(launch.includes("batchCallbackUrl: aeroBridgeCallbackFor('entrada_lote')"));
+    assert.ok(launch.includes('writeAeroQueue({ ...taken.rest, inFlight: taken.batch })'));
+  });
+
+  it('reads the batch answer against the products that were in the phone', () => {
+    assert.ok(launch.includes("parsed.action === 'entrada_lote'"));
+    assert.ok(launch.includes('readAeroBatchResult(parsed.data, expected)'));
+    assert.ok(launch.includes('const sent = queue?.inFlight ?? []'));
+    assert.ok(launch.includes('batchSyncFeedback(batch)'));
+  });
+
+  it('puts only the refused products back at the front of the queue', () => {
+    assert.ok(launch.includes('batch.failedIndexes'));
+    assert.ok(launch.includes('batch.state === \'complete\' ? [] : batch.state === \'partial\' ? failedItems : sent'));
+    assert.ok(launch.includes('{ ...queue, items: [...retryItems, ...queue.items], inFlight: [] }'));
+  });
+
+  it('logs one line per trip instead of one per product', () => {
+    assert.ok(launch.includes('`batch ok=${batch.ok} failed=${batch.failed} · via=bridge`'));
+    assert.ok(launch.includes('`batch ${payloads.length}'));
+  });
+
+  it('offers the retry to the operator and never sends it by itself', () => {
+    assert.ok(launch.includes('const retryFailedLaunches = useCallback'));
+    assert.ok(launch.includes('onClick={retryFailedLaunches}'));
+    assert.ok(launch.includes('data-testid="massa-result-retry"'));
+    // El reintento sólo reencola y drena lo que el operario pidió: nada de un segundo viaje automático.
+    assert.equal(launch.includes('setTimeout(() => triggerAeroSync'), false);
+  });
+});
+
 describe('aero bridge wiring: the ERP mirror', () => {
   it('asks /movimentoitem through the bridge, with its own callback', () => {
     assert.ok(launch.includes('aeroMovementsEnvelope('));
