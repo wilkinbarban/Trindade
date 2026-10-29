@@ -42,7 +42,8 @@ callback }` y devuelve la respuesta cruda del ERP a la página.
 S10 — (por L2) Opción B confirmada: «La cabecera Authorization viaja DINÁMICA en el sobre `{ url, auth,
 body, callback }` (receta de 8 acciones en iOS Shortcuts).» Razón: «transparencia total; si cambia la
 contraseña en la web, el iPhone no tiene que editar nunca el atajo.» El `body` viaja «serializado como
-string JSON plano en el sobre».
+string JSON plano en el sobre». (Prevalece sobre el «4 acciones» que dicen S6 y S9: contando cada lectura
+de diccionario, la receta real tiene 8.)
 
 S11 — (por L2) «Eliminar definitivamente el campo "Código do Usuário no ERP" (`userCode`) de
 `AeroIntegrationPanel.tsx`.» El panel queda «ÚNICAMENTE con los 3 campos requeridos: URL, Usuario y
@@ -58,18 +59,18 @@ bridge quedan listos para ellas, pero no se construye esa UI acá.
 
 ## Tasks
 
-- T1 (S1, S2, S3, S4, S5, S9, S10, S11): núcleo en `packages/frontend/src/lib/aero-integration.ts` — constante y
+- T1 (S1, S2, S3, S4, S5, S9, S10, S11) — hecho, commit `47fa57d`: núcleo en `packages/frontend/src/lib/aero-integration.ts` — constante y
   defaults del bridge, migración de nombres legacy, `buildSaidaItemPayload`,
   `buildMovimentoItemPayload`, sobre/trigger/prefijo de callback, extensión de `parseAeroCallback`,
   `readAeroBridgeResult` y `aeroBridgeShortcutRecipe` con `auth` dentro del sobre, y retiro de
   `userCode` de los ajustes, con sus pruebas unitarias en `aero-integration.test.ts`. Ruta: inline
   (parent) · commit `feat(aero)`.
-- T2 (S6): receta única de 4 acciones en `AeroShortcutDialog.tsx` con copiado de las claves del diccionario,
+- T2 (S6) — hecho, commit `0058e66`: receta única de 8 acciones en `AeroShortcutDialog.tsx` con copiado de las claves del diccionario,
   y textos en `pt-BR.json` / `es.json`. Ruta: inline · commit `feat(aero)`.
-- T3 (S7, S11): el panel pierde el campo del código y dispara el bridge hacia `/usuarios/`; la página de
+- T3 (S7, S11) — hecho, commit `fc31515`: el panel pierde el campo del código y dispara el bridge hacia `/usuarios/`; la página de
   lanzamiento lo despacha para `entrada` con `ENT_USU` en mayúsculas y procesa el retorno; prueba de
   cableado por fuente. Ruta: inline · commit `feat(aero)`.
-- T4 (S8, S12): suites completas, typecheck, documentación (incluido el ejemplo de `PRO_QTD`), commit,
+- T4 (S8, S12) — en curso: suites completas, typecheck, documentación (incluido el ejemplo de `PRO_QTD`), commit,
   push, rebuild de contenedores y salud. Ruta: inline · evidencia en el Log.
 
 ## Log

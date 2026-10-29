@@ -48,13 +48,13 @@ POST /api/massas-launch            ← Trindade guarda la producción (autoridad
 cola local (localStorage)          ← una entrada por producto, sobrevive a la ida y vuelta
    │
    ▼
-shortcuts://x-callback-url/run-shortcut?name=…
-   │        (el Atajo recibe el JSON del pedido como texto, tal cual)
+shortcuts://x-callback-url/run-shortcut?name=Aero32 Bridge
+   │        (el Atajo recibe el sobre { url, auth, body, callback } como texto)
    ▼
-POST http://192.168.1.50:8000/api/entradasitem
+POST     →  la url del sobre  (http://192.168.1.50:8000/api/entradasitem)
    │
    ▼
-Abrir URLs → https://trindademasas.duckdns.org/massas-launch?aero_sync=ok&aero_msg=…
+Abrir URLs → https://trindademasas.duckdns.org/massas-launch?aero_action=entrada&aero_data=<respuesta del ERP>
    │
    ▼
 La página lee el retorno, escribe el resultado en el log y sigue con el producto siguiente
@@ -77,20 +77,19 @@ fábrica. Con esos tres la sincronización ya se puede activar:
 | URL do WebService | Base del WebService, ej. `http://192.168.1.50:8000/api` | Debe empezar con `http://` o `https://`; se normaliza (sin barra final duplicada) |
 | Usuário da empresa | Usuario del WebService | No vacío |
 | Senha da empresa | Contraseña del WebService | No vacía; se muestra enmascarada |
-| Código do usuário no ERP | Id numérico del operario (`ENT_USU`) | **Opcional**; si queda vacío se usa `1` |
+
+No hay campo de código de usuario, y no es un olvido: `ENT_USU` viaja con el **usuario en mayúsculas**, que
+es lo que manda el binario Delphi de `base.apk`. El `CODIGO` numérico que devuelve el ERP se muestra al
+probar la conexión y queda en la bitácora, pero no se pide ni se guarda. Un teléfono que todavía tenga el
+campo cargado de una versión anterior lo descarta al leer los ajustes.
 
 Todo lo demás lo resuelve el sistema, porque no es una decisión del operario:
 
 | Dato | Cómo se obtiene |
 | --- | --- |
-| Código de usuario (`ENT_USU`) | Si se cargó a mano, ese; si no, el `CODIGO` que devuelva *Testar Conexão*; si tampoco, `1` |
+| Usuario del asiento (`ENT_USU`) | El usuario del panel, en mayúsculas |
 | Cantidad (`PRO_QTD`) | Siempre en **unidades**: `cajas × unidades por caja`. No existe lanzamiento por cajas |
-| Serie del asiento (`ENT_SER`) | Fija en `APL`, la que trae quemada el binario Delphi de `base.apk` |
-
-El código **nunca bloquea** nada. Es un dato que solo el ERP conoce, y el atajo de prueba devuelve
-`success` —un booleano—, no el `CODIGO`: leerlo exigiría otra acción en el teléfono. Por eso, en el
-despliegue real de la fábrica, el código queda vacío y el lanzamiento sale como usuario `1`. Si el
-operario lo conoce, lo carga en el campo opcional y los asientos quedan a su nombre.
+| Serie del asiento (`ENT_SER`, `PED_SER`) | Fija en `APL`, la que trae quemada el binario Delphi de `base.apk` |
 
 Los ajustes viven en el `localStorage` de **ese** iPhone, no en el servidor. Dos consecuencias: hay que
 configurar una vez por teléfono, y borrar los datos de Safari equivale a borrar la configuración. El
@@ -106,7 +105,7 @@ El botón tiene **dos caminos**, y elige solo:
 | Camino | Cuándo | Qué hace |
 | --- | --- | --- |
 | Navegador | La página y el WebService comparten esquema (desarrollo local, o un WebService HTTPS) | El `fetch` responde en el acto y devuelve la frase |
-| Atajo | La página es HTTPS y el WebService HTTP | Abre el atajo **`Aero32 Prueba`**, que hace el `POST` fuera de Safari y vuelve con el veredicto |
+| Atajo | La página es HTTPS y el WebService HTTP | Abre el atajo **`Aero32 Bridge`** con el sobre de `/usuarios/`, que hace el `POST` fuera de Safari y vuelve con la respuesta |
 
 El segundo camino no es una preferencia, es la única salida: en el despliegue real Safari rechaza el
 destino HTTP antes de que salga un paquete, así que probar «desde el navegador» es probar una cosa
@@ -116,7 +115,7 @@ Resultados del camino «navegador»:
 
 | Resultado | Significado |
 | --- | --- |
-| `Conectado como … (código n)` | Credenciales válidas; guarda `CODIGO` como `ENT_USU` |
+| `Conectado como …` | Credenciales válidas; muestra el `CODIGO` que informa el ERP |
 | `O WebService respondeu 401: …` | El servidor contestó y rechazó el login |
 | `A rede respondeu, mas o WebService não libera CORS` | La IP es correcta; falta la cabecera CORS (el Atajo no la necesita) |
 | `O Safari bloqueia HTTP a partir de uma página HTTPS` | Bloqueo detectado; con este build ya no aparece: el botón pasa al atajo |
@@ -145,56 +144,79 @@ Un archivo `.shortcut` tiene que estar firmado por el dispositivo que lo instala
 enlaces oficiales de iCloud: generarlo en el servidor produce un archivo que la web no puede entregar.
 Por eso el panel entrega los valores copiables y el enlace profundo a la app.
 
-Son **dos atajos** y se arman una sola vez:
+Es **un solo atajo**, y se arma una sola vez:
 
 | Atajo | Para qué | Acciones |
 | --- | --- | --- |
-| **`Aero32 Estoque`** | Envía cada lanzamiento al ERP | 2 |
-| **`Aero32 Prueba`** | Contesta *Testar Conexão* | 3 |
+| **`Aero32 Bridge`** | Lleva y trae cualquier llamada al ERP | 8 |
 
-Los nombres deben coincidir exactamente: son la clave con la que la página los invoca (se pueden cambiar
-en el panel, campo «nome do atajo»).
+El nombre debe coincidir exactamente: es la clave con la que la página lo invoca (se puede cambiar en el
+panel, campo «nome do atajo»).
 
-### `Aero32 Estoque` — el lanzamiento
+### `Aero32 Bridge` — el puente
 
-Valores fijos, que el panel muestra con su botón de copiar y no cambian entre lanzamientos:
+El atajo no sabe de masas ni de stock. Recibe un sobre, hace el `POST` y devuelve la respuesta:
 
-| Valor | Dónde se usa |
-| --- | --- |
-| URL del POST — `{wsUrl}/entradasitem` | campo **URL** de la acción 1 |
-| Cabecera `Authorization: Basic …` | **Encabezados** de la acción 1 |
-| URL de retorno — `{origen}/massas-launch?aero_sync=ok` | campo **URL** de la acción 2 |
+```json
+{
+  "url": "http://192.168.1.50:8000/api/entradasitem",
+  "auth": "Basic d2lsa2luOnNlbmhh",
+  "body": "{\"PRO_COD\":\"001192\",\"PRO_DES\":\"MASSA QUADRADA\",\"PRO_QTD\":1500,\"PRO_CST\":\"000\",\"ENT_DTA\":\"2026-10-28\",\"ENT_USU\":\"WILKIN\",\"ENT_SER\":\"APL\",\"ENT_OBS\":\"\"}",
+  "callback": "https://trindademasas.duckdns.org/massas-launch?aero_action=entrada&aero_data="
+}
+```
 
-1. Abrir **Atajos** → `+` → nombrarlo `Aero32 Estoque`.
-2. Añadir **Obtener contenido de URL**: pegar la URL del POST, método `POST`, en **Encabezados**
-   `Authorization` con el valor copiado y `Content-Type` = `application/json`, y en **Cuerpo de la
-   petición** elegir `Texto` e insertar la variable **Entrada del atajo**.
-3. Añadir **Abrir URLs** y pegar la URL de retorno.
+Los cuatro valores son fijos por llamada, y el panel los muestra con su botón de copiar en el diálogo
+*Como instalar o Atalho no iPhone*:
 
-La página envía como texto el cuerpo exacto del `POST /entradasitem`: el JSON del pedido, sin sobre. El
-Atajo no calcula ni interpreta nada — entrega ese texto como cuerpo y vuelve a la app. Antes el texto era
-un sobre `{ url, authorization, body }` que obligaba a tres lecturas de diccionario más el armado de la
-respuesta: siete pasos en un teléfono, que es la razón por la que el atajo nunca llegó a existir.
+| Clave del sobre | Qué es | Dónde se usa |
+| --- | --- | --- |
+| `url` | El endpoint completo, credenciales aparte | campo **URL** del `POST` |
+| `auth` | `Authorization: Basic …` en base64, armado en el momento | **Encabezados** → `Authorization` |
+| `body` | El JSON del pedido **serializado como texto** | **Cuerpo de la petición** → `Texto` |
+| `callback` | La vuelta a esta página, con la acción ya puesta | **Abrir URLs** al final |
 
-### `Aero32 Prueba` — la conexión
+Pasos, en el orden en que el diálogo los muestra:
 
-No recibe nada: el endpoint, la cabecera y la vuelta viven dentro del atajo. Son tres acciones.
+0. Abrir **Atajos** → `+` y nombrarlo `Aero32 Bridge`.
+1. **Obtener diccionario de la entrada** — la entrada del atajo.
+2. **Obtener valor del diccionario**, clave `url`.
+3. **Obtener valor del diccionario**, clave `auth`.
+4. **Obtener valor del diccionario**, clave `body`.
+5. **Obtener valor del diccionario**, clave `callback`.
+6. **Obtener contenido de URL**: la URL es el valor `url`; método `POST`; en **Encabezados**
+   `Authorization` = valor `auth`, `Content-Type` = `application/json` y `Accept` = `application/json`; en
+   **Cuerpo de la petición** elegir `Texto` e insertar el valor `body`.
+7. **Codificar URL** sobre el resultado de la acción 6 (la respuesta del ERP).
+8. **Abrir URLs**: valor `callback` + el resultado codificado, uno a continuación del otro.
 
-| Valor | Dónde se usa |
-| --- | --- |
-| URL del POST — `{wsUrl}/usuarios/` | campo **URL** de la acción 1 |
-| Cabecera `Authorization: Basic …` | **Encabezados** de la acción 1 (el mismo valor del otro atajo) |
-| URL de retorno — `{origen}/massas-launch?aero_test=` | campo **URL** de la acción 3, con la variable al final |
+Ese es el atajo completo, y es el único. El pedido de entrada, la baja, la consulta de movimientos y la
+prueba de conexión salen por ahí: lo único que cambia es el sobre que manda la página.
 
-1. Abrir **Atajos** → `+` → nombrarlo `Aero32 Prueba`.
-2. **Obtener contenido de URL**: la URL de arriba, método `POST`, en **Encabezados** `Authorization` y
-   `Content-Type: application/json`, y **sin cuerpo**.
-3. **Obtener valor del diccionario**: sobre la respuesta, con la clave `success`.
-4. **Abrir URLs** y pegar la URL de retorno, con la variable `success` **al final**. Queda así:
-   `…/massas-launch?aero_test=` + variable.
+Dos detalles que parecen menores y no lo son:
 
-La página lee ese valor y lo escribe tal cual en la bitácora (`aero_test=true`), así que el log de la
-fábrica muestra la respuesta del ERP y no una interpretación de ella.
+- **El `body` va como texto, no como diccionario.** Si el sobre trajera un objeto y el teléfono lo
+  insertara en el cuerpo, iOS lo convertiría en una lista de propiedades y el ERP recibiría algo que no es
+  JSON. La página serializa antes de disparar el atajo, y el atajo solo transporta.
+- **La credencial viaja en el sobre.** Se podría quemar en el atajo, y así era en el diseño de dos atajos.
+  Viajando en el sobre, cambiar la contraseña en la web no obliga a volver a tocar el iPhone; el precio son
+  dos lecturas de diccionario más, que es la diferencia entre 6 y 8 acciones.
+
+### Cómo vuelve la respuesta
+
+El atajo abre `callback` + la respuesta del ERP, codificada. La página separa el prefijo, decodifica y lee
+el cuerpo real. La acción viaja en el parámetro `aero_action`:
+
+| `aero_action` | Endpoint | Qué hace la página al volver |
+| --- | --- | --- |
+| `entrada` | `/entradasitem` | Escribe el resultado en la bitácora y sigue con el producto siguiente de la cola |
+| `saida` | `/saidasitem` | Escribe el resultado; no hay cola que continuar |
+| `movimentos` | `/movimentoitem` | Escribe el resultado; es una consulta, no cambia nada |
+| `test` | `/usuarios/` | Cierra la prueba de conexión con lo que contestó la empresa |
+
+Los parámetros se leen y se borran de la URL, así que un *pull-to-refresh* en la fábrica no vuelve a
+procesar el mismo resultado. Un teléfono que todavía tenga los atajos anteriores sigue funcionando: la
+página también entiende `aero_sync` y `aero_test`, el formato viejo.
 
 ## 6. Contrato con el WebService
 
@@ -206,8 +228,9 @@ Accept: application/json
 Content-Type: application/json
 ```
 
-`GET /usuarios/` → `{ "success": true, "data": { "CODIGO": 12, "SENHA": "…", "NOME": "WILKIN" } }`.
-`CODIGO` es el `ENT_USU` que espera el ERP.
+`POST /usuarios/` → `{ "success": true, "data": { "CODIGO": 12, "SENHA": "…", "NOME": "WILKIN" } }`.
+`CODIGO` es un dato informativo: lo que viaja en `ENT_USU` es el nombre en mayúsculas, como en el binario
+Delphi. La ruta solo acepta `POST`; un `GET` devuelve `405 Supported methods: POST`.
 
 ### 6.1 Entrada de Producción (`POST /entradasitem`)
 
@@ -231,7 +254,7 @@ Detalles del contrato ajustados con la fábrica:
 - `PRO_COD`: 6 dígitos con ceros a la izquierda (`formatAeroProductCode`), idéntico al binario Delphi `base.apk`.
 - `PRO_QTD`: entero escalado × 100 (`formatAeroQuantity`) para que Firebird no lo grabe como decimal `0.20`.
 - `PRO_CST`: situación tributaria (`000` - Tributada integralmente de fabricación propia) requerida por el trigger `ENTRADADET_BIU_SPED_VERIFICA`.
-- `ENT_USU`: código numérico o nombre de usuario formateado siempre en mayúsculas (`.toUpperCase()`) tal como lo hace `base.apk`.
+- `ENT_USU`: el nombre de usuario formateado siempre en mayúsculas (`.toUpperCase()`), tal como lo hace `base.apk`.
 
 ### 6.2 Baja de Stock / Consumo (`POST /saidasitem`)
 
@@ -273,6 +296,9 @@ Permite recuperar el historial de asientos registrados en el ERP para contrastar
 
 - Filtro `ENTSAI`: `"E"` (entradas), `"S"` (salidas/bajas) o `null` (ambos).
 - Retorna array con `ENT_LAN` (número de asiento), `PRO_COD`, `PRO_DES`, `PRO_QTD`, `ENT_DTA`, `ENT_USU` y `ENTSAI`.
+- **`PRO_QTD` vuelve en unidades humanas, no escalado.** El pedido va ×100 (`2000` = 20 unidades) porque
+  Firebird necesita el entero; la respuesta trae `20.0`, con la máscara `##0.00` que aplica `libso.so`.
+  Comparar contra el escalado que se envió da diferencias de 100× en cualquier conciliación.
 
 Los códigos de producto (`PRO_COD`) salen tal cual de `stock.catalog.ts` (`5000` = MASSA ROLO 1KG,
 `1045` = CASEIRA, …): son idénticos a los del ERP. Las fechas van en `YYYY-MM-DD` y en la zona de São
@@ -303,24 +329,29 @@ credenciales en base64) y el payload/respuesta se truncan para que una línea si
 
 | `phase` | `note` | `error` |
 | --- | --- | --- |
-| `requested` | `via=shortcut reason=mixed_content` (o `via=browser`) | `null`, o `invalid_config` si faltaban datos |
-| `result` | `via=shortcut aero_test=true` | `null` si fue `true`; `shortcut:error` si fue `false`; `shortcut:unknown` si no se pudo leer |
+| `requested` | `via=bridge reason=mixed_content` (o `via=browser`) | `null`, o `invalid_config` si faltaban datos |
+| `result` | `action=test · via=bridge` | `null` si la empresa contestó; `shortcut:error` si no |
 | `result` | `the operator returned without a shortcut result` | `shortcut:no_verdict` |
+
+`launch_sync` cierra su línea `result` con `via=bridge` y la acción en la nota (`action=entrada`), más la
+respuesta del ERP truncada. Un teléfono con el atajo viejo deja `via=shortcut`: la bitácora distingue el
+camino que realmente se usó.
 
 ## 8. Procedimiento de prueba en fábrica
 
 Antes de ir:
 
 - [ ] `docker compose ps` con `web` y `api` sanos, y `https://trindademasas.duckdns.org` respondiendo 200.
-- [ ] El iPhone tiene el Atajo `Aero32 Estoque` creado y **probado a mano** con un JSON de ejemplo.
+- [ ] El iPhone tiene el Atajo `Aero32 Bridge` creado (8 acciones) y **probado a mano** con un sobre de ejemplo.
 - [ ] El iPhone está en el Wi-Fi de la fábrica (el Atajo no funciona por datos móviles: la IP es interna).
 
 En la fábrica:
 
 1. Abrir la Web en Safari, entrar como `wilkin`.
 2. *Lançamento de Masas* → **Configuração Integração Empresa** → completar URL, usuario y contraseña.
-3. **Testar Conexão**. El botón abre `Aero32 Prueba`; al volver, la tarjeta dice si la empresa respondió.
-   Lo que importa es que no diga «sin veredicto»: eso significa que el atajo no llegó a leer `success`.
+3. **Testar Conexão**. El botón abre `Aero32 Bridge` con el sobre de `/usuarios/`; al volver, la tarjeta
+   dice si la empresa respondió y con qué `CODIGO`. Lo que importa es que no quede en «sin veredicto»: eso
+   significa que el puente no llegó a volver.
 4. Cargar **un** producto, una caja, y confirmar con el switch *Sincronizar com ERP da Empresa* activo.
 5. iOS abre el Atajo; al volver, la tarjeta de confirmación debe desaparecer y aparecer el resultado.
 6. Verificar en el ERP que la entrada existe, y en el log del servidor las dos líneas (`requested` y
@@ -335,17 +366,22 @@ En la fábrica:
 - Sin retorno del Atajo (el operador lo cancela), la página no puede adivinar el resultado: lo pregunta.
 - La configuración es por dispositivo, no por usuario del sistema.
 - El test de conexión desde la página HTTPS siempre fallará por diseño; sirve para distinguir «red mal»
-  de «bloqueo del navegador», no para validar credenciales en producción.
+  de «bloqueo del navegador», no para validar credenciales en producción. En ese despliegue el test va por
+  el puente, que sí puede.
+- La respuesta vuelve por la URL del callback: un rango de movimientos muy grande puede superar lo que iOS
+  está dispuesto a abrir. Es un motivo más para no pedir historiales largos desde el teléfono.
 
 ## 10. Evolución y Roadmap: Bajas de Stock y Consulta de Movimientos
 
-A partir de la ingeniería inversa de `base.apk`, el modelo de datos de la empresa soporta dos funcionalidades clave a incorporar:
+A partir de la ingeniería inversa de `base.apk`, el modelo de datos de la empresa soporta dos
+funcionalidades clave a incorporar. El contrato ya está listo -- el atajo único sabe llevar `saidasitem` y
+`movimentoitem` --, lo que falta es la interfaz que los dispare:
 
 ### 10.1 Módulo de Bajas / Saídas de Insumos y Masas
 - **Objetivo**: Permitir dar de baja stock por mermas, desecho o consumo interno directamente desde Trindade.
 - **Ruta WebService**: `POST /saidasitem` con prefijo `PED_*` (`PED_DTA`, `PED_USU`, `PED_SER: "APL"`).
 - **Implementación**:
-  - Reutiliza la misma cola y mecanismo de Atajo de iOS (`Aero32 Saida`).
+  - Reutiliza la cola y el mismo atajo único, con `aero_action=saida` en la vuelta.
   - Escala la cantidad x100 y formatea el código a 6 dígitos con ceros a la izquierda.
 
 ### 10.2 Vista de Movimientos del Usuario (ERP vs Trindade)

@@ -25,7 +25,7 @@ Si continuáramos con ese patrón para cubrir las 3 operaciones nuevas, tendría
 
 ---
 
-### 1.2 La Solución Recomendada: «Aero32 Bridge» (Atajo Unificado de 4 Acciones)
+### 1.2 La Solución Recomendada: «Aero32 Bridge» (Atajo Unificado de 8 Acciones)
 
 En lugar de que el atajo conozca el negocio, el atajo debe actuar como un **puente de red ciego (HTTP Proxy)**. Toda la inteligencia reside en la aplicación web Trindade, y el atajo solo recibe un sobre JSON genérico:
 
@@ -35,22 +35,40 @@ En lugar de que el atajo conozca el negocio, el atajo debe actuar como un **puen
   "method": "POST",
   "headers": {
     "Authorization": "Basic d2lsa2luOnNlbmhh",
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
+    "Accept": "application/json"
   },
-  "body": { ...payload... },
+  "body": "{\"PRO_COD\":\"001192\",\"PRO_DES\":\"MASSA QUADRADA\",\"PRO_QTD\":1500,...}",
   "callback": "https://trindademasas.duckdns.org/massas-launch?aero_action=saida&aero_data="
 }
 ```
 
-#### Receta del Atajo Unificado (`Aero32 Bridge`) — Solo 4 acciones en iOS:
-1. **Acción 1: Obtener diccionario de la entrada** (`Entrada del atajo`).
-2. **Acción 2: Obtener contenido de URL**:
-   - **URL**: Variable `url` del diccionario.
+> **El `body` viaja serializado como string JSON.** Si se inserta un *diccionario* en «Cuerpo de la
+> petición: Texto», iOS lo renderiza como lista de propiedades y el ERP rechaza el pedido aunque el
+> encabezado siga diciendo `application/json`. La web serializa antes de que el teléfono lo vea.
+>
+> **La credencial viaja en el sobre (opción B).** Cuesta dos lecturas de diccionario más en el teléfono y
+> compra lo que Wilkin pidió: rotar la contraseña en la web no obliga a editar el atajo nunca más.
+
+#### Receta del Atajo Unificado (`Aero32 Bridge`) — 8 acciones en iOS:
+
+Las cuatro «acciones» de la versión original de este documento eran pasos, no acciones: cada clave del
+diccionario necesita su propia acción de «Obtener valor del diccionario». Con el sobre de la opción B el
+conteo real es ocho, y así lo muestra el diálogo de la aplicación.
+
+1. **Acción 1**: «Obtener diccionario de la entrada» (`Entrada del atajo`).
+2. **Acción 2**: «Obtener valor del diccionario», clave `url`.
+3. **Acción 3**: «Obtener valor del diccionario», clave `auth`.
+4. **Acción 4**: «Obtener valor del diccionario», clave `body`.
+5. **Acción 5**: «Obtener valor del diccionario», clave `callback`.
+6. **Acción 6**: «Obtener contenido de URL»:
+   - **URL**: variable `url`.
    - **Método**: `POST`.
-   - **Encabezados**: `Authorization` y `Content-Type: application/json` leídos del diccionario (o quemados si preferís).
-   - **Cuerpo de la petición**: `Texto` → Variable `body` del diccionario.
-3. **Acción 3: Codificar URL** (URL Encode) sobre el `Contenido de URL` (la respuesta que dio el WebService de la empresa).
-4. **Acción 4: Abrir URLs**: Variable `callback` del diccionario + resultado de la `Acción 3`.
+   - **Encabezados**: `Authorization` = variable `auth`, `Content-Type: application/json`,
+     `Accept: application/json`.
+   - **Cuerpo de la petición**: `Texto` → variable `body`.
+7. **Acción 7**: «Codificar URL» sobre el `Contenido de URL`.
+8. **Acción 8**: «Abrir URLs»: variable `callback` + resultado de la acción 7.
 
 ```mermaid
 sequenceDiagram
@@ -118,7 +136,7 @@ sequenceDiagram
     "PED_USU": "WILKIN",
     "PED_SER": "APL",
     "PED_DTANOT": "2026-10-28",
-    "PED_OBS": "Baixa de massas via Trindade",
+    "PED_OBS": "Saida de massas via Trindade",
     "LOTES": []
   }
   ```
@@ -150,7 +168,7 @@ sequenceDiagram
         "ENT_LAN": 10542,
         "PRO_COD": "001192",
         "PRO_DES": "MASSA QUADRADA",
-        "PRO_QTD": 1500,
+        "PRO_QTD": 15.0,
         "ENT_DTA": "2026-10-28",
         "ENT_USU": "WILKIN",
         "ENTSAI": "E"
@@ -160,6 +178,9 @@ sequenceDiagram
   ```
 - **Callback al retornar a Safari**:
   `https://trindademasas.duckdns.org/massas-launch?aero_action=movimentos&aero_data=[JSON_ARRAY_ESCAPED]`
+- **Ojo con la cantidad**: el pedido va escalado ×100 (`1500` = 15 unidades) pero la **respuesta vuelve en
+  unidades humanas** (`15.0`, máscara `##0.00` en `libso.so`). La conciliación de la fase 4 compara contra
+  `PRO_QTD` tal como llega, nunca contra el entero escalado que se envió.
 
 ---
 
