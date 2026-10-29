@@ -13,14 +13,10 @@ import {
   DEFAULT_AERO_SETTINGS,
   aeroBridgeCallbackPrefix,
   aeroBridgeShortcutRecipe,
-  aeroCallbackUrl,
   aeroConnectionBlocker,
   aeroEndpoint,
   aeroSettingsReady,
   aeroShortcutTriggerUrl,
-  aeroShortcutRecipe,
-  aeroTestCallbackPrefix,
-  aeroTestShortcutRecipe,
   aeroTestShortcutTriggerUrl,
   basicAuthHeader,
   buildAeroBridgeEnvelope,
@@ -499,43 +495,9 @@ describe('aero-integration: the two-action shortcut', () => {
     assert.equal('authorization' in JSON.parse(text), false);
   });
 
-  it('hands the shortcut the endpoint and the Authorization header as separate copyable strings', () => {
-    const recipe = aeroShortcutRecipe({
-      wsUrl: 'http://192.168.1.50:8000/api',
-      username: 'wilkin',
-      password: 'senha',
-      callbackUrl: 'https://trindademasas.duckdns.org/massas-launch?aero_sync=ok',
-    });
-
-    assert.equal(recipe.endpoint, 'http://192.168.1.50:8000/api/entradasitem');
-    assert.equal(recipe.authorization, basicAuthHeader('wilkin', 'senha'));
-    assert.equal(recipe.callbackUrl, 'https://trindademasas.duckdns.org/massas-launch?aero_sync=ok');
-    assert.equal(recipe.contentType, 'application/json');
-  });
 });
 
 describe('aero-integration: callbacks', () => {
-  it('builds callback URL with and without base path without doubling slashes', () => {
-    const urlRoot = aeroCallbackUrl({
-      origin: 'https://trindademasas.duckdns.org',
-      basePath: '/',
-      status: 'ok',
-    });
-    assert.equal(urlRoot, 'https://trindademasas.duckdns.org/massas-launch?aero_sync=ok');
-
-    const urlApp = aeroCallbackUrl({
-      origin: 'https://trindademasas.duckdns.org',
-      basePath: '/app',
-      status: 'error',
-      message: 'Falha no ERP',
-      launchId: 42,
-    });
-    assert.equal(
-      urlApp,
-      'https://trindademasas.duckdns.org/app/massas-launch?aero_sync=error&aero_msg=Falha%20no%20ERP&aero_launch=42',
-    );
-  });
-
   it('parses the launch callback from a query string', () => {
     assert.deepEqual(parseAeroCallback('?aero_sync=ok'), { kind: 'sync', status: 'ok', message: null });
     assert.deepEqual(parseAeroCallback('aero_sync=ok'), { kind: 'sync', status: 'ok', message: null });
@@ -587,45 +549,12 @@ describe('aero-integration: callbacks', () => {
   });
 });
 
-describe('aero-integration: shortcut recipe for the connection test', () => {
+describe('aero-integration: the legacy test shortcut trigger', () => {
   const args = {
     wsUrl: 'http://192.168.25.250:1453/api',
     username: 'wilkin',
     password: 'senha',
   };
-
-  it('points the test at /usuarios/ with the same header the ERP expects', () => {
-    const recipe = aeroTestShortcutRecipe({
-      ...args,
-      callbackPrefix: 'https://trindademasas.duckdns.org/massas-launch?aero_test=',
-    });
-
-    assert.equal(recipe.endpoint, 'http://192.168.25.250:1453/api/usuarios/');
-    assert.equal(recipe.authorization, basicAuthHeader('wilkin', 'senha'));
-    assert.equal(recipe.contentType, 'application/json');
-    assert.equal(recipe.callbackPrefix, 'https://trindademasas.duckdns.org/massas-launch?aero_test=');
-  });
-
-  it('builds a return URL whose value is the variable the shortcut appends', () => {
-    const prefix = aeroTestCallbackPrefix({
-      origin: 'https://trindademasas.duckdns.org',
-      basePath: '/',
-    });
-    assert.equal(prefix, 'https://trindademasas.duckdns.org/massas-launch?aero_test=');
-
-    const sub = aeroTestCallbackPrefix({
-      origin: 'https://trindademasas.duckdns.org/',
-      basePath: '/app/',
-    });
-    assert.equal(sub, 'https://trindademasas.duckdns.org/app/massas-launch?aero_test=');
-
-    // Appending the token must reproduce exactly what the page parses back out of `location.search`.
-    assert.deepEqual(parseAeroCallback(new URL(`${prefix}true`).search), {
-      kind: 'test',
-      verdict: 'ok',
-      raw: 'true',
-    });
-  });
 
   it('runs the test shortcut without handing it any input', () => {
     // The test carries no payload: the endpoint, the header and the return URL live inside the shortcut.

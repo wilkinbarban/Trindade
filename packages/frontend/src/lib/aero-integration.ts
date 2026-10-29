@@ -684,50 +684,23 @@ export function aeroBridgeShortcutRecipe(args: {
 }
 
 /**
- * Builds the deep link that runs the shortcut, handing it one string: the entry payload.
- * *
- * What the shortcut receives is the exact request body for `/entradasitem`, not a transport envelope.
- * That is a deliberate reduction of what the person installing it has to build on the phone. A payload
- * wrapped in `{ url, authorization, body }` forces three "get dictionary value" actions before the POST
- * even starts, and that seven-step recipe is why the shortcut was never installed. The endpoint and the
- * Authorization header are fixed facts of one factory, so they live in the shortcut itself (see
- * {@link aeroShortcutRecipe}) and the launch only carries what changes per launch.
+ * Builds the deep link that runs a shortcut with one text as its input.
+ *
+ * The primitive under {@link buildAeroBridgeTriggerUrl}: `x-callback-url` hands the phone a string and the
+ * shortcut decides what it means. Nothing else about the phone is assumed here.
  */
 export function aeroShortcutTriggerUrl(args: { name: string; payload: unknown }): string {
   const body = JSON.stringify(args.payload);
   return `shortcuts://x-callback-url/run-shortcut?name=${encodeURIComponent(args.name)}&input=text&text=${encodeURIComponent(body)}`;
 }
 
-export interface AeroShortcutRecipe {
-  /** The URL the one POST action points at. */
-  endpoint: string;
-  /** The complete header value for that action, prefix included. */
-  authorization: string;
-  /** What the action must declare it is sending. */
-  contentType: string;
-  /** Where the second action opens so the page learns the shortcut finished. */
-  callbackUrl: string;
-}
-
 /**
- * The three constants the shortcut needs, in the shape the dialog copies them.
+ * Runs a shortcut that takes no input at all.
  *
- * These do not change between launches, so they are set up once, when the shortcut is created. Keeping
- * them out of the per-launch payload is what leaves the shortcut with two native actions: fetch with the
- * entry the page handed it, then open the return URL.
+ * Legacy path of the split design, kept until the panel sends the bridge envelope for its connection test.
  */
-export function aeroShortcutRecipe(args: {
-  wsUrl: string;
-  username: string;
-  password: string;
-  callbackUrl: string;
-}): AeroShortcutRecipe {
-  return {
-    endpoint: aeroEndpoint(args.wsUrl, 'entradasitem'),
-    authorization: basicAuthHeader(args.username, args.password),
-    contentType: 'application/json',
-    callbackUrl: args.callbackUrl,
-  };
+export function aeroTestShortcutTriggerUrl(args: { name: string }): string {
+  return `shortcuts://x-callback-url/run-shortcut?name=${encodeURIComponent(args.name)}`;
 }
 
 /**
@@ -738,27 +711,6 @@ function aeroLaunchPageUrl(args: { origin: string; basePath?: string }): string 
   const rawBase = args.basePath ?? '';
   const cleanBase = !rawBase || rawBase === '/' ? '' : `/${rawBase.replace(/^\/+|\/+$/g, '')}`;
   return `${cleanOrigin}${cleanBase}/massas-launch`;
-}
-
-/**
- * Builds the URL the iOS shortcut opens upon completing execution.
- */
-export function aeroCallbackUrl(args: {
-  origin: string;
-  basePath?: string;
-  status: 'ok' | 'error';
-  message?: string | null;
-  launchId?: number | null;
-}): string {
-  const path = aeroLaunchPageUrl(args);
-  const params: string[] = [`aero_sync=${encodeURIComponent(args.status)}`];
-  if (args.message !== undefined && args.message !== null) {
-    params.push(`aero_msg=${encodeURIComponent(args.message)}`);
-  }
-  if (args.launchId !== undefined && args.launchId !== null) {
-    params.push(`aero_launch=${encodeURIComponent(String(args.launchId))}`);
-  }
-  return `${path}?${params.join('&')}`;
 }
 
 /**
@@ -853,51 +805,6 @@ export function readAeroBridgeResult(data: unknown): { status: 'ok' | 'error'; m
 
 function aeroBridgeMessage(record: Record<string, unknown>): string | null {
   return typeof record.message === 'string' && record.message.trim() ? record.message.trim() : null;
-}
-
-/**
- * The return URL of the connection test, with the value left open.
- *
- * The shortcut appends what the ERP answered, so this prefix is what the dialog copies and what the page
- * parses back: one string, one variable at the end, no dictionary to assemble on the phone.
- */
-export function aeroTestCallbackPrefix(args: { origin: string; basePath?: string }): string {
-  return `${aeroLaunchPageUrl(args)}?aero_test=`;
-}
-
-/**
- * Runs the test shortcut, which takes no input: its endpoint, header and return URL live inside it.
- */
-export function aeroTestShortcutTriggerUrl(args: { name: string }): string {
-  return `shortcuts://x-callback-url/run-shortcut?name=${encodeURIComponent(args.name)}`;
-}
-
-export interface AeroTestShortcutRecipe {
-  /** The URL the test POST points at. */
-  endpoint: string;
-  /** The same header the ERP expects, prefix included. */
-  authorization: string;
-  /** What the action must declare it is sending. */
-  contentType: string;
-  /** The return URL, left without a value because the shortcut appends the verdict. */
-  callbackPrefix: string;
-}
-
-/**
- * The constants the test shortcut needs, in the shape the dialog copies them.
- */
-export function aeroTestShortcutRecipe(args: {
-  wsUrl: string;
-  username: string;
-  password: string;
-  callbackPrefix: string;
-}): AeroTestShortcutRecipe {
-  return {
-    endpoint: aeroEndpoint(args.wsUrl, 'usuarios/'),
-    authorization: basicAuthHeader(args.username, args.password),
-    contentType: 'application/json',
-    callbackPrefix: args.callbackPrefix,
-  };
 }
 
 export interface AeroPendingSync {
