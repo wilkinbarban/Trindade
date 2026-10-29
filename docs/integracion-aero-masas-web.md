@@ -211,7 +211,7 @@ el cuerpo real. La acción viaja en el parámetro `aero_action`:
 | --- | --- | --- |
 | `entrada` | `/entradasitem` | Escribe el resultado en la bitácora y sigue con el producto siguiente de la cola |
 | `saida` | `/saidasitem` | Escribe el resultado; no hay cola que continuar |
-| `movimentos` | `/movimentoitem` | Escribe el resultado; es una consulta, no cambia nada |
+| `movimentos` | `/movimentoitem` | Guarda el día en `aero_movements` y lo cuenta con el lente de la pantalla que lo pidió |
 | `test` | `/usuarios/` | Cierra la prueba de conexión con lo que contestó la empresa |
 
 Los parámetros se leen y se borran de la URL, así que un *pull-to-refresh* en la fábrica no vuelve a
@@ -418,4 +418,8 @@ funcionalidades clave a incorporar. El contrato ya está listo -- el atajo únic
     «Conciliado» cuando ambos lados coinciden.
   - Los asientos del ERP son **solo lectura** en Trindade; importar crea un lanzamiento local nuevo,
     nunca edita el asiento de la empresa.
+  - La consulta también se dispara desde Recebimento, en el relatório: el atajo vuelve a la ruta del
+    reporte (`aero_return` es la propia ruta, validada como path relativo) y el modal cuenta sólo los
+    insumos. El snapshot se guarda entero en las dos pantallas; lo que cambia es el lente, que el
+    backend responde ya desglosado como `{ saved, massas, insumos }` (§6.4).
 
