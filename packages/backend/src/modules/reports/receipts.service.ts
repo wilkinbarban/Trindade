@@ -11,6 +11,14 @@ import { MASSAS } from '../stock/stock.catalog.js';
  * day -- today, yesterday, or a month later, from the same rows.
  */
 
+/**
+ * The report category whose content is not a checklist: `Recebimento`.
+ *
+ * The id is fixed because it is reference data seeded by `reference-data.ts` and no screen renames or
+ * reorders it. Everything else in the report stays a checkbox; only this section reads the ERP.
+ */
+export const ERP_RECEIPT_CATEGORY_ID = 4;
+
 /** One incoming line as the report shows it: the document, the product, how much and who brought it. */
 export interface ReceiptLine {
   entLan: number;

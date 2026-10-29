@@ -1,6 +1,7 @@
 import type Database from 'better-sqlite3';
 import { parseSelectedProducts } from './reports.schema.js';
 import { massasLaunchDayView } from '../massas/massas.service.js';
+import { ERP_RECEIPT_CATEGORY_ID, dayReceipts } from './receipts.service.js';
 
 /**
  * Generador Inteligente — WhatsApp text export engine.
@@ -140,6 +141,25 @@ export function generateWhatsAppText(
     )
     .all() as { id: number; name_pt: string; sort_order: number }[];
 
+  // Recebimento no longer depends on a ticked task: its content is the day's ERP snapshot. It joins the
+  // printed set when the day was mirrored, or when the report still carries rows for it -- which is how a
+  // report made before this change asks for its own historical ticks instead of disappearing.
+  const receiptDay = dayReceipts(db, report.report_date);
+  const receiptRowsExist =
+    db
+      .prepare(
+        `SELECT EXISTS(
+           SELECT 1
+           FROM report_items ri
+           JOIN report_tasks rt ON rt.id = ri.task_id
+           WHERE ri.report_id = ? AND rt.category_id = ?
+         ) AS present`,
+      )
+      .get(reportId, ERP_RECEIPT_CATEGORY_ID) as { present: number };
+  if (receiptDay.syncedAt !== null || receiptRowsExist.present === 1) {
+    relevantIds.add(ERP_RECEIPT_CATEGORY_ID);
+  }
+
   const activeCategories = allCategories.filter((c) => relevantIds.has(c.id));
 
   const printedTempLocations = new Set<string>();
@@ -151,8 +171,25 @@ export function generateWhatsAppText(
     // que el operador quiere mandarle al grupo.
     const categoryLines: string[] = [];
 
+    // --- Recebimento: the ERP is the answer while the day has a snapshot ---
+    if (cat.id === ERP_RECEIPT_CATEGORY_ID && receiptDay.syncedAt !== null) {
+      if (receiptDay.receipts.length === 0) {
+        categoryLines.push('_Nenhum insumo recebido no dia._');
+      } else {
+        for (const receipt of receiptDay.receipts) {
+          categoryLines.push(
+            `• ${receipt.productDesc}: ${receipt.quantity} un (Lançamento #${receipt.entLan} · ${receipt.operatorName})`,
+          );
+        }
+      }
+    }
+
+    const skipChecks = cat.id === ERP_RECEIPT_CATEGORY_ID && receiptDay.syncedAt !== null;
+
     // --- Checks ---
-    const items = db
+    const items = skipChecks
+      ? []
+      : db
       .prepare(
         `SELECT rt.name_pt AS task_name, rc.category_type AS task_type,
                 rc.name_pt AS category_name, ri.checked, ri.selected_products
@@ -180,6 +217,16 @@ export function generateWhatsAppText(
       } else if (item.checked) {
         categoryLines.push(`✅ ${item.task_name}`);
       }
+    }
+
+    // The section belongs to the report, but no snapshot answered it: say so instead of printing fifteen
+    // unticked tasks, which read as "nothing arrived" when the truth is "nobody asked".
+    if (
+      cat.id === ERP_RECEIPT_CATEGORY_ID &&
+      receiptDay.syncedAt === null &&
+      !categoryLines.some((line) => line.startsWith('✅'))
+    ) {
+      categoryLines.push('_Pendente de sincronização ERP._');
     }
 
     // --- Temperatures ---

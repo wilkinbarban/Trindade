@@ -367,3 +367,101 @@ describe('Export Service (Generador Inteligente)', () => {
     assert.ok(!text.includes('LANÇAMENTO DE MASSAS'));
   });
 });
+
+/**
+ * Recebimento is the one category whose content is not a checkbox: it is what the company ERP already
+ * recorded for that day. The text has to say which of the three states it is in -- supplies, a consulted
+ * day that received nothing, or a day nobody synced -- because they mean different things to whoever reads
+ * the group.
+ */
+describe('Export Service — recebimento desde el espejo del ERP', () => {
+  let db: Database.Database;
+
+  function newReport(id: number, date: string): number {
+    db.prepare(
+      `INSERT INTO reports (id, user_id, turno, report_date, notes, created_at)
+       VALUES (?, 10, 'tarde', ?, NULL, ?)`,
+    ).run(id, date, `${date} 18:00:00`);
+    return id;
+  }
+
+  function receiptItem(reportId: number, taskId: number, checked: number): void {
+    db.prepare(`INSERT INTO report_items (report_id, task_id, checked) VALUES (?, ?, ?)`).run(reportId, taskId, checked);
+  }
+
+  function mirror(reportDate: string, rows: ReadonlyArray<{ ent_lan: number; product_code: string; product_desc: string; quantity: number; operator_name: string; movement_type?: 'E' | 'S' }>): void {
+    const insert = db.prepare(
+      `INSERT INTO aero_movements
+         (movement_date, ent_lan, product_code, product_desc, quantity, entry_date, operator_name, movement_type, synced_at)
+       VALUES (?, @ent_lan, @product_code, @product_desc, @quantity, ?, @operator_name, @movement_type, ?)`,
+    );
+    for (const row of rows) {
+      insert.run(reportDate, { movement_type: 'E', ...row }, reportDate, '2026-07-01T18:00:00.000Z');
+    }
+  }
+
+  before(() => {
+    const result = setupDb();
+    db = result.db;
+  });
+
+  after(() => {
+    db.close();
+  });
+
+  it('prints the ERP supplies instead of the old checkboxes', () => {
+    const id = newReport(401, '2026-07-01');
+    receiptItem(id, 43, 1);
+    mirror('2026-07-01', [
+      { ent_lan: 35911, product_code: '001774', product_desc: 'CAIXA DE PAPELAO PEQUENA MISTA', quantity: 3606, operator_name: 'VIVIANE' },
+      { ent_lan: 35911, product_code: '002108', product_desc: 'QUEIJO RALADO', quantity: 40, operator_name: 'VIVIANE' },
+    ]);
+
+    const text = generateWhatsAppText(db, id)!;
+
+    assert.ok(text.includes('• CAIXA DE PAPELAO PEQUENA MISTA: 3606 un (Lançamento #35911 · VIVIANE)'));
+    assert.ok(text.includes('• QUEIJO RALADO: 40 un (Lançamento #35911 · VIVIANE)'), 'both lines of the document');
+    assert.ok(!text.includes('Recebimento de farinha'), 'a ticked task is not a receipt any more');
+  });
+
+  it('says a consulted day received nothing', () => {
+    const id = newReport(402, '2026-07-02');
+    receiptItem(id, 43, 0);
+    mirror('2026-07-02', [
+      { ent_lan: 35920, product_code: '000084', product_desc: 'MASSA PARA PASTEL DISCO 500G', quantity: 500, operator_name: 'VINICIUS R' },
+    ]);
+
+    const text = generateWhatsAppText(db, id)!;
+
+    assert.ok(text.includes('_Nenhum insumo recebido no dia._'));
+    assert.ok(!text.includes('Pendente de sincronização'));
+  });
+
+  it('asks for a sync when the report has the section but the day was never mirrored', () => {
+    const id = newReport(403, '2026-07-03');
+    receiptItem(id, 43, 0);
+
+    const text = generateWhatsAppText(db, id)!;
+
+    assert.ok(text.includes('_Pendente de sincronização ERP._'));
+    assert.ok(!text.includes('Nenhum insumo recebido'));
+  });
+
+  it('falls back to the historical ticks when the report predates the mirror', () => {
+    const id = newReport(404, '2026-07-04');
+    receiptItem(id, 43, 1);
+
+    const text = generateWhatsAppText(db, id)!;
+
+    assert.ok(text.includes('✅ Recebimento de farinha'));
+    assert.ok(!text.includes('Pendente de sincronização'));
+  });
+
+  it('stays silent when the report never carried the section', () => {
+    const id = newReport(405, '2026-07-05');
+
+    const text = generateWhatsAppText(db, id)!;
+
+    assert.ok(!text.includes('RECEBIMENTO'), 'an untouched category must not add an empty heading');
+  });
+});
