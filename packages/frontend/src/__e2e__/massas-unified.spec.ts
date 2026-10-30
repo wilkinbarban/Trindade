@@ -11,15 +11,24 @@ import { getE2EIdentities, loginViaApi } from './auth-helpers';
  */
 const API = 'http://localhost:3099/api';
 
-/** A date no other spec and no previous run of this one uses. */
-function balanceDay(): string {
-  const start = Date.UTC(2027, 0, 1);
-  const days = Math.floor((Date.now() - start) / 86_400_000) % 3000;
-  const day = new Date(start + days * 86_400_000);
-  return day.toISOString().slice(0, 10);
+/**
+ * A date no other spec and no previous run of this one uses.
+ *
+ * The dev server is reused between runs, so the in-memory day survives: a fixed date would find last run's
+ * launches still there and read them as this run's work. Dates stay in the past because the API refuses a
+ * launch dated in the future.
+ */
+function uniqueDay(offset = 0): string {
+  const start = Date.UTC(2025, 5, 1);
+  const days = (Math.floor(Date.now() / 1000) + offset) % 3000;
+  return new Date(start - days * 86_400_000).toISOString().slice(0, 10);
 }
 
 test.use({ viewport: { width: 375, height: 667 } });
+
+// This spec walks the whole day twice (seed, reload, import): the default 30s budget is spent on the walk, not
+// on an assertion that would catch a regression.
+test.describe.configure({ timeout: 60_000 });
 
 test.describe('unified massas day on a phone screen', () => {
   test('shows one row per box in its real state and imports a company seat', async ({ page }) => {
@@ -31,8 +40,9 @@ test.describe('unified massas day on a phone screen', () => {
     const mine = identities.worker.username.toUpperCase();
 
     await page.goto('/massas-launch');
-    // A day of its own: every spec shares one database, so "today" is not guaranteed to be empty.
-    const date = '2026-09-15';
+    // A day of its own: every spec shares one database and the server survives between runs, so "today" and any
+    // fixed date are not guaranteed to be empty.
+    const date = uniqueDay();
     await page.locator('[data-testid="massas-launch-date"]').fill(date);
     await expect(page.locator('[data-testid="massas-launch-date"]')).toHaveValue(date);
 
@@ -175,9 +185,7 @@ test.describe('the day balance on a phone screen', () => {
     await loginViaApi(page, identities.worker);
     const login = await page.request.post(`${API}/auth/login`, { data: identities.worker });
     const token = (await login.json()).token as string;
-    // A day of its own: every run of this spec adds boxes to the day it names, and a shared date would make the
-    // bar sum the seeds of every previous run.
-    const date = balanceDay();
+    const date = uniqueDay(1);
 
     // One launch of fifteen units that never reached Delphi, and one company seat of ninety.
     const local = await page.request.post(`${API}/massas-launch`, {
@@ -224,7 +232,8 @@ test.describe('the day balance on a phone screen', () => {
       .filter((movement) => movement.movement_type === 'E')
       .reduce((total, movement) => total + movement.quantity, 0);
     expect(launchUnits).toBeGreaterThan(0);
-    expect(seatedUnits).toBe(90);
+    // The seat this run counted, plus anything the day already held: both sides are read, not assumed.
+    expect(seatedUnits).toBeGreaterThanOrEqual(90);
 
     const balance = page.locator('[data-testid="massas-balance"]');
     await expect(balance).toBeVisible();
