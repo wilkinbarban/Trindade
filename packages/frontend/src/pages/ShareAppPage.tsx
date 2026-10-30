@@ -21,6 +21,9 @@ import {
   formatPhoneMask,
   toWhatsAppNumber,
   buildShareMessage,
+  deriveUsername,
+  quickWorkerPassword,
+  QUICK_WORKER_ROLE_ID,
   type SharePlatform,
   type ShareReleaseInfo,
 } from '../lib/share-app';
@@ -49,6 +52,9 @@ export function ShareAppPage() {
   const passwordInputId = useId();
   const phoneInputId = useId();
   const credToggleId = useId();
+  const quickNameInputId = useId();
+  const quickUsernameInputId = useId();
+  const quickPasswordInputId = useId();
 
   const [platform, setPlatform] = useState<SharePlatform>('android');
   const [release, setRelease] = useState<ShareReleaseInfo>(DEFAULT_RELEASE);
@@ -58,6 +64,20 @@ export function ShareAppPage() {
   const [username, setUsername] = useState<string>('');
   const [password, setPassword] = useState<string>('123456789');
   const [includeCredentials, setIncludeCredentials] = useState<boolean>(true);
+  /**
+   * A worker is created from this screen by default: the admin already knows the person's name, and asking them
+   * to leave, open the admin panel and come back is where the sharing stops happening. Picking an account that
+   * already exists stays one tap away for the case that already had a user.
+   */
+  const [credentialMode, setCredentialMode] = useState<'create' | 'existing'>('create');
+  const [quickName, setQuickName] = useState<string>('');
+  const [quickUsername, setQuickUsername] = useState<string>('');
+  /** The login is derived from the name until the admin types over it, and never after. */
+  const [usernameEdited, setUsernameEdited] = useState<boolean>(false);
+  /** The login whose account was already created in this visit, so sharing twice does not create twice. */
+  const [createdUsername, setCreatedUsername] = useState<string | null>(null);
+  const [createError, setCreateError] = useState<string>('');
+  const [creating, setCreating] = useState<boolean>(false);
   const [phone, setPhone] = useState<string>('');
   const [copied, setCopied] = useState<boolean>(false);
   const [sharingApk, setSharingApk] = useState<boolean>(false);
@@ -111,6 +131,21 @@ export function ShareAppPage() {
     return () => { active = false; };
   }, [isAdmin]);
 
+  const quickLogin = quickUsername || deriveUsername(quickName);
+  const quickPassword = quickWorkerPassword(quickLogin);
+
+  const handleQuickNameChange = (value: string) => {
+    setQuickName(value);
+    setCreateError('');
+    if (!usernameEdited) setQuickUsername(deriveUsername(value));
+  };
+
+  const handleQuickUsernameChange = (value: string) => {
+    setUsernameEdited(true);
+    setCreateError('');
+    setQuickUsername(deriveUsername(value));
+  };
+
   const handleSelectUser = (idStr: string) => {
     setSelectedUserId(idStr);
     if (!idStr) {
@@ -133,12 +168,25 @@ export function ShareAppPage() {
     release,
     credentials: isAdmin && includeCredentials ? {
       enabled: true,
-      displayName,
-      username,
-      password: password || '123456789',
+      displayName: credentialMode === 'create' ? quickName : displayName,
+      username: credentialMode === 'create' ? quickLogin : username,
+      password: credentialMode === 'create' ? quickPassword : password || '123456789',
     } : { enabled: false },
     locale: currentLocale,
-  }), [platform, release, isAdmin, includeCredentials, displayName, username, password, currentLocale]);
+  }), [
+    platform,
+    release,
+    isAdmin,
+    includeCredentials,
+    credentialMode,
+    quickName,
+    quickLogin,
+    quickPassword,
+    displayName,
+    username,
+    password,
+    currentLocale,
+  ]);
 
   const rawDialDigits = toWhatsAppNumber(phone);
   const waLink = useMemo(() => rawDialDigits ? waMeLink(rawDialDigits, message) : null, [rawDialDigits, message]);
@@ -154,7 +202,56 @@ export function ShareAppPage() {
     return () => { active = false; };
   }, [waLink, platform, release, reloadToken]);
 
+  /**
+   * Creates the worker the message is about, once per login.
+   *
+   * Sharing the credentials of an account that does not exist yet would send the operator to a login screen
+   * that refuses them, so the account is created before anything leaves the browser. The role is fixed: this
+   * screen hands out workers, and a select here would be a quiet way to grant an admin.
+   */
+  const ensureWorkerCreated = async (): Promise<boolean> => {
+    if (!isAdmin || !includeCredentials || credentialMode !== 'create') return true;
+    const display_name = quickName.trim();
+    const username = quickLogin.trim().toLowerCase();
+    if (!display_name) {
+      setCreateError(t('share.createNameRequired', 'Informe o nome de exibição do novo operário.'));
+      return false;
+    }
+    if (!username) {
+      setCreateError(t('share.createUsernameRequired', 'Informe o nome de usuário do novo operário.'));
+      return false;
+    }
+    if (createdUsername === username) return true;
+    setCreating(true);
+    setCreateError('');
+    try {
+      await api.post('/admin/users', {
+        username,
+        display_name,
+        password: quickPassword,
+        role_id: QUICK_WORKER_ROLE_ID,
+      });
+      setCreatedUsername(username);
+      return true;
+    } catch (err) {
+      const detail = err instanceof Error && err.message ? ` ${err.message}` : '';
+      setCreateError(
+        t('share.createError', 'Não foi possível criar o operário. Verifique se o usuário já existe.') + detail,
+      );
+      return false;
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleOpenWhatsApp = async () => {
+    if (!waLink) return;
+    if (!(await ensureWorkerCreated())) return;
+    window.open(waLink, '_blank', 'noopener,noreferrer');
+  };
+
   const handleCopy = async () => {
+    if (!(await ensureWorkerCreated())) return;
     const outcome = await shareOrCopy(message);
     if (outcome === 'copied' || outcome === 'shared') {
       setCopied(true);
@@ -163,6 +260,7 @@ export function ShareAppPage() {
   };
 
   const handleShareApk = async () => {
+    if (!(await ensureWorkerCreated())) return;
     setSharingApk(true);
     setDownloadedNotice(false);
     try {
@@ -319,6 +417,110 @@ export function ShareAppPage() {
 
               {includeCredentials && (
                 <div className="space-y-4 pt-2 border-t border-gray-100">
+                  {/* Two ways to hand over an account, never both: a new worker, or one that already exists. */}
+                  <div role="radiogroup" aria-label={t('share.credentialMode', 'Modo das credenciais')} className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={credentialMode === 'create'}
+                      onClick={() => { setCredentialMode('create'); setCreateError(''); }}
+                      className={`min-h-[44px] rounded-lg border px-3 text-xs font-semibold transition-colors ${
+                        credentialMode === 'create'
+                          ? 'border-blue-600 bg-blue-50/70 text-blue-800'
+                          : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                      }`}
+                      data-testid="share-credential-mode-create"
+                    >
+                      {t('share.modeCreate', 'Criar Novo Operário')}
+                    </button>
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={credentialMode === 'existing'}
+                      onClick={() => { setCredentialMode('existing'); setCreateError(''); }}
+                      className={`min-h-[44px] rounded-lg border px-3 text-xs font-semibold transition-colors ${
+                        credentialMode === 'existing'
+                          ? 'border-blue-600 bg-blue-50/70 text-blue-800'
+                          : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                      }`}
+                      data-testid="share-credential-mode-existing"
+                    >
+                      {t('share.modeExisting', 'Selecionar Existente')}
+                    </button>
+                  </div>
+
+                  {credentialMode === 'create' ? (
+                    <div className="space-y-3" data-testid="share-quick-create">
+                      <div>
+                        <label htmlFor={quickNameInputId} className="text-xs font-medium text-gray-600 block mb-1">
+                          {t('share.displayName', 'Nome de Exibição')}
+                        </label>
+                        <Input
+                          id={quickNameInputId}
+                          type="text"
+                          value={quickName}
+                          onChange={(e) => handleQuickNameChange(e.target.value)}
+                          placeholder="Pedro"
+                          className="h-11 text-sm border-gray-300"
+                          data-testid="share-quick-name"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor={quickUsernameInputId} className="text-xs font-medium text-gray-600 block mb-1">
+                          {t('share.username', 'Usuário de Login')}
+                        </label>
+                        <Input
+                          id={quickUsernameInputId}
+                          type="text"
+                          value={quickUsername}
+                          onChange={(e) => handleQuickUsernameChange(e.target.value)}
+                          placeholder="pedro"
+                          autoCapitalize="none"
+                          autoCorrect="off"
+                          spellCheck={false}
+                          className="h-11 text-sm font-mono border-gray-300"
+                          data-testid="share-quick-username"
+                        />
+                        <p className="text-[11px] text-gray-500 mt-1">
+                          {t('share.quickUsernameHint', 'Sugerido a partir do nome; você pode corrigir.')}
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <span className="text-xs font-medium text-gray-600 block mb-1">
+                            {t('share.role', 'Função')}
+                          </span>
+                          {/* Fixed on purpose: this screen creates workers, and a control here would be a quiet
+                              way to hand out an admin account. */}
+                          <div className="flex h-11 items-center rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700" data-testid="share-quick-role">
+                            {t('share.roleWorker', 'Trabalhador')}
+                          </div>
+                        </div>
+                        <div>
+                          <label htmlFor={quickPasswordInputId} className="text-xs font-medium text-gray-600 block mb-1">
+                            {t('share.password', 'Senha Temporária')}
+                          </label>
+                          <Input
+                            id={quickPasswordInputId}
+                            type="text"
+                            readOnly
+                            value={quickPassword}
+                            className="h-11 text-sm font-mono bg-gray-50 text-gray-700 cursor-not-allowed border-gray-200"
+                            data-testid="share-quick-password"
+                          />
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-gray-500">
+                        {t('share.quickPasswordHint', 'A senha é gerada com o usuário e enviada junto com as instruções.')}
+                      </p>
+                      {createError && (
+                        <p className="text-xs text-red-600" role="alert" data-testid="share-quick-error">
+                          {createError}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                  <>
                   <div>
                     <label htmlFor={userSelectId} className="text-xs font-medium text-gray-600 block mb-1">
                       {t('share.selectUser', 'Selecionar Usuário Cadastrado')}
@@ -387,6 +589,8 @@ export function ShareAppPage() {
                       {t('share.adminPasswordHint', 'Você pode informar a senha atribuída a este usuário ou manter a sugerida (123456789).')}
                     </p>
                   </div>
+                  </>
+                  )}
                 </div>
               )}
             </div>
@@ -453,19 +657,24 @@ export function ShareAppPage() {
               )}
 
               {waLink ? (
-                <a
-                  href={waLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={`w-full min-h-[44px] inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-colors ${
+                // A button, not a link: when the credentials belong to a worker this screen is about to create,
+                // the account has to exist before WhatsApp opens, and an anchor cannot wait.
+                <button
+                  type="button"
+                  onClick={() => void handleOpenWhatsApp()}
+                  disabled={creating}
+                  className={`w-full min-h-[44px] inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-colors disabled:opacity-60 ${
                     platform === 'ios'
                       ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm'
                       : 'border border-emerald-600 text-emerald-700 hover:bg-emerald-50'
                   }`}
+                  data-testid="share-open-whatsapp"
                 >
                   <MessageCircle className="h-4 w-4" />
-                  {t('share.openTextChat', 'Abrir Chat no WhatsApp')}
-                </a>
+                  {creating
+                    ? t('share.creatingWorker', 'Criando operário...')
+                    : t('share.openTextChat', 'Abrir Chat no WhatsApp')}
+                </button>
               ) : (
                 <Button
                   disabled

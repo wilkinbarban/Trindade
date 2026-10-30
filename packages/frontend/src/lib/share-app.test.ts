@@ -4,6 +4,8 @@ import {
   formatPhoneMask,
   toWhatsAppNumber,
   buildShareMessage,
+  deriveUsername,
+  quickWorkerPassword,
   type SharePlatform,
 } from './share-app.js';
 
@@ -89,5 +91,41 @@ describe('buildShareMessage', () => {
     assert.ok(msg.includes(release.webUrl));
     assert.ok(msg.includes('joao.silva'));
     assert.ok(msg.includes('customPassword123'));
+  });
+});
+
+describe('quickWorkerPassword', () => {
+  it('pads the username with the running digit sequence up to fifteen characters', () => {
+    assert.equal(quickWorkerPassword('pedro'), 'pedro1234567890');
+    assert.equal(quickWorkerPassword('ana'), 'ana123456789012');
+    assert.equal(quickWorkerPassword('maria.silva'), 'maria.silva1234');
+  });
+
+  it('keeps a username that already reaches the floor, cut to it', () => {
+    assert.equal(quickWorkerPassword('usuarioquincecd'), 'usuarioquincecd');
+    assert.equal(quickWorkerPassword('usuarioquincecdx'), 'usuarioquincecd');
+  });
+
+  it('never answers with fewer than fifteen characters', () => {
+    for (const username of ['a', 'ab', 'joao.da.silva', 'administrador']) {
+      assert.ok(quickWorkerPassword(username).length >= 15, username);
+    }
+  });
+});
+
+describe('deriveUsername', () => {
+  it('lower-cases the name, drops the accents and joins the words with dots', () => {
+    assert.equal(deriveUsername('João da Silva'), 'joao.da.silva');
+    assert.equal(deriveUsername('María José'), 'maria.jose');
+    assert.equal(deriveUsername('  Pedro  '), 'pedro');
+  });
+
+  it('keeps only what a login can carry', () => {
+    assert.equal(deriveUsername('Ana Paula!'), 'ana.paula');
+    assert.equal(deriveUsername('joao.silva_2'), 'joao.silva_2');
+  });
+
+  it('is what the new worker password is built from', () => {
+    assert.equal(quickWorkerPassword(deriveUsername('Pedro')), 'pedro1234567890');
   });
 });

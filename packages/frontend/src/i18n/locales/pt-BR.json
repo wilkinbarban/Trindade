@@ -960,7 +960,18 @@
     "qrWithPhone": "Aponte a câmera do celular para abrir a conversa com mensagem preenchida.",
     "qrWithoutPhone": "Aponte a câmera para acessar o link de download ou aplicativo web.",
     "qrCodeAlt": "Código QR de Acesso",
-    "generatingQr": "Gerando QR Code..."
+    "generatingQr": "Gerando QR Code...",
+    "modeCreate": "Criar Novo Operário",
+    "modeExisting": "Selecionar Existente",
+    "credentialMode": "Modo das credenciais",
+    "role": "Função",
+    "roleWorker": "Trabalhador",
+    "quickUsernameHint": "Sugerido a partir do nome; você pode corrigir.",
+    "quickPasswordHint": "A senha é gerada com o usuário e enviada junto com as instruções.",
+    "creatingWorker": "Criando operário...",
+    "createNameRequired": "Informe o nome de exibição do novo operário.",
+    "createUsernameRequired": "Informe o nome de usuário do novo operário.",
+    "createError": "Não foi possível criar o operário. Verifique se o usuário já existe."
   },
   "aeroDevice": {
     "title": "Conexão com o Aero32 ERP indisponível no {{os}}",
