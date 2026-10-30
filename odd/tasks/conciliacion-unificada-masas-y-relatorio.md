@@ -252,6 +252,7 @@ hereda esas aserciones.
   dueño de la integración, hora en la zona de la planta y cero desbordes a 375 px.
 - **T6** (S10, D2, D3) — `ENT_OBS = 'Trindade #ID'`: capturar ids del POST local y pasarlos a
   `buildAeroEntryPayload`; tests de `ENT_OBS` y de regresión del sobre del atajo.
+  Evidencia: `68e4ea1`; `trindadeObservation` y el sobre con 5/5 puros, 368/368 frontend, `tsc` limpio.
 - **T7** (S11, S12, S13, S14, D4) — Pestaña `integration` en `AdminDashboard`, `wsUrl` por defecto y
   read-only salvo `wilkin`, credenciales por operario, iCloud y test habilitados; retiro de
   `AeroIntegrationPanel` de `MassasLaunchPage`; tests de `aeroSettingsEditable` y de cableado.
