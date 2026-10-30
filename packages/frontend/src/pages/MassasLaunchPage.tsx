@@ -20,6 +20,12 @@ import { Dialog } from '../components/ui/dialog';
 import { ModuleHelpModal } from '../components/ui/ModuleHelpModal';
 import { MassasLaunchGrid } from './massas/MassasLaunchGrid';
 import { MassasCollectiveTable } from './massas/MassasCollectiveTable';
+import {
+  loadAckedLaunchIds,
+  massasUnifiedRows,
+  toggleAckedLaunchId,
+  type MassasUnifiedRow,
+} from '../lib/massas-unified';
 import { MassasWhatsAppShare } from './massas/MassasWhatsAppShare';
 import { saoPauloToday } from '../lib/date';
 import {
@@ -122,6 +128,8 @@ export function MassasLaunchPage() {
     snapshot: AeroMovementSnapshot | null;
   }>({ loading: false, error: null, snapshot: null });
   const [importingEntLan, setImportingEntLan] = useState<number | null>(null);
+  /** What this phone already carried to the tablet today; the mark is per device and dies with the day. */
+  const [ackedLaunchIds, setAckedLaunchIds] = useState<number[]>(() => loadAckedLaunchIds(date));
   /** Lo que la consulta de movimientos tiene para decir cuando el teléfono vuelve. */
   const [syncResult, setSyncResult] = useState<{
     feedback: AeroSyncFeedback;
@@ -820,6 +828,19 @@ export function MassasLaunchPage() {
     return () => document.removeEventListener('visibilitychange', onVisibility);
   }, []);
 
+  // One row per box, from both screens. It is derived on every render on purpose: the day and the mirror are
+  // the only truth, and a stored row state would be a third one to keep in sync (D5).
+  const unifiedRows = useMemo<MassasUnifiedRow[]>(
+    () =>
+      massasUnifiedRows({
+        launches: dayView?.launches ?? [],
+        movements: mirror.snapshot?.movements ?? [],
+        products: dayView?.products ?? [],
+        ackedLaunchIds,
+      }),
+    [dayView, mirror.snapshot, ackedLaunchIds],
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -827,6 +848,14 @@ export function MassasLaunchPage() {
       </div>
     );
   }
+
+
+
+  const handleToggleAck = (row: MassasUnifiedRow) => {
+    const launchId = row.launchIds[0];
+    if (launchId === undefined) return;
+    setAckedLaunchIds(toggleAckedLaunchId(date, launchId));
+  };
 
   return (
     <div className="max-w-6xl mx-auto space-y-4 pb-12 sm:space-y-6">
@@ -997,15 +1026,13 @@ export function MassasLaunchPage() {
           onEditBoxesChange={setEditingBoxes}
           onDelete={handleDeleteLaunch}
           deletingId={deletingLaunchId}
-          erpMirror={{
-            snapshot: mirror.snapshot,
-            loading: mirror.loading,
-            error: mirror.error,
-            canSync: aeroSettingsReady(aeroSettings),
-            onSync: handleSyncFromErp,
-            onImport: (request) => void handleImportErpSeat(request),
-            importingEntLan,
-          }}
+          unifiedRows={unifiedRows}
+          unifiedDate={date}
+          canSync={aeroAllowed && aeroSettingsReady(aeroSettings)}
+          onSync={handleSyncFromErp}
+          onImport={(request) => void handleImportErpSeat(request)}
+          importingEntLan={importingEntLan}
+          onToggleAck={handleToggleAck}
         />
       )}
 

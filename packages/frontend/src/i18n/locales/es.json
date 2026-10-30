@@ -629,9 +629,6 @@
     "historyShort": "Historial",
     "todayShort": "Hoy",
     "erp": {
-      "tabsLabel": "Vistas del día",
-      "tabTrindade": "Lanzamientos Trindade",
-      "tabErp": "Espejo del ERP",
       "title": "Espejo del ERP",
       "subtitle": "Lo que la empresa registró en el WebService Aero32 para este día. Solo lectura.",
       "sync": "Sincronizar del ERP",
@@ -670,6 +667,20 @@
       "batchRetry": "Reenviar fallas ({{count}})",
       "batchPartial": "{{ok}} de {{total}} sincronizados · fallas: {{failed}}",
       "batchNoDetail": "sin detalle del ERP"
+    },
+    "unified": {
+      "title": "Producción del día",
+      "subtitle": "Trindade y tablet de la empresa, cada caja contada una vez.",
+      "empty": "Ninguna masa lanzada en este día.",
+      "stateReconciled": "Conciliado",
+      "statePending": "Pendiente ERP",
+      "stateErpOnly": "Solo ERP",
+      "ack": "Ya en tablet",
+      "unack": "Deshacer",
+      "acked": "ya en tablet",
+      "import": "Importar",
+      "notWholeBoxes": "No cierra cajas enteras",
+      "send": "Enviar al ERP"
     }
   },
   "moduleHelp": {

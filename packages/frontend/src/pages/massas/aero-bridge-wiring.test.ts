@@ -12,7 +12,7 @@ const read = (...parts: string[]) => fs.readFileSync(path.resolve(__dirname, ...
 const panel = read('AeroIntegrationPanel.tsx');
 const launch = read('..', 'MassasLaunchPage.tsx');
 const collective = read('MassasCollectiveTable.tsx');
-const mirrorCard = read('ErpMirrorCard.tsx');
+const unified = read('MassasUnifiedTable.tsx');
 
 describe('aero bridge wiring: the panel asks for three things and dispatches the bridge', () => {
   it('asks the operator for the address, the user and the password, and nothing else', () => {
@@ -144,22 +144,26 @@ describe('aero bridge wiring: the ERP mirror', () => {
     assert.equal(/integration\/aero\/movements`\s*,\s*\{?\s*method: 'PUT'/.test(launch), false);
   });
 
-  it('opens the mirror in its own tab, next to the local launches', () => {
-    assert.ok(collective.includes('role="tablist"'));
-    assert.ok(collective.includes('data-testid="massas-tab-trindade"'));
-    assert.ok(collective.includes('data-testid="massas-tab-erp"'));
-    assert.ok(collective.includes('<ErpMirrorCard'));
-    // El historial no tiene espejo y no debe inventar una pestaña vacía.
-    assert.ok(collective.includes('erpMirror?:'));
+  it('shows one reconciled table instead of a local tab and an ERP tab', () => {
+    // El día se lee una sola vez: las dos listas dejaban al operario eligiendo cuál creer.
+    assert.equal(collective.includes('role="tablist"'), false);
+    assert.equal(collective.includes('data-testid="massas-tab-erp"'), false);
+    assert.equal(collective.includes('<ErpMirrorCard'), false);
+    assert.ok(collective.includes('<MassasUnifiedTable'));
+    // El historial no tiene espejo y no debe inventar una tabla vacía.
+    assert.ok(collective.includes('unifiedRows?:'));
+    assert.ok(launch.includes('massasUnifiedRows({'));
+    assert.ok(launch.includes('loadAckedLaunchIds('));
   });
 
-  it('keeps the mirror read-only and every control at the 44px touch floor', () => {
-    assert.equal(mirrorCard.includes('onDelete'), false);
-    assert.equal(mirrorCard.includes('onStartEdit'), false);
-    const buttons = [...mirrorCard.matchAll(/<Button[\s\S]*?className="([^"]*)"/g)].map((m) => m[1]);
+  it('keeps the unified table read-only and every control at the 44px touch floor', () => {
+    // La tabla muestra el día; editar y borrar siguen siendo del desglose por operario.
+    assert.equal(unified.includes('onDelete'), false);
+    assert.equal(unified.includes('onStartEdit'), false);
+    const buttons = [...unified.matchAll(/<button[\s\S]*?className="([^"]*)"/g)].map((m) => m[1]);
     assert.ok(buttons.length > 0);
     for (const className of buttons) {
-      assert.ok(className.includes('min-h-[44px]'), `a mirror control lost its 44px floor: ${className}`);
+      assert.ok(className.includes('min-h-[44px]'), `a unified control lost its 44px floor: ${className}`);
     }
   });
 });
