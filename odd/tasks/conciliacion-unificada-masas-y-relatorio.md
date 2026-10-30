@@ -248,6 +248,8 @@ hereda esas aserciones.
   Decisión de T4: la tabla conciliada no declara un `ENT_LAN` propio. La conciliación empareja cantidades y
   producto, no pares, así que nombrar "la" seat de un launch sería adivinar; el id queda en el lado del ERP.
 - **T5** (S9) — Sync en la cabecera con `data-testid="massas-sync-erp"` y hora del último sync; E2E.
+  Evidencia: `lastSyncLabel` con 2/2 puros; 362/362 frontend; 1/1 E2E `massas-sync-header.spec.ts` con el
+  dueño de la integración, hora en la zona de la planta y cero desbordes a 375 px.
 - **T6** (S10, D2, D3) — `ENT_OBS = 'Trindade #ID'`: capturar ids del POST local y pasarlos a
   `buildAeroEntryPayload`; tests de `ENT_OBS` y de regresión del sobre del atajo.
 - **T7** (S11, S12, S13, S14, D4) — Pestaña `integration` en `AdminDashboard`, `wsUrl` por defecto y
