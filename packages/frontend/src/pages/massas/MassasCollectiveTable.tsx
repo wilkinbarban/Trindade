@@ -134,6 +134,8 @@ export function MassasCollectiveTable({
             <MassasUnifiedTable
               rows={unifiedRows}
               date={unifiedDate}
+              currentUserId={currentUserId}
+              isAdmin={isAdmin}
               canSync={canSync}
               deviceLimited={deviceLimited}
               onSync={onSync}

@@ -619,6 +619,13 @@ export interface AeroErpMovementItem {
   /** `ENT_USU`, uppercase, as the ERP records the operator. */
   operatorName: string;
   movementType: 'E' | 'S';
+  /**
+   * The account the backend attributes this seat to, or `null` when the name on it belongs to nobody here.
+   *
+   * Absent on a seat read straight from the ERP in the browser, where no resolution is possible; the stored
+   * snapshot always carries it. A missing or null owner is "unknown", and unknown is not a worker's seat.
+   */
+  ownerUserId?: number | null;
 }
 
 /**

@@ -89,6 +89,12 @@ function readStoredSeat(raw: unknown): { item: AeroErpMovementItem; syncedAt: st
       entryDate,
       operatorName: operatorName.toUpperCase(),
       movementType,
+      // Stored rows carry it; a snapshot written before the field existed answers null, which reads as
+      // "unknown owner" and keeps the import button away from a worker until the backend is asked.
+      ownerUserId:
+        typeof record.owner_user_id === 'number' && Number.isInteger(record.owner_user_id)
+          ? record.owner_user_id
+          : null,
     },
     syncedAt: snapshotText(record.synced_at),
   };

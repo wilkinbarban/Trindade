@@ -23,6 +23,14 @@ export interface MassasUnifiedRow {
   importable: boolean;
   /** True when the day and the device already said "carregado na tablet" for a pending row. */
   tabletAcked: boolean;
+  /**
+   * The account the line belongs to, or `null` when nobody here owns it.
+   *
+   * A seat takes this from the mirrored ERP row and a launch from its author, so the screens can ask one
+   * question -- may this person import this? -- without resolving names client-side. `null` is "unknown",
+   * and unknown is never the worker's to import.
+   */
+  ownerUserId: number | null;
 }
 
 /**
@@ -39,6 +47,23 @@ export function reconciledLaunchIds(rows: readonly MassasUnifiedRow[] | undefine
     for (const id of row.launchIds) ids.add(id);
   }
   return ids;
+}
+
+/**
+ * Whether this viewer may import this seat.
+ *
+ * The backend refuses a seat that belongs to somebody else, and this is the same rule asked one step
+ * earlier, on the row: a button a worker can only fail with is worse than no button. `ownerUserId === null`
+ * is an owner nobody here can prove, so it stays an administrator's -- not the viewer's by default.
+ */
+export function canImportRow(
+  row: Pick<MassasUnifiedRow, 'state' | 'importable' | 'ownerUserId'>,
+  viewer: { userId?: number | null; isAdmin?: boolean },
+): boolean {
+  if (row.state !== 'erpOnly' || !row.importable) return false;
+  if (viewer.isAdmin) return true;
+  if (row.ownerUserId === null || viewer.userId === null || viewer.userId === undefined) return false;
+  return row.ownerUserId === viewer.userId;
 }
 
 export interface MassasUnifiedInput {
@@ -131,6 +156,7 @@ export function massasUnifiedRows(
       entLans: [],
       importable: false,
       tabletAcked: !reconciled && acked.has(launch.id),
+      ownerUserId: launch.user_id ?? null,
     });
   }
 
@@ -155,6 +181,7 @@ export function massasUnifiedRows(
       entLans: [seat.entLan],
       importable: plan !== null,
       tabletAcked: false,
+      ownerUserId: seat.ownerUserId ?? null,
     });
   }
 

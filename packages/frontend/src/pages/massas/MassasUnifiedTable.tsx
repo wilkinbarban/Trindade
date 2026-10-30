@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { CloudUpload, Loader2, Smartphone } from 'lucide-react';
 import {
+  canImportRow,
   massasBalance,
   type AeroImportRequest,
   type MassasRowState,
@@ -10,6 +11,9 @@ import {
 interface MassasUnifiedTableProps {
   rows: MassasUnifiedRow[];
   date: string;
+  /** Who is reading, so the import action follows the same rule the backend enforces. */
+  currentUserId?: number;
+  isAdmin?: boolean;
   canSync?: boolean;
   /**
    * True on a system where the integration cannot run. The actions stay visible and disabled, with the
@@ -49,6 +53,8 @@ const STATE_CLASS: Record<MassasRowState, string> = {
 export function MassasUnifiedTable({
   rows,
   date,
+  currentUserId,
+  isAdmin = false,
   canSync = false,
   deviceLimited = false,
   onSync,
@@ -104,8 +110,9 @@ export function MassasUnifiedTable({
                   </div>
 
                   <div className="flex shrink-0 flex-col items-end gap-1.5">
-                    {row.state === 'erpOnly' && onImport && (
-                      row.importable ? (
+                    {row.state === 'erpOnly' &&
+                      onImport &&
+                      canImportRow(row, { userId: currentUserId, isAdmin }) && (
                         <button
                           type="button"
                           onClick={() =>
@@ -124,11 +131,13 @@ export function MassasUnifiedTable({
                           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CloudUpload className="h-4 w-4" />}
                           {t('massas.unified.import', 'Importar')}
                         </button>
-                      ) : (
-                        <span className="max-w-[9rem] text-right text-[11px] text-gray-500">
-                          {t('massas.unified.notWholeBoxes', 'Não fecha caixas inteiras')}
-                        </span>
-                      )
+                      )}
+                    {/* The seat itself says why it cannot come in, whoever is reading: the reason is the
+                        ERP's boxes, not the viewer's role. */}
+                    {row.state === 'erpOnly' && !row.importable && (
+                      <span className="max-w-[9rem] text-right text-[11px] text-gray-500">
+                        {t('massas.unified.notWholeBoxes', 'Não fecha caixas inteiras')}
+                      </span>
                     )}
 
                     {row.state === 'pendingErp' && (

@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  canImportRow,
   massasUnifiedRows,
   reconciledLaunchIds,
   type MassasUnifiedInput,
@@ -34,7 +35,7 @@ function launch(args: Partial<MassaIndividualLaunch> & { id: number }): MassaInd
     product_name: product.name,
     boxes,
     units: args.units ?? boxes * product.unitsPerBox,
-    user_id: 1,
+    user_id: args.user_id ?? 1,
     username: args.username ?? 'alice',
     display_name: args.display_name ?? 'Alice',
     ent_lan: args.ent_lan ?? null,
@@ -52,6 +53,7 @@ function seat(args: Partial<AeroErpMovementItem> & { entLan: number }): AeroErpM
     entryDate: DATE,
     operatorName: args.operatorName ?? 'ALICE',
     movementType: args.movementType ?? 'E',
+    ownerUserId: args.ownerUserId ?? null,
   };
 }
 
@@ -214,5 +216,61 @@ describe('massasUnifiedRows', () => {
       rows.map((row) => row.state),
       ['pendingErp', 'erpOnly', 'reconciled'],
     );
+  });
+});
+
+describe('the owner a row says it belongs to', () => {
+  it('carries the seat owner the backend resolved, so a worker keeps their own button', () => {
+    const rows = massasUnifiedRows(
+      input({ movements: [seat({ entLan: 35937, operatorName: 'VICTOR', ownerUserId: 12 })] }),
+    );
+    const row = rows.find((candidate) => candidate.state === 'erpOnly')!;
+    assert.equal(row.ownerUserId, 12);
+    assert.equal(row.operatorName, 'VICTOR');
+  });
+
+  it('leaves the owner unknown when the name belongs to nobody here', () => {
+    const rows = massasUnifiedRows(input({ movements: [seat({ entLan: 35939, operatorName: 'MARIA' })] }));
+    const row = rows.find((candidate) => candidate.state === 'erpOnly')!;
+    assert.equal(row.ownerUserId, null);
+  });
+
+  it('names the owner of a launch row too, so the table reads one field on both halves', () => {
+    const rows = massasUnifiedRows(input({ launches: [launch({ id: 4, user_id: 17, display_name: 'Gustavo' })] }));
+    assert.equal(rows[0].ownerUserId, 17);
+  });
+});
+
+describe('who the table offers the import to', () => {
+  const workerSeat = () =>
+    massasUnifiedRows(input({ movements: [seat({ entLan: 35937, operatorName: 'VICTOR', ownerUserId: 12 })] })).find(
+      (row) => row.state === 'erpOnly',
+    )!;
+
+  it('offers a worker their own seat and nobody else\'s', () => {
+    const row = workerSeat();
+    assert.equal(canImportRow(row, { userId: 12, isAdmin: false }), true);
+    assert.equal(canImportRow(row, { userId: 17, isAdmin: false }), false);
+  });
+
+  it('offers every seat to an administrator', () => {
+    assert.equal(canImportRow(workerSeat(), { userId: 1, isAdmin: true }), true);
+  });
+
+  it('offers a seat with no owner to nobody but an administrator', () => {
+    const orphan = massasUnifiedRows(input({ movements: [seat({ entLan: 35939, operatorName: 'MARIA' })] })).find(
+      (row) => row.state === 'erpOnly',
+    )!;
+    assert.equal(canImportRow(orphan, { userId: 17, isAdmin: false }), false);
+    assert.equal(canImportRow(orphan, { userId: 1, isAdmin: true }), true);
+  });
+
+  it('never offers a seat that does not fit whole boxes, whoever asks', () => {
+    const partial = massasUnifiedRows(input({ movements: [seat({ entLan: 35940, quantity: 15, ownerUserId: 12 })] })).find(
+      (row) => row.state === 'erpOnly',
+    )!;
+    assert.equal(partial.importable, false);
+    assert.equal(canImportRow(partial, { userId: 12, isAdmin: false }), false);
+    assert.equal(canImportRow(partial, { userId: 1, isAdmin: true }), false);
   });
 });
