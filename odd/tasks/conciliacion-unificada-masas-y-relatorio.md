@@ -2,8 +2,8 @@
 
 Artefacto de diseño del salto que Wilkin definió con el orquestador: una sola producción de planta, un
 relatorio que la cuenta completa, y la integración ERP donde se configura y no donde se produce.
-Estado: **para revisar juntos**. No hay código escrito: nada de esto se implementa hasta que Wilkin cierre
-las decisiones abiertas del final.
+Estado: **implementación en curso** con las decisiones del cierre ya tomadas por Wilkin y registradas en D1–D8.
+T1 y T2 cerrados con commits sobre `main`; T3–T9 pendientes.
 
 ## Specs
 
@@ -233,6 +233,7 @@ hereda esas aserciones.
 - **T1** (S1, S2, D1, D2, D8) — `massas/massas-report.service.ts`: `reconcileMassasDay` (pura) y
   `massasReportDayView` que une launches y seats conciliados, tolerando la tabla sin migrar. Tests puros de
   doble conteo, salidas, operarios de tablet y catálogo vacío.
+  Evidencia: `abd4eda` (regla pura) y `a21bce8` (vista del día); 12/12 en verde.
 - **T2** (S4, S5) — `export.service.ts`: sección de masas permanente, sin `includeMassas`; `reports.routes.ts`
   y `ExportPreview` sin el parámetro ni el checkbox; tests de literales con emojis.
 - **T3** (S3) — `MassasReportSection` reutilizable y montada en `ReportsPage` y `ReportViewPage`, con test de

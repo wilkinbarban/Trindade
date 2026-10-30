@@ -1,6 +1,6 @@
 import type Database from 'better-sqlite3';
 import { parseSelectedProducts } from './reports.schema.js';
-import { massasLaunchDayView } from '../massas/massas.service.js';
+import { massasReportDayView } from '../massas/massas-report.service.js';
 import { ERP_RECEIPT_CATEGORY_ID, dayReceipts, usesErpReceipts } from './receipts.service.js';
 
 /**
@@ -65,7 +65,6 @@ export function generateWhatsAppText(
   db: Database.Database,
   reportId: number,
   publicBaseUrl = '',
-  includeMassas = false,
 ): string | null {
   const missingReference = db.prepare(
     `SELECT ri.id, ri.task_id
@@ -276,56 +275,33 @@ export function generateWhatsAppText(
     lines.push('');
   }
 
-  // --- Massas Launches (optional) ---
-  if (includeMassas) {
-    const dayView = massasLaunchDayView(db, report.report_date);
-    if (dayView.launches.length > 0) {
-      lines.push('━━━━━━━━━━━━━━');
-      lines.push('🍝 *LANÇAMENTO DE MASSAS*');
+  // --- Massas Launches ---
+  // The section is not a flag anymore: the plant's day belongs in the report, and hiding it behind a query
+  // parameter only made the WhatsApp message disagree with the screen it came from.
+  const massasView = massasReportDayView(db, report.report_date);
+  if (massasView.operators.length > 0) {
+    lines.push('━━━━━━━━━━━━━━');
+    lines.push('🍝 *LANÇAMENTO DE MASSAS*');
+    lines.push('');
+
+    lines.push('Por Operário:');
+    for (const operator of massasView.operators) {
+      lines.push(`👤 ${operator.name}:`);
+      for (const item of operator.products) {
+        if (item.units > 0) {
+          lines.push(`   - ${stripMassasPrefix(item.name)}: ${item.units} un`);
+        }
+      }
+    }
+    lines.push('');
+
+    const activeProducts = massasView.products.filter((product) => product.totalUnits > 0);
+    if (activeProducts.length > 0) {
+      lines.push('Resumo Coletivo:');
+      for (const product of activeProducts) {
+        lines.push(`📦 ${stripMassasPrefix(product.name)}: ${product.totalUnits} un`);
+      }
       lines.push('');
-
-      const operatorsMap = new Map<string, Map<string, { name: string; boxes: number; units: number }>>();
-      for (const launch of dayView.launches) {
-        if (launch.boxes <= 0) continue;
-        const operatorName = (launch.display_name || launch.username || 'Operador').trim();
-        if (!operatorsMap.has(operatorName)) {
-          operatorsMap.set(operatorName, new Map());
-        }
-        const userProducts = operatorsMap.get(operatorName)!;
-        const existing = userProducts.get(launch.product_code);
-        if (existing) {
-          existing.boxes += launch.boxes;
-          existing.units += launch.units;
-        } else {
-          userProducts.set(launch.product_code, {
-            name: launch.product_name,
-            boxes: launch.boxes,
-            units: launch.units,
-          });
-        }
-      }
-
-      if (operatorsMap.size > 0) {
-        lines.push('Por Operário:');
-        for (const [operatorName, userProducts] of operatorsMap) {
-          lines.push(`👤 ${operatorName}:`);
-          for (const item of userProducts.values()) {
-            if (item.units > 0) {
-              lines.push(`   - ${stripMassasPrefix(item.name)}: ${item.units} un`);
-            }
-          }
-        }
-        lines.push('');
-      }
-
-      const activeProducts = dayView.products.filter((p) => p.totalUnits > 0);
-      if (activeProducts.length > 0) {
-        lines.push('Resumo Coletivo:');
-        for (const p of activeProducts) {
-          lines.push(`📦 ${stripMassasPrefix(p.name)}: ${p.totalUnits} un`);
-        }
-        lines.push('');
-      }
     }
   }
 

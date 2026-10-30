@@ -631,7 +631,7 @@ describe('Reports Routes', () => {
     );
   });
 
-  it('GET /:id/export with includeMassas=true includes massas section', async () => {
+  it('GET /:id/export always includes the massas section, and no flag can remove it', async () => {
     const createRes = await app.inject({
       method: 'POST',
       url: '/api/reports',
@@ -649,35 +649,33 @@ describe('Reports Routes', () => {
     const reportId = report.id;
     const reportDate = report.report_date;
 
-    // Insert a massa launch for this report's date
+    // Two cajas de CASEIRA lançadas em Trindade neste dia.
     db.prepare(`
       INSERT INTO massa_launches (launch_date, product_code, boxes, user_id, created_at, updated_at)
       VALUES (?, '1045', 3, 1, '2026-10-21 10:00:00', '2026-10-21 10:00:00')
     `).run(reportDate);
 
-    // Default call without includeMassas
-    const resDefault = await app.inject({
+    const res = await app.inject({
       method: 'GET',
       url: `/api/reports/${reportId}/export`,
       headers: { authorization: `Bearer ${token}` },
     });
-    assert.strictEqual(resDefault.statusCode, 200);
-    const bodyDefault = JSON.parse(resDefault.body);
-    assert.ok(!bodyDefault.text.includes('LANÇAMENTO DE MASSAS'));
+    assert.strictEqual(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+    assert.ok(body.text.includes('🍝 *LANÇAMENTO DE MASSAS*'), 'the section is not optional');
+    assert.ok(body.text.includes('CASEIRA: 30 un'));
+    assert.ok(!body.text.includes('MASSA '), 'the exported section strips the MASSA prefix');
+    assert.ok(!body.text.includes('Total de Massas'));
+    assert.ok(!body.text.includes('cx'));
 
-    // Call with includeMassas=true
-    const resWith = await app.inject({
+    // The retired flag used to hide it; now it is ignored instead of honoured.
+    const legacy = await app.inject({
       method: 'GET',
-      url: `/api/reports/${reportId}/export?includeMassas=true`,
+      url: `/api/reports/${reportId}/export?includeMassas=false`,
       headers: { authorization: `Bearer ${token}` },
     });
-    assert.strictEqual(resWith.statusCode, 200);
-    const bodyWith = JSON.parse(resWith.body);
-    assert.ok(bodyWith.text.includes('🍝 *LANÇAMENTO DE MASSAS*'));
-    assert.ok(bodyWith.text.includes('CASEIRA: 30 un'));
-    assert.ok(!bodyWith.text.includes('MASSA '), 'the exported section strips the MASSA prefix');
-    assert.ok(!bodyWith.text.includes('Total de Massas'));
-    assert.ok(!bodyWith.text.includes('cx'));
+    assert.strictEqual(legacy.statusCode, 200);
+    assert.ok(JSON.parse(legacy.body).text.includes('🍝 *LANÇAMENTO DE MASSAS*'));
   });
 
   it('GET /:id/export returns 404 for missing report', async () => {

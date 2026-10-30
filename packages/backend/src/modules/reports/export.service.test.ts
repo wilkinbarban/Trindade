@@ -314,38 +314,64 @@ describe('Export Service (Generador Inteligente)', () => {
     assert.ok(bordes.includes('A Câmara de Resfriamento tem uma temperatura de 10°C, recomenda-se limpar os ares-condicionados.'));
   });
 
-  it('appends massas section when includeMassas is true and launches exist for date', () => {
-    db.prepare(`
+  it('always prints the massas section, with the production both screens recorded', () => {
+    db.exec(`
       INSERT INTO massa_launches (launch_date, product_code, boxes, user_id, created_at, updated_at)
       VALUES ('2026-06-12', '1045', 4, 10, '2026-06-12 10:00:00', '2026-06-12 10:00:00')
-    `).run();
-    db.prepare(`
+    `);
+    db.exec(`
       INSERT INTO massa_launches (launch_date, product_code, boxes, user_id, created_at, updated_at)
       VALUES ('2026-06-12', '1047', 2, 10, '2026-06-12 11:00:00', '2026-06-12 11:00:00')
-    `).run();
+    `);
+    // The tablet of the company loaded one box that never came through Trindade.
+    db.exec(`
+      INSERT INTO aero_movements
+        (movement_date, ent_lan, product_code, product_desc, quantity, entry_date, operator_name, movement_type, synced_at)
+      VALUES ('2026-06-12', 9001, '1047', 'MASSA ROLO 2KG', 6, '2026-06-12', 'TIAGO', 'E', '2026-06-12T12:00:00.000Z')
+    `);
 
-    // Default call (includeMassas = false)
-    const textWithout = generateWhatsAppText(db, reportId)!;
-    assert.ok(!textWithout.includes('LANÇAMENTO DE MASSAS'));
+    // No fourth argument: the section is not optional anymore.
+    const text = generateWhatsAppText(db, reportId)!;
 
-    // Explicit includeMassas = true
-    const textWith = generateWhatsAppText(db, reportId, '', true)!;
-    assert.ok(textWith.includes('🍝 *LANÇAMENTO DE MASSAS*'));
-    assert.ok(textWith.includes('Por Operário:'));
-    assert.ok(textWith.includes('👤 Test User:'));
-    assert.ok(textWith.includes('   - CASEIRA: 40 un'));
-    assert.ok(textWith.includes('   - ROLO 2KG: 12 un'));
-    assert.ok(textWith.includes('Resumo Coletivo:'));
-    assert.ok(textWith.includes('📦 CASEIRA: 40 un'));
-    assert.ok(textWith.includes('📦 ROLO 2KG: 12 un'));
-    assert.ok(!textWith.includes('MASSA '), 'no product line keeps the MASSA prefix');
-    assert.ok(!textWith.includes('Total de Massas'));
-    assert.ok(!textWith.includes('cx'));
+    assert.ok(text.includes('🍝 *LANÇAMENTO DE MASSAS*'));
+    assert.ok(text.includes('Por Operário:'));
+    assert.ok(text.includes('👤 Test User:'));
+    assert.ok(text.includes('   - CASEIRA: 40 un'));
+    assert.ok(text.includes('   - ROLO 2KG: 12 un'));
+    // The operator who only exists in the ERP appears with the name they typed there.
+    assert.ok(text.includes('👤 TIAGO:'));
+    assert.ok(text.includes('   - ROLO 2KG: 6 un'));
+    assert.ok(text.includes('Resumo Coletivo:'));
+    assert.ok(text.includes('📦 CASEIRA: 40 un'));
+    assert.ok(text.includes('📦 ROLO 2KG: 18 un'));
+    assert.ok(!text.includes('MASSA '), 'no product line keeps the MASSA prefix');
+    assert.ok(!text.includes('Total de Massas'));
+    assert.ok(!text.includes('cx'));
 
-    // Check position: massas section appears before Observações
-    const massasIndex = textWith.indexOf('🍝 *LANÇAMENTO DE MASSAS*');
-    const notesIndex = textWith.indexOf('📝 *Observações:*');
+    // The section still sits before the notes, as the group reads it.
+    const massasIndex = text.indexOf('🍝 *LANÇAMENTO DE MASSAS*');
+    const notesIndex = text.indexOf('📝 *Observações:*');
     assert.ok(massasIndex < notesIndex, 'Massas section must precede Observações');
+  });
+
+  it('counts a reconciled seat once in the message', () => {
+    // The day is shared with the test above, so the boxes it recorded are cleared first.
+    db.exec('DELETE FROM massa_launches');
+    db.exec('DELETE FROM aero_movements');
+    db.exec(`
+      INSERT INTO massa_launches (launch_date, product_code, boxes, user_id, created_at, updated_at)
+      VALUES ('2026-06-12', '1045', 4, 10, '2026-06-12 10:00:00', '2026-06-12 10:00:00')
+    `);
+    db.exec(`
+      INSERT INTO aero_movements
+        (movement_date, ent_lan, product_code, product_desc, quantity, entry_date, operator_name, movement_type, synced_at)
+      VALUES ('2026-06-12', 9001, '1045', 'MASSA CASEIRA', 40, '2026-06-12', 'TEST USER', 'E', '2026-06-12T12:00:00.000Z')
+    `);
+
+    const text = generateWhatsAppText(db, reportId)!;
+
+    assert.equal(text.split('   - CASEIRA: 40 un').length - 1, 1, 'the same boxes are not listed twice');
+    assert.equal(text.split('👤 Test User:').length - 1, 1);
   });
 
   it('strips only the leading MASSA prefix from a massas product name', () => {
@@ -358,12 +384,12 @@ describe('Export Service (Generador Inteligente)', () => {
     assert.strictEqual(stripMassasPrefix(''), '');
   });
 
-  it('omits massas section when includeMassas is true but no launches exist for that date', () => {
+  it('omits the massas section when the day produced nothing at all', () => {
     db.prepare(`
       INSERT INTO reports (id, user_id, turno, report_date, notes, created_at)
       VALUES (300, 10, 'tarde', '2026-06-13', NULL, '2026-06-13 18:00:00')
     `).run();
-    const text = generateWhatsAppText(db, 300, '', true)!;
+    const text = generateWhatsAppText(db, 300)!;
     assert.ok(!text.includes('LANÇAMENTO DE MASSAS'));
   });
 });

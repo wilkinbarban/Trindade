@@ -22,7 +22,6 @@ export function ExportPreview({ reportId, open, onClose }: ExportPreviewProps) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const [text, setText] = useState('');
-  const [includeMassas, setIncludeMassas] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
@@ -38,10 +37,7 @@ export function ExportPreview({ reportId, open, onClose }: ExportPreviewProps) {
 
     async function fetchExport() {
       try {
-        const query = includeMassas ? '?includeMassas=true' : '';
-        const data = await api.get<{ text: string }>(
-          `/reports/${reportId}/export${query}`
-        );
+        const data = await api.get<{ text: string }>(`/reports/${reportId}/export`);
         if (!cancelled) {
           setText(data.text);
         }
@@ -62,7 +58,7 @@ export function ExportPreview({ reportId, open, onClose }: ExportPreviewProps) {
     return () => {
       cancelled = true;
     };
-  }, [open, reportId, includeMassas, t]);
+  }, [open, reportId, t]);
 
   async function handleCopy() {
     try {
@@ -110,23 +106,6 @@ export function ExportPreview({ reportId, open, onClose }: ExportPreviewProps) {
           <Button variant="ghost" size="icon" onClick={onClose} aria-label={t('ui.close')} data-testid="close-export-btn">
             <LucideX className="h-5 w-5" />
           </Button>
-        </div>
-
-        {/* Options / Toggle */}
-        <div className="px-4 py-2.5 bg-gray-50/80 border-b border-gray-200 flex items-center justify-between">
-          <label className="flex items-center gap-2.5 cursor-pointer text-xs sm:text-sm font-medium text-gray-700 select-none">
-            <input
-              type="checkbox"
-              checked={includeMassas}
-              onChange={(e) => setIncludeMassas(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
-              data-testid="include-massas-checkbox"
-            />
-            <span className="flex items-center gap-1.5">
-              <span>🍝</span>
-              <span>{t('reports.includeMassas', 'Incluir Lançamento de Massas')}</span>
-            </span>
-          </label>
         </div>
 
         {/* Body */}

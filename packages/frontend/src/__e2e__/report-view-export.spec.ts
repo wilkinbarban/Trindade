@@ -100,6 +100,40 @@ test.describe('Report View & Export', () => {
     await expect(copyBtn).toBeEnabled();
   });
 
+  test('the massas section is part of the export, with no box to tick', async ({ page }) => {
+    // A launch of the day, so the report has plant production to show.
+    const identities = await getE2EIdentities(page);
+    const loginRes = await page.request.post('http://localhost:3099/api/auth/login', {
+      data: identities.admin,
+    });
+    expect(loginRes.ok()).toBeTruthy();
+    const token = (await loginRes.json()).token;
+    const launchRes = await page.request.post('http://localhost:3099/api/massas-launch', {
+      headers: { Authorization: `Bearer ${token}` },
+      data: { product_code: '1045', boxes: 1 },
+    });
+    expect(launchRes.ok()).toBeTruthy();
+
+    await goToProtected(page, '/reports');
+    await page.waitForSelector('[data-testid="report-builder-form"]', { timeout: 10000 });
+    await page.locator('[data-testid="check-task-1"]').check();
+    await fillAllTemperatureInputs(page);
+    await page.locator('[data-testid="submit-report-btn"]').click();
+    await page.waitForSelector('[data-testid="report-detail"]', { timeout: 10000 });
+
+    await page.locator('[data-testid="export-whatsapp-btn"]').click();
+    await page.waitForSelector('[data-testid="export-modal"]', { timeout: 10000 });
+
+    // The operator cannot switch the day's production off, so the box is gone.
+    await expect(page.locator('[data-testid="include-massas-checkbox"]')).toHaveCount(0);
+
+    const text = await page.locator('[data-testid="export-text-content"]').textContent();
+    expect(text).toContain('🍝 *LANÇAMENTO DE MASSAS*');
+    expect(text).toContain('Por Operário:');
+    expect(text).toContain('📦 CASEIRA: 10 un');
+    expect(text).toContain('Resumo Coletivo:');
+  });
+
   test('export modal only shows WhatsApp copy action', async ({ page }) => {
     const identities = await getE2EIdentities(page);
     // Create a report

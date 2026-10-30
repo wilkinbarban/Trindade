@@ -287,9 +287,6 @@ export async function reportsRoutes(fastify: FastifyInstance, opts: ReportsRoute
     { preHandler: [fastify.authenticate] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { id } = request.params as { id: string };
-      const { includeMassas } = (request.query as { includeMassas?: string | boolean }) || {};
-      const shouldIncludeMassas =
-        includeMassas === 'true' || includeMassas === true || includeMassas === '1';
       const reportId = parseInt(id, 10);
 
       if (isNaN(reportId)) {
@@ -322,7 +319,7 @@ export async function reportsRoutes(fastify: FastifyInstance, opts: ReportsRoute
         return reply.status(400).send({ error: 'Falta colocar as temperaturas no relatório.' });
       }
 
-      const text = generateWhatsAppText(fastify.db, reportId, publicBaseUrl, shouldIncludeMassas);
+      const text = generateWhatsAppText(fastify.db, reportId, publicBaseUrl);
 
       if (text === null) {
         return reply.status(404).send({ error: 'Report not found' });
