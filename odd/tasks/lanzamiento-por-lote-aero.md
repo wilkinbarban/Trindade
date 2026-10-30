@@ -28,6 +28,14 @@ el mismo sobre, deja que el atajo repita el `POST` por WiFi, y vuelve una sola v
 - **S11**: «Cuando es 1 solo producto, debe seguir funcionando tal cual hoy sin problemas ni fricción.» Un
   producto viaja con `aero_action=entrada` y sin `bodies`, por el camino que ya está probado en producción.
 - **S12**: «Adoptamos la opción (a) para la receta (leer headers -> Authorization) y tope de 8 items.»
+- **S13**: «Agregar botón directo de instalación arriba de todo con el link
+  https://www.icloud.com/shortcuts/3216695a428f42539fec7abbd5419f34» — abre en pestaña nueva con
+  `rel="noopener noreferrer"`, táctil de 44 px mínimo, y que cualquier teléfono nuevo de la planta se instale
+  en segundos sin armar las acciones a mano.
+- **S14**: «Clarificar y reescribir la receta manual paso a paso con los 20 pasos exactos y claros», dividida en
+  bloques (Desempaquetar, Lote, Individual, Retorno a Safari).
+- **S15**: «Destacando que en el paso 16 se renombra la variable a `body_item` para no confundirla con
+  `bodies`.»
 
 ## Diseño
 
@@ -81,10 +89,14 @@ veces porque hay dos sobres, y la segunda vez no carga con una rama que no neces
 El umbral vive en una función pura (`buildAeroLaunchTrips`), no en un `if` dentro de la página: es la regla
 que Wilkin pidió explícitamente, y una regla así se testea.
 
-### Las acciones del atajo (17, contando las dos ramas)
+### Las acciones del atajo (20, contando las dos ramas)
 
 El atajo sigue siendo **uno solo** y se sigue llamando igual. La rama nueva sólo se activa cuando el sobre
-trae `bodies`; la rama de un producto es la de hoy.
+trae `bodies`; la rama de un producto es la de hoy. Wilkin validó veinte acciones reales contra su enlace de
+iCloud, así que la receta del diálogo se numera igual y se agrupa en cuatro bloques para que se pueda seguir
+con el pulgar.
+
+**A. Desempaquetar (1–5)** — leer el sobre una sola vez.
 
 | # | Acción | Qué lleva |
 | --- | --- | --- |
@@ -93,18 +105,36 @@ trae `bodies`; la rama de un producto es la de hoy.
 | 3 | Obtener valor del diccionario | `headers` |
 | 4 | Obtener valor del diccionario sobre (3) | `Authorization` |
 | 5 | Obtener valor del diccionario | `callback` |
+
+**B. Lote (6–14)** — sólo cuando el sobre trae `bodies`.
+
+| # | Acción | Qué lleva |
+| --- | --- | --- |
 | 6 | **Si** el diccionario tiene valor para `bodies` | condición |
-| 7 | **Repetir con cada elemento** en (`bodies`) | abre el ciclo |
-| 8 | ⤷ Obtener contenido de URL | `url`, `POST`, `Authorization` = (4), `Content-Type`/`Accept`, cuerpo **Texto** = Elemento de repetición |
-| 9 | ⤷ Añadir a variable `respostas` | resultado de (8) |
-| 10 | Fin de repetición | — |
-| 11 | Combinar texto `respostas` con separador `,` | — |
-| 12 | Texto: `[` + (11) + `]` | — |
-| 13 | Codificar URL sobre (12) | — |
-| 14 | **Si no** | rama de un solo producto |
-| 15 | ⤷ Obtener contenido de URL | cuerpo **Texto** = `body` |
-| 16 | ⤷ Codificar URL sobre (15) | — |
-| 17 | Abrir URLs: `callback` + resultado codificado | vuelve a Safari una vez |
+| 7 | Establecer variable `respostas` | lista vacía: iOS no arrastra el valor de un uso anterior |
+| 8 | **Repetir con cada elemento** en (`bodies`) | abre el ciclo |
+| 9 | ⤷ Obtener contenido de URL | `url`, `POST`, `Authorization` = (4), `Content-Type`/`Accept`, cuerpo **Texto** = Elemento de repetición |
+| 10 | ⤷ Añadir a variable `respostas` | resultado de (9) |
+| 11 | Fin de repetición | — |
+| 12 | Combinar texto `respostas` con separador `,` | — |
+| 13 | Texto: `[` + (12) + `]` | — |
+| 14 | Codificar URL sobre (13) | — |
+
+**C. Individual (15–18)** — la rama de un solo producto.
+
+| # | Acción | Qué lleva |
+| --- | --- | --- |
+| 15 | **Si no** | rama de un solo producto |
+| 16 | Obtener valor del diccionario y **renombrar la variable a `body_item`** | cuerpo del `POST`; el nombre no puede ser `body` porque iOS lo confunde con `bodies` y el cuerpo sale vacío |
+| 17 | ⤷ Obtener contenido de URL | cuerpo **Texto** = `body_item` |
+| 18 | Codificar URL sobre (17) | — |
+
+**D. Retorno a Safari (19–20)** — una sola vuelta, con cualquiera de las dos ramas.
+
+| # | Acción | Qué lleva |
+| --- | --- | --- |
+| 19 | Fin de la condición | cierra el `Si` de (6) |
+| 20 | Abrir URLs: `callback` + resultado codificado | vuelve a Safari una vez |
 
 La pieza que hace que esto sea JSON válido sin escapar nada: cada respuesta del ERP es un objeto JSON, y la
 coma que agrega «Combinar texto» cae **entre** objetos. Las comas internas de un mensaje van dentro de
@@ -165,6 +195,17 @@ termina en «no se pudo leer la respuesta», nunca en un lote a medias contado c
   el sobre y con la receta hablando del contrato que realmente viaja. El test de la receta pasa a validar el
   sobre real, no una lista de claves paralela.
 
+- **D9 — El enlace de iCloud es el camino principal, la receta es el respaldo.** Wilkin lo construyó y lo
+  validó con nosotros; instalar en un toque no deja lugar a que un teléfono nuevo arme veinte acciones a mano
+  y se equivoque en una. La receta se queda porque explica qué hace el atajo y porque un teléfono sin iCloud
+  (o con el enlace caído) todavía tiene que poder hacerlo.
+- **D10 — La receta se numera igual que el atajo real: 20 acciones.** Numerar de menos no es un detalle de
+  estilo: un operario que cuenta diecisiete y no llega a veinte se queda con un atajo que no cierra el `Si` y
+  no vuelve a Safari.
+- **D11 — `body_item` no es cosmético.** iOS resuelve variables por nombre y `body` colisiona con `bodies` en
+  la rama de lote: el `POST` individual salía con el cuerpo del último elemento de la repetición. El paso 16
+  renombra explícitamente.
+
 ## Hallazgo del `auth` que la opción (a) resuelve
 
 El diálogo *Como instalar o Atalho no iPhone* pide copiar la clave **`auth`** (paso 3) y explica el
@@ -197,6 +238,14 @@ de claves escrita al lado: si la receta dice `headers`, el sobre tiene que traer
   `headers` (opción a) con el test validando el sobre real, i18n `pt-BR`/`es`, 375 px y 44 px.
 - **T7** ✅ `38c963f`, `a42aa61` (S9, S10) — E2E: tres productos vuelven en un solo `aero_action=entrada_lote` con tres respuestas →
   modal «3 sincronizados» y una sola línea de resultado en la bitácora. Suites, typecheck, build y HTTP 200.
+- **T8** (S13, S14, S15, D9, D10, D11) — `AeroShortcutDialog`: tarjeta destacada arriba con el botón de iCloud
+  (`https://www.icloud.com/shortcuts/3216695a428f42539fec7abbd5419f34`, pestaña nueva, `noopener noreferrer`,
+  44 px) y la receta manual reescrita en cuatro bloques con los 20 pasos, incluido el renombre a `body_item`
+  del paso 16. `actionCount` a 20, URL en `aero-integration.ts`, i18n `pt-BR`/`es`. Tests unitarios del
+  conteo, del enlace y de las claves copiables.
+- **T9** (S7, S9, S10) — `aero-shortcut-dialog.spec.ts`: botón de iCloud por `data-testid`, href exacto,
+  pestaña nueva, 44 px, los cuatro bloques y los 20 pasos, cero desborde en 375 px. Suites, typecheck, build
+  y HTTP 200.
 
 ## Riesgos
 
@@ -261,3 +310,9 @@ de claves escrita al lado: si la receta dice `headers`, el sobre tiene que traer
 - **L6** — Colisión de specs: `erp-result-dialogs` y el nuevo `aero-batch-launch` creaban `wilkin` con
   contraseñas distintas y el segundo en correr no podía entrar al panel. Se centralizó en
   `src/__e2e__/aero-owner.ts` (`a42aa61`). El fallo era del arnés de pruebas, no del producto.
+- **L7** — «Wilkin probó el atajo con nosotros y lo certificamos con su link de iCloud. Nos pidió dos mejoras en
+  AeroShortcutDialog: 1) Agregar botón directo de instalación arriba de todo con el link
+  https://www.icloud.com/shortcuts/3216695a428f42539fec7abbd5419f34 ('Instalar Atalho Pronto (1 toque)' /
+  'Instalar Atajo Listo (1 toque)'). 2) Clarificar y reescribir la receta manual paso a paso con los 20 pasos
+  exactos y claros, destacando que en el paso 16 se renombra la variable a 'body_item' para no confundirla con
+  'bodies'. Actualiza aero-shortcut-dialog.spec.ts, corre suites y Playwright, comitea en main y rebuild web.»
