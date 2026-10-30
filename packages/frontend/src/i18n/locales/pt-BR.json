@@ -172,7 +172,14 @@
     "receiptsSyncEmpty": "Nenhum insumo recebido no dia.",
     "receiptsSyncError": "Não foi possível ler os insumos do ERP. Tente de novo pelo atalho.",
     "receiptsSyncNotConfigured": "Configure a integração em Lançamento de Masas para sincronizar do ERP.",
-    "receiptsSyncErrorTitle": "Falha ao Sincronizar Insumos"
+    "receiptsSyncErrorTitle": "Falha ao Sincronizar Insumos",
+    "massasTitle": "Massas do dia",
+    "massasTotals": "{{boxes}} cx · {{units}} un",
+    "massasRefresh": "Atualizar massas",
+    "massasError": "Não foi possível ler as massas do dia.",
+    "massasEmpty": "Nenhuma massa lançada neste dia.",
+    "massasErpOnly": "só ERP",
+    "massasSummary": "Resumo coletivo"
   },
   "loading": {
     "vehiclesError": "Não foi possível carregar os veículos.",

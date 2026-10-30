@@ -13,6 +13,7 @@ import {
   type FormState,
 } from '../components/reports/CategorySection';
 import { ReceiptsSection } from '../components/reports/ReceiptsSection';
+import { MassasReportSection } from '../components/reports/MassasReportSection';
 import { ERP_RECEIPT_CATEGORY_ID, usesErpReceipts } from '../lib/receipts';
 import { saoPauloToday } from '../lib/date';
 
@@ -308,6 +309,14 @@ export function ReportsPage() {
                 <span className="text-sm text-gray-700">🌙 {t('reports.turnoNoite')}</span>
               </label>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* A produção do dia, dos dois lados que a registram. Fica antes das categorias porque é o que o
+            relatório vai contar; as categorias são o que o operador marca. */}
+        <Card className="mb-6" data-testid="report-massas-card">
+          <CardContent className="pt-6">
+            <MassasReportSection date={saoPauloToday()} />
           </CardContent>
         </Card>
 

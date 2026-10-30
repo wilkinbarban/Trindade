@@ -105,6 +105,52 @@ describe('massas routes', () => {
     assert.equal(body.totalBoxes, 0);
   });
 
+  it('GET /report answers the reconciled day, with the tablet production on its operator', async () => {
+    const launch = await app.inject({
+      method: 'POST',
+      url: '/api/massas-launch',
+      headers: { authorization: `Bearer ${tokenAlice}` },
+      payload: { date: dateStr, product_code: '1045', boxes: 2 },
+    });
+    assert.equal(launch.statusCode, 201);
+
+    // Two seats: one the launch already describes, one that only ever existed on the tablet.
+    const insertSeat = (entLan: number, code: string, quantity: number, operator: string) => {
+      db.prepare(
+        `INSERT INTO aero_movements
+           (movement_date, ent_lan, product_code, product_desc, quantity, entry_date, operator_name, movement_type, synced_at)
+         VALUES (?, ?, ?, 'MASSA', ?, ?, ?, 'E', '2026-10-20T12:00:00.000Z')`,
+      ).run(dateStr, entLan, code, quantity, dateStr, operator);
+    };
+    insertSeat(7000, '1045', 20, 'ALICE');
+    insertSeat(7001, '1047', 30, 'TIAGO');
+
+    const res = await app.inject({
+      method: 'GET',
+      url: `/api/massas-launch/report?date=${dateStr}`,
+      headers: { authorization: `Bearer ${tokenAlice}` },
+    });
+
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body) as {
+      totalUnits: number;
+      operators: { name: string; units: number }[];
+      balance: { producedUnits: number; registeredUnits: number; differenceUnits: number };
+      reconciledEntLans: number[];
+    };
+    // 20 boxes units lançadas aqui + 30 que só a tablet registrou; o seat conciliado não conta duas vezes.
+    assert.equal(body.totalUnits, 50);
+    assert.deepEqual(body.reconciledEntLans, [7000]);
+    // Biggest share first, which is the order the screen prints.
+    assert.deepEqual(
+      body.operators.map((operator) => [operator.name, operator.units]),
+      [['TIAGO', 30], ['Alice', 20]],
+    );
+    assert.equal(body.balance.producedUnits, 50);
+    assert.equal(body.balance.registeredUnits, 50);
+    assert.equal(body.balance.differenceUnits, 0);
+  });
+
   it('POST /api/massas-launch creates launches for authenticated user', async () => {
     // Single product launch
     const resSingle = await app.inject({

@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { LoadingSpinner } from '../components/ui/loading-spinner';
 import { ExportPreview } from '../components/reports/ExportPreview';
 import { ReceiptsSection } from '../components/reports/ReceiptsSection';
+import { MassasReportSection } from '../components/reports/MassasReportSection';
 import { ERP_RECEIPT_CATEGORY_ID, usesErpReceipts } from '../lib/receipts';
 
 // ---- Types ----
@@ -294,6 +295,12 @@ export function ReportViewPage() {
         </Card>
         );
       })}
+
+      <Card className="mb-4" data-testid="report-massas-card">
+        <CardContent className="pt-6">
+          <MassasReportSection date={report.report_date} />
+        </CardContent>
+      </Card>
 
       {erpReceipts && (
         <Card className="mb-4" data-testid="report-receipts-card">

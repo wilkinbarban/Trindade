@@ -13,6 +13,7 @@ import {
   MassasLaunchCreateBodySchema,
   MassasLaunchUpdateBodySchema,
 } from './massas.schema.js';
+import { massasReportDayView } from './massas-report.service.js';
 
 const dateQuery = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be YYYY-MM-DD').optional(),
@@ -30,6 +31,17 @@ export async function massasRoutes(fastify: FastifyInstance) {
     }
     const targetDate = parsed.data.date ?? getSaoPauloDateString();
     return reply.send(massasLaunchDayView(fastify.db, targetDate));
+  });
+
+  // The day as the report reads it: launches here plus the tablet production that reconciles with nothing.
+  // `/` keeps answering the launches alone, because that screen is about typing, not about counting.
+  fastify.get('/report', { preHandler: [fastify.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const parsed = dateQuery.safeParse(request.query);
+    if (!parsed.success) {
+      return reply.status(400).send(apiError('Invalid date format', MASSAS_ERROR_CODES.INVALID_DATE_FORMAT));
+    }
+    const targetDate = parsed.data.date ?? getSaoPauloDateString();
+    return reply.send(massasReportDayView(fastify.db, targetDate));
   });
 
   fastify.get('/history', { preHandler: [fastify.authenticate] }, async (_request: FastifyRequest, reply: FastifyReply) => {
