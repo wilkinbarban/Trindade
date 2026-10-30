@@ -1547,12 +1547,19 @@ registerComponent(registry, 'StockHistory', StockHistorySchema);
     method: 'post',
     path: '/api/massas-launch',
     summary: 'Register massas launches for the authenticated user',
+    description:
+      'An import names the ERP seat it came from. A worker may import only the seats the ERP already ' +
+      'attributes to them; an administrator may import anybody\'s. Ownership is read from the mirrored ' +
+      'seat, never from the request body, so naming another operator cannot hand a worker somebody ' +
+      "else's boxes. A manual launch without a seat belongs to whoever sends it.",
     tags: ['massas'],
     request: jsonRequest(MassasLaunchCreateBodySchema),
     responses: {
       201: jsonResponse('The created launches', MassasLaunchCreateResponseSchema),
       400: massasErrorResponse('The request body failed validation, empty items, or future date'),
       401: UNAUTHORIZED,
+      403: massasErrorResponse("The ERP seat belongs to another operator and the asker is not an administrator"),
+      409: massasErrorResponse('This ERP seat was already imported'),
     },
   });
 

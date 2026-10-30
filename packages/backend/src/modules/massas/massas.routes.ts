@@ -13,6 +13,8 @@ import {
   MassasLaunchCreateBodySchema,
   MassasLaunchUpdateBodySchema,
 } from './massas.schema.js';
+import { canImportSeat } from './massas-import-policy.js';
+import { resolveSeatOwnerUserId } from './massas-operator.js';
 import { massasReportDayView } from './massas-report.service.js';
 
 const dateQuery = z.object({
@@ -90,6 +92,25 @@ export async function massasRoutes(fastify: FastifyInstance) {
       // A body-level seat matches the single item the rule above allowed.
       ent_lan: item.ent_lan ?? bodyEntLan ?? null,
     }));
+
+    // A worker imports only what the ERP already attributes to them; an administrator imports anybody's.
+    // The owner comes from the mirrored seat rather than from the body, so naming somebody else in
+    // `operator_name` cannot hand a worker boxes that are not theirs. A seat the mirror never saw has no
+    // owner here, and an owner nobody can prove is an administrator's to import.
+    const claimedSeat = seatItems.find((item) => item.ent_lan !== null)?.ent_lan ?? null;
+    // No seat, no import: a manual launch is the asker's own work and keeps the owner rule out of it.
+    if (
+      claimedSeat !== null &&
+      !canImportSeat({
+        ownerUserId: resolveSeatOwnerUserId(fastify.db, claimedSeat),
+        userId: request.user!.sub,
+        isAdmin: request.user?.role === 'Administrador',
+      })
+    ) {
+      return reply
+        .status(403)
+        .send(apiError('This ERP seat belongs to another operator', MASSAS_ERROR_CODES.FORBIDDEN));
+    }
 
     try {
       const created = createMassaLaunches(fastify.db, {

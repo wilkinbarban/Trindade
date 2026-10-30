@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import Fastify, { type FastifyInstance } from 'fastify';
 import Database from 'better-sqlite3';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import { createAuthenticate } from '../auth/auth.middleware.js';
 import { AuthAdmissionLimiter } from '../auth/auth.admission-limiter.js';
 import { authRoutes } from '../auth/auth.routes.js';
@@ -251,10 +252,11 @@ describe('massas routes', () => {
   });
 
   it('keeps the seat when the operator name names nobody, and refuses the same seat twice', async () => {
+    // An administrator, because a seat whose operator names nobody has no worker it could belong to.
     const unknown = await app.inject({
       method: 'POST',
       url: '/api/massas-launch',
-      headers: { authorization: `Bearer ${tokenBob}` },
+      headers: { authorization: `Bearer ${tokenAlice}` },
       payload: {
         date: dateStr,
         ent_lan: 35950,
@@ -265,12 +267,12 @@ describe('massas routes', () => {
     assert.equal(unknown.statusCode, 201, unknown.body);
     const created = (JSON.parse(unknown.body) as { created: MassaIndividualLaunch[] }).created[0];
     assert.equal(created.ent_lan, 35950);
-    assert.equal(created.username, 'bob');
+    assert.equal(created.username, 'alice');
 
     const again = await app.inject({
       method: 'POST',
       url: '/api/massas-launch',
-      headers: { authorization: `Bearer ${tokenBob}` },
+      headers: { authorization: `Bearer ${tokenAlice}` },
       payload: {
         date: dateStr,
         ent_lan: 35950,
@@ -761,5 +763,81 @@ describe('massas routes', () => {
       assert.equal(JSON.parse(resWithEs.body).code, 'MASSAS_INVALID_DATE_FORMAT');
     });
   });
-});
 
+describe('POST /api/massas-launch import ownership', () => {
+  it('refuses a worker importing a seat the ERP attributes to somebody else, and stores nothing', async () => {
+    const roleId = db.prepare("SELECT id FROM roles WHERE name = 'Trabalhador'").pluck().get() as number;
+    db.prepare('INSERT INTO users (username, password_hash, display_name, role_id, is_active) VALUES (?,?,?,?,1)').run(
+      'carla',
+      'hash',
+      'Carla',
+      roleId,
+    );
+    const carlaId = db.prepare("SELECT id FROM users WHERE username = 'carla'").pluck().get() as number;
+    const date = '2026-10-21';
+    db.prepare(
+      `INSERT INTO aero_movements
+         (movement_date, ent_lan, product_code, product_desc, quantity, entry_date, operator_name, movement_type, synced_at)
+       VALUES (?, 8001, '1045', 'MASSA', 20, ?, 'CARLA', 'E', '2026-10-21T10:00:00.000Z')`,
+    ).run(date, date);
+
+    // Minted here rather than logged in: the account exists for its id and role, and bcrypt work in this
+    // test would only make the ownership rule slower to observe.
+    const carlaToken = jwt.sign(
+      { sub: carlaId, username: 'carla', role: 'Trabalhador', security_version: 1 },
+      jwtSecret,
+      { expiresIn: 60 },
+    );
+
+    // Bob is a worker too, and this seat is Carla's.
+    const refused = await app.inject({
+      method: 'POST',
+      url: '/api/massas-launch',
+      headers: { authorization: `Bearer ${tokenBob}` },
+      payload: { date, ent_lan: 8001, operator_name: 'CARLA', items: [{ product_code: '1045', boxes: 1 }] },
+    });
+    assert.equal(refused.statusCode, 403, refused.body);
+    assert.equal((JSON.parse(refused.body) as { code: string }).code, 'MASSAS_FORBIDDEN');
+    const stored = db.prepare('SELECT COUNT(*) AS n FROM massa_launches WHERE ent_lan = 8001').get() as { n: number };
+    assert.equal(stored.n, 0, 'the refusal stored a launch');
+
+    // Carla owns it, so Carla may import it.
+    const allowed = await app.inject({
+      method: 'POST',
+      url: '/api/massas-launch',
+      headers: { authorization: `Bearer ${carlaToken}` },
+      payload: { date, ent_lan: 8001, operator_name: 'CARLA', items: [{ product_code: '1045', boxes: 1 }] },
+    });
+    assert.equal(allowed.statusCode, 201, allowed.body);
+    const created = (JSON.parse(allowed.body) as { created: MassaIndividualLaunch[] }).created[0];
+    assert.equal(created.username, 'carla');
+  });
+
+  it('lets an administrator import a seat that belongs to a worker', async () => {
+    const roleId = db.prepare("SELECT id FROM roles WHERE name = 'Trabalhador'").pluck().get() as number;
+    db.prepare('INSERT INTO users (username, password_hash, display_name, role_id, is_active) VALUES (?,?,?,?,1)').run(
+      'diego',
+      'hash',
+      'Diego',
+      roleId,
+    );
+    const date = '2026-10-22';
+    db.prepare(
+      `INSERT INTO aero_movements
+         (movement_date, ent_lan, product_code, product_desc, quantity, entry_date, operator_name, movement_type, synced_at)
+       VALUES (?, 8002, '1045', 'MASSA', 20, ?, 'DIEGO', 'E', '2026-10-22T10:00:00.000Z')`,
+    ).run(date, date);
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/massas-launch',
+      headers: { authorization: `Bearer ${tokenAlice}` },
+      payload: { date, ent_lan: 8002, operator_name: 'DIEGO', items: [{ product_code: '1045', boxes: 1 }] },
+    });
+    assert.equal(res.statusCode, 201, res.body);
+    const created = (JSON.parse(res.body) as { created: MassaIndividualLaunch[] }).created[0];
+    // The boxes are Diego's: the administrator only performed the import.
+    assert.equal(created.username, 'diego');
+  });
+});
+});

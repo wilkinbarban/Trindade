@@ -1,5 +1,6 @@
 import type Database from 'better-sqlite3';
 import type { AeroMovementItemInput } from './aero.movements.schema.js';
+import { matchOperatorUserId, type OperatorCandidate } from '../massas/massas-operator.js';
 
 /**
  * One mirrored seat of the company ERP, as this module stores and returns it.
@@ -16,6 +17,15 @@ export interface AeroMovement {
   operator_name: string;
   movement_type: 'E' | 'S';
   synced_at: string;
+  /**
+   * The account this seat belongs to, resolved from `operator_name`.
+   *
+   * `null` means the name the ERP wrote belongs to nobody here, which is a fact the screens need: an
+   * import button offered on somebody else's seat is a button the backend will refuse. The value comes
+   * from the same resolution the import rule uses, so hiding the button and refusing the request cannot
+   * disagree.
+   */
+  owner_user_id: number | null;
 }
 
 interface RawAeroMovementRow extends AeroMovement {
@@ -98,5 +108,27 @@ export function listAeroMovements(db: Database.Database, date: string): AeroMove
     )
     .all(date) as RawAeroMovementRow[];
 
-  return rows.map(({ id: _id, ...movement }) => movement);
+  if (rows.length === 0) return [];
+  const owners = seatOwners(db, rows.map((row) => row.operator_name));
+  return rows.map(({ id: _id, ...movement }) => ({
+    ...movement,
+    owner_user_id: owners.get(movement.operator_name) ?? null,
+  }));
+}
+
+/**
+ * Resolves every operator name of one day in a single read.
+ *
+ * One query for the day's people instead of one per seat: a day has a handful of operators and dozens of
+ * seats, and the resolution itself is the same function that decides who may import.
+ */
+function seatOwners(db: Database.Database, names: readonly string[]): Map<string, number | null> {
+  const users = db
+    .prepare('SELECT id, username, display_name FROM users WHERE is_active = 1 ORDER BY id')
+    .all() as OperatorCandidate[];
+  const resolved = new Map<string, number | null>();
+  for (const name of names) {
+    resolved.set(name, matchOperatorUserId(users, name));
+  }
+  return resolved;
 }

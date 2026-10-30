@@ -94,3 +94,27 @@ export function resolveOperatorUserId(db: Database.Database, operatorName: strin
     .all() as OperatorCandidate[];
   return matchOperatorUserId(users, wanted);
 }
+
+/**
+ * The person a mirrored seat belongs to, taken from what the ERP itself wrote on that seat.
+ *
+ * The request body also carries an operator name, and reading the owner from there would let a crafted
+ * request claim somebody else's boxes -- the very thing the import rule exists to prevent. `aero_movements`
+ * is what the ERP answered, so it is the fact both the rule and the row the UI hides are built on.
+ *
+ * An `ent_lan` the mirror has not synced, or a database whose mirror table the migration never created,
+ * answers `null`: unknown owner, which only an administrator may import.
+ */
+export function resolveSeatOwnerUserId(db: Database.Database, entLan: number | null | undefined): number | null {
+  if (entLan === null || entLan === undefined) return null;
+  const table = db
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'aero_movements'")
+    .pluck()
+    .get();
+  if (table === undefined) return null;
+  const operatorName = db
+    .prepare('SELECT operator_name FROM aero_movements WHERE ent_lan = ? ORDER BY movement_date DESC LIMIT 1')
+    .pluck()
+    .get(entLan) as string | undefined;
+  return resolveOperatorUserId(db, operatorName ?? null);
+}

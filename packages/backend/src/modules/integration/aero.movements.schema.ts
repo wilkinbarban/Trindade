@@ -51,6 +51,8 @@ export const AeroMovementsBodySchema = z
  */
 export const AeroMovementSchema = AeroMovementItemSchema.extend({
   synced_at: z.string(),
+  // The account the seat belongs to, or null when the name on it belongs to nobody here.
+  owner_user_id: z.number().int().positive().nullable(),
 }).strict();
 
 export const AeroMovementsListResponseSchema = z

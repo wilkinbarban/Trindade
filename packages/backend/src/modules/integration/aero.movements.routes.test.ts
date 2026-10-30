@@ -16,6 +16,7 @@ describe('Aero movements routes', () => {
   let db: import('better-sqlite3').Database;
   let fixtures: TestFixtures;
   let wilkinToken: string;
+  let wilkinId: number;
   let workerToken: string;
 
   const seat = {
@@ -46,7 +47,7 @@ describe('Aero movements routes', () => {
         'INSERT INTO users (username, password_hash, display_name, role_id, is_active, security_version) VALUES (?, ?, ?, ?, 1, 1)',
       )
       .run('wilkin', passwordHash, 'Wilkin Admin', adminRoleId);
-    const wilkinId = Number(inserted.lastInsertRowid);
+    wilkinId = Number(inserted.lastInsertRowid);
 
     wilkinToken = jwt.sign(
       { sub: wilkinId, username: 'wilkin', role: 'Administrador', security_version: 1 },
@@ -133,6 +134,9 @@ describe('Aero movements routes', () => {
     assert.equal(movement.operator_name, 'WILKIN');
     assert.equal(movement.movement_type, 'E');
     assert.match(movement.synced_at, /^\d{4}-\d{2}-\d{2}T/);
+    // The row the screens hide an import button on needs to know whose seat it is, and the answer has to
+    // be the one the backend enforces -- the same resolution, from the same seat.
+    assert.equal(movement.owner_user_id, wilkinId);
   });
 
   it('keeps one row per ERP seat: a second sync of the same seat updates it instead of duplicating it', async () => {
