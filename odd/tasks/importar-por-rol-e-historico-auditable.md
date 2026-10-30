@@ -29,9 +29,9 @@ or deletes, not even an admin.
 | --- | --- | --- | --- |
 | T1 | S1, S2 | backend: resolve the seat's owner from the mirror, refuse a worker's foreign seat with 403 | done |
 | T2 | S3 | web: expose the owner on the mirror row and hide the import button from a worker | done |
-| T3 | S3 | Android: same owner check on the unified row and its import action | 4e6d9c1 |
+| T3 | S3 | Android: same owner check on the unified row and its import action | 6455a2a |
 | T4 | S4, S5 | web: the history reads, never writes | done |
-| T5 | S4, S6 | Android: past days opened from the history offer no edit or delete, admin included | 4e6d9c1 |
+| T5 | S4, S6 | Android: past days opened from the history offer no edit or delete, admin included | 6455a2a |
 | T6 | all | delivery: suites, containers, signed APK, docs | pending |
 
 ## Log

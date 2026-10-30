@@ -441,6 +441,17 @@ funcionalidades clave a incorporar. El contrato ya está listo -- el atajo únic
     escribió el operario en cada lado. Un asiento ya importado se rechaza con `409`
     `MASSAS_ALREADY_IMPORTED` (índice único parcial sobre `ent_lan`), así que el botón no puede crear
     lanzamientos huérfanos.
+  - **Importar es de quien es el asiento.** `POST /massas-launch` resuelve el dueño del asiento en
+    `aero_movements` — no en el cuerpo de la petición — y responde `403 MASSAS_FORBIDDEN` cuando un
+    trabajador intenta importar un asiento de otro operario o uno que ningún usuario de Trindade
+    reclama. Un administrador importa cualquiera. El espejo expone el mismo `owner_user_id` resuelto con
+    las mismas reglas, así que Web y Android ocultan el botón en la misma fila que el backend rechazaría:
+    un botón que solo puede fallar es peor que ningún botón.
+  - **El histórico no se edita.** `PUT` y `DELETE /api/massas-launch/:id` responden `409
+    MASSAS_HISTORY_FROZEN` para cualquier lanzamiento cuyo día no sea hoy en São Paulo, y lo hacen antes
+    de mirar el rol: la regla vale igual para un administrador. La pantalla de Histórico monta la tabla
+    en solo lectura y no cablea ningún manejador de edición o borrado; en Android, abrir una fecha pasada
+    deja la pantalla en solo lectura y también rechaza importar un asiento dentro de ese día.
   - La consulta también se dispara desde Recebimento, en el relatório: el atajo vuelve a la ruta del
     reporte (`aero_return` es la propia ruta, validada como path relativo) y el modal cuenta sólo los
     insumos. El snapshot se guarda entero en las dos pantallas; lo que cambia es el lente, que el
