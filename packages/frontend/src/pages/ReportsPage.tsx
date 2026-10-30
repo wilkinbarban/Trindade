@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState, useCallback, type FormEvent } from 'react';
+import { Fragment, useEffect, useMemo, useState, useCallback, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { LucideImage, LucideTrash2, LucideUpload } from 'lucide-react';
@@ -47,6 +47,13 @@ export function ReportsPage() {
   const [photoError, setPhotoError] = useState('');
   const [pendingPhotos, setPendingPhotos] = useState<PendingPhoto[]>([]);
   const [createdReportId, setCreatedReportId] = useState<number | null>(null);
+  /**
+   * The day the report is about, read once.
+   *
+   * Both cards read the clock through this value: two separate calls could land on either side of midnight and
+   * leave the massas of one day beside the receipts of another.
+   */
+  const reportDate = useMemo(() => saoPauloToday(), []);
 
   useEffect(() => {
     if (error) {
@@ -250,7 +257,7 @@ export function ReportsPage() {
   const massasCard = (
     <Card className="mb-6" data-testid="report-massas-card">
       <CardContent className="pt-6">
-        <MassasReportSection date={saoPauloToday()} />
+        <MassasReportSection date={reportDate} />
       </CardContent>
     </Card>
   );
@@ -338,7 +345,7 @@ export function ReportsPage() {
                 {cat.id === ERP_RECEIPT_CATEGORY_ID && usesErpReceipts(saoPauloToday()) ? (
                   // Recebimento já não se marca: o ERP responde pelo dia. O relatório novo nunca é de um dia
                   // anterior ao corte, porque o servidor carimba a data de hoje.
-                  <ReceiptsSection date={saoPauloToday()} />
+                  <ReceiptsSection date={reportDate} />
                 ) : (
                 <CategorySection
                   category={cat}

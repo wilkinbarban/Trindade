@@ -712,6 +712,11 @@
       "createFailed": "No fue posible registrar el lanzamiento.",
       "updateFailed": "No fue posible actualizar el lanzamiento.",
       "deleteFailed": "No fue posible eliminar el lanzamiento."
+    },
+    "balance": {
+      "produced": "Producido",
+      "registered": "En ERP",
+      "difference": "Diferencia"
     }
   },
   "moduleHelp": {
