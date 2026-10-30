@@ -93,7 +93,7 @@ export async function reportsRoutes(fastify: FastifyInstance, opts: ReportsRoute
     async (request: FastifyRequest, reply: FastifyReply) => {
       const parsed = ReportReceiptsQuerySchema.safeParse(request.query);
       if (!parsed.success) {
-        return reply.status(400).send(apiError('date must be YYYY-MM-DD', 'INVALID_DATE_FORMAT'));
+        return reply.status(400).send(apiError('Data inválida: use AAAA-MM-DD', 'INVALID_DATE_FORMAT'));
       }
 
       const day = dayReceipts(fastify.db, parsed.data.date ?? getSaoPauloDateString());
@@ -102,7 +102,7 @@ export async function reportsRoutes(fastify: FastifyInstance, opts: ReportsRoute
           .status(503)
           .send(
             apiError(
-              'The ERP mirror table is missing: run db:migrate',
+              'A tabela espelho do ERP não existe: rode as migrações',
               AERO_MOVEMENTS_ERROR_CODES.NOT_MIGRATED,
             ),
           );

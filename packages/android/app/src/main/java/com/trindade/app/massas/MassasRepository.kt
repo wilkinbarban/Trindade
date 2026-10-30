@@ -13,6 +13,8 @@ import com.trindade.app.network.runCatchingCancellable
 import javax.inject.Inject
 import javax.inject.Singleton
 import retrofit2.Response
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 
 sealed interface MassasWriteResult {
     /**
@@ -25,7 +27,18 @@ sealed interface MassasWriteResult {
         val view: MassasLaunchDayView,
         val created: List<MassaIndividualLaunch> = emptyList(),
     ) : MassasWriteResult
-    data class Refused(val statusCode: Int) : MassasWriteResult
+    /**
+     * A refusal the backend explained.
+     *
+     * The status alone says `409`, and `409` is not a reason: `errorCode` is the semantic field the backend
+     * sends (`MASSAS_HISTORY_FROZEN`, …) and `message` is its Portuguese sentence. Both are optional because a
+     * proxy or a 500 may answer with a body nobody can read, and the screen still has to say something.
+     */
+    data class Refused(
+        val statusCode: Int,
+        val errorCode: String? = null,
+        val message: String? = null,
+    ) : MassasWriteResult
     data object Unreachable : MassasWriteResult
 }
 
@@ -104,7 +117,7 @@ open class MassasRepository @Inject constructor(
                 created = created,
             )
         }
-        return MassasWriteResult.Refused(response.code())
+        return refusalOf(response)
     }
 
     open suspend fun updateLaunch(id: Int, boxes: Int, date: String? = null): MassasWriteResult {
@@ -127,7 +140,7 @@ open class MassasRepository @Inject constructor(
                 )
             }
         }
-        return MassasWriteResult.Refused(response.code())
+        return refusalOf(response)
     }
 
     open suspend fun deleteLaunch(id: Int, date: String? = null): MassasWriteResult {
@@ -149,6 +162,29 @@ open class MassasRepository @Inject constructor(
                 )
             }
         }
-        return MassasWriteResult.Refused(response.code())
+        return refusalOf(response)
+    }
+
+    /**
+     * Reads what the backend said about the refusal.
+     *
+     * The body is consumed once and a body nobody can parse is not an error of its own: the row keeps the
+     * status code, which is what the screen falls back to when there is no sentence to repeat.
+     */
+    private fun refusalOf(response: Response<*>): MassasWriteResult.Refused {
+        val raw = runCatching { response.errorBody()?.string() }.getOrNull().orEmpty()
+        val parsed = runCatching { errorJson.decodeFromString<ApiErrorBody>(raw) }.getOrNull()
+        return MassasWriteResult.Refused(
+            statusCode = response.code(),
+            errorCode = parsed?.code?.takeIf { it.isNotBlank() },
+            message = parsed?.error?.takeIf { it.isNotBlank() },
+        )
+    }
+
+    @Serializable
+    private data class ApiErrorBody(val error: String? = null, val code: String? = null)
+
+    private companion object {
+        private val errorJson = Json { ignoreUnknownKeys = true; explicitNulls = false }
     }
 }

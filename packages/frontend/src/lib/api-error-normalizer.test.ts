@@ -121,3 +121,10 @@ test('resolveApiErrorKey: every massas code has a translation, none falls throug
     assert.ok(resolveApiErrorKey(400, '', code), `${code} has no key`);
   }
 });
+
+test('resolveApiErrorKey: the ERP mirror refusals on the same screen are translated too', () => {
+  assert.equal(resolveApiErrorKey(503, '', 'AERO_MOVEMENTS_NOT_MIGRATED'), 'massas.erp.mirrorMissing');
+  assert.equal(resolveApiErrorKey(400, '', 'INVALID_MOVEMENTS'), 'massas.erp.invalidMovements');
+  assert.equal(resolveApiErrorKey(400, '', 'INVALID_AERO_LOG'), 'massas.erp.invalidLog');
+  assert.equal(resolveApiErrorKey(400, 'Data inválida: use AAAA-MM-DD', 'INVALID_DATE_FORMAT'), 'massas.error.invalidDate');
+});

@@ -675,7 +675,10 @@
       "batchUnreadable": "Não foi possível ler a resposta do ERP. Nenhum lançamento foi confirmado.",
       "batchRetry": "Reenviar falhas ({{count}})",
       "batchPartial": "{{ok}} de {{total}} sincronizados · falhas: {{failed}}",
-      "batchNoDetail": "sem detalhe do ERP"
+      "batchNoDetail": "sem detalhe do ERP",
+      "invalidLog": "Evento de integração inválido.",
+      "invalidMovements": "Movimentações inválidas.",
+      "mirrorMissing": "A tabela espelho do ERP não existe: rode as migrações."
     },
     "unified": {
       "title": "Produção do dia",

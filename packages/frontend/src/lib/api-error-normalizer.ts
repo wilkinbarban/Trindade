@@ -26,6 +26,19 @@ const MASSAS_CODE_KEYS: Record<string, string> = {
 };
 
 /**
+ * The ERP mirror refusals the Espelho tab can receive.
+ *
+ * They are not massas codes, but they reach the same operator on the same screen, so they are read here
+ * instead of leaking the server's sentence.
+ */
+const AERO_CODE_KEYS: Record<string, string> = {
+  INVALID_AERO_LOG: 'massas.erp.invalidLog',
+  INVALID_DATE_FORMAT: 'massas.error.invalidDate',
+  INVALID_MOVEMENTS: 'massas.erp.invalidMovements',
+  AERO_MOVEMENTS_NOT_MIGRATED: 'massas.erp.mirrorMissing',
+};
+
+/**
  * Resolves a raw backend error message and status code into a translation key, or returns null if no mapping applies.
  *
  * `code` is the semantic field of the payload (`MASSAS_FORBIDDEN`, …). When it is one this module knows,
@@ -37,6 +50,9 @@ export function resolveApiErrorKey(status: number, rawMessage: string, code?: st
 
   if (semantic && Object.hasOwn(MASSAS_CODE_KEYS, semantic)) {
     return MASSAS_CODE_KEYS[semantic];
+  }
+  if (semantic && Object.hasOwn(AERO_CODE_KEYS, semantic)) {
+    return AERO_CODE_KEYS[semantic];
   }
 
   // The massas sentences, in the Portuguese the backend answers and in the English a cached client may

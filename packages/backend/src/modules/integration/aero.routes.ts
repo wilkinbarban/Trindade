@@ -38,7 +38,7 @@ export async function aeroIntegrationRoutes(fastify: FastifyInstance) {
           .status(400)
           .send(
             apiError(
-              'Invalid integration log event',
+              'Evento de integração inválido',
               AERO_ERROR_CODES.INVALID_AERO_LOG,
               parsed.error.flatten(),
             ),
@@ -79,7 +79,7 @@ export async function aeroIntegrationRoutes(fastify: FastifyInstance) {
       if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
         return reply
           .status(400)
-          .send(apiError('date must be YYYY-MM-DD', AERO_MOVEMENTS_ERROR_CODES.INVALID_DATE_FORMAT));
+          .send(apiError('Data inválida: use AAAA-MM-DD', AERO_MOVEMENTS_ERROR_CODES.INVALID_DATE_FORMAT));
       }
 
       if (!aeroMovementsTableExists(fastify.db)) {
@@ -87,7 +87,7 @@ export async function aeroIntegrationRoutes(fastify: FastifyInstance) {
           .status(503)
           .send(
             apiError(
-              'The ERP mirror table is missing: run db:migrate',
+              'A tabela espelho do ERP não existe: rode as migrações',
               AERO_MOVEMENTS_ERROR_CODES.NOT_MIGRATED,
             ),
           );
@@ -114,7 +114,7 @@ export async function aeroIntegrationRoutes(fastify: FastifyInstance) {
           .status(400)
           .send(
             apiError(
-              'Invalid movements snapshot',
+              'Movimentações inválidas',
               AERO_MOVEMENTS_ERROR_CODES.INVALID_MOVEMENTS,
               parsed.error.flatten(),
             ),
@@ -126,7 +126,7 @@ export async function aeroIntegrationRoutes(fastify: FastifyInstance) {
           .status(503)
           .send(
             apiError(
-              'The ERP mirror table is missing: run db:migrate',
+              'A tabela espelho do ERP não existe: rode as migrações',
               AERO_MOVEMENTS_ERROR_CODES.NOT_MIGRATED,
             ),
           );

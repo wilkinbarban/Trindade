@@ -13,12 +13,25 @@ import androidx.compose.ui.res.stringResource
  * sentence has any. The value stays a plain data class, so a unit test asserts which message a
  * failure produced without a Context.
  */
-data class UiText(@StringRes val resId: Int, val args: List<Any> = emptyList()) {
+data class UiText(
+    @StringRes val resId: Int,
+    val args: List<Any> = emptyList(),
+    /**
+     * A sentence that is already text, such as the one the backend wrote.
+     *
+     * It exists for the case where the server's refusal has no resource of ours to name it: an unknown code
+     * still has a Portuguese sentence, and dropping it for a generic "code 400" would throw away the only
+     * explanation the operator has.
+     */
+    val literal: String? = null,
+) {
     companion object {
         fun of(@StringRes resId: Int, vararg args: Any): UiText = UiText(resId, args.toList())
+
+        fun literal(text: String): UiText = UiText(0, emptyList(), text)
     }
 }
 
 /** Draws the message in the active locale, filling its placeholders. */
 @Composable
-fun UiText.resolve(): String = stringResource(resId, *args.toTypedArray())
+fun UiText.resolve(): String = literal ?: stringResource(resId, *args.toTypedArray())

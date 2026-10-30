@@ -176,6 +176,8 @@ describe('Aero integration routes', () => {
     assert.equal(res.statusCode, 400);
     const body = JSON.parse(res.body);
     assert.equal(body.code, 'INVALID_AERO_LOG');
+    // The screen that logs an event is the operator's, so the sentence is Portuguese too.
+    assert.equal(body.error, 'Evento de integração inválido');
   });
 
   it('answers 400 with code INVALID_AERO_LOG for a body that smuggles an authorization field', async () => {

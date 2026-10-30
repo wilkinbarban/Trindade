@@ -371,6 +371,85 @@ class MassasLaunchViewModelTest {
         assertEquals(listOf(400), testVm.state.value.resultDialogMessage?.args)
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun confirmLaunch_whenTheDayClosedSaysWhyInsteadOfACode() = runTest {
+        val fakeRepo = FakeMassasRepository(massasApi)
+        // The backend answers in Portuguese with its code; the screen must repeat the reason, not `409`.
+        fakeRepo.createLaunchResult = MassasWriteResult.Refused(
+            statusCode = 409,
+            errorCode = "MASSAS_HISTORY_FROZEN",
+            message = "O histórico de massas é somente leitura: dias passados não podem ser alterados",
+        )
+        val testVm = newViewModel(fakeRepo)
+
+        testVm.onQuantityChange("1045", "5")
+        testVm.requestLaunchConfirmation()
+        testVm.confirmLaunch()
+        testScheduler.runCurrent()
+
+        assertFalse(testVm.state.value.resultDialogIsSuccess)
+        assertEquals(R.string.massas_error_history_frozen, testVm.state.value.resultDialogMessage?.resId)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun confirmLaunch_whenTheSeatBelongsToAnotherOperatorNamesTheOperator() = runTest {
+        val fakeRepo = FakeMassasRepository(massasApi)
+        fakeRepo.createLaunchResult = MassasWriteResult.Refused(
+            statusCode = 403,
+            errorCode = "MASSAS_FORBIDDEN",
+            message = "Este lançamento pertence a outro operário",
+        )
+        val testVm = newViewModel(fakeRepo)
+
+        testVm.onQuantityChange("1045", "5")
+        testVm.requestLaunchConfirmation()
+        testVm.confirmLaunch()
+        testScheduler.runCurrent()
+
+        assertEquals(R.string.massas_error_forbidden, testVm.state.value.resultDialogMessage?.resId)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun confirmLaunch_whenTheSeatWasAlreadyImportedSaysSo() = runTest {
+        val fakeRepo = FakeMassasRepository(massasApi)
+        fakeRepo.createLaunchResult = MassasWriteResult.Refused(
+            statusCode = 409,
+            errorCode = "MASSAS_ALREADY_IMPORTED",
+            message = "Este lançamento do ERP já foi importado",
+        )
+        val testVm = newViewModel(fakeRepo)
+
+        testVm.onQuantityChange("1045", "5")
+        testVm.requestLaunchConfirmation()
+        testVm.confirmLaunch()
+        testScheduler.runCurrent()
+
+        assertEquals(R.string.massas_error_already_imported, testVm.state.value.resultDialogMessage?.resId)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun confirmLaunch_whenTheCodeIsUnknownKeepsTheServersTranslatedSentence() = runTest {
+        val fakeRepo = FakeMassasRepository(massasApi)
+        // A code this build does not know yet, with the sentence the backend already wrote in Portuguese.
+        fakeRepo.createLaunchResult = MassasWriteResult.Refused(
+            statusCode = 400,
+            errorCode = "MASSAS_SOMETHING_NEW",
+            message = "Não foi possível registrar o lançamento",
+        )
+        val testVm = newViewModel(fakeRepo)
+
+        testVm.onQuantityChange("1045", "5")
+        testVm.requestLaunchConfirmation()
+        testVm.confirmLaunch()
+        testScheduler.runCurrent()
+
+        assertEquals("Não foi possível registrar o lançamento", testVm.state.value.resultDialogMessage?.literal)
+    }
+
     @Test
     fun selectOperator_updatesSelectedOperatorId() {
         assertNull(viewModel.state.value.selectedOperatorId)

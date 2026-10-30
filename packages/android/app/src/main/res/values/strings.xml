@@ -843,6 +843,13 @@
 
     <!-- Audit remediation 509: view model messages resolved by the screens -->
     <string name="massas_error_load">Não foi possível carregar os lançamentos de massas.</string>
+    <string name="massas_error_history_frozen">O histórico de massas é somente leitura: dias passados não podem ser alterados.</string>
+    <string name="massas_error_forbidden">Este lançamento pertence a outro operário.</string>
+    <string name="massas_error_already_imported">Este lançamento do ERP já foi importado.</string>
+    <string name="massas_error_not_found">Lançamento não encontrado.</string>
+    <string name="massas_error_reconciled">Esta produção já foi conciliada com o ERP e não pode ser alterada.</string>
+    <string name="massas_error_invalid_boxes">Quantidade de caixas inválida.</string>
+    <string name="massas_error_future_date">Não é possível lançar em datas futuras.</string>
     <string name="massas_error_create_refused">O servidor recusou o lançamento (código %1$d).</string>
     <string name="massas_error_update">Não foi possível alterar este lançamento.</string>
     <string name="massas_error_delete">Não foi possível excluir este lançamento.</string>
