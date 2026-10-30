@@ -236,6 +236,7 @@ hereda esas aserciones.
   Evidencia: `abd4eda` (regla pura) y `a21bce8` (vista del día); 12/12 en verde.
 - **T2** (S4, S5) — `export.service.ts`: sección de masas permanente, sin `includeMassas`; `reports.routes.ts`
   y `ExportPreview` sin el parámetro ni el checkbox; tests de literales con emojis.
+  Evidencia: `511fd1a`; 68/68 backend de reportes, 7/7 E2E de export.
 - **T3** (S3) — `MassasReportSection` reutilizable y montada en `ReportsPage` y `ReportViewPage`, con test de
   cableado y E2E de la tarjeta.
 - **T4** (S6, S7, S8, D5) — `massasUnifiedRows` en `lib/` y la tabla unificada en `MassasLaunchPage`; se
