@@ -155,9 +155,15 @@ hereda esas aserciones.
   snapshot en cada lectura. Guardarlo sería una tercera fuente de verdad que se desincroniza.
 - **D6 — El operario de la tablet puede no ser usuario de Trindade.** `ENT_USU` es texto libre del ERP. Se
   muestra como chip propio y se suma a su nombre; asociarlo a una cuenta requiere una decisión de Wilkin.
-- **D7 — `Ya cargado en Tablet` es del día, no histórico.** Marca la fila para que no se vuelva a ofrecer en
-  esa jornada; no crea un launch ni escribe en el ERP. Si se pierde el estado del día, la fila vuelve a
-  ofrecerse: es un aviso, no un registro.
+- **D7 — `Ya cargado en Tablet` es del día y del dispositivo.** Clave `aero_tablet_acked_YYYY-MM-DD` en
+  `localStorage` con los ids marcados. No crea un launch ni escribe en el ERP; es un aviso que sobrevive
+  recargas y muere con la jornada. Otro teléfono vuelve a ofrecer la fila, que es lo correcto: la marca es de
+  quien la cargó.
+- **D8 — La regla de conciliación vive dos veces, a propósito y con los mismos casos.** El backend no puede
+  importar `packages/frontend/src/lib/aero-integration.ts` y no hay paquete compartido de código
+  (`packages/contracts` es sólo OpenAPI). `reconcileAeroMovements` (frontend) y la función pura del reporte
+  (backend) se testean con la misma tabla de casos. Unificarlas en un paquete compartido es deuda explícita,
+  no de este salto.
 
 ## Contratos de prueba
 
@@ -205,26 +211,28 @@ hereda esas aserciones.
   `difference = -100`.
 - E2E 375 px: la barra de balance está arriba de la tabla, sin desborde horizontal y con targets ≥44 px.
 
-## Preguntas para cerrar antes de implementar
+## Decisiones cerradas con Wilkin
 
-1. **Acceso del operario a la pestaña.** Hoy `AdminDashboard` filtra: un worker sólo ve
-   `tasks`, `drivers` y `profile` (`AdminDashboard.tsx:184`). Si las credenciales del operario se editan en
-   «Integração ERP», esa pestaña tiene que ser visible para workers, o las credenciales necesitan otro
-   acceso. ¿Pestaña visible para todos, o bloque de credenciales en Masas y pestaña sólo admin?
-2. **`wsUrl` con garantía o con candado.** ¿Alcanza con read-only en la UI (D4), o la URL se sirve desde el
-   backend?
-3. **Identidad de operario de tablet (D6).** ¿`ENT_USU` se muestra tal cual como operario externo, o se mapea
-   a un usuario de Trindade por una tabla de alias?
-4. **Signo y alcance del balance.** ¿`Diferencia = ERP − Producido`, y cuenta también los seats conciliados
-   viejos del día? (Hoy la propuesta los cuenta del lado ERP aunque ya estén en Trindade, porque el balance
-   compara dos registros, no dos producciones.)
-5. **`Ya cargado en Tablet`.** ¿Basta el estado en memoria/localStorage del día (D7) o Wilkin quiere una
-   marca persistida por launch?
+1. **Pestaña Integração para todos los roles, workers incluidos.** El operario entra ahí a configurar sus
+   credenciales personales, probar conexión e instalar el atajo. `AdminDashboard.tsx:184` cambia: la pestaña
+   `integration` no se filtra por rol.
+2. **`wsUrl` con candado de UI, sin migración de backend.** Campo read-only con icono de candado para todos;
+   editable sólo si el usuario logueado es `wilkin`. Higiene de UI, no control de seguridad (D4).
+3. **Sin tabla de alias.** `ENT_USU` se muestra en mayúsculas tal cual. Si coincide case-insensitive con
+   `username` o `display_name` de Trindade se asocia; si no, queda como operario de planta en el filtro y en
+   el reporte.
+4. **`Diferencia = Registrado − Producido`.** Cero significa conciliación total; negativa avisa que hay
+   producción sin impactar en Delphi. Los seats conciliados cuentan del lado ERP: el balance compara dos
+   registros, no dos producciones.
+5. **`Ya cargado en Tablet` vive en el dispositivo.** `localStorage` con la clave
+   `aero_tablet_acked_YYYY-MM-DD` y los ids de los launches marcados. Sobrevive recargas de la jornada y no
+   pide migración.
 
 ## Tasks
 
-- **T1** (S1, S2, D1, D2) — `massas.service.ts`: `massasReportDayView` que une launches y seats conciliados,
-  con tests puros de doble conteo, salidas y operarios.
+- **T1** (S1, S2, D1, D2, D8) — `massas/massas-report.service.ts`: `reconcileMassasDay` (pura) y
+  `massasReportDayView` que une launches y seats conciliados, tolerando la tabla sin migrar. Tests puros de
+  doble conteo, salidas, operarios de tablet y catálogo vacío.
 - **T2** (S4, S5) — `export.service.ts`: sección de masas permanente, sin `includeMassas`; `reports.routes.ts`
   y `ExportPreview` sin el parámetro ni el checkbox; tests de literales con emojis.
 - **T3** (S3) — `MassasReportSection` reutilizable y montada en `ReportsPage` y `ReportViewPage`, con test de
@@ -285,3 +293,19 @@ hereda esas aserciones.
   MassasLaunchPage.tsx, ErpMirrorCard.tsx, AdminDashboard.tsx), compará con esta arquitectura y redactá el
   artefacto ODD en odd/tasks/conciliacion-unificada-masas-y-relatorio.md con el desglose de fases y contratos
   de prueba. Avisame apenas lo tengas para revisarlo juntos antes de tirar código.»
+- **L2** — Respuestas oficiales de Wilkin a las cinco preguntas: «1. Pestaña Integração en AdminDashboard:
+  Habilitada para que todos los roles (incluidos workers) puedan verla y acceder. Los operarios acceden allí
+  para configurar sus credenciales personales, probar conexión e instalar el atajo de iCloud. 2. wsUrl y
+  permisos: Valor por defecto en código: 'http://192.168.25.250:1453/api'. En la UI: campo read-only con
+  icono de candado para todos los usuarios. Solo si el usuario logueado es 'wilkin' se habilita la edición del
+  campo. Higiene de UI limpia sin necesidad de migraciones de backend. 3. Operarios del ERP que no existen en
+  Trindade: Se muestran directamente con su nombre de ERP (ENT_USU en mayúsculas). Si el nombre coincide
+  case-insensitive con algún usuario/display_name de Trindade se asocia; si no, se muestra tal cual como
+  operario de planta en el filtro y en el reporte. Sin tablas de alias complejas. 4. Balance: Total Producido
+  (cifra real conciliada sin duplicados) vs Total Registrado en ERP (entradas de masas en snapshot).
+  Diferencia = Registrado - Producido. Si es 0 está 100% conciliado; si es negativa alerta que hay producción
+  sin impactar en Delphi. 5. 'Ya cargado en Tablet': Se persiste en localStorage del dispositivo por fecha
+  (ej. 'aero_tablet_acked_YYYY-MM-DD') asociando los IDs de launches marcados. Así sobrevive recargas de
+  página durante la jornada laboral sin requerir migraciones de base de datos.» Y la autorización: «Tenés luz
+  verde total. Arrancá con T1 y T2 bajo TDD estricto (RED -> GREEN), cuidando commits atómicos en main
+  (<= 400 líneas, sin AI attribution).»
