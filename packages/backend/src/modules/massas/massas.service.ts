@@ -1,6 +1,7 @@
 import type Database from 'better-sqlite3';
 import { aeroMovementsTableExists, listAeroMovements } from '../integration/aero.movements.service.js';
 import { MASSAS, type StockProduct } from '../stock/stock.catalog.js';
+import { resolveOperatorUserId } from './massas-operator.js';
 import { reconcileMassasDay } from './massas-reconcile.js';
 
 export interface MassaProductTotal {
@@ -21,6 +22,8 @@ export interface MassaIndividualLaunch {
   user_id: number;
   username: string;
   display_name: string;
+  /** The ERP seat this launch was imported from, or null when it was typed here. */
+  ent_lan: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -41,6 +44,7 @@ interface RawLaunchRow {
   user_id: number;
   username: string;
   display_name: string;
+  ent_lan: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -71,6 +75,7 @@ export function massasLaunchDayView(db: Database.Database, date: string): Massas
         l.user_id,
         u.username,
         u.display_name,
+        l.ent_lan,
         l.created_at,
         l.updated_at
       FROM massa_launches l
@@ -93,6 +98,7 @@ export function massasLaunchDayView(db: Database.Database, date: string): Massas
       user_id: row.user_id,
       username: row.username,
       display_name: row.display_name,
+      ent_lan: row.ent_lan ?? null,
       created_at: row.created_at,
       updated_at: row.updated_at,
     };
@@ -132,6 +138,8 @@ export function massasLaunchDayView(db: Database.Database, date: string): Massas
 export interface CreateLaunchItem {
   product_code: string;
   boxes: number;
+  /** The ERP seat this line came from, when the launch is an import. */
+  ent_lan?: number | null;
 }
 
 export function createMassaLaunches(
@@ -139,6 +147,8 @@ export function createMassaLaunches(
   params: {
     date: string;
     userId: number;
+    /** The operator the tablet wrote on the seat; the importer is only the fallback owner. */
+    operatorName?: string | null;
     items: CreateLaunchItem[];
   },
 ): MassaIndividualLaunch[] {
@@ -155,11 +165,16 @@ export function createMassaLaunches(
     }
   }
 
+  // The seat decides the owner when it names somebody here; otherwise the importer keeps the launch. Both
+  // facts travel separately, because the seat is what reconciles and the person is who gets the credit.
+  const ownerId = resolveOperatorUserId(db, params.operatorName) ?? params.userId;
+
   const now = nowIso();
   const insertStmt = db.prepare(
-    `INSERT INTO massa_launches (launch_date, product_code, boxes, user_id, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO massa_launches (launch_date, product_code, boxes, user_id, ent_lan, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
   );
+  const seatStmt = db.prepare('SELECT id FROM massa_launches WHERE ent_lan = ? LIMIT 1');
   const selectStmt = db.prepare(
     `SELECT 
       l.id,
@@ -169,6 +184,7 @@ export function createMassaLaunches(
       l.user_id,
       u.username,
       u.display_name,
+      l.ent_lan,
       l.created_at,
       l.updated_at
     FROM massa_launches l
@@ -179,7 +195,13 @@ export function createMassaLaunches(
   return db.transaction(() => {
     const created: MassaIndividualLaunch[] = [];
     for (const item of params.items) {
-      const result = insertStmt.run(params.date, item.product_code, item.boxes, params.userId, now, now);
+      const entLan = item.ent_lan ?? null;
+      if (entLan !== null && seatStmt.get(entLan) !== undefined) {
+        const err = new Error('This ERP seat was already imported');
+        (err as unknown as { code: string }).code = 'ALREADY_IMPORTED';
+        throw err;
+      }
+      const result = insertStmt.run(params.date, item.product_code, item.boxes, ownerId, entLan, now, now);
       const insertedRow = selectStmt.get(result.lastInsertRowid) as RawLaunchRow;
       const product = findMassaProduct(insertedRow.product_code);
       created.push({
@@ -192,6 +214,7 @@ export function createMassaLaunches(
         user_id: insertedRow.user_id,
         username: insertedRow.username,
         display_name: insertedRow.display_name,
+        ent_lan: insertedRow.ent_lan ?? null,
         created_at: insertedRow.created_at,
         updated_at: insertedRow.updated_at,
       });
@@ -270,6 +293,7 @@ export function updateMassaLaunch(
         l.user_id,
         u.username,
         u.display_name,
+        l.ent_lan,
         l.created_at,
         l.updated_at
       FROM massa_launches l
@@ -289,6 +313,7 @@ export function updateMassaLaunch(
     user_id: row.user_id,
     username: row.username,
     display_name: row.display_name,
+    ent_lan: row.ent_lan ?? null,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };

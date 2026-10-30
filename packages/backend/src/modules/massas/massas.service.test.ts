@@ -38,6 +38,60 @@ describe('massas launch service', () => {
     userBobId = Number(resBob.lastInsertRowid);
   });
 
+  it('keeps the seat an imported launch came from and attributes it to that seat\'s operator', () => {
+    // The seat says VICTOR; the request arrives signed by whoever pressed Importar. The launch has to carry
+    // both facts, or the day shows VICTOR's boxes under the importer's name and never reconciles.
+    const [created] = createMassaLaunches(db, {
+      date: testDate,
+      userId: userBobId,
+      operatorName: 'ALICE SILVA',
+      items: [{ product_code: '5000', boxes: 27, ent_lan: 35937 }],
+    });
+
+    assert.equal(created.ent_lan, 35937);
+    assert.equal(created.user_id, userAliceId);
+    assert.equal(created.username, 'alice');
+
+    // The day view is the reading the screens build on, so it has to answer the seat as well.
+    const view = massasLaunchDayView(db, testDate);
+    assert.equal(view.launches[0].ent_lan, 35937);
+  });
+
+  it('keeps the seat even when the operator name matches nobody', () => {
+    // S2: no resolution means the authenticated user, but the seat is a fact about the boxes, not about
+    // the person, so it survives.
+    const [created] = createMassaLaunches(db, {
+      date: testDate,
+      userId: userBobId,
+      operatorName: 'MARIA DA SILVA',
+      items: [{ product_code: '22', boxes: 3, ent_lan: 35939 }],
+    });
+
+    assert.equal(created.ent_lan, 35939);
+    assert.equal(created.user_id, userBobId);
+  });
+
+  it('refuses a second launch for a seat already here instead of duplicating it', () => {
+    createMassaLaunches(db, {
+      date: testDate,
+      userId: userAliceId,
+      items: [{ product_code: '5000', boxes: 27, ent_lan: 35937 }],
+    });
+
+    assert.throws(
+      () =>
+        createMassaLaunches(db, {
+          date: testDate,
+          userId: userAliceId,
+          items: [{ product_code: '5000', boxes: 27, ent_lan: 35937 }],
+        }),
+      (error: unknown) => (error as { code?: string }).code === 'ALREADY_IMPORTED',
+    );
+
+    // The refusal is total: the day still holds exactly the first launch.
+    assert.equal(massasLaunchDayView(db, testDate).launches.length, 1);
+  });
+
   it('answers all 10 massas products at zero when day has no launches', () => {
     const view = massasLaunchDayView(db, testDate);
     assert.equal(view.date, testDate);

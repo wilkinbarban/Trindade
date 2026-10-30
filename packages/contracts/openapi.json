@@ -1486,6 +1486,12 @@
           "display_name": {
             "type": "string"
           },
+          "ent_lan": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "created_at": {
             "type": "string"
           },
@@ -1503,6 +1509,7 @@
           "user_id",
           "username",
           "display_name",
+          "ent_lan",
           "created_at",
           "updated_at"
         ],
@@ -1577,6 +1584,12 @@
                 "display_name": {
                   "type": "string"
                 },
+                "ent_lan": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
                 "created_at": {
                   "type": "string"
                 },
@@ -1594,6 +1607,7 @@
                 "user_id",
                 "username",
                 "display_name",
+                "ent_lan",
                 "created_at",
                 "updated_at"
               ],
@@ -1643,6 +1657,14 @@
                 "boxes": {
                   "type": "integer",
                   "minimum": 1
+                },
+                "ent_lan": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                "operator_name": {
+                  "type": "string",
+                  "minLength": 1
                 }
               },
               "required": [
@@ -1651,6 +1673,14 @@
               ],
               "additionalProperties": false
             }
+          },
+          "ent_lan": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "operator_name": {
+            "type": "string",
+            "minLength": 1
           }
         },
         "additionalProperties": false
@@ -1690,6 +1720,12 @@
                 "display_name": {
                   "type": "string"
                 },
+                "ent_lan": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
                 "created_at": {
                   "type": "string"
                 },
@@ -1707,6 +1743,7 @@
                 "user_id",
                 "username",
                 "display_name",
+                "ent_lan",
                 "created_at",
                 "updated_at"
               ],

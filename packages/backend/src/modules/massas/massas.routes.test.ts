@@ -188,6 +188,124 @@ describe('massas routes', () => {
     assert.equal(bodyBatch.created.length, 2);
   });
 
+  /**
+   * The import path: the page sends the seat and the name the tablet wrote, and the launch has to end up
+   * owned by that operator with the seat recorded, or the day shows someone else's boxes and never settles.
+   */
+  it('POST /api/massas-launch imports a seat under its own operator and records the seat', async () => {
+    const roleId = db.prepare("SELECT id FROM roles WHERE name = 'Trabalhador'").pluck().get() as number;
+    for (const [username, displayName] of [
+      ['victor', 'Victor'],
+      ['gustavo', 'Gustavo'],
+    ]) {
+      db.prepare('INSERT INTO users (username, password_hash, display_name, role_id, is_active) VALUES (?,?,?,?,1)').run(
+        username,
+        'hash',
+        displayName,
+        roleId,
+      );
+    }
+
+    const resVictor = await app.inject({
+      method: 'POST',
+      url: '/api/massas-launch',
+      headers: { authorization: `Bearer ${tokenAlice}` },
+      payload: {
+        date: dateStr,
+        ent_lan: 35937,
+        operator_name: 'VICTOR',
+        items: [{ product_code: '5000', boxes: 27 }],
+      },
+    });
+    assert.equal(resVictor.statusCode, 201, resVictor.body);
+    const createdVictor = (JSON.parse(resVictor.body) as { created: MassaIndividualLaunch[] }).created[0];
+    assert.equal(createdVictor.ent_lan, 35937);
+    assert.equal(createdVictor.username, 'victor');
+
+    // The seat carries a surname initial the login never has; it still resolves to the one Gustavo there is.
+    const resGustavo = await app.inject({
+      method: 'POST',
+      url: '/api/massas-launch',
+      headers: { authorization: `Bearer ${tokenAlice}` },
+      payload: {
+        date: dateStr,
+        ent_lan: 35939,
+        operator_name: 'GUSTAVO H',
+        items: [{ product_code: '22', boxes: 3 }],
+      },
+    });
+    assert.equal(resGustavo.statusCode, 201, resGustavo.body);
+    const createdGustavo = (JSON.parse(resGustavo.body) as { created: MassaIndividualLaunch[] }).created[0];
+    assert.equal(createdGustavo.ent_lan, 35939);
+    assert.equal(createdGustavo.username, 'gustavo');
+
+    // The day view is where the screens read the seat from.
+    const day = await app.inject({
+      method: 'GET',
+      url: `/api/massas-launch?date=${dateStr}`,
+      headers: { authorization: `Bearer ${tokenAlice}` },
+    });
+    const view = JSON.parse(day.body) as MassasLaunchDayView;
+    const seats = view.launches.filter((launch) => launch.ent_lan !== null).map((launch) => launch.ent_lan);
+    assert.deepEqual(seats, [35937, 35939]);
+  });
+
+  it('keeps the seat when the operator name names nobody, and refuses the same seat twice', async () => {
+    const unknown = await app.inject({
+      method: 'POST',
+      url: '/api/massas-launch',
+      headers: { authorization: `Bearer ${tokenBob}` },
+      payload: {
+        date: dateStr,
+        ent_lan: 35950,
+        operator_name: 'MARIA DA SILVA',
+        items: [{ product_code: '91', boxes: 2 }],
+      },
+    });
+    assert.equal(unknown.statusCode, 201, unknown.body);
+    const created = (JSON.parse(unknown.body) as { created: MassaIndividualLaunch[] }).created[0];
+    assert.equal(created.ent_lan, 35950);
+    assert.equal(created.username, 'bob');
+
+    const again = await app.inject({
+      method: 'POST',
+      url: '/api/massas-launch',
+      headers: { authorization: `Bearer ${tokenBob}` },
+      payload: {
+        date: dateStr,
+        ent_lan: 35950,
+        operator_name: 'MARIA DA SILVA',
+        items: [{ product_code: '91', boxes: 2 }],
+      },
+    });
+    assert.equal(again.statusCode, 409, again.body);
+    assert.equal((JSON.parse(again.body) as { code: string }).code, 'MASSAS_ALREADY_IMPORTED');
+
+    // Nothing new was stored: the refusal is about the seat, and it happens before any insert.
+    const stored = db
+      .prepare('SELECT COUNT(*) AS n FROM massa_launches WHERE ent_lan = ?')
+      .get(35950) as { n: number };
+    assert.equal(stored.n, 1);
+  });
+
+  it('refuses a seat sent for several items, because one seat is one product line', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/massas-launch',
+      headers: { authorization: `Bearer ${tokenAlice}` },
+      payload: {
+        date: dateStr,
+        ent_lan: 35960,
+        items: [
+          { product_code: '1045', boxes: 1 },
+          { product_code: '39', boxes: 1 },
+        ],
+      },
+    });
+    assert.equal(res.statusCode, 400, res.body);
+    assert.equal((JSON.parse(res.body) as { code: string }).code, 'MASSAS_INVALID_LAUNCH_DATA');
+  });
+
   it('PUT /api/massas-launch/:id permits owner to edit and returns 403 for other users', async () => {
     // Alice creates a launch
     const createRes = await app.inject({

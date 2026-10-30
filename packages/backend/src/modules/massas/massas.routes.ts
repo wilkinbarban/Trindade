@@ -54,7 +54,7 @@ export async function massasRoutes(fastify: FastifyInstance) {
       return reply.status(400).send(apiError('Invalid launch data', MASSAS_ERROR_CODES.INVALID_LAUNCH_DATA, parsed.error.format()));
     }
 
-    const { date, product_code, boxes, items } = parsed.data;
+    const { date, product_code, boxes, items, ent_lan: bodyEntLan, operator_name: bodyOperatorName } = parsed.data;
     const targetDate = date ?? getSaoPauloDateString();
 
     const todayInSaoPaulo = getSaoPauloDateString();
@@ -68,14 +68,44 @@ export async function massasRoutes(fastify: FastifyInstance) {
       return reply.status(400).send(apiError('Must provide either items array or product_code and boxes', MASSAS_ERROR_CODES.EMPTY_ITEMS));
     }
 
+    // One seat is one product line: a request that names a single seat for several items would store the
+    // same seat on lines it cannot belong to, so it is refused instead of guessed.
+    if (bodyEntLan !== undefined && targetItems.length > 1) {
+      return reply
+        .status(400)
+        .send(
+          apiError(
+            'A single ent_lan cannot describe several items; send ent_lan on the item it belongs to',
+            MASSAS_ERROR_CODES.INVALID_LAUNCH_DATA,
+          ),
+        );
+    }
+
+    // The operator is the seat's, not the importer's; without a name that resolves, the importer keeps the
+    // launch. It is one decision for the whole request because an import carries one operator's boxes.
+    const operatorName = bodyOperatorName ?? targetItems.find((item) => item.operator_name)?.operator_name ?? null;
+    const seatItems = targetItems.map((item) => ({
+      product_code: item.product_code,
+      boxes: item.boxes,
+      // A body-level seat matches the single item the rule above allowed.
+      ent_lan: item.ent_lan ?? bodyEntLan ?? null,
+    }));
+
     try {
       const created = createMassaLaunches(fastify.db, {
         date: targetDate,
         userId: request.user!.sub,
-        items: targetItems,
+        operatorName,
+        items: seatItems,
       });
       return reply.status(201).send({ created });
     } catch (error) {
+      const code = (error as unknown as { code?: string })?.code;
+      if (code === 'ALREADY_IMPORTED') {
+        return reply
+          .status(409)
+          .send(apiError('This ERP seat was already imported', MASSAS_ERROR_CODES.ALREADY_IMPORTED));
+      }
       const message = error instanceof Error ? error.message : 'Failed to create launches';
       return reply.status(400).send(apiError(message, MASSAS_ERROR_CODES.CREATE_FAILED));
     }

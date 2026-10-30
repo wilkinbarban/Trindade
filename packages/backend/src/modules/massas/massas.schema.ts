@@ -24,6 +24,8 @@ export const MassaIndividualLaunchSchema = z
     user_id: z.number().int(),
     username: z.string(),
     display_name: z.string(),
+    /** The ERP seat this launch was imported from; null for a launch typed here. */
+    ent_lan: z.number().int().nullable(),
     created_at: z.string(),
     updated_at: z.string(),
   })
@@ -43,6 +45,9 @@ export const MassasLaunchCreateItemSchema = z
   .object({
     product_code: z.string().min(1),
     boxes: z.number().int().min(1),
+    /** The ERP seat this line came from, when the launch is an import rather than a typed one. */
+    ent_lan: z.number().int().positive().optional(),
+    operator_name: z.string().min(1).optional(),
   })
   .strict();
 
@@ -52,6 +57,13 @@ export const MassasLaunchCreateBodySchema = z
     product_code: z.string().min(1).optional(),
     boxes: z.number().int().min(1).optional(),
     items: z.array(MassasLaunchCreateItemSchema).optional(),
+    /**
+     * The seat and the operator the tablet wrote, for the import path. Accepted at the top level because
+     * the screen imports one seat at a time; a request with several items must carry them per item, since
+     * one seat is one product line.
+     */
+    ent_lan: z.number().int().positive().optional(),
+    operator_name: z.string().min(1).optional(),
   })
   .strict();
 
