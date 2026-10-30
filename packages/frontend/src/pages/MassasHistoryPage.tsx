@@ -11,6 +11,8 @@ import { massasMessage, type MassasLaunchDayView } from '../lib/massas';
 import { ArrowLeft } from 'lucide-react';
 import { ModuleHelpModal } from '../components/ui/ModuleHelpModal';
 import { MassasCollectiveTable } from './massas/MassasCollectiveTable';
+import { readAeroMovementsSnapshot, type AeroMovementSnapshot } from '../lib/aero-mirror';
+import { massasUnifiedRows, type MassasUnifiedRow } from '../lib/massas-unified';
 import { MassasWhatsAppShare } from './massas/MassasWhatsAppShare';
 import { saoPauloDaysAgo, saoPauloYesterday } from '../lib/date';
 
@@ -28,6 +30,17 @@ export function MassasHistoryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  /**
+   * The ERP's side of the same day.
+   *
+   * The launch screen already reads it, and without it here the history knew only what Trindade recorded: a box
+   * the company already received read as pending, and the balance was short by exactly those boxes. A failed
+   * read leaves the day as it was instead of inventing a second one.
+   */
+  const [mirror, setMirror] = useState<{ loading: boolean; snapshot: AeroMovementSnapshot | null }>({
+    loading: false,
+    snapshot: null,
+  });
 
   // Edit / Delete state for Administrador
 
@@ -53,6 +66,41 @@ export function MassasHistoryPage() {
   useEffect(() => {
     void loadDay(date);
   }, [date, loadDay]);
+
+  useEffect(() => {
+    let active = true;
+    setMirror({ loading: true, snapshot: null });
+    void api
+      .get<unknown>(`/integration/aero/movements?date=${date}`)
+      .then((body) => {
+        if (!active) return;
+        setMirror({ loading: false, snapshot: readAeroMovementsSnapshot(body) });
+      })
+      .catch(() => {
+        // The mirror is an extra lens, not the record: a day with no snapshot still reads as itself.
+        if (active) setMirror({ loading: false, snapshot: null });
+      });
+    return () => {
+      active = false;
+    };
+  }, [date]);
+
+  /**
+   * One row per box, from both screens, exactly as the launch screen builds it.
+   *
+   * The history never acknowledges nor imports — it is a record — so the acked list is empty and no handler is
+   * passed down; what it gains is the same reconciliation the plant saw that day.
+   */
+  const unifiedRows = useMemo<MassasUnifiedRow[]>(
+    () =>
+      massasUnifiedRows({
+        launches: dayView?.launches ?? [],
+        movements: mirror.snapshot?.movements ?? [],
+        products: dayView?.products ?? [],
+        ackedLaunchIds: [],
+      }),
+    [dayView, mirror.snapshot],
+  );
 
   const previewMessage = useMemo(() => {
     if (!dayView) return '';
@@ -157,6 +205,10 @@ export function MassasHistoryPage() {
           // The history is a record: no edit, no delete, no owner and no role to weigh. Both screens
           // draw the same read-only day, which is what the company's audit needs.
           readOnly={true}
+          // The same rows the launch screen draws, so a box already received from the ERP shows as reconciled and
+          // one the ERP never saw keeps its badge. Nothing here can send, import or acknowledge.
+          unifiedRows={unifiedRows}
+          unifiedDate={date}
         />
       )}
 

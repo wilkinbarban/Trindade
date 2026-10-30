@@ -18,6 +18,15 @@ describe('massas history is read-only', () => {
     assert.equal(/readOnly=\{!isAdmin\}/.test(historyPage), false);
   });
 
+  it('reconciles the day with the ERP mirror, like the launch screen does', () => {
+    // Without the mirror the history only knows what Trindade recorded, so a launch the ERP already received
+    // reads as pending and the day's balance is short by exactly those boxes.
+    assert.ok(historyPage.includes('/integration/aero/movements?date='));
+    assert.ok(historyPage.includes('massasUnifiedRows('));
+    assert.ok(historyPage.includes('unifiedRows={unifiedRows}'));
+    assert.ok(historyPage.includes('unifiedDate={date}'));
+  });
+
   it('offers no way to edit or delete from the history', () => {
     for (const handler of ['onStartEdit', 'onDelete', 'onSaveEdit', 'onDeleteLaunch', 'handleDeleteLaunch']) {
       assert.equal(historyPage.includes(`${handler}={`), false, `the history still wires ${handler}`);
