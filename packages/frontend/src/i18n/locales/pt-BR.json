@@ -163,7 +163,6 @@
     "receiptsError": "Não foi possível ler os insumos do dia.",
     "receiptsSyncedAt": "Espelho de {{time}}",
     "receiptsUnits": "{{quantity}} un",
-    "receiptsSeat": "Lançamento #{{entLan}}",
     "receiptsOpenMassas": "Ir para Lançamento de Masas",
     "receiptsSync": "Sincronizar insumos do ERP",
     "receiptsSyncTitle": "Insumos Sincronizados",

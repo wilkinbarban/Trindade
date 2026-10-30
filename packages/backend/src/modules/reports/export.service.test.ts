@@ -445,8 +445,10 @@ describe('Export Service — recebimento desde el espejo del ERP', () => {
 
     const text = generateWhatsAppText(db, id)!;
 
-    assert.ok(text.includes('• CAIXA DE PAPELAO PEQUENA MISTA: 3606 un (Lançamento #35911 · VIVIANE)'));
-    assert.ok(text.includes('• QUEIJO RALADO: 40 un (Lançamento #35911 · VIVIANE)'), 'both lines of the document');
+    // The plant reads who received it, not which seat the ERP numbered: the operator alone.
+    assert.ok(text.includes('• CAIXA DE PAPELAO PEQUENA MISTA: 3606 un (VIVIANE)'));
+    assert.ok(!text.includes('Lançamento #'), 'the seat number is not part of the line');
+    assert.ok(text.includes('• QUEIJO RALADO: 40 un (VIVIANE)'), 'both lines of the document');
     assert.ok(!text.includes('Recebimento de farinha'), 'a ticked task is not a receipt any more');
   });
 

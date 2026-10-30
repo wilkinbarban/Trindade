@@ -178,7 +178,8 @@ export function generateWhatsAppText(
       } else {
         for (const receipt of receiptDay.receipts) {
           categoryLines.push(
-            `• ${receipt.productDesc}: ${receipt.quantity} un (Lançamento #${receipt.entLan} · ${receipt.operatorName})`,
+            // The operator is what the plant reads; the seat number is the ERP's own bookkeeping.
+            `• ${receipt.productDesc}: ${receipt.quantity} un (${receipt.operatorName})`,
           );
         }
       }

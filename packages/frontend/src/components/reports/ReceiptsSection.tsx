@@ -256,7 +256,7 @@ export function ReceiptsSection({ date, readOnly = false }: ReceiptsSectionProps
                 </span>
               </div>
               <p className="mt-1 text-[11px] text-gray-500 tabular-nums">
-                {t('reports.receiptsSeat', { entLan: receipt.entLan })} · {receipt.operatorName}
+                {receipt.operatorName}
               </p>
             </li>
           ))}

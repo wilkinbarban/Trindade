@@ -81,7 +81,9 @@ test.describe('Report receipts on a phone screen', () => {
       'CAIXA DE PAPELAO PEQUENA MISTA',
     );
     await expect(page.locator('[data-testid="receipt-line-35911-001774"]')).toContainText('3606 un');
-    await expect(page.locator('[data-testid="receipt-line-35911-001774"]')).toContainText('Lançamento #35911');
+    // Only the operator: the seat number is the ERP's bookkeeping, not something the plant reads.
+    await expect(page.locator('[data-testid="receipt-line-35911-001774"]')).toContainText('VIVIANE');
+    await expect(page.locator('[data-testid="receipt-line-35911-001774"]')).not.toContainText('Lançamento #');
     await expect(page.locator('[data-testid="receipt-line-35911-000084"]')).toHaveCount(0);
 
     // A long product name wraps instead of pushing the card wider than the phone.
