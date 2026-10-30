@@ -147,10 +147,29 @@ export function massasReportDayView(db: Database.Database, date: string): Massas
     return created;
   };
 
+  // An imported launch wears the account of whoever imported it, not of the person who produced the boxes.
+  // The seat is the only record that names the operator, so it decides whenever it is present.
+  const seatByEntLan = new Map<number, (typeof seats)[number]>();
+  for (const seat of seats) {
+    if (seat.ent_lan != null) seatByEntLan.set(seat.ent_lan, seat);
+  }
+
   for (const launch of launches) {
     if (launch.boxes <= 0) continue;
-    const name = (launch.display_name || launch.username || 'Operador').trim();
-    const bucket = operatorBucket(name, launch.username, false);
+    const seat = launch.ent_lan != null ? seatByEntLan.get(launch.ent_lan) : undefined;
+    let name: string;
+    let username: string | null = launch.username;
+    let erpOnly = false;
+    if (seat) {
+      const known = knownNames.get(operatorKey(seat.operator_name));
+      name = (known ? known.displayName : seat.operator_name).trim();
+      username = known ? known.username : null;
+      // No local account means the report credits a person who exists only in the ERP.
+      erpOnly = !known;
+    } else {
+      name = (launch.display_name || launch.username || 'Operador').trim();
+    }
+    const bucket = operatorBucket(name, username, erpOnly);
     addProduct(bucket.products, launch.product_code, launch.product_name, launch.boxes, launch.units);
     const product = productsByCode.get(launch.product_code);
     if (product) {

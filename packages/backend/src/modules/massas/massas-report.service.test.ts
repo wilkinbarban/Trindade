@@ -82,6 +82,37 @@ describe('massas report — the day the plant produced', () => {
     assert.deepEqual(view.reconciledEntLans, [9001]);
   });
 
+  it('credits an imported launch to the operator the seat names, not to whoever imported it', () => {
+    // The mirror belonged to JOAO H, who has no Trindade account, and the import left the launch under
+    // Alice: the report has to answer the plant with the person who actually produced the boxes.
+    insertLaunch(aliceId, '1047', 2);
+    db.prepare('UPDATE massa_launches SET ent_lan = 35936 WHERE launch_date = ?').run(date);
+    insertSeat({ entLan: 35936, code: '1047', quantity: 12, operator: 'JOAO H' });
+
+    const view = massasReportDayView(db, date);
+
+    const joao = view.operators.find((operator) => operator.name === 'JOAO H');
+    assert.ok(joao, 'the seat names the operator and the report carries it');
+    assert.equal(joao.units, 12);
+    assert.equal(joao.erpOnly, true, 'no local account, so the report marks it as ERP only');
+    const alice = view.operators.find((operator) => operator.name === 'Alice Silva');
+    assert.equal(alice, undefined, 'the importer does not keep production that was never his');
+    assert.equal(view.totalUnits, 12);
+  });
+
+  it('keeps the local name when the seat operator does have an account', () => {
+    insertLaunch(aliceId, '1047', 2);
+    db.prepare('UPDATE massa_launches SET ent_lan = 35937 WHERE launch_date = ?').run(date);
+    insertSeat({ entLan: 35937, code: '1047', quantity: 12, operator: 'ALICE SILVA' });
+
+    const view = massasReportDayView(db, date);
+
+    assert.equal(view.operators.length, 1);
+    assert.equal(view.operators[0].name, 'Alice Silva');
+    assert.equal(view.operators[0].erpOnly, false);
+    assert.equal(view.operators[0].units, 12);
+  });
+
   it('compares the reconciled production against what the ERP recorded', () => {
     insertLaunch(aliceId, '1045', 4);
     insertSeat({ entLan: 9001, code: '1045', quantity: 40, operator: 'ALICE SILVA' });
