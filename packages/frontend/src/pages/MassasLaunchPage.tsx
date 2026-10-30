@@ -15,7 +15,7 @@ import {
   type MassasLaunchDayView,
   type MassaIndividualLaunch,
 } from '../lib/massas';
-import { History } from 'lucide-react';
+import { History, RefreshCw } from 'lucide-react';
 import { Dialog } from '../components/ui/dialog';
 import { ModuleHelpModal } from '../components/ui/ModuleHelpModal';
 import { MassasLaunchGrid } from './massas/MassasLaunchGrid';
@@ -66,6 +66,7 @@ import {
 } from '../lib/aero-feedback';
 import {
   aeroMovementsEnvelope,
+  lastSyncLabel,
   readAeroMovementsSnapshot,
   type AeroMovementSnapshot,
 } from '../lib/aero-mirror';
@@ -876,6 +877,26 @@ export function MassasLaunchPage() {
             </div>
           </div>
           <p className="text-sm text-gray-500 mt-1">{t('massas.subtitle')}</p>
+          {aeroAllowed && (
+            <div className="mt-3 flex flex-wrap items-center gap-2" data-testid="massas-sync-header">
+              <button
+                type="button"
+                onClick={handleSyncFromErp}
+                disabled={mirror.loading || !aeroSettingsReady(aeroSettings)}
+                className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg bg-amber-600 px-3 text-xs font-semibold text-white transition-colors hover:bg-amber-700 disabled:opacity-50"
+                data-testid="massas-sync-erp"
+              >
+                <RefreshCw className={`h-4 w-4 shrink-0 ${mirror.loading ? 'animate-spin' : ''}`} />
+                {t('massas.syncHeader.action', 'Sincronizar com ERP')}
+              </button>
+              <span className="text-xs text-gray-500" data-testid="massas-last-sync">
+                {t('massas.syncHeader.lastSync', 'Último sync')}:{' '}
+                <span className="font-semibold tabular-nums text-gray-700">
+                  {lastSyncLabel(mirror.snapshot?.syncedAt ?? null)}
+                </span>
+              </span>
+            </div>
+          )}
         </div>
         {/* Una sola fila también en el teléfono. Los dos controles miden lo que su propio texto mide:
             `DateField` dibuja la fecha él mismo y deja el input nativo invisible encima, así que WebKit

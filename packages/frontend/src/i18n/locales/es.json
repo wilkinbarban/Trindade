@@ -681,6 +681,10 @@
       "import": "Importar",
       "notWholeBoxes": "No cierra cajas enteras",
       "send": "Enviar al ERP"
+    },
+    "syncHeader": {
+      "action": "Sincronizar con ERP",
+      "lastSync": "Último sync"
     }
   },
   "moduleHelp": {

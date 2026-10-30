@@ -122,6 +122,25 @@ export function readAeroMovementsSnapshot(body: unknown): AeroMovementSnapshot |
   return { date, movements, syncedAt };
 }
 
+/**
+ * The hour the header shows under the sync button.
+ *
+ * The snapshot carries the moment the phone stored it, not the moment Delphi answered, so this line says when
+ * this day was read and never pretends the ERP agreed. A factory reads its own clock: the timestamp is
+ * converted to the plant's zone, and a phone that never synced gets a dash instead of a made-up time.
+ */
+export function lastSyncLabel(syncedAt: string | null, timeZone?: string): string {
+  if (!syncedAt) return '—';
+  const date = new Date(syncedAt);
+  if (Number.isNaN(date.getTime())) return '—';
+  return new Intl.DateTimeFormat('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone,
+  }).format(date);
+}
+
 /** The catalog entry a launch is recorded against, as the page already holds it. */
 export interface AeroImportProduct {
   code: string;
