@@ -40,6 +40,7 @@ import kotlinx.serialization.Contextual
  * @param userId 
  * @param username 
  * @param displayName 
+ * @param entLan 
  * @param createdAt 
  * @param updatedAt 
  */
@@ -73,6 +74,9 @@ data class MassaIndividualLaunch (
 
     @SerialName(value = "display_name")
     val displayName: kotlin.String,
+
+    @SerialName(value = "ent_lan")
+    val entLan: kotlin.Int?,
 
     @SerialName(value = "created_at")
     val createdAt: kotlin.String,

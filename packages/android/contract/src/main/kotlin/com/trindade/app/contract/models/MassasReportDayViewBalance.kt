@@ -31,7 +31,9 @@ import kotlinx.serialization.Contextual
 /**
  * 
  *
+ * @param producedBoxes 
  * @param producedUnits 
+ * @param registeredBoxes 
  * @param registeredUnits 
  * @param differenceUnits 
  * @param reconciledSeats 
@@ -41,8 +43,14 @@ import kotlinx.serialization.Contextual
 
 data class MassasReportDayViewBalance (
 
+    @Contextual @SerialName(value = "producedBoxes")
+    val producedBoxes: java.math.BigDecimal,
+
     @Contextual @SerialName(value = "producedUnits")
     val producedUnits: java.math.BigDecimal,
+
+    @Contextual @SerialName(value = "registeredBoxes")
+    val registeredBoxes: java.math.BigDecimal,
 
     @Contextual @SerialName(value = "registeredUnits")
     val registeredUnits: java.math.BigDecimal,

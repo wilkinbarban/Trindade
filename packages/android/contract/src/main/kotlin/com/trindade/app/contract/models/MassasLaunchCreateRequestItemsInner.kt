@@ -33,6 +33,8 @@ import kotlinx.serialization.Contextual
  *
  * @param productCode 
  * @param boxes 
+ * @param entLan 
+ * @param operatorName 
  */
 @Serializable
 
@@ -42,7 +44,13 @@ data class MassasLaunchCreateRequestItemsInner (
     val productCode: kotlin.String,
 
     @SerialName(value = "boxes")
-    val boxes: kotlin.Int
+    val boxes: kotlin.Int,
+
+    @SerialName(value = "ent_lan")
+    val entLan: kotlin.Int? = null,
+
+    @SerialName(value = "operator_name")
+    val operatorName: kotlin.String? = null
 
 ) {
 

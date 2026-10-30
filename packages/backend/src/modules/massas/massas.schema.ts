@@ -117,21 +117,46 @@ export const MassasErrorResponseSchema = z
  * It is the shape the integral report and the unified table read, so the contract describes it instead of
  * letting the route answer a body nobody published.
  */
+/**
+ * The balance as both clients read it: the arithmetic and the seat counts together.
+ *
+ * `reconciledSeats` and `pendingSeats` are counts, not lists; the seats themselves travel per operator.
+ */
 export const MassasReportBalanceSchema = z.object({
+  producedBoxes: z.number(),
   producedUnits: z.number(),
+  registeredBoxes: z.number(),
   registeredUnits: z.number(),
   differenceUnits: z.number(),
   reconciledSeats: z.number(),
   pendingSeats: z.number(),
 });
 
-export const MassasReportOperatorSchema = z.object({
-  operatorKey: z.string(),
-  displayName: z.string(),
+/** One product's share inside an operator's day. */
+export const MassasReportOperatorProductSchema = z.object({
+  code: z.string(),
+  name: z.string(),
   boxes: z.number(),
   units: z.number(),
-  entLans: z.array(z.number()),
+});
+
+/**
+ * One operator, with the two names each client already uses.
+ *
+ * `name`/`erpOnly` are the web's reading and `displayName`/`onlyErp` the generated Android contract's; the
+ * answer carries both so neither client can be left with a day it cannot deserialize.
+ */
+export const MassasReportOperatorSchema = z.object({
+  operatorKey: z.string(),
+  name: z.string(),
+  displayName: z.string(),
+  username: z.string().nullable(),
+  boxes: z.number(),
+  units: z.number(),
+  products: z.array(MassasReportOperatorProductSchema),
+  erpOnly: z.boolean(),
   onlyErp: z.boolean(),
+  entLans: z.array(z.number()),
 });
 
 export const MassasReportDayViewSchema = z.object({

@@ -23,6 +23,7 @@
 
 package com.trindade.app.contract.models
 
+import com.trindade.app.contract.models.MassasReportDayViewOperatorsInnerProductsInner
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
@@ -32,11 +33,15 @@ import kotlinx.serialization.Contextual
  * 
  *
  * @param operatorKey 
+ * @param name 
  * @param displayName 
+ * @param username 
  * @param boxes 
  * @param units 
- * @param entLans 
+ * @param products 
+ * @param erpOnly 
  * @param onlyErp 
+ * @param entLans 
  */
 @Serializable
 
@@ -45,8 +50,14 @@ data class MassasReportDayViewOperatorsInner (
     @SerialName(value = "operatorKey")
     val operatorKey: kotlin.String,
 
+    @SerialName(value = "name")
+    val name: kotlin.String,
+
     @SerialName(value = "displayName")
     val displayName: kotlin.String,
+
+    @SerialName(value = "username")
+    val username: kotlin.String?,
 
     @Contextual @SerialName(value = "boxes")
     val boxes: java.math.BigDecimal,
@@ -54,11 +65,17 @@ data class MassasReportDayViewOperatorsInner (
     @Contextual @SerialName(value = "units")
     val units: java.math.BigDecimal,
 
-    @SerialName(value = "entLans")
-    val entLans: kotlin.collections.List<@Contextual java.math.BigDecimal>,
+    @SerialName(value = "products")
+    val products: kotlin.collections.List<MassasReportDayViewOperatorsInnerProductsInner>,
+
+    @SerialName(value = "erpOnly")
+    val erpOnly: kotlin.Boolean,
 
     @SerialName(value = "onlyErp")
-    val onlyErp: kotlin.Boolean
+    val onlyErp: kotlin.Boolean,
+
+    @SerialName(value = "entLans")
+    val entLans: kotlin.collections.List<@Contextual java.math.BigDecimal>
 
 ) {
 

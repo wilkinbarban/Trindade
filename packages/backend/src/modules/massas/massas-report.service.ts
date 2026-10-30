@@ -27,10 +27,20 @@ export interface MassasReportOperatorProduct {
   units: number;
 }
 
-/** One operator's share of the day, no matter which screen recorded it. */
+/**
+ * One operator's share of the day, no matter which screen recorded it.
+ *
+ * Every field has the shape both clients already read: the web names the operator `name`, the generated
+ * Android contract names it `displayName`, and the same happens with `erpOnly`/`onlyErp`. Sending one of the
+ * two is what made the contract skip the whole day on the phone, so the answer carries both.
+ */
 export interface MassasReportOperator {
+  /** Stable key the screens group by; the name upper-cased and trimmed. */
+  operatorKey: string;
   /** The Trindade display name when there is one, the ERP's `ENT_USU` when there is not. */
   name: string;
+  /** The same name, as the generated Android contract names it. */
+  displayName: string;
   /** The username when the operator exists in Trindade. */
   username: string | null;
   boxes: number;
@@ -38,6 +48,10 @@ export interface MassasReportOperator {
   products: MassasReportOperatorProduct[];
   /** True when the operator only exists in the ERP, so the screen can say so. */
   erpOnly: boolean;
+  /** The same fact as `erpOnly`, under the name the Android contract uses. */
+  onlyErp: boolean;
+  /** The ERP seats this operator's day came from, in the order they were read. */
+  entLans: number[];
 }
 
 /**
@@ -54,6 +68,10 @@ export interface MassasReportBalance {
   registeredUnits: number;
   /** `registeredUnits - producedUnits`, so zero means the day is fully reconciled. */
   differenceUnits: number;
+  /** How many ERP seats the plant also recorded here. */
+  reconciledSeats: number;
+  /** How many ERP seats the plant never claimed, which is what the report adds from the company side. */
+  pendingSeats: number;
 }
 
 export interface MassasReportDayView {
@@ -136,13 +154,28 @@ export function massasReportDayView(db: Database.Database, date: string): Massas
 
   const products = emptyProductTotals();
   const productsByCode = new Map(products.map((product) => [product.code, product]));
-  const operators = new Map<string, { name: string; username: string | null; erpOnly: boolean; products: Map<string, MassasReportOperatorProduct> }>();
+  const operators = new Map<
+    string,
+    {
+      name: string;
+      username: string | null;
+      erpOnly: boolean;
+      products: Map<string, MassasReportOperatorProduct>;
+      entLans: number[];
+    }
+  >();
 
   const operatorBucket = (name: string, username: string | null, erpOnly: boolean) => {
     const key = operatorKey(name);
     const existing = operators.get(key);
     if (existing) return existing;
-    const created = { name, username, erpOnly, products: new Map<string, MassasReportOperatorProduct>() };
+    const created = {
+      name,
+      username,
+      erpOnly,
+      products: new Map<string, MassasReportOperatorProduct>(),
+      entLans: [] as number[],
+    };
     operators.set(key, created);
     return created;
   };
@@ -170,6 +203,9 @@ export function massasReportDayView(db: Database.Database, date: string): Massas
       name = (launch.display_name || launch.username || 'Operador').trim();
     }
     const bucket = operatorBucket(name, username, erpOnly);
+    if (launch.ent_lan != null && !bucket.entLans.includes(launch.ent_lan)) {
+      bucket.entLans.push(launch.ent_lan);
+    }
     addProduct(bucket.products, launch.product_code, launch.product_name, launch.boxes, launch.units);
     const product = productsByCode.get(launch.product_code);
     if (product) {
@@ -191,6 +227,7 @@ export function massasReportDayView(db: Database.Database, date: string): Massas
     const name = known ? known.displayName : seat.operator_name.trim();
     const bucket = operatorBucket(name, known ? known.username : null, !known);
     const boxes = product.unitsPerBox > 0 ? seat.quantity / product.unitsPerBox : 0;
+    if (!bucket.entLans.includes(seat.ent_lan)) bucket.entLans.push(seat.ent_lan);
     addProduct(bucket.products, product.code, product.name, boxes, seat.quantity);
     product.totalBoxes += boxes;
     product.totalUnits += seat.quantity;
@@ -200,12 +237,16 @@ export function massasReportDayView(db: Database.Database, date: string): Massas
     .map((operator) => {
       const items = [...operator.products.values()];
       return {
+        operatorKey: operatorKey(operator.name),
         name: operator.name,
+        displayName: operator.name,
         username: operator.username,
         boxes: items.reduce((sum, item) => sum + item.boxes, 0),
         units: items.reduce((sum, item) => sum + item.units, 0),
         products: items,
         erpOnly: operator.erpOnly,
+        onlyErp: operator.erpOnly,
+        entLans: [...operator.entLans].sort((a, b) => a - b),
       };
     })
     .sort((a, b) => b.units - a.units || a.name.localeCompare(b.name));
@@ -238,6 +279,8 @@ export function massasReportDayView(db: Database.Database, date: string): Massas
       registeredBoxes,
       registeredUnits,
       differenceUnits: registeredUnits - totalUnits,
+      reconciledSeats: reconciliation.reconciledEntLans.length,
+      pendingSeats: seats.filter((seat) => seat.movement_type === 'E' && !reconciled.has(seat.ent_lan)).length,
     },
     reconciledEntLans: reconciliation.reconciledEntLans,
   };

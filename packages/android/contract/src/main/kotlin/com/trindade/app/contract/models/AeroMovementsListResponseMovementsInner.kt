@@ -39,6 +39,7 @@ import kotlinx.serialization.Contextual
  * @param operatorName 
  * @param movementType 
  * @param syncedAt 
+ * @param ownerUserId 
  */
 @Serializable
 
@@ -66,7 +67,10 @@ data class AeroMovementsListResponseMovementsInner (
     val movementType: AeroMovementsListResponseMovementsInner.MovementType,
 
     @SerialName(value = "synced_at")
-    val syncedAt: kotlin.String
+    val syncedAt: kotlin.String,
+
+    @SerialName(value = "owner_user_id")
+    val ownerUserId: kotlin.Int?
 
 ) {
 

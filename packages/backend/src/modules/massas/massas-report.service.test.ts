@@ -113,6 +113,37 @@ describe('massas report — the day the plant produced', () => {
     assert.equal(view.operators[0].units, 12);
   });
 
+  it('answers both operator shapes, so neither client has to guess', () => {
+    // The phone reads `displayName`/`onlyErp`/`entLans` from the generated contract; the web reads `name` and
+    // `erpOnly`. Both are the same fact, and sending one alone is what left the card empty.
+    insertLaunch(aliceId, '1045', 4);
+    db.prepare('UPDATE massa_launches SET ent_lan = 9001 WHERE launch_date = ?').run(date);
+    insertSeat({ entLan: 9001, code: '1045', quantity: 40, operator: 'ALICE SILVA' });
+    insertSeat({ entLan: 9002, code: '1047', quantity: 18, operator: 'TIAGO' });
+
+    const view = massasReportDayView(db, date);
+
+    const alice = view.operators.find((operator) => operator.displayName === 'Alice Silva');
+    assert.ok(alice, 'the local operator answers to both names');
+    assert.equal(alice.name, 'Alice Silva');
+    assert.equal(alice.operatorKey, 'ALICE SILVA');
+    assert.equal(alice.erpOnly, false);
+    assert.equal(alice.onlyErp, false);
+    assert.deepEqual(alice.entLans, [9001], 'the seat she reconciled with is named');
+
+    const tiago = view.operators.find((operator) => operator.displayName === 'TIAGO');
+    assert.ok(tiago, 'the ERP-only operator answers to both names too');
+    assert.equal(tiago.name, 'TIAGO');
+    assert.equal(tiago.onlyErp, true);
+    assert.equal(tiago.erpOnly, true);
+    assert.deepEqual(tiago.entLans, [9002]);
+
+    assert.equal(view.balance.reconciledSeats, 1);
+    assert.equal(view.balance.pendingSeats, 1);
+    assert.equal(view.balance.producedBoxes, 7, '4 boxes of 1045 plus 3 of 1047');
+    assert.equal(view.balance.producedUnits, 58);
+  });
+
   it('compares the reconciled production against what the ERP recorded', () => {
     insertLaunch(aliceId, '1045', 4);
     insertSeat({ entLan: 9001, code: '1045', quantity: 40, operator: 'ALICE SILVA' });

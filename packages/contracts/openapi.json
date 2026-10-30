@@ -1866,8 +1866,17 @@
                 "operatorKey": {
                   "type": "string"
                 },
+                "name": {
+                  "type": "string"
+                },
                 "displayName": {
                   "type": "string"
+                },
+                "username": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "boxes": {
                   "type": "number"
@@ -1875,23 +1884,56 @@
                 "units": {
                   "type": "number"
                 },
+                "products": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "code": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "boxes": {
+                        "type": "number"
+                      },
+                      "units": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "code",
+                      "name",
+                      "boxes",
+                      "units"
+                    ]
+                  }
+                },
+                "erpOnly": {
+                  "type": "boolean"
+                },
+                "onlyErp": {
+                  "type": "boolean"
+                },
                 "entLans": {
                   "type": "array",
                   "items": {
                     "type": "number"
                   }
-                },
-                "onlyErp": {
-                  "type": "boolean"
                 }
               },
               "required": [
                 "operatorKey",
+                "name",
                 "displayName",
+                "username",
                 "boxes",
                 "units",
-                "entLans",
-                "onlyErp"
+                "products",
+                "erpOnly",
+                "onlyErp",
+                "entLans"
               ]
             }
           },
@@ -1935,7 +1977,13 @@
           "balance": {
             "type": "object",
             "properties": {
+              "producedBoxes": {
+                "type": "number"
+              },
               "producedUnits": {
+                "type": "number"
+              },
+              "registeredBoxes": {
                 "type": "number"
               },
               "registeredUnits": {
@@ -1952,7 +2000,9 @@
               }
             },
             "required": [
+              "producedBoxes",
               "producedUnits",
+              "registeredBoxes",
               "registeredUnits",
               "differenceUnits",
               "reconciledSeats",
@@ -2098,6 +2148,13 @@
           },
           "synced_at": {
             "type": "string"
+          },
+          "owner_user_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "exclusiveMinimum": 0
           }
         },
         "required": [
@@ -2108,7 +2165,8 @@
           "entry_date",
           "operator_name",
           "movement_type",
-          "synced_at"
+          "synced_at",
+          "owner_user_id"
         ],
         "additionalProperties": false
       },
@@ -2229,6 +2287,13 @@
                 },
                 "synced_at": {
                   "type": "string"
+                },
+                "owner_user_id": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "exclusiveMinimum": 0
                 }
               },
               "required": [
@@ -2239,7 +2304,8 @@
                 "entry_date",
                 "operator_name",
                 "movement_type",
-                "synced_at"
+                "synced_at",
+                "owner_user_id"
               ],
               "additionalProperties": false
             }
@@ -8775,6 +8841,7 @@
       },
       "post": {
         "summary": "Register massas launches for the authenticated user",
+        "description": "An import names the ERP seat it came from. A worker may import only the seats the ERP already attributes to them; an administrator may import anybody's. Ownership is read from the mirrored seat, never from the request body, so naming another operator cannot hand a worker somebody else's boxes. A manual launch without a seat belongs to whoever sends it.",
         "tags": [
           "massas"
         ],
@@ -8814,6 +8881,26 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The ERP seat belongs to another operator and the asker is not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MassasErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "This ERP seat was already imported",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MassasErrorResponse"
                 }
               }
             }
