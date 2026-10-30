@@ -923,8 +923,11 @@ export function aeroBridgeCallbackPrefix(args: {
   path?: string;
 }): string {
   const route = aeroInternalRoute(args.path);
-  const target = route ? aeroRouteUrl(args, route) : aeroLaunchPageUrl(args);
-  return `${target}?aero_action=${args.action}&aero_data=`;
+  const target = route ? aeroRouteUrl(args, route.path) : aeroLaunchPageUrl(args);
+  // A route may carry a query of its own -- the admin panel comes back to its integration tab -- and it has
+  // to sit before the two parameters the shortcut appends, not replace them.
+  const own = route?.query ? `${route.query}&` : '';
+  return `${target}?${own}aero_action=${args.action}&aero_data=`;
 }
 
 /**
@@ -935,11 +938,15 @@ export function aeroBridgeCallbackPrefix(args: {
  * let a crafted link end the sync on another site; anything that is not a plain same-origin route is
  * dropped and the operator comes back to the launch page instead.
  */
-function aeroInternalRoute(path: string | undefined): string | null {
+function aeroInternalRoute(path: string | undefined): { path: string; query: string } | null {
   if (!path) return null;
-  if (!/^\/[A-Za-z0-9\-_/]*$/.test(path)) return null;
-  if (path.startsWith('//')) return null;
-  return path;
+  const [route, query = ''] = path.split('?', 2);
+  if (!/^\/[A-Za-z0-9\-_/]*$/.test(route)) return null;
+  if (route.startsWith('//')) return null;
+  // The query is the page's own tab, so it is held to the same standard as the path: letters, digits and the
+  // separators a tab needs. `#`, a second `?` and a scheme all fall back to the launch page.
+  if (query && !/^[A-Za-z0-9\-_=&]*$/.test(query)) return null;
+  return { path: route, query };
 }
 
 /**

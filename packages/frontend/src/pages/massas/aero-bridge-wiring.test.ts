@@ -13,6 +13,7 @@ const panel = read('AeroIntegrationPanel.tsx');
 const launch = read('..', 'MassasLaunchPage.tsx');
 const collective = read('MassasCollectiveTable.tsx');
 const unified = read('MassasUnifiedTable.tsx');
+const admin = read('..', 'admin', 'AdminDashboard.tsx');
 
 describe('aero bridge wiring: the panel asks for three things and dispatches the bridge', () => {
   it('asks the operator for the address, the user and the password, and nothing else', () => {
@@ -27,17 +28,47 @@ describe('aero bridge wiring: the panel asks for three things and dispatches the
   it('sends the connection test through the same bridge every launch uses', () => {
     assert.ok(panel.includes('buildAeroBridgeEnvelope('));
     assert.ok(panel.includes("endpoint: 'usuarios'"));
-    assert.ok(panel.includes("aeroBridgeCallbackFor('test')"));
+    // The test comes back to the tab that asked, not to the launch page: the panel lives in Admin now, so
+    // a callback aimed at /massas-launch lands on a page that cannot draw the verdict.
+    assert.ok(panel.includes("aeroBridgeCallbackFor('test', `${window.location.pathname}?tab=integration`),"));
+    assert.equal(panel.includes("aeroBridgeCallbackFor('test')"), false);
     assert.ok(panel.includes('buildAeroBridgeTriggerUrl({ name: settings.shortcutName, envelope })'));
     // Nada del diseño partido sobrevive en el panel.
     assert.equal(panel.includes('aeroTestShortcutTriggerUrl'), false);
     assert.equal(panel.includes('testShortcutName'), false);
   });
 
+  it('reads the verdict the shortcut brought back to this tab', () => {
+    // The panel that asked is the one that must answer: reading the callback here is what makes the trip
+    // through the shortcut end on the screen the operator left.
+    assert.ok(panel.includes('parseAeroCallback(window.location.search)'));
+    assert.ok(panel.includes('postAeroAuditEvent('));
+    assert.ok(panel.includes('aeroTestResultEvent('));
+    assert.ok(panel.includes('window.history.replaceState('));
+  });
+
+  it('opens the integration tab the shortcut came back to', () => {
+    // The callback names `?tab=integration`; a page that ignores it leaves the operator on Categories with a
+    // verdict nobody drew.
+    assert.ok(admin.includes("new URLSearchParams(window.location.search).get('tab')"));
+    assert.ok(admin.includes("window.history.replaceState("));
+  });
+
   it('keeps the browser probe for when the page is not blocked', () => {
     // El puente es el único camino sobre HTTPS; en local el navegador responde en línea y es más rápido.
     assert.ok(panel.includes('aeroConnectionBlocker('));
     assert.ok(panel.includes('probeAeroConnection('));
+  });
+});
+
+describe('aero bridge wiring: a reconciled launch is settled', () => {
+  it('never offers to edit or delete a launch the ERP already has', () => {
+    // Delphi holds the seat. Changing its boxes or removing it here would leave the plant's day and the
+    // company's book disagreeing, so the rule is drawn into the row instead of trusted to the operator.
+    assert.ok(collective.includes('reconciledLaunchIds(unifiedRows)'));
+    assert.ok(collective.includes('!reconciled'));
+    // Y el listado del historial, que no tiene mitad ERP, no se vuelve de sólo lectura por esto.
+    assert.ok(collective.includes('const canManage = '));
   });
 });
 

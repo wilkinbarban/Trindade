@@ -14,6 +14,7 @@ import {
   clearAeroSettings,
   DEFAULT_AERO_SETTINGS,
   normalizeAeroWsUrl,
+  parseAeroCallback,
   saveAeroSettings,
   type AeroSettings,
 } from '../../lib/aero-integration';
@@ -23,7 +24,10 @@ import { AeroResultDialog } from './AeroResultDialog';
 import { postAeroAuditEvent } from '../../lib/aero-audit';
 import {
   aeroTestRequestedEvent,
+  aeroTestResultEvent,
+  clearAeroPendingTest,
   clearAeroTestOutcome,
+  loadAeroPendingTest,
   loadAeroTestOutcome,
   saveAeroPendingTest,
   type AeroTestOutcome,
@@ -73,6 +77,8 @@ export function AeroIntegrationPanel({
   const [storedOutcome, setStoredOutcome] = useState<AeroTestOutcome | null>(() =>
     testOutcome === undefined ? loadAeroTestOutcome() : null,
   );
+  /** One read per arrival: a second effect run would report the same test twice. */
+  const callbackHandled = useRef(false);
   const [draft, setDraft] = useState({
     wsUrl: settings.wsUrl,
     username: settings.username,
@@ -170,7 +176,9 @@ export function AeroIntegrationPanel({
         password: draft.password,
         endpoint: 'usuarios',
         payload: {},
-        callbackUrl: aeroBridgeCallbackFor('test'),
+        // The shortcut comes back to the tab that asked, not to the launch page: the panel lives in Admin now,
+        // and a callback aimed at /massas-launch lands on a page with no panel to draw the verdict in.
+        callbackUrl: aeroBridgeCallbackFor('test', `${window.location.pathname}?tab=integration`),
       });
       window.location.href = buildAeroBridgeTriggerUrl({ name: settings.shortcutName, envelope });
       return;
@@ -201,6 +209,32 @@ export function AeroIntegrationPanel({
 
     setBusy(null);
   };
+
+  /**
+   * The verdict the phone brought back to this very tab.
+   *
+   * The launch page also reads this callback, and when the panel lived there that was enough. Now the panel
+   * is in Admin, so the shortcut returns to Admin and this is the only reader: the query is consumed and
+   * stripped first, because a pull-to-refresh in the factory must not replay a test that already happened.
+   *
+   * The line is closed in the audit trail before the verdict is drawn, and the read is handed to the same
+   * state the storage path uses, so the two channels cannot disagree about what the phone said.
+   */
+  useEffect(() => {
+    if (callbackHandled.current) return;
+    const parsed = parseAeroCallback(window.location.search);
+    if (!parsed || parsed.kind !== 'test') return;
+    callbackHandled.current = true;
+    window.history.replaceState({}, '', `${window.location.pathname}${window.location.hash}`);
+
+    const pending = loadAeroPendingTest();
+    const destinationUrl = pending?.destinationUrl ?? destination;
+    clearAeroPendingTest();
+    void postAeroAuditEvent(
+      aeroTestResultEvent({ verdict: parsed.verdict, raw: parsed.raw, destinationUrl }),
+    );
+    setStoredOutcome({ verdict: parsed.verdict, raw: parsed.raw, destinationUrl });
+  }, [destination]);
 
   /**
    * The verdict the phone brought back.

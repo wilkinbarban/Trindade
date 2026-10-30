@@ -799,11 +799,27 @@ describe('aero-integration: the return path of a bridge callback', () => {
     );
   });
 
+  it('keeps the tab a page asked for, before the parameters the shortcut appends', () => {
+    // The panel lives in Admin now. Without its own query the phone would come back to the launch page and
+    // the verdict would land on a screen that cannot draw it.
+    assert.equal(
+      aeroBridgeCallbackPrefix({
+        origin,
+        basePath: '/',
+        action: 'test',
+        path: '/admin?tab=integration',
+      }),
+      `${origin}/admin?tab=integration&aero_action=test&aero_data=`,
+    );
+  });
+
   it('falls back to the launch page instead of trusting a route that could leave the site', () => {
     for (const path of [
       'https://evil.example/reports/67',
       '//evil.example/reports/67',
       '/reports/67?next=https://evil.example',
+      '/reports/67?next=//evil.example',
+      '/reports/67?tab=integration#x',
       '/reports/67#fragment',
       'reports/67',
     ]) {

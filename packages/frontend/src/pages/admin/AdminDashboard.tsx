@@ -193,7 +193,14 @@ export function AdminDashboard() {
     isWorker ? ['tasks', 'drivers', 'integration', 'profile'].includes(tab.key) : tab.key !== 'profile'
   );
 
-  const [activeTab, setActiveTab] = useState<TabKey>(isWorker ? 'tasks' : 'categories');
+  // La pestaña puede llegar pedida por la URL: el atajo de iOS vuelve del ERP a `?tab=integration`, y si la
+  // página lo ignorara el operario aterrizaría en Categorías con un veredicto que nadie dibujó.
+  const [activeTab, setActiveTab] = useState<TabKey>(() => {
+    const requested = new URLSearchParams(window.location.search).get('tab');
+    const allowed = TABS.some((tab) => tab.key === requested);
+    if (allowed) return requested as TabKey;
+    return isWorker ? 'tasks' : 'categories';
+  });
   const [aeroSettings, setAeroSettings] = useState<AeroSettings>(loadAeroSettings);
   const aeroSettingsAccess = aeroSettingsEditable(user ? { username: user.username, role: user.role } : null);
   const [loading, setLoading] = useState(true);
@@ -801,7 +808,15 @@ export function AdminDashboard() {
         {TABS.map((tab) => (
           <button
             key={tab.key}
-            onClick={() => { setActiveTab(tab.key); handleCancel(); }}
+            onClick={() => {
+              setActiveTab(tab.key);
+              // La pestaña ya vive en el estado: dejarla en la URL haría que un refresco la repitiera como si
+              // fuera un pedido nuevo.
+              if (new URLSearchParams(window.location.search).has('tab')) {
+                window.history.replaceState({}, '', window.location.pathname);
+              }
+              handleCancel();
+            }}
             data-testid={`admin-tab-${tab.key}`}
             className={`px-3 py-1.5 text-sm rounded-md transition-colors shrink-0 ${
               activeTab === tab.key
