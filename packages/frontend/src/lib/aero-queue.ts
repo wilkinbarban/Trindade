@@ -14,6 +14,13 @@ export interface AeroQueueItem {
   productCode: string;
   productName: string;
   quantity: number;
+  /**
+   * The operator whose launch this is, carried to the ERP as `ENT_USU`.
+   *
+   * The phone's configured user is whoever set the integration up; the launch belongs to the person who
+   * typed the boxes, and the seat the company records has to name that person.
+   */
+  operatorName?: string;
   /** The local launches behind this entry, quoted to the ERP so a doubtful seat can be traced back. */
   launchIds?: number[];
 }
@@ -33,6 +40,28 @@ export interface AeroQueue {
    * products back at the front instead of asking the operator to remember.
    */
   inFlight: AeroQueueItem[];
+}
+
+/**
+ * The queue entry for one pending row the operator asked to send.
+ *
+ * Units, never boxes: the ERP records what left the plant, and the row's `boxes` is a packaging detail the
+ * entry payload has always converted before it leaves.
+ */
+export function pendingLaunchQueueItem(row: {
+  productCode: string;
+  productName: string;
+  units: number;
+  operatorName?: string | null;
+  launchIds?: readonly number[];
+}): AeroQueueItem {
+  return {
+    productCode: row.productCode,
+    productName: row.productName,
+    quantity: row.units,
+    ...(row.operatorName?.trim() ? { operatorName: row.operatorName.trim() } : {}),
+    ...(row.launchIds && row.launchIds.length > 0 ? { launchIds: [...row.launchIds] } : {}),
+  };
 }
 
 export const AERO_QUEUE_KEY = 'trindade.aero.queue.v1';

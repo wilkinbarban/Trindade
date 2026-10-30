@@ -1,6 +1,7 @@
 package com.trindade.app.aero
 
 import com.trindade.app.network.AeroAuditLogRequest
+import kotlinx.serialization.json.JsonPrimitive
 import com.trindade.app.network.AeroMovementsSaved
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -36,6 +37,8 @@ class AeroDispatcherTest {
     private class Recorder {
         val calls = mutableListOf<String>()
         val logs = mutableListOf<AeroAuditLogRequest>()
+        /** Every payload the app would have written, so `ENT_USU` can be read where the ERP reads it. */
+        val payloads = mutableListOf<AeroEntryPayload>()
     }
 
     private class FakeErp(
@@ -45,6 +48,7 @@ class AeroDispatcherTest {
     ) : AeroErpPort {
         override suspend fun postEntry(settings: AeroSettings, payload: AeroEntryPayload): AeroWriteResult {
             recorder.calls += "erp:entry:${payload.productCode}:${payload.quantity}:${payload.observation}"
+            recorder.payloads += payload
             return entry
         }
 
@@ -88,6 +92,27 @@ class AeroDispatcherTest {
         assertEquals(AeroDispatchOutcome.Sent, outcome)
         assertEquals("erp:entry:001192:1500:Trindade #42", recorder.calls.first())
         assertTrue(recorder.calls.contains("mirror:log:dispatch:response"))
+    }
+
+    @Test
+    fun `the seat is signed with the launch's operator, not with the phone's configured user`() = runTest {
+        val recorder = Recorder()
+
+        // The phone belongs to Wilkin and the launch belongs to Jaime: the company records who typed the
+        // boxes, in the uppercase the Delphi binary sends and the ERP accepts.
+        dispatcher(recorder).dispatch(settings, request.copy(operatorName = "Jaime"))
+
+        assertEquals(JsonPrimitive("JAIME"), recorder.payloads.single().userCode)
+    }
+
+    @Test
+    fun `a launch with no operator keeps signing with the configured user`() = runTest {
+        val recorder = Recorder()
+
+        dispatcher(recorder).dispatch(settings, request.copy(operatorName = null))
+
+        // `7` is the configured code, and it stays numeric: an old row must not invent a name.
+        assertEquals(JsonPrimitive(7), recorder.payloads.single().userCode)
     }
 
     @Test

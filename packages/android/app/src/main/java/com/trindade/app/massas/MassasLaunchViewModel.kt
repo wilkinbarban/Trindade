@@ -460,6 +460,9 @@ class MassasLaunchViewModel @Inject constructor(
                 productName = row.productName,
                 units = row.units.toDouble(),
                 date = state.value.date,
+                // The row carries who the launch belongs to; the launch answers it when the owner is a
+                // resolved account. Either way `ENT_USU` names the operator and not the phone's user.
+                operatorName = row.operatorName.ifBlank { launch.displayName.ifBlank { launch.username } },
             )
             when (val outcome = aeroDispatcher.dispatch(settings, request)) {
                 is AeroDispatchOutcome.Sent -> {

@@ -49,7 +49,7 @@ interface MassasCollectiveTableProps {
   canSync?: boolean;
   /** Set on a system where the integration cannot run; the actions render disabled instead of vanishing. */
   deviceLimited?: boolean;
-  onSync?: () => void;
+  onSendToErp?: (row: MassasUnifiedRow) => void;
   onImport?: (request: AeroImportRequest) => void;
   importingEntLan?: number | null;
   onToggleAck?: (row: MassasUnifiedRow) => void;
@@ -74,7 +74,7 @@ export function MassasCollectiveTable({
   unifiedDate = '',
   canSync = false,
   deviceLimited = false,
-  onSync,
+  onSendToErp,
   onImport,
   importingEntLan = null,
   onToggleAck,
@@ -138,7 +138,7 @@ export function MassasCollectiveTable({
               isAdmin={isAdmin}
               canSync={canSync}
               deviceLimited={deviceLimited}
-              onSync={onSync}
+              onSendToErp={onSendToErp}
               onImport={onImport}
               importingEntLan={importingEntLan}
               onToggleAck={onToggleAck}

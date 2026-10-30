@@ -39,6 +39,14 @@ data class AeroDispatchRequest(
     val productName: String,
     val units: Double,
     val date: String,
+    /**
+     * The operator whose launch this is, written to the ERP as `ENT_USU`.
+     *
+     * Null keeps the configured user's code, which is what a row recorded before the operator travelled
+     * still has. The phone is one person's device and the plant is everybody's work: the seat names the
+     * worker who typed the boxes.
+     */
+    val operatorName: String? = null,
 )
 
 /** What a day's synchronization produced. */
@@ -80,7 +88,8 @@ class AeroDispatcher(
             productName = request.productName,
             quantity = request.units,
             entryDate = request.date,
-            userCode = settings.userCode,
+            // The launch's operator wins over the configured user: the seat has to name who did the work.
+            userCode = request.operatorName?.takeIf { it.isNotBlank() } ?: settings.userCode,
             launchIds = listOf(request.launchId),
         )
         val startedAt = System.currentTimeMillis()

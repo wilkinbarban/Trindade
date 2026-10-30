@@ -21,7 +21,13 @@ interface MassasUnifiedTableProps {
    * not exist, and the operator has no way to learn otherwise.
    */
   deviceLimited?: boolean;
-  onSync?: () => void;
+  /**
+   * Sends this row's launch to the ERP.
+   *
+   * It takes the row because the envelope is built from its product, its boxes and its operator: the day's
+   * movements read is a different trip with a different endpoint, and the header keeps that one.
+   */
+  onSendToErp?: (row: MassasUnifiedRow) => void;
   onImport?: (request: AeroImportRequest) => void;
   importingEntLan?: number | null;
   onToggleAck?: (row: MassasUnifiedRow) => void;
@@ -57,7 +63,7 @@ export function MassasUnifiedTable({
   isAdmin = false,
   canSync = false,
   deviceLimited = false,
-  onSync,
+  onSendToErp,
   onImport,
   importingEntLan = null,
   onToggleAck,
@@ -142,10 +148,10 @@ export function MassasUnifiedTable({
 
                     {row.state === 'pendingErp' && (
                       <>
-                        {onSync && (
+                        {onSendToErp && (
                           <button
                             type="button"
-                            onClick={onSync}
+                            onClick={() => onSendToErp(row)}
                             disabled={!canSync || deviceLimited}
                             className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg bg-amber-600 px-3 text-xs font-semibold text-white disabled:opacity-50"
                             data-testid="massas-unified-send"

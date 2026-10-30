@@ -54,7 +54,14 @@ import {
   saveAeroTestOutcome,
   type AeroTestOutcome,
 } from '../lib/aero-test';
-import { clearAeroQueue, readAeroQueue, takeAeroBatch, writeAeroQueue, type AeroQueue } from '../lib/aero-queue';
+import {
+  clearAeroQueue,
+  pendingLaunchQueueItem,
+  readAeroQueue,
+  takeAeroBatch,
+  writeAeroQueue,
+  type AeroQueue,
+} from '../lib/aero-queue';
 import { AERO_BATCH_MAX, buildAeroLaunchTrips } from '../lib/aero-batch';
 import { formatDateLabel } from '../lib/date';
 import { AeroResultDialog } from './massas/AeroResultDialog';
@@ -362,7 +369,8 @@ export function MassasLaunchPage() {
       setSyncAwaiting({ date: queue.date, remaining: taken.batch.length + taken.rest.items.length });
 
       // `ENT_USU` lleva el usuario en mayúsculas: es lo que el binario Delphi manda y lo que el ERP acepta.
-      // No hay código que cargar, así que el de la sesión es el que firma el lanzamiento.
+      // El lanzamiento pertenece a quien cargó las cajas, así que cada entrada viaja con su operario; el de
+      // la sesión es sólo el respaldo de una entrada vieja que no lo guardó.
       const operatorUser = aeroSettings.username?.trim() || user?.username?.trim() || null;
 
       const payloads = taken.batch.map((item) =>
@@ -371,7 +379,7 @@ export function MassasLaunchPage() {
           productName: item.productName,
           quantity: item.quantity,
           entryDate: queue.date,
-          userCode: operatorUser,
+          userCode: item.operatorName ?? operatorUser,
           launchIds: item.launchIds,
         }),
       );
@@ -404,6 +412,32 @@ export function MassasLaunchPage() {
       window.location.href = buildAeroBridgeTriggerUrl({ name: aeroSettings.shortcutName, envelope: trip.envelope });
     },
     [aeroSettings, user],
+  );
+
+  /**
+   * Sends one pending row to the ERP.
+   *
+   * The row's button used to call the movements read, so the trip asked the plant for the day and the
+   * launch stayed pending. This is the other trip: one queue with this row's product, its boxes in units,
+   * its launch ids and, above all, its operator -- the seat the company receives has to name the person
+   * who typed the boxes, not whoever configured the phone.
+   */
+  const handleSendPendingLaunch = useCallback(
+    (row: MassasUnifiedRow) => {
+      if (!aeroSettingsReady(aeroSettings)) return;
+      const item = pendingLaunchQueueItem({
+        productCode: row.productCode,
+        productName: row.productName,
+        // The row already reconciled boxes into units against the plant's catalogue.
+        units: row.units,
+        operatorName: row.operatorName,
+        launchIds: row.launchIds,
+      });
+      const queue: AeroQueue = { createdAt: new Date().toISOString(), date, items: [item], inFlight: [] };
+      writeAeroQueue(queue);
+      triggerAeroSync(queue);
+    },
+    [aeroSettings, date, triggerAeroSync],
   );
 
   /**
@@ -1073,6 +1107,7 @@ export function MassasLaunchPage() {
           unifiedDate={date}
           canSync={aeroAllowed && aeroSettingsReady(aeroSettings)}
           deviceLimited={deviceLimited}
+          onSendToErp={handleSendPendingLaunch}
           onImport={(request) => void handleImportErpSeat(request)}
           importingEntLan={importingEntLan}
           onToggleAck={handleToggleAck}

@@ -64,6 +64,19 @@ La página lee el retorno, escribe el resultado en el log y sigue con el product
 lanzamiento de tres productos son tres idas y vueltas. La cola en `localStorage` es lo que hace que la
 segunda no se pierda si iOS abre la vuelta en otra pestaña.
 
+Cada entrada de la cola lleva **su operario**. `ENT_USU` es la persona que cargó las cajas, no la que
+configuró el teléfono: el lanzamiento pendiente de Jaime sale como `JAIME` aunque el navegador esté
+configurado con el usuario de Wilkin, y el reintento después de la vuelta del atajo conserva ese nombre
+porque viaja en la cola. Una entrada sin operario —una cola vieja, escrita antes de que el nombre
+viajara— firma con el usuario configurado, que es el respaldo y no la regla.
+
+El botón **Enviar ao ERP** de una fila pendiente y el interruptor de sincronización al lanzar son dos
+caminos distintos y no se mezclan: el botón de la fila arma una cola con ese producto, sus unidades, sus
+lanzamientos y su operario, y dispara el sobre de `entradasitem` (`launch_sync`); el botón **Sincronizar
+com ERP** de la cabecera consulta `movimentoitem` (`read_history`) y no escribe nada en la empresa. Un
+botón que consulta cuando dice enviar deja el lanzamiento pendiente sin que el operario pueda saber por
+qué, que es exactamente el defecto que este flujo corrige.
+
 ## 4. Configuración (panel «Configuração Integração Empresa»)
 
 Dentro de *Lançamento de Masas*, debajo de la grilla, hay una tarjeta colapsable. Arranca abierta solo

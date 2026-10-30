@@ -4,6 +4,7 @@ import {
   AERO_QUEUE_KEY,
   AERO_QUEUE_TTL_MS,
   clearAeroQueue,
+  pendingLaunchQueueItem,
   readAeroQueue,
   takeAeroBatch,
   takeNextAeroItem,
@@ -133,6 +134,37 @@ describe('aero queue', () => {
 
     assert.deepEqual(read?.inFlight, inFlight);
     assert.deepEqual(read?.items, queue.items);
+  });
+
+  it('queues one pending row with its own operator, so the trip signs the launch and not the phone', () => {
+    // The row that says "Enviar ao ERP" belongs to Jaime even when the phone is configured for Wilkin: the
+    // ERP wants the launch's operator in `ENT_USU`, uppercase, and the queue is what survives the trip.
+    const item = pendingLaunchQueueItem({
+      productCode: '5000',
+      productName: 'MASSA ROLO 1KG',
+      units: 2800,
+      operatorName: 'Jaime',
+      launchIds: [89],
+    });
+
+    assert.deepEqual(item, {
+      productCode: '5000',
+      productName: 'MASSA ROLO 1KG',
+      quantity: 2800,
+      operatorName: 'Jaime',
+      launchIds: [89],
+    });
+  });
+
+  it('keeps the operator through the stored queue, so a retry after the bridge still signs Jaime', () => {
+    const stored: AeroQueue = {
+      ...queue,
+      items: [{ productCode: '5000', productName: 'MASSA ROLO 1KG', quantity: 2800, operatorName: 'JAIME', launchIds: [89] }],
+    };
+    const storage = memoryStorage();
+    writeAeroQueue(stored, storage);
+
+    assert.deepEqual(readAeroQueue(storage, NOW)?.items[0].operatorName, 'JAIME');
   });
 
   it('drops an in-flight list that is not a list of entries', () => {

@@ -20,6 +20,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlinx.serialization.json.Json
@@ -583,6 +584,43 @@ class MassasLaunchViewModelTest {
         assertEquals(3000, erpPort.payloads.single().quantity)
         assertTrue(erpPort.payloads.single().observation.contains("#7"))
         assertTrue(testVm.state.value.resultDialogIsSuccess)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun sendPendingLaunch_signsTheSeatWithTheRowsOperator() = runTest {
+        // Jaime launched from his tablet and the phone in Wilkin's hand shows the pending row: the seat the
+        // plant receives must say JAIME, because that is who typed the boxes and who the company credits.
+        val repo = DayRepository(massasApi, dayWith(launch(89, boxes = 280, units = 2800)))
+        val testVm = newViewModel(repo)
+        testScheduler.runCurrent()
+
+        testVm.loadDay(MassasLaunchViewModel.saopauloToday())
+        testScheduler.runCurrent()
+
+        testVm.sendPendingLaunch(
+            MassasUnifiedRow(
+                key = "launch-89",
+                state = MassasRowState.PENDING_ERP,
+                operatorName = "Jaime",
+                operatorKey = "jaime",
+                productCode = "1045",
+                productName = "MASSA CASEIRA",
+                boxes = 280,
+                units = 2800,
+                launchIds = listOf(89),
+                entLans = emptyList(),
+                importable = false,
+                tabletAcked = false,
+                ownerUserId = 2,
+            ),
+        )
+        testScheduler.runCurrent()
+
+        assertEquals(1, erpPort.payloads.size)
+        assertEquals(JsonPrimitive("JAIME"), erpPort.payloads.single().userCode)
+        // The launch travelled, not the phone's configured user code.
+        assertTrue(erpPort.payloads.single().observation.contains("#89"))
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
