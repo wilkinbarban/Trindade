@@ -44,6 +44,10 @@ WORKDIR /app
 COPY --from=builder /app/node_modules /app/node_modules
 COPY --from=builder /app/packages/backend/dist /app/packages/backend/dist
 
+# The signed APK the project ships. It is served from disk (`/api/app/download-apk`) so the Share screen
+# does not depend on a GitHub release while the plant is still testing the build.
+COPY packages/backend/apk /app/packages/backend/apk
+
 # Copy SQL files alongside compiled JS (they are read at startup)
 COPY --from=builder /app/packages/backend/src/db/schema.sql /app/packages/backend/dist/db/schema.sql
 COPY --from=builder /app/packages/backend/src/db/seed.sql  /app/packages/backend/dist/db/seed.sql

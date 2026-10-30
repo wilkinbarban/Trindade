@@ -1,11 +1,15 @@
 import { describe, it, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import { buildTestApp } from '../../test-helper.js';
 import {
   FALLBACK_RELEASE,
   TRINDADE_APK_DOWNLOAD_URL,
   resetReleaseCache,
+  setLocalApkPathForTest,
   setReleaseFetcherForTest,
 } from './app.service.js';
 
@@ -29,6 +33,8 @@ describe('App Routes - /api/app', () => {
   beforeEach(() => {
     resetReleaseCache();
     setReleaseFetcherForTest(null);
+    // Estos casos ejercitan el camino de GitHub: sin APK local en juego.
+    setLocalApkPathForTest(null);
   });
 
   it('GET /latest-release answers 200 with fallback when GitHub is unreachable', async () => {
@@ -170,5 +176,43 @@ describe('App Routes - /api/app', () => {
     assert.strictEqual(res.statusCode, 502);
     const body = JSON.parse(res.body);
     assert.strictEqual(body.message, 'APK download temporarily unavailable');
+  });
+
+  describe('the APK shipped with the project', () => {
+    let apkPath: string;
+
+    before(() => {
+      apkPath = path.join(mkdtempSync(path.join(tmpdir(), 'trindade-apk-')), 'trindade-0.6.0.apk');
+      writeFileSync(apkPath, Buffer.from('PK\x03\x04signed-apk-bytes'));
+    });
+
+    beforeEach(() => {
+      setLocalApkPathForTest(apkPath);
+      setReleaseFetcherForTest(async () => {
+        throw new Error('the local APK must be served without asking GitHub');
+      });
+    });
+
+    after(() => {
+      setLocalApkPathForTest(null);
+      rmSync(path.dirname(apkPath), { recursive: true, force: true });
+    });
+
+    it('answers the version and the size on disk, without a published release', async () => {
+      const response = await app.inject({ method: 'GET', url: '/api/app/latest-release' });
+
+      assert.strictEqual(response.statusCode, 200);
+      const body = JSON.parse(response.body);
+      assert.strictEqual(body.version, 'v0.6.0');
+      assert.strictEqual(body.apkUrl, TRINDADE_APK_DOWNLOAD_URL);
+      assert.strictEqual(body.apkSize, 'PK\x03\x04signed-apk-bytes'.length);
+    });
+
+    it('serves the local binary as the download', async () => {
+      const res = await app.inject({ method: 'GET', url: '/api/app/download-apk' });
+
+      assert.strictEqual(res.statusCode, 200);
+      assert.deepStrictEqual(res.rawPayload, Buffer.from('PK\x03\x04signed-apk-bytes'));
+    });
   });
 });
