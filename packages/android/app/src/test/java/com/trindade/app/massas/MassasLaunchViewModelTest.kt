@@ -141,6 +141,44 @@ class MassasLaunchViewModelTest {
         assertEquals(null, testVm.state.value.deleteConfirmLaunchId)
     }
 
+    /**
+     * La importación de un asiento tiene que llevar el asiento y el operario que escribió la tableta. Sin
+     * ellos el lanzamiento queda a nombre de quien apretó el botón y no se puede conciliar con el ERP.
+     */
+    @Test
+    fun `importing a seat sends the seat and the operator the tablet wrote`() = runTest {
+        val stored = com.trindade.app.network.AeroMovementsStoredDay(
+            date = MassasLaunchViewModel.saopauloToday(),
+            movements = listOf(
+                com.trindade.app.network.AeroStoredMovement(
+                    entLan = 35937,
+                    productCode = "1045",
+                    productDesc = "MASSA CASEIRA",
+                    quantity = 30.0,
+                    entryDate = MassasLaunchViewModel.saopauloToday(),
+                    operatorName = "VICTOR",
+                    movementType = "E",
+                ),
+            ),
+        )
+        val repo = DayRepository(massasApi, dayWith(), stored)
+        val testVm = newViewModel(repo)
+        testVm.refresh()
+        advanceUntilIdle()
+
+        val row = testVm.state.value.unifiedRows.single()
+        assertEquals(MassasRowState.ERP_ONLY, row.state)
+        testVm.importErpSeat(row)
+        advanceUntilIdle()
+
+        val sent = repo.lastCreate
+        assertTrue("La importación no salió", sent != null)
+        assertEquals(35937, sent!!.entLan)
+        assertEquals("VICTOR", sent.operatorName)
+        assertEquals(listOf(3), sent.items.map { it.boxes })
+        assertEquals(listOf("1045"), sent.items.map { it.productCode })
+    }
+
     private fun newViewModel(repository: MassasRepository) = MassasLaunchViewModel(
         repository = repository,
         authRepository = authRepository,
@@ -242,12 +280,18 @@ class MassasLaunchViewModelTest {
             MassasLaunchDayView(date = "2026-10-21", totalUnits = 30, totalBoxes = 3)
         )
         var lastCreatedItems: List<com.trindade.app.network.CreateMassasLaunchItem>? = null
+        var lastCreatedEntLan: Int? = null
+        var lastCreatedOperatorName: String? = null
 
         override suspend fun createLaunch(
             date: String,
             items: List<com.trindade.app.network.CreateMassasLaunchItem>,
+            entLan: Int?,
+            operatorName: String?,
         ): MassasWriteResult {
             lastCreatedItems = items
+            lastCreatedEntLan = entLan
+            lastCreatedOperatorName = operatorName
             return createLaunchResult
         }
     }
@@ -434,6 +478,7 @@ class MassasLaunchViewModelTest {
         var stored: com.trindade.app.network.AeroMovementsStoredDay? = null,
     ) : MassasRepository(api) {
         var created: List<MassaIndividualLaunch> = emptyList()
+        var lastCreate: com.trindade.app.network.CreateMassasLaunchRequest? = null
 
         override suspend fun day(date: String): MassasLaunchDayView? = view
 
@@ -444,10 +489,19 @@ class MassasLaunchViewModelTest {
         override suspend fun createLaunch(
             date: String,
             items: List<com.trindade.app.network.CreateMassasLaunchItem>,
-        ): MassasWriteResult = MassasWriteResult.Saved(
-            view = view ?: MassasLaunchDayView(date = date),
-            created = created,
-        )
+            entLan: Int?,
+            operatorName: String?,
+        ): MassasWriteResult = com.trindade.app.network.CreateMassasLaunchRequest(
+            date = date,
+            entLan = entLan,
+            operatorName = operatorName,
+            items = items,
+        ).also { lastCreate = it }.let { sent ->
+            MassasWriteResult.Saved(
+                view = view ?: MassasLaunchDayView(date = date),
+                created = created,
+            )
+        }
     }
 
     private fun launch(id: Int, boxes: Int = 3, units: Int = 30) = MassaIndividualLaunch(

@@ -227,17 +227,18 @@ Section 1's order rule states which step does what.
      | 1 → 2 | Creates `auth_sessions` and its indexes. |
      | 2 → 3 | Adds `users.security_version`, revokes all live refresh sessions, and stamps revision 3. |
      | 3 → 4 | Adds the optional `drivers.phone` column. Additive: every row is kept, no session is invalidated, and a driver that already exists answers a null number until an operator types one. |
+     | 8 → 9 | Adds the optional `massa_launches.ent_lan` column and its partial unique index. Additive: every launch is kept and the ones typed by hand answer `NULL`, which is what the index leaves out. |
 
    - A database at revision 3 runs only the `3 → 4` step; one at revision 2 runs `2 → 3` and then
      `3 → 4`. Never restart the old API after the first step that changes it: it reports `newer` and
      refuses, which is the guard doing its job.
 
-4. Confirm the database is now `current` at revision 4, still from the new image:
+4. Confirm the database is now `current` at the revision this build supports, still from the new image:
    ```bash
    docker compose run --rm --no-deps --entrypoint node api \
      packages/backend/dist/db/status.js
    ```
-   Must exit 0 and print `verdict: current` at revision 4. **Do not start the API until it does.**
+   Must exit 0 and print `verdict: current` at that revision. **Do not start the API until it does.**
 
 5. If migration or validation fails, keep the API stopped and use Section 8, Scenario B with
    the final recovery set. Do not boot an older binary against the migrated database.

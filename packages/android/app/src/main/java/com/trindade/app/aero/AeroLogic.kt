@@ -482,6 +482,8 @@ data class AeroLocalLaunch(
     val units: Double,
     /** Who launched it here; a seat whose operator differs is somebody else's boxes. */
     val username: String,
+    /** El asiento del ERP del que salió este lanzamiento, cuando se importó uno. */
+    val entLan: Int? = null,
 )
 
 data class AeroMovementReconciliation(
@@ -509,8 +511,28 @@ fun reconcileAeroMovements(
     movements: List<AeroErpMovement>,
     launches: List<AeroLocalLaunch>,
 ): AeroMovementReconciliation {
+    val reconciled = mutableListOf<Int>()
+    val matchedLaunchIds = mutableListOf<Int>()
+    val consumed = mutableSetOf<Int>()
+
+    // Primera pasada: un lanzamiento importado de un asiento es la misma línea del libro de la empresa, así
+    // que se empareja digan lo que digan los nombres. El nombre nunca alcanzó -- la tableta escribe VICTOR
+    // donde Trindade dice wilkin -- y rechazar ese par dejaba el asiento importable para siempre.
+    val bySeat = launches.filter { it.entLan != null }.associate { it.entLan!! to it.id }
+    for (movement in movements) {
+        if (movement.movementType != "E") continue
+        val id = bySeat[movement.entLan] ?: continue
+        if (!consumed.add(id)) continue
+
+        reconciled.add(movement.entLan)
+        matchedLaunchIds.add(id)
+    }
+
+    // Segunda pasada: lo que se cargó acá a mano no tiene asiento y sigue emparejándose por día, producto,
+    // unidades y nombre.
     val byKey = mutableMapOf<String, MutableList<Int>>()
     for (launch in launches) {
+        if (launch.id in consumed) continue
         val key = aeroReconciledKey(
             aeroMovementKey(launch.launchDate, launch.productCode, launch.units),
             launch.username,
@@ -518,10 +540,10 @@ fun reconcileAeroMovements(
         byKey.getOrPut(key) { mutableListOf() }.add(launch.id)
     }
 
-    val reconciled = mutableListOf<Int>()
-    val matchedLaunchIds = mutableListOf<Int>()
+    val settledSeats = reconciled.toSet()
     for (movement in movements) {
         if (movement.movementType != "E") continue
+        if (movement.entLan in settledSeats) continue
         if (aeroOperatorKey(movement.operatorName).isEmpty()) continue
 
         val key = aeroReconciledKey(

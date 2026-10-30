@@ -168,6 +168,7 @@ fun massasUnifiedRows(input: MassasUnifiedInput, operatorFilter: String = ""): L
                 productCode = launch.productCode,
                 units = launch.units.toDouble(),
                 username = launch.username,
+                entLan = launch.entLan,
             )
         },
     )

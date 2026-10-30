@@ -500,15 +500,19 @@ class MassasLaunchViewModel @Inject constructor(
      */
     fun importErpSeat(row: MassasUnifiedRow) {
         if (state.value.isReadOnly) return
-        val plan = state.value.unifiedRows.firstOrNull { it.key == row.key }
-            ?.let { aeroImportPlanFor(row) }
-            ?: return
+        val known = state.value.unifiedRows.firstOrNull { it.key == row.key } ?: return
+        val seat = state.value.aeroMirror.firstOrNull { it.entLan in known.entLans } ?: return
+        val plan = aeroImportPlanFor(row) ?: return
 
         viewModelScope.launch {
             _state.value = _state.value.copy(isSubmitting = true, errorMessage = null, noticeMessage = null)
             val result = repository.createLaunch(
                 date = state.value.date,
                 items = listOf(CreateMassasLaunchItem(plan.productCode, plan.boxes)),
+                // El asiento y el operario de la tableta viajan con las cajas: sin ellos el lanzamiento queda
+                // a nombre de quien apretó el botón y sólo se puede emparejar por nombre.
+                entLan = seat.entLan,
+                operatorName = seat.operatorName,
             )
             when (result) {
                 is MassasWriteResult.Saved -> {

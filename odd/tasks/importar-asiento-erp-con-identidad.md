@@ -40,8 +40,8 @@ rebuild the signed release APK; everything straight to `main`, no satellite bran
 | T2 | S2, S3 | backend: operator resolution, create with `ent_lan`, day view, contract tests | done |
 | T3 | S4 | backend: direct `ENT_LAN` pairing in `reconcileMassasDay` | done |
 | T4 | S6 | web: import payload and priority reconciliation | done |
-| T5 | S7 | Android: payload, contract and priority reconciliation | pending |
-| T6 | S5 | production: migrate, snapshot, remove ids 90-93, verify | pending |
+| T5 | S7 | Android: payload, contract and priority reconciliation | done |
+| T6 | S5 | production: migrate, snapshot, remove ids 90-93, verify | done |
 | T7 | S8 | delivery: full suites, containers, signed APK, evidence | pending |
 
 ## Log

@@ -25,6 +25,7 @@ class MassasUnifiedTest {
         username: String = "JEFFERSON",
         displayName: String = "Jefferson",
         date: String = "2026-10-30",
+        entLan: Int? = null,
     ) = MassaIndividualLaunch(
         id = id,
         launchDate = date,
@@ -36,6 +37,7 @@ class MassasUnifiedTest {
         userId = 1,
         username = username,
         displayName = displayName,
+        entLan = entLan,
     )
 
     private fun seat(
@@ -59,6 +61,30 @@ class MassasUnifiedTest {
         AeroImportProduct(code = "1192", name = "MASSA DE PASTEL 500G", unitsPerBox = 12),
         AeroImportProduct(code = "0800", name = "SACOLA", unitsPerBox = 100),
     )
+
+    /**
+     * El defecto de producción como fila: la tableta registró el asiento como VICTOR y la importación quedó
+     * bajo JEFFERSON. Sin el asiento guardado, la fila seguía en ERP_ONLY y el botón Importar seguía ahí.
+     */
+    @Test
+    fun `a seat imported by another operator settles and stops offering the import`() {
+        val rows = massasUnifiedRows(
+            MassasUnifiedInput(
+                launches = listOf(
+                    launch(id = 90, productCode = "1192", boxes = 2, units = 24, username = "jefferson", entLan = 35937),
+                ),
+                movements = listOf(
+                    seat(entLan = 35937, productCode = "001192", quantity = 24.0, operatorName = "VICTOR"),
+                ),
+                products = products,
+            ),
+        )
+
+        val row = rows.single()
+        assertEquals(MassasRowState.RECONCILED, row.state)
+        assertEquals(listOf(90), row.launchIds)
+        assertFalse(rows.any { it.state == MassasRowState.ERP_ONLY })
+    }
 
     @Test
     fun `a launch the ERP also recorded is reconciled and counts once`() {

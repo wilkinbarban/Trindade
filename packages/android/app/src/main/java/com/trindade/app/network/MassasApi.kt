@@ -33,6 +33,8 @@ data class MassaIndividualLaunch(
     @SerialName("user_id") val userId: Int,
     val username: String = "",
     @SerialName("display_name") val displayName: String = "",
+    /** El asiento del ERP del que salió este lanzamiento; nulo cuando se cargó acá a mano. */
+    @SerialName("ent_lan") val entLan: Int? = null,
     @SerialName("created_at") val createdAt: String = "",
     @SerialName("updated_at") val updatedAt: String = "",
 )
@@ -55,6 +57,13 @@ data class CreateMassasLaunchItem(
 @Serializable
 data class CreateMassasLaunchRequest(
     val date: String,
+    /**
+     * El asiento del que sale esta importación y el operario que la tableta escribió. Los dos viajan
+     * juntos o no viajan: sin ellos el lanzamiento queda a nombre de quien apretó el botón y no hay con
+     * qué conciliarlo.
+     */
+    @SerialName("ent_lan") val entLan: Int? = null,
+    @SerialName("operator_name") val operatorName: String? = null,
     val items: List<CreateMassasLaunchItem>,
 )
 

@@ -75,9 +75,21 @@ open class MassasRepository @Inject constructor(
             ?.takeIf { it.isSuccessful }
             ?.body()
 
-    open suspend fun createLaunch(date: String, items: List<CreateMassasLaunchItem>): MassasWriteResult {
+    open suspend fun createLaunch(
+        date: String,
+        items: List<CreateMassasLaunchItem>,
+        entLan: Int? = null,
+        operatorName: String? = null,
+    ): MassasWriteResult {
         val response = runCatchingCancellable {
-            api.createLaunch(CreateMassasLaunchRequest(date = date, items = items))
+            api.createLaunch(
+                CreateMassasLaunchRequest(
+                    date = date,
+                    entLan = entLan,
+                    operatorName = operatorName,
+                    items = items,
+                ),
+            )
         }.getOrNull() ?: return MassasWriteResult.Unreachable
 
         if (response.isSuccessful) {

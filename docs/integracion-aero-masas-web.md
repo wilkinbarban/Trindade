@@ -434,6 +434,13 @@ funcionalidades clave a incorporar. El contrato ya está listo -- el atajo únic
     «Conciliado» cuando ambos lados coinciden.
   - Los asientos del ERP son **solo lectura** en Trindade; importar crea un lanzamiento local nuevo,
     nunca edita el asiento de la empresa.
+  - **La importación conserva la identidad del asiento.** `POST /massas-launch` acepta `ent_lan` y
+    `operator_name`; el lanzamiento guarda el asiento en `massa_launches.ent_lan` y el operario de la
+    tableta como dueño cuando ese nombre resuelve a un usuario activo. La conciliación empareja primero
+    por `ent_lan`, sin mirar el nombre: el mismo trabajo no se duplica ni queda «pendiente» por cómo se
+    escribió el operario en cada lado. Un asiento ya importado se rechaza con `409`
+    `MASSAS_ALREADY_IMPORTED` (índice único parcial sobre `ent_lan`), así que el botón no puede crear
+    lanzamientos huérfanos.
   - La consulta también se dispara desde Recebimento, en el relatório: el atajo vuelve a la ruta del
     reporte (`aero_return` es la propia ruta, validada como path relativo) y el modal cuenta sólo los
     insumos. El snapshot se guarda entero en las dos pantallas; lo que cambia es el lente, que el

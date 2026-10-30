@@ -183,6 +183,42 @@ class AeroLogicTest {
         assertEquals(listOf(3), reconciliation.unmatchedLaunchIds)
     }
 
+    /**
+     * El caso real de la tableta: el asiento lo cargó VICTOR y la importación quedó a nombre de wilkin. Antes
+     * de guardar el asiento, el nombre era el único puente y lo rechazaba para siempre.
+     */
+    @Test
+    fun `a launch imported from a seat reconciles with it whatever the operator names say`() {
+        val movements = listOf(
+            seat(entLan = 35937, code = "005000", quantity = 270.0, date = "2026-10-30", operator = "VICTOR"),
+        )
+        val launches = listOf(
+            AeroLocalLaunch(90, "2026-10-30", "5000", 270.0, "wilkin", entLan = 35937),
+        )
+
+        val reconciliation = reconcileAeroMovements(movements, launches)
+
+        assertEquals(listOf(35937), reconciliation.reconciled)
+        assertEquals(listOf(90), reconciliation.matchedLaunchIds)
+        assertEquals(emptyList<Int>(), reconciliation.unmatchedLaunchIds)
+    }
+
+    @Test
+    fun `the seat decides before the name, so a typed launch keeps waiting for its own seat`() {
+        val movements = listOf(
+            seat(entLan = 35937, code = "005000", quantity = 270.0, date = "2026-10-30", operator = "VICTOR"),
+        )
+        val launches = listOf(
+            AeroLocalLaunch(90, "2026-10-30", "5000", 270.0, "victor", entLan = 35937),
+            AeroLocalLaunch(91, "2026-10-30", "5000", 270.0, "victor"),
+        )
+
+        val reconciliation = reconcileAeroMovements(movements, launches)
+
+        assertEquals(listOf(90), reconciliation.matchedLaunchIds)
+        assertEquals(listOf(91), reconciliation.unmatchedLaunchIds)
+    }
+
     @Test
     fun `each seat reconciles at most one launch`() {
         val movements = listOf(

@@ -102,6 +102,17 @@ object NetworkModule {
     @Retention(AnnotationRetention.BINARY)
     annotation class GitHubClient
 
+    /**
+     * El cuerpo que viaja a nuestro backend, que omite los campos que nadie llenó.
+     *
+     * Nuestros esquemas son estrictos y distinguen "no lo mando" de "lo mando vacío"; el ERP de la empresa
+     * es al revés y lee el null explícito como "todos", así que el [Json] compartido conserva los nulls y
+     * sólo el cliente del backend usa esta variante.
+     */
+    @Qualifier
+    @Retention(AnnotationRetention.BINARY)
+    annotation class BackendJson
+
     @Provides
     @Singleton
     @BackendClient
@@ -189,8 +200,13 @@ object NetworkModule {
 
     @Provides
     @Singleton
+    @BackendJson
+    fun provideBackendJson(json: Json): Json = Json(from = json) { explicitNulls = false }
+
+    @Provides
+    @Singleton
     @BackendClient
-    fun provideRetrofit(@BackendClient client: OkHttpClient, json: Json): Retrofit =
+    fun provideRetrofit(@BackendClient client: OkHttpClient, @BackendJson json: Json): Retrofit =
         Retrofit.Builder()
             .baseUrl(BuildConfig.API_BASE_URL)
             .client(client)
