@@ -263,7 +263,7 @@ export function MassasLaunchPage() {
     setSubmitting(true);
     setIsConfirmOpen(false);
     try {
-      await api.post('/massas-launch', {
+      const created = await api.post<{ created: MassaIndividualLaunch[] }>('/massas-launch', {
         date,
         items: itemsToConfirm.map((i) => ({ product_code: i.product_code, boxes: i.boxes })),
       });
@@ -276,6 +276,10 @@ export function MassasLaunchPage() {
         productCode: i.product_code,
         productName: i.name,
         quantity: i.units,
+        // Only this trip's launches: the day may already carry earlier ones at the same product.
+        launchIds: (created?.created ?? [])
+          .filter((launch) => launch.product_code === i.product_code)
+          .map((launch) => launch.id),
       }));
 
       setQuantities({});
@@ -353,6 +357,7 @@ export function MassasLaunchPage() {
           quantity: item.quantity,
           entryDate: queue.date,
           userCode: operatorUser,
+          launchIds: item.launchIds,
         }),
       );
       // El atajo no sabe de massas: recibe dónde, quién, qué y a dónde volver. Cambiar la clave o la IP es

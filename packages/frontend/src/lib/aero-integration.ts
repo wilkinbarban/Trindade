@@ -400,6 +400,19 @@ export function formatAeroProductCode(code: string | number | null | undefined):
 }
 
 /**
+ * The origin sentence the ERP keeps for an entry launched here.
+ *
+ * The company's tablet writes its own seats and this app writes its own; when one box is doubted, the only
+ * field both sides share is the observation. Naming the launches makes the pair findable from Delphi without
+ * touching the certified shortcut: the envelope travels the body it is given.
+ */
+export function trindadeObservation(launchIds?: readonly number[]): string {
+  const ids = (launchIds ?? []).filter((id) => Number.isInteger(id) && id > 0);
+  if (ids.length === 0) return 'Lancamento de massas via Trindade';
+  return `Trindade ${ids.map((id) => `#${id}`).join(', ')}`;
+}
+
+/**
  * Constructs the exact JSON payload expected by POST /entradasitem in Aero32 ERP.
  * Property order matches docs/registro-integracion-aero-webservice.md §2.3.
  */
@@ -413,6 +426,8 @@ export function buildEntradaItemPayload(args: {
   /** Only for a caller that must quote a series: the ERP entry always carries {@link AERO_ENTRY_SERIES}. */
   entrySeries?: string;
   observation?: string | null;
+  /** The local launches this entry came from; they become the origin sentence when no observation is given. */
+  launchIds?: readonly number[];
   /** Tax situation code (CST). Defaults to {@link AERO_DEFAULT_CST} ('000'). */
   productCst?: string | null;
 }): AeroEntryPayload {
@@ -420,7 +435,7 @@ export function buildEntradaItemPayload(args: {
   const obs =
     args.observation && args.observation.trim()
       ? args.observation.trim()
-      : 'Lancamento de massas via Trindade';
+      : trindadeObservation(args.launchIds);
 
   return {
     PRO_COD: formatAeroProductCode(args.productCode),

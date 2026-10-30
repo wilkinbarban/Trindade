@@ -14,6 +14,8 @@ export interface AeroQueueItem {
   productCode: string;
   productName: string;
   quantity: number;
+  /** The local launches behind this entry, quoted to the ERP so a doubtful seat can be traced back. */
+  launchIds?: number[];
 }
 
 export interface AeroQueue {

@@ -144,6 +144,13 @@ describe('aero bridge wiring: the ERP mirror', () => {
     assert.equal(/integration\/aero\/movements`\s*,\s*\{?\s*method: 'PUT'/.test(launch), false);
   });
 
+  it('quotes the local launch ids to the ERP so a doubtful seat can be traced back', () => {
+    // El atajo manda el cuerpo tal cual: la huella viaja sin tocar la receta certificada.
+    assert.ok(launch.includes('launchIds: item.launchIds'));
+    assert.ok(launch.includes(".filter((launch) => launch.product_code === i.product_code)"));
+    assert.ok(launch.includes('trindadeObservation(') === false);
+  });
+
   it('shows one reconciled table instead of a local tab and an ERP tab', () => {
     // El día se lee una sola vez: las dos listas dejaban al operario eligiendo cuál creer.
     assert.equal(collective.includes('role="tablist"'), false);
