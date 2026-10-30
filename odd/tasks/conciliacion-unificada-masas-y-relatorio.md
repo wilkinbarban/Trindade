@@ -243,6 +243,10 @@ hereda esas aserciones.
 - **T4** (S6, S7, S8, D5) — `massasUnifiedRows` en `lib/` y la tabla unificada en `MassasLaunchPage`; se
   retira `ErpMirrorCard` como vista y sus tab; tests puros de los tres estados, cajas enteras y filtro
   universal.
+  Evidencia: `b59ebd5`; 7/7 puros (sensibles a mutación de orden y filtro), 360/360 frontend, `tsc` limpio,
+  1/1 E2E `massas-unified.spec.ts` a 375 px con cero desbordes.
+  Decisión de T4: la tabla conciliada no declara un `ENT_LAN` propio. La conciliación empareja cantidades y
+  producto, no pares, así que nombrar "la" seat de un launch sería adivinar; el id queda en el lado del ERP.
 - **T5** (S9) — Sync en la cabecera con `data-testid="massas-sync-erp"` y hora del último sync; E2E.
 - **T6** (S10, D2, D3) — `ENT_OBS = 'Trindade #ID'`: capturar ids del POST local y pasarlos a
   `buildAeroEntryPayload`; tests de `ENT_OBS` y de regresión del sobre del atajo.
@@ -312,3 +316,8 @@ hereda esas aserciones.
   página durante la jornada laboral sin requerir migraciones de base de datos.» Y la autorización: «Tenés luz
   verde total. Arrancá con T1 y T2 bajo TDD estricto (RED -> GREEN), cuidando commits atómicos en main
   (<= 400 líneas, sin AI attribution).»
+
+- **L8** — Cierre de T4 con Wilkin: la acción «Enviar ao ERP» de una fila pendiente reutiliza el envío del día
+  (el atajo viaja el día entero; hoy no hay endpoint por fila), y el ack «Ya cargado en tablet» es por
+  dispositivo, en `localStorage`, y muere con el día: dice que las cajas viajaron en la tablet, nunca que
+  Delphi las tenga.
