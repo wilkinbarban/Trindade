@@ -17,8 +17,14 @@ import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.trindade.app.R
+import com.trindade.app.contract.models.MassasReportDayView
 import com.trindade.app.contract.models.ReportResponseReport
 import com.trindade.app.ui.theme.TrindadeTheme
+import java.math.BigDecimal
+import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.modules.contextual
+import com.trindade.app.network.BigDecimalSerializer
+import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -104,7 +110,10 @@ class ReportDetailScreenTest {
      * it; it is set from the report anyway rather than left at its default, so the state is one the app
      * could really have produced.
      */
-    private fun state(report: ReportResponseReport) = ReportDetailViewModel.UiState(
+    private fun state(
+        report: ReportResponseReport,
+        massasDay: MassasReportDayView? = null,
+    ) = ReportDetailViewModel.UiState(
         reportId = report.id,
         loading = false,
         report = report,
@@ -113,6 +122,36 @@ class ReportDetailScreenTest {
         exportText = null,
         loadingExport = false,
         message = null,
+        massasDay = massasDay,
+    )
+
+    /**
+     * An empty day, decoded rather than constructed.
+     *
+     * The contract's types carry every field as required, which is right on the wire and noise in a test
+     * that only cares that a day with nothing recorded still draws. Decoding keeps this file from having to
+     * be edited every time the server adds a count.
+     */
+    private fun emptyDay(date: String): MassasReportDayView = Json { serializersModule = SerializersModule {
+        contextual(BigDecimal::class, BigDecimalSerializer)
+    } }.decodeFromString(
+        """
+        {
+          "date": "$date",
+          "operators": [],
+          "products": [],
+          "totalBoxes": 0,
+          "totalUnits": 0,
+          "balance": {
+            "producedUnits": 0,
+            "registeredUnits": 0,
+            "differenceUnits": 0,
+            "reconciledSeats": 0,
+            "pendingSeats": 0
+          },
+          "reconciledEntLans": []
+        }
+        """.trimIndent(),
     )
 
     private lateinit var clipboard: ClipboardManager
@@ -186,10 +225,18 @@ class ReportDetailScreenTest {
     }
 
     @Test
-    fun `draws the include massas switch in export section`() {
-        render(state(report(canEdit = false, readOnly = true)))
+    fun `draws the day's massas card when the report has a day`() {
+        render(
+            state(
+                report = report(canEdit = false, readOnly = true),
+                massasDay = emptyDay("2026-10-29"),
+            ),
+        )
 
-        composeRule.onNodeWithText(copy(R.string.report_include_massas)).assertIsDisplayed()
+        // The card is permanent and by date, so a day with nothing recorded still says so rather than
+        // leaving a blank space where the operator expects the production of that day.
+        composeRule.onNodeWithText(copy(R.string.report_massas_day_title)).assertIsDisplayed()
+        composeRule.onNodeWithText(copy(R.string.report_massas_day_empty)).assertIsDisplayed()
     }
 
     /**

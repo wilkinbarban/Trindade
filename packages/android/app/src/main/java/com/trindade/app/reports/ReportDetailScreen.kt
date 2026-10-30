@@ -66,7 +66,6 @@ fun ReportDetailScreen(
     onShareExport: () -> Unit,
     onEdit: () -> Unit,
     onBack: () -> Unit,
-    onToggleIncludeMassas: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -155,6 +154,11 @@ fun ReportDetailScreen(
             }
         }
 
+        // Right under the temperatures, where the operator who just read them looks for the day's count.
+        item {
+            MassasDayCard(day = state.massasDay)
+        }
+
         item {
             HorizontalDivider()
             Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
@@ -210,30 +214,6 @@ fun ReportDetailScreen(
         }
 
         item {
-            HorizontalDivider()
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .defaultMinSize(minHeight = 48.dp)
-                    .padding(vertical = 4.dp),
-                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Row(
-                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text(text = "🍝", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        text = stringResource(R.string.report_include_massas),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                }
-                Switch(
-                    checked = state.includeMassas,
-                    onCheckedChange = onToggleIncludeMassas,
-                )
-            }
             Spacer(Modifier.height(4.dp))
             AdminPrimaryButton(
                 onClick = onLoadExport,
@@ -313,6 +293,5 @@ fun ReportDetailRoute(
         onShareExport = viewModel::shareExport,
         onEdit = onEdit,
         onBack = onBack,
-        onToggleIncludeMassas = viewModel::toggleIncludeMassas,
     )
 }

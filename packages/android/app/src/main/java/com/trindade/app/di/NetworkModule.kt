@@ -8,6 +8,8 @@ import com.trindade.app.network.AuthApi
 import com.trindade.app.network.BigDecimalSerializer
 import com.trindade.app.network.GuestReadonlyInterceptor
 import com.trindade.app.network.LoadingApi
+import com.trindade.app.massas.MassasDaySource
+import com.trindade.app.massas.MassasRepository
 import com.trindade.app.network.MassasApi
 import com.trindade.app.network.ReportsApi
 import com.trindade.app.network.StockApi
@@ -115,6 +117,15 @@ object NetworkModule {
             // Después de auth y no antes: aquel puede renovar el token y reintentar una vez, y
             // este tiene que ver la respuesta FINAL -- la del reintento incluido.
             .addInterceptor(GuestReadonlyInterceptor)
+            // The plant's log and this backend's log are read by a person looking at several clients at
+            // once; the header is how a line is attributed to the APK that sent it (S20).
+            .addInterceptor { chain ->
+                chain.proceed(
+                    chain.request().newBuilder()
+                        .header("User-Agent", "Trindade-Android/${BuildConfig.APP_VERSION_NAME}")
+                        .build(),
+                )
+            }
             .build()
 
     /**
@@ -243,6 +254,12 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideMassasApi(@BackendClient retrofit: Retrofit): MassasApi = retrofit.create(MassasApi::class.java)
+
+    // The reports' "Massa do dia" card reads the day and nothing else, so the interface it is given is the one
+    // method it needs rather than the whole repository the launch screen writes through.
+    @Provides
+    @Singleton
+    fun provideMassasDaySource(repository: MassasRepository): MassasDaySource = repository
 
     @Provides
     @Singleton

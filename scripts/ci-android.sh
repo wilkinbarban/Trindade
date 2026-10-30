@@ -85,19 +85,45 @@ section 'Build the release APK'
   "-PversionCode=$release_version_code" \
   --no-daemon
 
-# The cleartext exemption is a debug-only overlay, and that is a security property rather than a
-# detail: a release APK must carry no exemption at all, so the platform default -- cleartext
-# forbidden -- applies. Asserting it here is the difference between a property and an intention.
-section 'Assert the cleartext exemption is debug-only'
+# The cleartext exemption is now two files with two jobs, and both halves are security properties.
+#
+# A release APK has to reach the plant's Delphi WebService, which is plain HTTP on the factory LAN, so a
+# release build carries an exemption -- and it must be the narrow one: exactly the plant host, no
+# base-config, no subdomain wildcard. The debug build carries a wider overlay under src/debug/ (the
+# emulator's loopback plus the plant host, because this file is overridden rather than merged), and it
+# must never be the file a release ships.
+#
+# Both are asserted here rather than by eye, because an exemption that grows by one line during a
+# debugging session is exactly the change no build complains about. The unit test
+# AeroNetworkSecurityConfigTest makes the same claims from Kotlin; this lane is the one that fails before
+# a release artifact exists.
+section 'Assert the cleartext exemption is narrow in release and present in debug'
 debug_manifest="$(merged_manifest_for debug)"
 release_manifest="$(merged_manifest_for release)"
 
-if ! grep -q 'networkSecurityConfig' "$debug_manifest"; then
-  printf 'The debug manifest is missing android:networkSecurityConfig, so a debug build cannot reach the local backend and the failure surfaces as an opaque socket error rather than a policy refusal.\n' >&2
+for manifest in "$debug_manifest" "$release_manifest"; do
+  if ! grep -q 'networkSecurityConfig' "$manifest"; then
+    printf 'A merged manifest is missing android:networkSecurityConfig, so the plant WebService is unreachable over plain HTTP and the failure surfaces as an opaque socket error rather than a policy refusal. (%s)\n' "$manifest" >&2
+    exit 1
+  fi
+done
+
+release_config="$repo_root/packages/android/app/src/main/res/xml/network_security_config.xml"
+if [[ ! -f "$release_config" ]]; then
+  printf 'The release network security config is missing at %s.\n' "$release_config" >&2
   exit 1
 fi
-if grep -q 'networkSecurityConfig' "$release_manifest"; then
-  printf 'The release manifest carries android:networkSecurityConfig. The cleartext exemption has leaked out of src/debug/, which is the one thing that overlay exists to prevent.\n' >&2
+if grep -q '<base-config' "$release_config"; then
+  printf 'The release network security config carries a <base-config>, which re-opens cleartext for every destination the app talks to.\n' >&2
+  exit 1
+fi
+if grep -q 'includeSubdomains="true"' "$release_config"; then
+  printf 'The release network security config widens the exemption to subdomains; the address that was reviewed is the only one allowed.\n' >&2
+  exit 1
+fi
+release_domains="$(grep -oE '<domain[^>]*>[^<]+</domain>' "$release_config" | sed -E 's/<domain[^>]*>([^<]+)<\/domain>/\1/' | tr -d '[:space:]' | sort | tr '\n' ' ')"
+if [[ "$release_domains" != '192.168.25.250 ' ]]; then
+  printf 'The release network security config exempts [%s] instead of only the plant host 192.168.25.250.\n' "$release_domains" >&2
   exit 1
 fi
 for manifest in "$debug_manifest" "$release_manifest"; do
@@ -106,7 +132,7 @@ for manifest in "$debug_manifest" "$release_manifest"; do
     exit 1
   fi
 done
-printf 'cleartext exemption present in debug and absent in release; allowBackup false in both.\n'
+printf 'cleartext exemption is the plant host only in release and present in both manifests; allowBackup false in both.\n'
 
 # The guard is a rule with no default, so its failure mode deserves a test. Without this, a future
 # refactor could quietly remove the guard and every other check here would still pass.

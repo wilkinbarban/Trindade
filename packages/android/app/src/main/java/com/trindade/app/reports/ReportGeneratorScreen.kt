@@ -234,6 +234,11 @@ fun ReportGeneratorScreen(
                     )
                 }
 
+                // Under the temperatures, the same place the detail screen puts it.
+                item {
+                    MassasDayCard(day = state.massasDay)
+                }
+
                 item {
                     OutlinedTextField(
                         value = state.notes,

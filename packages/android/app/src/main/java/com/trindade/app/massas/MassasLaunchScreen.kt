@@ -60,6 +60,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.trindade.app.R
 import com.trindade.app.ui.BrazilianPhoneVisualTransformation
+import com.trindade.app.ui.components.AdminSecondaryButton
 import com.trindade.app.ui.components.HelpSection
 import com.trindade.app.ui.components.ModuleHelpButton
 import com.trindade.app.ui.components.ModuleHelpDialog
@@ -67,6 +68,7 @@ import com.trindade.app.ui.components.ModuleHistoryButton
 import com.trindade.app.ui.components.NavigationActionButton
 import com.trindade.app.ui.resolve
 import com.trindade.app.ui.filterPhoneDigits
+import androidx.compose.ui.platform.testTag
 
 @Composable
 fun MassasLaunchScreen(
@@ -275,6 +277,45 @@ fun MassasLaunchScreen(
                 }
             }
         }
+
+        // Sincronización con el ERP: el día de la planta, leído en un viaje y guardado en el backend.
+        // Se dibuja dentro de la misma tarjeta de la fecha porque es la fecha lo que se sincroniza, y con
+        // la hora del último intento al lado para que "ya lo hice" sea verificable y no un recuerdo.
+        Card(
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = state.aeroSyncedAt?.let { stringResource(R.string.massas_synced_at, it) }
+                        ?: stringResource(R.string.massas_never_synced),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                AdminSecondaryButton(
+                    text = stringResource(R.string.massas_sync_erp),
+                    onClick = { viewModel.syncAeroDay() },
+                    enabled = state.aeroReady && !state.isSyncingAero,
+                    modifier = Modifier.testTag(MASSAS_SYNC_TAG),
+                )
+            }
+        }
+
+        // La tabla unificada: lo lanzado aquí, lo que el ERP ya tiene y lo que sólo está en el ERP.
+        MassasUnifiedTable(
+            state = state,
+            onSend = viewModel::sendPendingLaunch,
+            onAcknowledge = viewModel::acknowledgeLaunch,
+            onImport = viewModel::importErpSeat,
+        )
 
         if (!state.isReadOnly) {
             // BLOQUE 1: Lançar Produção do Dia (Cálculo e Inputs)
@@ -485,7 +526,12 @@ fun MassasLaunchScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 } else {
+                    // Lo que el ERP ya asentó no se edita ni se borra: la fila lo dice en lugar de ofrecer los
+                    // botones deshabilitados, porque un botón apagado sin motivo se lee como un error de la app.
+                    val settledIds = reconciledLaunchIds(state.unifiedRows)
+
                     displayedLaunches.forEach { launch ->
+                        val reconciled = launch.id in settledIds
                         val canEdit = viewModel.canEdit(launch)
 
                         Card(
@@ -526,7 +572,13 @@ fun MassasLaunchScreen(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
 
-                                    if (canEdit) {
+                                    if (reconciled) {
+                                        Text(
+                                            text = stringResource(R.string.massas_state_reconciled),
+                                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                            color = MaterialTheme.colorScheme.primary,
+                                        )
+                                    } else if (canEdit) {
                                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                             TextButton(
                                                 onClick = { viewModel.startEdit(launch) },

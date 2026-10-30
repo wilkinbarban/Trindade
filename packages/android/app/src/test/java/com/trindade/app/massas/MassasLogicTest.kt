@@ -224,6 +224,17 @@ class MassasLogicTest {
     }
 
     @Test
+    fun canEditOrDeleteLaunch_refusesALaunchTheErpAlreadyHas() {
+        // Conciliado gana sobre el rol y sobre la autoría: el asiento ya está en Delphi, y moverlo o borrarlo
+        // acá dejaría el día de la planta y el libro de la empresa diciendo cosas distintas.
+        assertFalse(
+            canEditOrDeleteLaunch(launchUserId = 5, currentUserId = 5, isReconciled = true),
+        )
+        // Y sigue permitido mientras no esté conciliado, aunque sea de otro día... no: el día manda igual.
+        assertTrue(canEditOrDeleteLaunch(launchUserId = 5, currentUserId = 5, isReconciled = false))
+    }
+
+    @Test
     fun operatorFilteringAndSubtotal_behavesExpectedly() {
         val launches = listOf(
             MassaIndividualLaunch(

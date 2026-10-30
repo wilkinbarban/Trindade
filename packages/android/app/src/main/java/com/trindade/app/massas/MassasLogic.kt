@@ -229,14 +229,20 @@ fun shouldPollMassas(
  * Guard predicate determining if the user has permission to edit or delete an individual launch.
  * Restricted to the author of the launch or users with the admin role, and only permitted
  * on the current day (past dates are strictly read-only).
+ *
+ * A reconciled launch is settled for everybody: the seat already exists in the ERP, so the rule outranks the
+ * role and the authorship instead of adding to them.
  */
 fun canEditOrDeleteLaunch(
     launchUserId: Int,
     currentUserId: Int?,
     isToday: Boolean = true,
+    isReconciled: Boolean = false,
 ): Boolean {
     if (!isToday) return false
     if (currentUserId == null) return false
+    // Un lanzamiento conciliado ya está en el ERP: editarlo o borrarlo acá rompería la conciliación del día.
+    if (isReconciled) return false
     return launchUserId == currentUserId
 }
 

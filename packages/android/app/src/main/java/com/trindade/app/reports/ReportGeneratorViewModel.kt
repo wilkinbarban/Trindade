@@ -11,6 +11,9 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import com.trindade.app.contract.models.MassasReportDayView
+import com.trindade.app.massas.MassasDaySource
+import com.trindade.app.massas.MassasLaunchViewModel
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -29,6 +32,9 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class ReportGeneratorViewModel @Inject constructor(
     private val repository: ReportsRepository,
+    // Optional, like the detail screen's: a test about the form needs no second source, and a build
+    // without one draws the form without the day's count.
+    private val massasDaySource: MassasDaySource? = null,
 ) : ViewModel() {
 
     /** The three things the server supplies before this form can be answered at all. */
@@ -74,6 +80,8 @@ class ReportGeneratorViewModel @Inject constructor(
         val createdReportId: Int? = null,
         val message: String? = null,
         val showValidation: Boolean = false,
+        /** The day's massas, under the temperatures the operator has just read. */
+        val massasDay: MassasReportDayView? = null,
     ) {
         val stage: Stage
             get() = when {
@@ -119,6 +127,7 @@ class ReportGeneratorViewModel @Inject constructor(
 
     fun load() {
         _state.update { it.copy(loading = true, message = null) }
+        loadMassasDay()
         viewModelScope.launch {
             val categories = repository.categories()
             val offers = repository.productOffers()
@@ -180,6 +189,20 @@ class ReportGeneratorViewModel @Inject constructor(
     }
 
     fun onNotesChange(notes: String) = _state.update { it.copy(notes = notes) }
+
+    /**
+     * Reads today's massas for the card.
+     *
+     * The generator files its report against the server's own date, so "today" is the only day this screen can
+     * be about; asking for another one would draw a count the operator cannot file.
+     */
+    private fun loadMassasDay() {
+        val source = massasDaySource ?: return
+        viewModelScope.launch {
+            val day = source.reportDay(MassasLaunchViewModel.saopauloToday())
+            if (day != null) _state.update { it.copy(massasDay = day) }
+        }
+    }
 
     fun onCheckChange(taskId: Int, checked: Boolean) =
         _state.update { it.copy(checks = it.checks + (taskId to checked)) }

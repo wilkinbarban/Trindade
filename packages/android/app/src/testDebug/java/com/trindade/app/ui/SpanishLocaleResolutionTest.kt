@@ -25,7 +25,7 @@ class SpanishLocaleResolutionTest {
         assertEquals("Reportes", context.getString(R.string.nav_reports))
         assertEquals("Horarios", context.getString(R.string.nav_loading))
         assertEquals("Guardar reporte", context.getString(R.string.report_submit))
-        assertEquals("Incluir Lanzamiento de Masas", context.getString(R.string.report_include_massas))
+        assertEquals("Masa del día", context.getString(R.string.report_massas_day_title))
         assertEquals("Entendido", context.getString(R.string.help_dialog_understood))
         assertEquals("Ayuda", context.getString(R.string.help_button_label))
 
@@ -47,7 +47,7 @@ class SpanishLocaleResolutionTest {
         assertEquals("Relatórios", context.getString(R.string.nav_reports))
         assertEquals("Horários", context.getString(R.string.nav_loading))
         assertEquals("Salvar relatório", context.getString(R.string.report_submit))
-        assertEquals("Incluir Lançamento de Massas", context.getString(R.string.report_include_massas))
+        assertEquals("Massa do dia", context.getString(R.string.report_massas_day_title))
         assertEquals("Entendido", context.getString(R.string.help_dialog_understood))
         assertEquals("Ajuda", context.getString(R.string.help_button_label))
 

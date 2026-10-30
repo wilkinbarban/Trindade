@@ -90,6 +90,9 @@ class AdminPanelScreenTest {
                 AdminPanelScreen(
                     onOpenSection = onOpenSection,
                     isAdmin = isAdmin,
+                    // El card de integración resuelve su view model con Hilt, y este test compone la pantalla
+                    // sin host de Hilt. Se cubre aparte, en AdminIntegrationCardTest, con el view model a mano.
+                    integrationCard = {},
                 )
             }
         }
@@ -188,6 +191,8 @@ class AdminPanelScreenTest {
                     sessionKey = "test-session",
                     onBack = {},
                     authRepository = authRepository,
+                    // El card de integración resuelve su view model con Hilt; este test corre sin host.
+                    integrationCard = {},
                 )
             }
         }
@@ -211,6 +216,8 @@ class AdminPanelScreenTest {
                     sessionKey = "test-session",
                     onBack = {},
                     authRepository = authRepository,
+                    // El card de integración resuelve su view model con Hilt; este test corre sin host.
+                    integrationCard = {},
                 )
             }
         }
@@ -231,6 +238,7 @@ class AdminPanelScreenTest {
                     sessionKey = "test-session",
                     onBack = {},
                     authRepository = authRepository,
+                    integrationCard = {},
                     sectionContent = { section, onBack ->
                         // El hook de prueba no navega: lo que se mira es qué sección se abre.
                         Text("Active section: ${section.name}")
@@ -255,6 +263,7 @@ class AdminPanelScreenTest {
                     authRepository = authRepository,
                     openSection = AdminSection.AUDIT,
                     onOpenSectionHandled = { handled++ },
+                    integrationCard = {},
                     sectionContent = { section, _ -> Text("Active section: ${section.name}") },
                 )
             }
@@ -301,6 +310,7 @@ class AdminPanelScreenTest {
                     sessionKey = "test-session",
                     onBack = {},
                     authRepository = authRepository,
+                    integrationCard = {},
                     sectionContent = { section, onBack ->
                         Text("Active section: ${section.name}")
                     },

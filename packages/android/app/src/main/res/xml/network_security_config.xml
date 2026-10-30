@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The plant's WebService is served over plain HTTP on the factory LAN, and that is not going to change:
+  it is a Delphi application behind Firebird on a machine that nobody exposes to the internet.
+
+  Since API 28 the platform forbids cleartext by default, so a release APK cannot reach it without an
+  exemption. This file is that exemption, and it is written as narrowly as the platform allows:
+
+  - One exact host. `includeSubdomains="false"`, and no port is named, so the exemption covers the plant
+    address and nothing that resolves under it.
+  - No `base-config`. A `<base-config cleartextTrafficPermitted="true">` would re-open every destination
+    this app talks to, including the public backend over https, which is the opposite of the point.
+  - No other host. Adding one here is a decision about where operators' credentials may travel in the
+    clear, and it belongs in review, not in a debugging session.
+
+  Development builds carry their own file under src/debug/, which overrides this one and adds the
+  emulator's loopback hosts; that overlay never reaches a release build.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">192.168.25.250</domain>
+    </domain-config>
+</network-security-config>

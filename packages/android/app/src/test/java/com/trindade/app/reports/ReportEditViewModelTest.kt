@@ -126,6 +126,7 @@ class ReportEditViewModelTest {
         taskName = "tarefa $taskId",
         taskNameEs = "tarea $taskId",
         taskType = ReportDetailItemsInner.TaskType.check,
+        categoryId = 1,
         categoryName = "Higiene",
         categoryNameEs = "Higiene",
         checked = checked,

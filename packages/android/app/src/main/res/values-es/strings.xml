@@ -97,7 +97,6 @@
     <string name="report_photo_remove">Eliminar</string>
     <!-- Shared by both export surfaces: the text is the server's WhatsApp message either way, so the
          sentence lives once and neither screen owns the other's name. -->
-    <string name="report_include_massas">Incluir Lanzamiento de Masas</string>
     <string name="export_load">Generar texto de WhatsApp</string>
     <string name="export_copy">Copiar texto</string>
     <string name="export_share_text">Compartir texto</string>
@@ -546,6 +545,17 @@
     <string name="massas_launch_by_boxes">Lanzar Producción por Cajas</string>
     <string name="massas_submit">Lanzar</string>
     <string name="massas_submitting">Lanzando...</string>
+    <!-- Integración con el ERP de planta: lo que este dispositivo informa cuando un lanzamiento quedó guardado. -->
+    <string name="massas_aero_launch_missing">Ese lanzamiento ya no está en el día. Actualizá e intentá de nuevo.</string>
+    <string name="massas_aero_sent">Enviado al ERP.</string>
+    <string name="massas_aero_imported">Importado del ERP.</string>
+    <string name="massas_aero_dispatch_unreachable">%1$d lanzamiento(s) guardado(s), sin conexión con el ERP de la fábrica. Quedaron pendientes en la tabla.</string>
+    <string name="massas_aero_dispatch_refused">El ERP rechazó %1$d lanzamiento(s). Revisá el producto y reenvialo desde la tabla.</string>
+    <string name="massas_aero_pending_hint">%1$d pendiente(s): enviá desde la tabla cuando vuelva la red de la fábrica.</string>
+    <string name="massas_aero_not_configured">Configurá la integración con el ERP en Administración antes de sincronizar.</string>
+    <string name="massas_aero_unreachable">Sin conexión con la red de la fábrica.</string>
+    <string name="massas_aero_sync_done">Movimientos del ERP sincronizados: %1$d registro(s).</string>
+    <string name="massas_aero_sync_failed">No se pudo sincronizar: %1$s</string>
     <string name="massas_success">¡Lanzamiento registrado con éxito!</string>
     <string name="massas_collective_summary">Resumen Colectivo del Día</string>
     <string name="massas_recent_launches">Lanzamientos Individuales del Día</string>
@@ -856,4 +866,39 @@
     <string name="report_error_photo_too_large">La foto quedó demasiado grande. Intente de nuevo.</string>
     <string name="report_error_photo_type">El archivo no es una imagen aceptada.</string>
     <string name="report_error_photo_limit">El informe ya tiene %1$d fotos. Quite una antes.</string>
+    <string name="aero_no_plant_network">Sin conexión con la red de la fábrica</string>
+    <string name="aero_plant_unreachable">La red de la fábrica no respondió</string>
+    <string name="aero_plant_probe_wifi">Conectá el celular al Wi-Fi de la fábrica y volvé a intentar.</string>
+    <string name="aero_plant_probe_host">La dirección del ERP no respondió en %1$d s.</string>
+    <!-- Reportes: la tarjeta de masas del día, en el generador y en el detalle. -->
+    <string name="report_massas_day_title">Masa del día</string>
+    <string name="report_massas_day_empty">Sin lanzamientos registrados.</string>
+    <string name="report_massas_day_operators">Operarios: %1$d</string>
+    <string name="report_massas_day_balance">Balance: %1$s</string>
+    <!-- Tabla unificada de masas: los tres estados que puede tener un día. -->
+    <string name="massas_empty_day">Sin lanzamientos en este día.</string>
+    <string name="massas_unified_title">Producción del día</string>
+    <string name="massas_state_reconciled">Conciliado</string>
+    <string name="massas_state_pending">Pendiente</string>
+    <string name="massas_state_erp_only">Sólo ERP</string>
+    <string name="massas_action_send">Enviar</string>
+    <string name="massas_action_on_tablet">Ya en la tablet</string>
+    <string name="massas_action_import">Importar</string>
+    <string name="massas_balance_missing">Faltan %1$d caja(s) en el ERP</string>
+    <string name="massas_balance_extra">%1$d caja(s) sólo en el ERP</string>
+    <string name="massas_balance_even">Todo conciliado</string>
+    <string name="massas_filter_all">Todos</string>
+    <string name="massas_search_hint">Buscar producto u operador</string>
+    <string name="massas_sync_erp">Sincronizar ERP</string>
+    <string name="massas_synced_at">ERP: %1$s</string>
+    <string name="massas_never_synced">ERP: nunca sincronizado</string>
+    <!-- Administración: la integración con el ERP, en un dispositivo que alcanza la planta. -->
+    <string name="admin_integration_title">Integración ERP</string>
+    <string name="admin_integration_ws_url">Dirección del WebService</string>
+    <string name="admin_integration_username">Usuario del ERP</string>
+    <string name="admin_integration_password">Contraseña del ERP</string>
+    <string name="admin_integration_user_code">Código del usuario (opcional)</string>
+    <string name="admin_integration_test">Probar conexión</string>
+    <string name="admin_integration_save">Guardar</string>
+    <string name="admin_integration_locked">Sólo el propietario cambia la dirección.</string>
 </resources>

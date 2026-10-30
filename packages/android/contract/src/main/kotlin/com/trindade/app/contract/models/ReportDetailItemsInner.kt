@@ -35,6 +35,7 @@ import kotlinx.serialization.Contextual
  * @param taskName 
  * @param taskNameEs 
  * @param taskType 
+ * @param categoryId 
  * @param categoryName 
  * @param categoryNameEs 
  * @param checked 
@@ -55,6 +56,9 @@ data class ReportDetailItemsInner (
 
     @SerialName(value = "task_type")
     val taskType: ReportDetailItemsInner.TaskType,
+
+    @SerialName(value = "category_id")
+    val categoryId: kotlin.Int,
 
     @SerialName(value = "category_name")
     val categoryName: kotlin.String,

@@ -72,22 +72,15 @@ class ReportDetailViewModelTest {
     }
 
     @Test
-    fun `toggleIncludeMassas updates state and requests export with includeMassas`() {
+    fun `exporting asks once and carries no flag, because the server owns the report`() {
         val fakeApi = FakeReportsApi(exportToReturn = "EXPORT TEXT")
         val model = ReportDetailViewModel(ReportsRepository(fakeApi), FakePhotoCompressor())
         model.load(REPORT_ID)
 
-        assertFalse(model.state.value.includeMassas)
         model.loadExport()
-        assertEquals(null, fakeApi.lastExportIncludeMassas)
 
-        model.toggleIncludeMassas(true)
-        assertTrue(model.state.value.includeMassas)
-        assertEquals(true, fakeApi.lastExportIncludeMassas)
-
-        model.toggleIncludeMassas(false)
-        assertFalse(model.state.value.includeMassas)
-        assertEquals(null, fakeApi.lastExportIncludeMassas)
+        assertEquals(1, fakeApi.exportCalls)
+        assertEquals("EXPORT TEXT", model.state.value.exportText)
     }
 
     @Test

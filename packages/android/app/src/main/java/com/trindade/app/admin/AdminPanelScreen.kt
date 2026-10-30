@@ -82,6 +82,13 @@ fun AdminPanelScreen(
     onOpenSection: (AdminSection) -> Unit,
     modifier: Modifier = Modifier,
     isAdmin: Boolean = false,
+    /**
+     * The integration card, as a slot.
+     *
+     * It is the one section that needs a view model of its own, and `hiltViewModel()` throws outside a Hilt
+     * host: a slot keeps this screen composable in a plain test while production still gets the real card.
+     */
+    integrationCard: @Composable () -> Unit = { AdminIntegrationCard() },
 ) {
     Column(
         modifier = modifier
@@ -136,6 +143,11 @@ fun AdminPanelScreen(
                 onClick = { onOpenSection(AdminSection.AUDIT) },
             )
         }
+
+        // A ficha fixa, no um cartão que abre: a integração é uma linha só, e esconder o endereço da fábrica
+        // atrás de um toque tornava a tela que explica uma falha de sincronização a mais difícil de abrir.
+        // Ambos os perfis a veem; o endereço só o proprietário move.
+        integrationCard()
     }
 }
 
@@ -192,6 +204,8 @@ fun AdminPanelRoute(
     // pedido no vuelva a imponerse cuando el operador elige otra sección más tarde.
     openSection: AdminSection? = null,
     onOpenSectionHandled: () -> Unit = {},
+    /** The list screen's integration slot, forwarded so a test can compose the route without Hilt. */
+    integrationCard: @Composable () -> Unit = { AdminIntegrationCard() },
 ) {
     val context = LocalContext.current
     val effectiveIsAdmin = isAdmin ?: run {
@@ -296,6 +310,7 @@ fun AdminPanelRoute(
                     onOpenSection = { section -> selectedSection = section },
                     modifier = modifier,
                     isAdmin = effectiveIsAdmin,
+                    integrationCard = integrationCard,
                 )
             }
         }

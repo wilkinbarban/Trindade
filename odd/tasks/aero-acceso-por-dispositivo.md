@@ -46,3 +46,14 @@ Che, Wilkin nos acaba de pedir una mejora clave en paralelo para la aplicacion w
 
 Sumalo como nuevas specs/tareas en el plan ODD (odd/tasks/) con tests unitarios bajo TDD para device-detection y el banner. Continua con el flujo actual de Android y cuando puedas encara esta tanda web. Todo a main sin ramas.
 ```
+
+- **L2** (evidencia del avance, 2026-10-30):
+  - **T1/T2** — `src/lib/device-detection.ts` con las cuatro familias y el nombre del sistema; 10 casos sobre
+    user agents reales, incluido el iPad que se anuncia como `Macintosh`.
+  - **T3** — `src/lib/android-gate.ts` (`androidGateDecision`, `apkDownloadUrl` desde `BASE_URL`, elección
+    persistida) y `AndroidAppGate` montado en `App.tsx` por encima del router, dentro de `DeviceProvider`.
+  - **T4** — `AeroDeviceBanner` con `role="status"`, 44 px y el sistema nombrado; claves `aeroDevice.*` en pt y es.
+  - **T5/T6** — el panel de Admin y la pantalla de Lanzamiento de Masas consultan `canControlAero`, muestran el
+    banner arriba y deshabilitan probar/guardar/atajo/sync/despacho/importar sin ocultarlos; `MassasUnifiedTable`
+    y `MassasCollectiveTable` reciben `deviceLimited`. Test de cableado en `aero-device-wiring.test.ts`.
+  - **T7** — paridad i18n verificada por la suite existente (`i18n-parity.test.ts`), 399 casos en verde.

@@ -1,5 +1,6 @@
 package com.trindade.app.network
 
+import com.trindade.app.contract.models.MassasReportDayView
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import retrofit2.Response
@@ -86,8 +87,55 @@ data class MassasHistoryResponse(
     val days: List<MassaHistoryDay> = emptyList(),
 )
 
+/** One stored ERP seat, as the backend keeps the day's snapshot. */
+@Serializable
+data class AeroStoredMovement(
+    @SerialName("ent_lan") val entLan: Int,
+    @SerialName("product_code") val productCode: String,
+    @SerialName("product_desc") val productDesc: String,
+    val quantity: Double,
+    @SerialName("entry_date") val entryDate: String,
+    @SerialName("operator_name") val operatorName: String,
+    @SerialName("movement_type") val movementType: String,
+)
+
+@Serializable
+data class AeroMovementsSnapshotRequest(
+    val date: String,
+    val movements: List<AeroStoredMovement>,
+)
+
+/** What the backend counted with its two lenses: the same snapshot, read by two screens. */
+@Serializable
+data class AeroMovementsSaved(
+    val saved: Int = 0,
+    val massas: Int = 0,
+    val insumos: Int = 0,
+)
+
+@Serializable
+data class AeroMovementsStoredDay(
+    val date: String,
+    val movements: List<AeroStoredMovement> = emptyList(),
+    @SerialName("syncedAt") val syncedAt: String? = null,
+)
+
+/** One audit line, in the shape the integration log accepts. */
+@Serializable
+data class AeroAuditLogRequest(
+    val event: String,
+    val destinationUrl: String,
+    val phase: String? = null,
+    val httpStatus: Int? = null,
+    val durationMs: Long? = null,
+    val note: String? = null,
+)
+
 /**
- * Endpoints for the massas launch module.
+ * Endpoints for the massas launch module, plus the two calls that make the day's ERP mirror visible.
+ *
+ * The mirror lives on the backend on purpose: the phone reads the ERP once and stores the whole day there, so
+ * the web and the tablet read the same snapshot instead of each keeping its own idea of the morning.
  */
 interface MassasApi {
     @GET("api/massas-launch")
@@ -105,6 +153,23 @@ interface MassasApi {
     @DELETE("api/massas-launch/{id}")
     suspend fun deleteLaunch(@Path("id") id: Int): Response<DeleteMassasLaunchResponse>
 
+    /** The day as the report reads it: launches here plus the tablet production that reconciles with them. */
+    @GET("api/massas-launch/report")
+    suspend fun reportDay(@Query("date") date: String): Response<MassasReportDayView>
+
     @GET("api/massas-launch/history")
     suspend fun history(): Response<MassasHistoryResponse>
+
+    /** Stores the day exactly as the ERP answered it; the lenses are counted server-side. */
+    @POST("api/integration/aero/movements")
+    suspend fun saveMovements(
+        @Body request: AeroMovementsSnapshotRequest,
+    ): Response<AeroMovementsSaved>
+
+    @GET("api/integration/aero/movements")
+    suspend fun storedMovements(@Query("date") date: String): Response<AeroMovementsStoredDay>
+
+    /** Every integration event, under this operator's own identity (S19). */
+    @POST("api/integration/aero/log")
+    suspend fun logEvent(@Body request: AeroAuditLogRequest): Response<Unit>
 }

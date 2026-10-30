@@ -145,7 +145,6 @@ interface ReportsApi {
     @GET("api/reports/{id}/export")
     suspend fun export(
         @Path("id") id: Int,
-        @Query("includeMassas") includeMassas: Boolean? = null,
     ): Response<TextResponse>
 
     @GET("api/reports/{id}/photos")

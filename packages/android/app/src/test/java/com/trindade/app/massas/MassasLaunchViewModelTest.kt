@@ -3,6 +3,11 @@ package com.trindade.app.massas
 import androidx.lifecycle.viewModelScope
 import com.trindade.app.R
 import com.trindade.app.auth.AuthRepository
+import com.trindade.app.aero.AERO_DEFAULT_WS_URL
+import com.trindade.app.aero.AeroDispatcher
+import com.trindade.app.aero.AeroSettings
+import com.trindade.app.aero.AeroTestResult
+import com.trindade.app.aero.AeroWriteResult
 import com.trindade.app.auth.TokenStore
 import com.trindade.app.network.AuthApi
 import com.trindade.app.network.MassaIndividualLaunch
@@ -24,6 +29,7 @@ import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -38,6 +44,10 @@ class MassasLaunchViewModelTest {
     private lateinit var massasApi: MassasApi
     private lateinit var authRepository: AuthRepository
     private lateinit var massasRepository: MassasRepository
+    private lateinit var settingsPort: FakeSettingsPort
+    private lateinit var ackPort: FakeAckPort
+    private lateinit var erpPort: FakeErpPort
+    private lateinit var mirrorPort: FakeMirrorPort
 
     private class FakeTokenStore : TokenStore {
         private var access: String? = null
@@ -77,8 +87,12 @@ class MassasLaunchViewModelTest {
         val tokenStore = FakeTokenStore()
         authRepository = AuthRepository(authApi, tokenStore, json)
         massasRepository = MassasRepository(massasApi)
+        settingsPort = FakeSettingsPort(AeroSettings(wsUrl = AERO_DEFAULT_WS_URL, username = "WILKIN", password = "pw"))
+        ackPort = FakeAckPort()
+        erpPort = FakeErpPort()
+        mirrorPort = FakeMirrorPort()
 
-        viewModel = MassasLaunchViewModel(massasRepository, authRepository)
+        viewModel = newViewModel(massasRepository)
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -94,6 +108,46 @@ class MassasLaunchViewModelTest {
         server.shutdown()
         Dispatchers.resetMain()
     }
+
+    @Test
+    fun `a reconciled launch offers no edit and no delete, and refuses both if asked anyway`() = runTest {
+        val settled = launch(7)
+        val stored = com.trindade.app.network.AeroMovementsStoredDay(
+            date = MassasLaunchViewModel.saopauloToday(),
+            movements = listOf(
+                com.trindade.app.network.AeroStoredMovement(
+                    entLan = 907,
+                    productCode = "1045",
+                    productDesc = "MASSA CASEIRA",
+                    quantity = 30.0,
+                    entryDate = MassasLaunchViewModel.saopauloToday(),
+                    operatorName = "WILKIN",
+                    movementType = "E",
+                ),
+            ),
+        )
+        val repo = DayRepository(massasApi, dayWith(settled), stored)
+        val testVm = newViewModel(repo)
+        testVm.refresh()
+        advanceUntilIdle()
+
+        assertEquals(MassasRowState.RECONCILED, testVm.state.value.unifiedRows.single().state)
+        assertFalse("Un lanzamiento conciliado no se edita", testVm.canEdit(settled))
+
+        testVm.startEdit(settled)
+        assertEquals(null, testVm.state.value.editingLaunchId)
+
+        testVm.promptDelete(settled.id)
+        assertEquals(null, testVm.state.value.deleteConfirmLaunchId)
+    }
+
+    private fun newViewModel(repository: MassasRepository) = MassasLaunchViewModel(
+        repository = repository,
+        authRepository = authRepository,
+        aeroSettingsStore = settingsPort,
+        aeroDispatcher = AeroDispatcher(erpPort, mirrorPort),
+        tabletAckStore = ackPort,
+    )
 
     @Test
     fun saopauloToday_matchesDateFormat() {
@@ -202,7 +256,7 @@ class MassasLaunchViewModelTest {
     @Test
     fun submitLaunch_onSuccess_clearsQuantitiesAndSetsNotice() = runTest {
         val fakeRepo = FakeMassasRepository(massasApi)
-        val testVm = MassasLaunchViewModel(fakeRepo, authRepository)
+        val testVm = newViewModel(fakeRepo)
 
         testVm.onQuantityChange("1045", "3")
         assertEquals(1, testVm.state.value.quantities.size)
@@ -223,7 +277,7 @@ class MassasLaunchViewModelTest {
     @Test
     fun confirmLaunch_onSuccess_setsResultDialogAndClearsQuantities() = runTest {
         val fakeRepo = FakeMassasRepository(massasApi)
-        val testVm = MassasLaunchViewModel(fakeRepo, authRepository)
+        val testVm = newViewModel(fakeRepo)
 
         // Setup dayView with products
         testVm.onQuantityChange("1045", "3")
@@ -258,7 +312,7 @@ class MassasLaunchViewModelTest {
     fun confirmLaunch_onError_preservesQuantitiesAndSetsErrorDialog() = runTest {
         val fakeRepo = FakeMassasRepository(massasApi)
         fakeRepo.createLaunchResult = MassasWriteResult.Refused(400)
-        val testVm = MassasLaunchViewModel(fakeRepo, authRepository)
+        val testVm = newViewModel(fakeRepo)
 
         testVm.onQuantityChange("1045", "5")
         testVm.requestLaunchConfirmation()
@@ -328,7 +382,7 @@ class MassasLaunchViewModelTest {
     @Test
     fun loadDay_withPastDate_setsReadOnlyAndForbidsModifications() = runTest {
         val fakeRepo = FakeMassasRepository(massasApi)
-        val testVm = MassasLaunchViewModel(fakeRepo, authRepository)
+        val testVm = newViewModel(fakeRepo)
         testScheduler.runCurrent()
 
         testVm.loadDay("2020-01-01")
@@ -371,5 +425,174 @@ class MassasLaunchViewModelTest {
         testVm.loadDay(MassasLaunchViewModel.saopauloToday())
         testScheduler.runCurrent()
         assertFalse(testVm.state.value.isReadOnly)
+    }
+
+    /** A day already loaded, so a test about what happens next does not also depend on the network. */
+    private class DayRepository(
+        api: MassasApi,
+        var view: MassasLaunchDayView?,
+        var stored: com.trindade.app.network.AeroMovementsStoredDay? = null,
+    ) : MassasRepository(api) {
+        var created: List<MassaIndividualLaunch> = emptyList()
+
+        override suspend fun day(date: String): MassasLaunchDayView? = view
+
+        override suspend fun storedAeroMovements(
+            date: String,
+        ): com.trindade.app.network.AeroMovementsStoredDay? = stored
+
+        override suspend fun createLaunch(
+            date: String,
+            items: List<com.trindade.app.network.CreateMassasLaunchItem>,
+        ): MassasWriteResult = MassasWriteResult.Saved(
+            view = view ?: MassasLaunchDayView(date = date),
+            created = created,
+        )
+    }
+
+    private fun launch(id: Int, boxes: Int = 3, units: Int = 30) = MassaIndividualLaunch(
+        id = id,
+        launchDate = MassasLaunchViewModel.saopauloToday(),
+        productCode = "1045",
+        productName = "MASSA CASEIRA",
+        boxes = boxes,
+        units = units,
+        userId = 1,
+        username = "wilkin",
+        displayName = "Wilkin",
+        createdAt = "2025-05-18T10:00:00Z",
+        updatedAt = "2025-05-18T10:00:00Z",
+    )
+
+    private fun dayWith(vararg launches: MassaIndividualLaunch) = MassasLaunchDayView(
+        date = MassasLaunchViewModel.saopauloToday(),
+        products = listOf(
+            com.trindade.app.network.MassaProductTotal(
+                code = "1045",
+                name = "MASSA CASEIRA",
+                unitsPerBox = 10,
+                totalBoxes = launches.sumOf { it.boxes },
+                totalUnits = launches.sumOf { it.units },
+            ),
+        ),
+        launches = launches.toList(),
+        totalBoxes = launches.sumOf { it.boxes },
+        totalUnits = launches.sumOf { it.units },
+    )
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun confirmLaunch_sendsTheStoredRowToTheErpWithUnits() = runTest {
+        val repo = DayRepository(massasApi, dayWith())
+        repo.created = listOf(launch(7, boxes = 3, units = 30))
+        val testVm = newViewModel(repo)
+
+        testVm.onQuantityChange("1045", "3")
+        testVm.requestLaunchConfirmation()
+        testVm.confirmLaunch()
+        testScheduler.runCurrent()
+
+        // One POST, for the row the backend just created: units, not the boxes the operator typed.
+        assertEquals(1, erpPort.payloads.size)
+        assertEquals("001045", erpPort.payloads.single().productCode)
+        // Scaled by one hundred, as Firebird reads it: 30 units leave as 3000.
+        assertEquals(3000, erpPort.payloads.single().quantity)
+        assertTrue(erpPort.payloads.single().observation.contains("#7"))
+        assertTrue(testVm.state.value.resultDialogIsSuccess)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun confirmLaunch_whenErpRefuses_keepsTheLaunchAndPromisesAPendingRow() = runTest {
+        val repo = DayRepository(massasApi, dayWith())
+        repo.created = listOf(launch(7))
+        erpPort.writeResult = AeroWriteResult.Failed("saldo insuficiente")
+        val testVm = newViewModel(repo)
+
+        testVm.onQuantityChange("1045", "3")
+        testVm.requestLaunchConfirmation()
+        testVm.confirmLaunch()
+        testScheduler.runCurrent()
+
+        // The launch exists locally; only its dispatch failed. Saying otherwise would invite a second launch.
+        assertFalse(testVm.state.value.resultDialogIsSuccess)
+        assertEquals(
+            R.string.massas_aero_dispatch_refused,
+            testVm.state.value.resultDialogMessage?.resId,
+        )
+        assertEquals(
+            R.string.massas_aero_pending_hint,
+            testVm.state.value.noticeMessage?.resId,
+        )
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun confirmLaunch_whenErpIsUnreachable_saysSoInsteadOfBlamedTheErp() = runTest {
+        val repo = DayRepository(massasApi, dayWith())
+        repo.created = listOf(launch(7))
+        erpPort.writeResult = AeroWriteResult.Failed(null)
+        val testVm = newViewModel(repo)
+
+        testVm.onQuantityChange("1045", "3")
+        testVm.requestLaunchConfirmation()
+        testVm.confirmLaunch()
+        testScheduler.runCurrent()
+
+        assertEquals(
+            R.string.massas_aero_dispatch_unreachable,
+            testVm.state.value.resultDialogMessage?.resId,
+        )
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun acknowledgeLaunch_persistsTheAckAndDropsTheButtonFromThatRowOnly() = runTest {
+        val repo = DayRepository(massasApi, dayWith(launch(5), launch(6)))
+        val testVm = newViewModel(repo)
+        testScheduler.runCurrent()
+
+        assertEquals(2, testVm.state.value.unifiedRows.size)
+        assertTrue(testVm.state.value.unifiedRows.none { it.tabletAcked })
+
+        testVm.acknowledgeLaunch(testVm.state.value.unifiedRows.first { 5 in it.launchIds })
+        testScheduler.runCurrent()
+
+        assertEquals(setOf(5), ackPort.acked)
+        assertTrue(testVm.state.value.unifiedRows.first { 5 in it.launchIds }.tabletAcked)
+        assertFalse(testVm.state.value.unifiedRows.first { 6 in it.launchIds }.tabletAcked)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun syncAeroDay_whenThePlantDoesNotAnswer_keepsThePreviousSnapshot() = runTest {
+        val repo = DayRepository(massasApi, dayWith())
+        erpPort.movementsResult = com.trindade.app.aero.AeroMovementsResult.Failed(null)
+        val testVm = newViewModel(repo)
+        testScheduler.runCurrent()
+
+        testVm.syncAeroDay()
+        testScheduler.runCurrent()
+
+        assertEquals(R.string.massas_aero_unreachable, testVm.state.value.errorMessage?.resId)
+        // Nothing was stored: an empty snapshot reads as "the plant produced nothing today".
+        assertTrue(mirrorPort.snapshots.isEmpty())
+        assertNull(settingsPort.syncedAt(testVm.state.value.date))
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun syncAeroDay_whenThePlantAnswers_storesTheDayAndRemembersWhen() = runTest {
+        val repo = DayRepository(massasApi, dayWith())
+        erpPort.movementsResult = com.trindade.app.aero.AeroMovementsResult.Ok(emptyList(), skipped = 0)
+        val testVm = newViewModel(repo)
+        testScheduler.runCurrent()
+
+        testVm.syncAeroDay()
+        testScheduler.runCurrent()
+
+        assertEquals(1, mirrorPort.snapshots.size)
+        assertNull(testVm.state.value.errorMessage)
+        assertNotNull(settingsPort.syncedAt(testVm.state.value.date))
     }
 }

@@ -3,6 +3,8 @@ package com.trindade.app.reports
 import com.trindade.app.R
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.trindade.app.contract.models.MassasReportDayView
+import com.trindade.app.massas.MassasDaySource
 import com.trindade.app.contract.models.PhotosResponsePhotosInner
 import com.trindade.app.contract.models.ReportResponseReport
 import com.trindade.app.export.NoOpShareManager
@@ -34,6 +36,9 @@ class ReportDetailViewModel @Inject constructor(
     // The platform seam for sharing, injected rather than reached for: the screen offers the action and
     // the default is the no-op the tests get, so a view model built without one shares nothing.
     private val shareManager: ShareManager = NoOpShareManager,
+    // Optional on purpose: without a source the card simply does not draw, which is what a test that is
+    // only about the report's own answers asks for.
+    private val massasRepository: MassasDaySource? = null,
 ) : ViewModel() {
 
     data class UiState(
@@ -45,7 +50,8 @@ class ReportDetailViewModel @Inject constructor(
         val exportText: String? = null,
         val loadingExport: Boolean = false,
         val message: UiText? = null,
-        val includeMassas: Boolean = false,
+        /** The day the massas card draws, read from the report's own endpoint. */
+        val massasDay: MassasReportDayView? = null,
     ) {
         /** Five is the server's limit, and the add action is withheld rather than refused at the door. */
         val canAddPhoto: Boolean get() = !uploadingPhoto && photos.size < MAX_PHOTOS
@@ -84,6 +90,24 @@ class ReportDetailViewModel @Inject constructor(
                 )
             }
             refreshPhotos(reportId)
+            refreshMassas(report)
+        }
+    }
+
+    /**
+     * Reads the day's massas for this report.
+     *
+     * A report has a date, and the card is about that date's production, not about this report's own answers:
+     * the two are related by the day, which is why the card is permanent and why a day with nothing recorded
+     * still draws.
+     */
+    private fun refreshMassas(report: com.trindade.app.contract.models.ReportResponseReport?) {
+        // The source is optional, so the absence is checked here rather than at every call site.
+        val source = massasRepository ?: return
+        val date = report?.reportDate?.takeIf { it.isNotBlank() } ?: return
+        viewModelScope.launch {
+            val day = source.reportDay(date)
+            _state.update { it.copy(massasDay = day) }
         }
     }
 
@@ -144,10 +168,8 @@ class ReportDetailViewModel @Inject constructor(
         _state.update { it.copy(loadingExport = true, message = null) }
 
         viewModelScope.launch {
-            val text = repository.exportText(
-                id = state.value.reportId,
-                includeMassas = state.value.includeMassas.takeIf { it },
-            )
+            // The server decides what a complete report contains; the app asks once and shows it.
+            val text = repository.exportText(id = state.value.reportId)
             _state.update {
                 it.copy(
                     loadingExport = false,
@@ -158,12 +180,6 @@ class ReportDetailViewModel @Inject constructor(
         }
     }
 
-    /** Toggles inclusion of massas section in export text and reloads it. */
-    fun toggleIncludeMassas(include: Boolean) {
-        if (_state.value.includeMassas == include) return
-        _state.update { it.copy(includeMassas = include) }
-        loadExport()
-    }
 
     /**
      * Shares the report's own server-rendered text.
