@@ -3,7 +3,7 @@
 Artefacto de diseño del salto que Wilkin definió con el orquestador: una sola producción de planta, un
 relatorio que la cuenta completa, y la integración ERP donde se configura y no donde se produce.
 Estado: **implementación en curso** con las decisiones del cierre ya tomadas por Wilkin y registradas en D1–D8.
-T1 y T2 cerrados con commits sobre `main`; T3–T9 pendientes.
+T1, T2 y T3 cerrados con commits sobre `main`; T4–T9 pendientes.
 
 ## Specs
 
@@ -239,6 +239,7 @@ hereda esas aserciones.
   Evidencia: `511fd1a`; 68/68 backend de reportes, 7/7 E2E de export.
 - **T3** (S3) — `MassasReportSection` reutilizable y montada en `ReportsPage` y `ReportViewPage`, con test de
   cableado y E2E de la tarjeta.
+  Evidencia: `2a4a922`; `GET /api/massas-launch/report`, 14/14 de rutas, 353/353 frontend, 3/3 E2E.
 - **T4** (S6, S7, S8, D5) — `massasUnifiedRows` en `lib/` y la tabla unificada en `MassasLaunchPage`; se
   retira `ErpMirrorCard` como vista y sus tab; tests puros de los tres estados, cajas enteras y filtro
   universal.
