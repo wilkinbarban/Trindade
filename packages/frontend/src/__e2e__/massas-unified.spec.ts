@@ -154,3 +154,80 @@ test.describe('unified massas day on a phone screen', () => {
     expect(launches.some((launch) => launch.product_code === '5000' && launch.boxes === 1)).toBe(true);
   });
 });
+
+/**
+ * The bar that answers, at a glance, whether the company knows what the plant made.
+ *
+ * It sits above the rows because it is the summary of them: a reconciled box counts on both sides, and only the
+ * boxes Delphi has not received make the difference negative.
+ */
+test.describe('the day balance on a phone screen', () => {
+  test('says what was produced, what the company has, and what is still missing', async ({ page }) => {
+    const identities = await getE2EIdentities(page);
+    await loginViaApi(page, identities.worker);
+    const login = await page.request.post(`${API}/auth/login`, { data: identities.worker });
+    const token = (await login.json()).token as string;
+    const date = '2026-09-16';
+
+    // One launch of fifteen units that never reached Delphi, and one company seat of ninety.
+    const local = await page.request.post(`${API}/massas-launch`, {
+      headers: { authorization: `Bearer ${token}` },
+      data: { date, items: [{ product_code: '5000', boxes: 1 }] },
+    });
+    expect(local.status()).toBe(201);
+    const seeded = await page.request.post(`${API}/integration/aero/movements`, {
+      headers: { authorization: `Bearer ${token}` },
+      data: {
+        date,
+        movements: [
+          {
+            ent_lan: 20116,
+            product_code: '001192',
+            product_desc: 'MASSA QUADRADA',
+            quantity: 90,
+            entry_date: date,
+            operator_name: 'JEFFERSON',
+            movement_type: 'E',
+          },
+        ],
+      },
+    });
+    expect(seeded.status()).toBe(201);
+
+    await page.goto('/massas-launch');
+    await page.locator('[data-testid="massas-launch-date"]').fill(date);
+    await expect(page.locator('[data-testid="massas-launch-date"]')).toHaveValue(date);
+
+    // The box size belongs to the plant's catalogue, so the spec reads what the launch really weighed
+    // instead of hard-coding today's packaging.
+    const day = await page.request.get(`${API}/massas-launch?date=${date}`, {
+      headers: { authorization: `Bearer ${token}` },
+    });
+    const launchUnits = ((await day.json()).launches as Array<{ units: number }>).reduce(
+      (total, launch) => total + launch.units,
+      0,
+    );
+    expect(launchUnits).toBeGreaterThan(0);
+    const seatedUnits = 90;
+
+    const balance = page.locator('[data-testid="massas-balance"]');
+    await expect(balance).toBeVisible();
+    await expect(page.locator('[data-testid="massas-balance-produced"]')).toContainText(
+      String(launchUnits + seatedUnits),
+    );
+    await expect(page.locator('[data-testid="massas-balance-registered"]')).toContainText(String(seatedUnits));
+    // Delphi still owes the local launch: the difference names it instead of hiding it.
+    await expect(page.locator('[data-testid="massas-balance-difference"]')).toContainText(`-${launchUnits}`);
+
+    // Above the rows: the summary is read before the detail, and both fit the phone.
+    const bar = (await balance.boundingBox())!;
+    const rows = (await page.locator('[data-testid="massas-unified-rows"]').boundingBox())!;
+    expect(bar.y).toBeLessThan(rows.y);
+    expect(bar.width).toBeLessThanOrEqual(375);
+
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(overflow).toBeLessThanOrEqual(0);
+  });
+});

@@ -1,6 +1,11 @@
 import { useTranslation } from 'react-i18next';
 import { CloudUpload, Loader2, Smartphone } from 'lucide-react';
-import type { AeroImportRequest, MassasRowState, MassasUnifiedRow } from '../../lib/massas-unified';
+import {
+  massasBalance,
+  type AeroImportRequest,
+  type MassasRowState,
+  type MassasUnifiedRow,
+} from '../../lib/massas-unified';
 
 interface MassasUnifiedTableProps {
   rows: MassasUnifiedRow[];
@@ -54,6 +59,8 @@ export function MassasUnifiedTable({
           {t('massas.unified.subtitle', 'Trindade e tablet da empresa, cada caixa contada uma vez.')}
         </p>
       </div>
+
+      <MassasBalanceBar rows={rows} />
 
       {rows.length === 0 ? (
         <p className="text-sm text-gray-600" data-testid="massas-unified-empty">
@@ -154,5 +161,51 @@ export function MassasUnifiedTable({
         </ul>
       )}
     </section>
+  );
+}
+
+/**
+ * Produzido contra registrado, at the top of the day.
+ *
+ * Two numbers and their difference: a zero means the company already knows everything the plant made, and a
+ * negative one names the boxes still missing from the ERP. It reads the rows on screen, so it follows the
+ * worker filter the table is showing.
+ */
+function MassasBalanceBar({ rows }: { rows: MassasUnifiedRow[] }) {
+  const { t } = useTranslation();
+  const { produced, registered, difference } = massasBalance(rows);
+  const tone =
+    difference === 0 ? 'text-emerald-700' : difference < 0 ? 'text-amber-700' : 'text-sky-700';
+
+  return (
+    <div
+      className="grid grid-cols-3 gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3"
+      data-testid="massas-balance"
+    >
+      <div>
+        <p className="text-[11px] uppercase tracking-wide text-gray-500">
+          {t('massas.balance.produced', 'Produzido')}
+        </p>
+        <p className="text-base font-semibold tabular-nums text-gray-900" data-testid="massas-balance-produced">
+          {produced} <span className="text-xs font-normal text-gray-500">un</span>
+        </p>
+      </div>
+      <div>
+        <p className="text-[11px] uppercase tracking-wide text-gray-500">
+          {t('massas.balance.registered', 'No ERP')}
+        </p>
+        <p className="text-base font-semibold tabular-nums text-gray-900" data-testid="massas-balance-registered">
+          {registered} <span className="text-xs font-normal text-gray-500">un</span>
+        </p>
+      </div>
+      <div>
+        <p className="text-[11px] uppercase tracking-wide text-gray-500">
+          {t('massas.balance.difference', 'Diferença')}
+        </p>
+        <p className={`text-base font-semibold tabular-nums ${tone}`} data-testid="massas-balance-difference">
+          {difference > 0 ? `+${difference}` : difference} <span className="text-xs font-normal text-gray-500">un</span>
+        </p>
+      </div>
+    </div>
   );
 }

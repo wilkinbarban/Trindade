@@ -149,6 +149,30 @@ export function massasUnifiedRows(
 }
 
 /**
+ * The day in two numbers, for the bar at the top.
+ *
+ * Produced is every box somebody counted, whichever screen counted it. Registered is what the company already
+ * has, so a reconciled launch and its seat count once: the seat is the registration and the launch is the work,
+ * never two boxes. The difference therefore reads as "what the company does not know yet", and only a pending
+ * launch can make it negative.
+ */
+export interface MassasBalance {
+  produced: number;
+  registered: number;
+  difference: number;
+}
+
+export function massasBalance(rows: MassasUnifiedRow[]): MassasBalance {
+  let produced = 0;
+  let registered = 0;
+  for (const row of rows) {
+    produced += row.units;
+    if (row.state !== 'pendingErp') registered += row.units;
+  }
+  return { produced, registered, difference: registered - produced };
+}
+
+/**
  * The launch ids this phone already carried to the tablet on that day.
  *
  * The mark is per device on purpose: it says "I loaded these boxes", not "the ERP has them". It dies with the
