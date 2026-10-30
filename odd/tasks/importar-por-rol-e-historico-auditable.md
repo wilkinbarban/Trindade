@@ -32,7 +32,7 @@ or deletes, not even an admin.
 | T3 | S3 | Android: same owner check on the unified row and its import action | 6455a2a |
 | T4 | S4, S5 | web: the history reads, never writes | done |
 | T5 | S4, S6 | Android: past days opened from the history offer no edit or delete, admin included | 6455a2a |
-| T6 | all | delivery: suites, containers, signed APK, docs | pending |
+| T6 | all | delivery: suites, containers, signed APK, docs | d7c3f2e |
 
 ## Log
 
@@ -79,3 +79,12 @@ hidden button is not a circumstance the server can check: `PUT`/`DELETE /api/mas
 reconciliation are weighed. The order matters — an administrator is refused for the same reason a worker is.
 The API's own tests that exercise editing and deleting now run on today, because yesterday is exactly the
 day those tests must no longer reach.
+
+**L5. Delivered and verified against the deployed binary.** Backend 615/615, frontend 426/426, Android
+`testDebugUnitTest` green, `trindade-api-1` and `trindade-web-1` rebuilt from this tree. The rules were then
+asked of the running image with a copy of the production database mounted into a throwaway container:
+`POST /api/massas-launch` answers `403 MASSAS_FORBIDDEN` to a worker importing 35937 (VICTOR's) and to VICTOR
+importing 35939 (GUSTAVO's), and `201` to an administrator importing 35937; `PUT` and `DELETE` on a
+2026-10-29 launch answer `409 MASSAS_HISTORY_FROZEN` to an administrator, that day keeps exactly its seven
+launches and their boxes, and the same administrator still rewrites a fresh 2026-10-30 launch with `200`. The
+signed 0.6.1 APK (versionCode 6001) is what `/api/app/download-apk` serves.
