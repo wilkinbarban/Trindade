@@ -29,7 +29,7 @@ export async function massasRoutes(fastify: FastifyInstance) {
   fastify.get('/', { preHandler: [fastify.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const parsed = dateQuery.safeParse(request.query);
     if (!parsed.success) {
-      return reply.status(400).send(apiError('Invalid date format', MASSAS_ERROR_CODES.INVALID_DATE_FORMAT));
+      return reply.status(400).send(apiError('Data inválida', MASSAS_ERROR_CODES.INVALID_DATE_FORMAT));
     }
     const targetDate = parsed.data.date ?? getSaoPauloDateString();
     return reply.send(massasLaunchDayView(fastify.db, targetDate));
@@ -40,7 +40,7 @@ export async function massasRoutes(fastify: FastifyInstance) {
   fastify.get('/report', { preHandler: [fastify.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const parsed = dateQuery.safeParse(request.query);
     if (!parsed.success) {
-      return reply.status(400).send(apiError('Invalid date format', MASSAS_ERROR_CODES.INVALID_DATE_FORMAT));
+      return reply.status(400).send(apiError('Data inválida', MASSAS_ERROR_CODES.INVALID_DATE_FORMAT));
     }
     const targetDate = parsed.data.date ?? getSaoPauloDateString();
     return reply.send(massasReportDayView(fastify.db, targetDate));
@@ -53,7 +53,7 @@ export async function massasRoutes(fastify: FastifyInstance) {
   fastify.post('/', { preHandler: [fastify.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const parsed = MassasLaunchCreateBodySchema.safeParse(request.body);
     if (!parsed.success) {
-      return reply.status(400).send(apiError('Invalid launch data', MASSAS_ERROR_CODES.INVALID_LAUNCH_DATA, parsed.error.format()));
+      return reply.status(400).send(apiError('Dados de lançamento inválidos', MASSAS_ERROR_CODES.INVALID_LAUNCH_DATA, parsed.error.format()));
     }
 
     const { date, product_code, boxes, items, ent_lan: bodyEntLan, operator_name: bodyOperatorName } = parsed.data;
@@ -61,13 +61,13 @@ export async function massasRoutes(fastify: FastifyInstance) {
 
     const todayInSaoPaulo = getSaoPauloDateString();
     if (targetDate > todayInSaoPaulo) {
-      return reply.status(400).send(apiError('Future launch dates are not allowed', MASSAS_ERROR_CODES.FUTURE_DATE));
+      return reply.status(400).send(apiError('Não é possível lançar em datas futuras', MASSAS_ERROR_CODES.FUTURE_DATE));
     }
 
     const targetItems = items ?? (product_code && boxes ? [{ product_code, boxes }] : []);
 
     if (targetItems.length === 0) {
-      return reply.status(400).send(apiError('Must provide either items array or product_code and boxes', MASSAS_ERROR_CODES.EMPTY_ITEMS));
+      return reply.status(400).send(apiError('Envie uma lista de itens ou informe produto e caixas', MASSAS_ERROR_CODES.EMPTY_ITEMS));
     }
 
     // One seat is one product line: a request that names a single seat for several items would store the
@@ -77,7 +77,7 @@ export async function massasRoutes(fastify: FastifyInstance) {
         .status(400)
         .send(
           apiError(
-            'A single ent_lan cannot describe several items; send ent_lan on the item it belongs to',
+            'Um único ent_lan não pode descrever vários itens: envie ent_lan no item a que pertence',
             MASSAS_ERROR_CODES.INVALID_LAUNCH_DATA,
           ),
         );
@@ -112,7 +112,7 @@ export async function massasRoutes(fastify: FastifyInstance) {
     if (refusedSeat !== undefined) {
       return reply
         .status(403)
-        .send(apiError('This ERP seat belongs to another operator', MASSAS_ERROR_CODES.FORBIDDEN));
+        .send(apiError('Este lançamento pertence a outro operário', MASSAS_ERROR_CODES.FORBIDDEN));
     }
 
     try {
@@ -139,22 +139,23 @@ export async function massasRoutes(fastify: FastifyInstance) {
       if (code === 'ALREADY_IMPORTED') {
         return reply
           .status(409)
-          .send(apiError('This ERP seat was already imported', MASSAS_ERROR_CODES.ALREADY_IMPORTED));
+          .send(apiError('Este lançamento do ERP já foi importado', MASSAS_ERROR_CODES.ALREADY_IMPORTED));
       }
-      const message = error instanceof Error ? error.message : 'Failed to create launches';
-      return reply.status(400).send(apiError(message, MASSAS_ERROR_CODES.CREATE_FAILED));
+      // The service's sentence is for the log, not for the operator: the payload carries the Portuguese
+      // reason and the code, so a refusal never reaches the screen in English.
+      return reply.status(400).send(apiError('Não foi possível registrar o lançamento', MASSAS_ERROR_CODES.CREATE_FAILED));
     }
   });
 
   fastify.put('/:id', { preHandler: [fastify.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const parsedParam = paramId.safeParse(request.params);
     if (!parsedParam.success) {
-      return reply.status(400).send(apiError('Invalid launch ID', MASSAS_ERROR_CODES.INVALID_ID));
+      return reply.status(400).send(apiError('Lançamento inválido', MASSAS_ERROR_CODES.INVALID_ID));
     }
 
     const parsedBody = MassasLaunchUpdateBodySchema.safeParse(request.body);
     if (!parsedBody.success) {
-      return reply.status(400).send(apiError('Invalid boxes count', MASSAS_ERROR_CODES.INVALID_BOXES, parsedBody.error.format()));
+      return reply.status(400).send(apiError('Quantidade de caixas inválida', MASSAS_ERROR_CODES.INVALID_BOXES, parsedBody.error.format()));
     }
 
     try {
@@ -168,30 +169,29 @@ export async function massasRoutes(fastify: FastifyInstance) {
     } catch (error) {
       const code = (error as unknown as { code?: string })?.code;
       if (code === 'NOT_FOUND') {
-        return reply.status(404).send(apiError('Launch not found', MASSAS_ERROR_CODES.NOT_FOUND));
+        return reply.status(404).send(apiError('Lançamento não encontrado', MASSAS_ERROR_CODES.NOT_FOUND));
       }
       if (code === 'FORBIDDEN') {
-        return reply.status(403).send(apiError('Forbidden: cannot edit launches belonging to another user', MASSAS_ERROR_CODES.FORBIDDEN));
+        return reply.status(403).send(apiError('Este lançamento pertence a outro operário', MASSAS_ERROR_CODES.FORBIDDEN));
       }
       if (code === 'RECONCILED') {
         return reply
           .status(409)
-          .send(apiError('This production was already reconciled with the ERP and cannot change', MASSAS_ERROR_CODES.RECONCILED));
+          .send(apiError('Esta produção já foi conciliada com o ERP e não pode ser alterada', MASSAS_ERROR_CODES.RECONCILED));
       }
       if (code === 'HISTORY_FROZEN') {
         return reply
           .status(409)
           .send(apiError('O histórico de massas é somente leitura: dias passados não podem ser alterados', MASSAS_ERROR_CODES.HISTORY_FROZEN));
       }
-      const message = error instanceof Error ? error.message : 'Failed to update launch';
-      return reply.status(400).send(apiError(message, MASSAS_ERROR_CODES.UPDATE_FAILED));
+      return reply.status(400).send(apiError('Não foi possível atualizar o lançamento', MASSAS_ERROR_CODES.UPDATE_FAILED));
     }
   });
 
   fastify.delete('/:id', { preHandler: [fastify.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const parsedParam = paramId.safeParse(request.params);
     if (!parsedParam.success) {
-      return reply.status(400).send(apiError('Invalid launch ID', MASSAS_ERROR_CODES.INVALID_ID));
+      return reply.status(400).send(apiError('Lançamento inválido', MASSAS_ERROR_CODES.INVALID_ID));
     }
 
     try {
@@ -204,23 +204,22 @@ export async function massasRoutes(fastify: FastifyInstance) {
     } catch (error) {
       const code = (error as unknown as { code?: string })?.code;
       if (code === 'NOT_FOUND') {
-        return reply.status(404).send(apiError('Launch not found', MASSAS_ERROR_CODES.NOT_FOUND));
+        return reply.status(404).send(apiError('Lançamento não encontrado', MASSAS_ERROR_CODES.NOT_FOUND));
       }
       if (code === 'FORBIDDEN') {
-        return reply.status(403).send(apiError('Forbidden: cannot delete launches belonging to another user', MASSAS_ERROR_CODES.FORBIDDEN));
+        return reply.status(403).send(apiError('Este lançamento pertence a outro operário', MASSAS_ERROR_CODES.FORBIDDEN));
       }
       if (code === 'RECONCILED') {
         return reply
           .status(409)
-          .send(apiError('This production was already reconciled with the ERP and cannot change', MASSAS_ERROR_CODES.RECONCILED));
+          .send(apiError('Esta produção já foi conciliada com o ERP e não pode ser alterada', MASSAS_ERROR_CODES.RECONCILED));
       }
       if (code === 'HISTORY_FROZEN') {
         return reply
           .status(409)
           .send(apiError('O histórico de massas é somente leitura: dias passados não podem ser alterados', MASSAS_ERROR_CODES.HISTORY_FROZEN));
       }
-      const message = error instanceof Error ? error.message : 'Failed to delete launch';
-      return reply.status(400).send(apiError(message, MASSAS_ERROR_CODES.DELETE_FAILED));
+      return reply.status(400).send(apiError('Não foi possível excluir o lançamento', MASSAS_ERROR_CODES.DELETE_FAILED));
     }
   });
 }

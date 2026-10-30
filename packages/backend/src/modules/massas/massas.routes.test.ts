@@ -285,7 +285,10 @@ describe('massas routes', () => {
       },
     });
     assert.equal(again.statusCode, 409, again.body);
-    assert.equal((JSON.parse(again.body) as { code: string }).code, 'MASSAS_ALREADY_IMPORTED');
+    const alreadyImported = JSON.parse(again.body) as { code: string; error: string };
+    assert.equal(alreadyImported.code, 'MASSAS_ALREADY_IMPORTED');
+    // Portuguese, and the sentence the operator reads: the ERP already has this seat.
+    assert.equal(alreadyImported.error, 'Este lançamento do ERP já foi importado');
 
     // Nothing new was stored: the refusal is about the seat, and it happens before any insert.
     const stored = db
@@ -580,7 +583,7 @@ describe('massas routes', () => {
 
       assert.equal(res.statusCode, 400);
       const body = JSON.parse(res.body);
-      assert.equal(body.error, 'Future launch dates are not allowed');
+      assert.equal(body.error, 'Não é possível lançar em datas futuras');
       assert.equal(body.code, 'MASSAS_FUTURE_DATE');
 
       const countAfter = (db.prepare('SELECT COUNT(*) as count FROM massa_launches WHERE launch_date = ?').get(futureDate) as { count: number }).count;
@@ -659,7 +662,7 @@ describe('massas routes', () => {
       });
       assert.equal(resUnknownProduct.statusCode, 400);
       const body = JSON.parse(resUnknownProduct.body);
-      assert.equal(body.error, 'Unknown massa product code: 999999');
+      assert.equal(body.error, 'Não foi possível registrar o lançamento');
       assert.equal(body.code, 'MASSAS_CREATE_FAILED');
     });
 
@@ -672,7 +675,7 @@ describe('massas routes', () => {
       });
       assert.equal(resGetDate.statusCode, 400);
       const bodyGetDate = JSON.parse(resGetDate.body);
-      assert.equal(bodyGetDate.error, 'Invalid date format');
+      assert.equal(bodyGetDate.error, 'Data inválida');
       assert.equal(bodyGetDate.code, 'MASSAS_INVALID_DATE_FORMAT');
 
       // 2. POST / invalid body schema
@@ -684,7 +687,7 @@ describe('massas routes', () => {
       });
       assert.equal(resPostInvalid.statusCode, 400);
       const bodyPostInvalid = JSON.parse(resPostInvalid.body);
-      assert.equal(bodyPostInvalid.error, 'Invalid launch data');
+      assert.equal(bodyPostInvalid.error, 'Dados de lançamento inválidos');
       assert.equal(bodyPostInvalid.code, 'MASSAS_INVALID_LAUNCH_DATA');
       assert.ok(bodyPostInvalid.details);
 
@@ -697,7 +700,7 @@ describe('massas routes', () => {
       });
       assert.equal(resPostEmpty.statusCode, 400);
       const bodyPostEmpty = JSON.parse(resPostEmpty.body);
-      assert.equal(bodyPostEmpty.error, 'Must provide either items array or product_code and boxes');
+      assert.equal(bodyPostEmpty.error, 'Envie uma lista de itens ou informe produto e caixas');
       assert.equal(bodyPostEmpty.code, 'MASSAS_EMPTY_ITEMS');
 
       // 4. PUT /:id invalid param ID
@@ -709,7 +712,7 @@ describe('massas routes', () => {
       });
       assert.equal(resPutBadId.statusCode, 400);
       const bodyPutBadId = JSON.parse(resPutBadId.body);
-      assert.equal(bodyPutBadId.error, 'Invalid launch ID');
+      assert.equal(bodyPutBadId.error, 'Lançamento inválido');
       assert.equal(bodyPutBadId.code, 'MASSAS_INVALID_ID');
 
       // 5. PUT /:id invalid boxes count
@@ -721,7 +724,7 @@ describe('massas routes', () => {
       });
       assert.equal(resPutBadBoxes.statusCode, 400);
       const bodyPutBadBoxes = JSON.parse(resPutBadBoxes.body);
-      assert.equal(bodyPutBadBoxes.error, 'Invalid boxes count');
+      assert.equal(bodyPutBadBoxes.error, 'Quantidade de caixas inválida');
       assert.equal(bodyPutBadBoxes.code, 'MASSAS_INVALID_BOXES');
       assert.ok(bodyPutBadBoxes.details);
 
@@ -734,7 +737,7 @@ describe('massas routes', () => {
       });
       assert.equal(resPutNotFound.statusCode, 404);
       const bodyPutNotFound = JSON.parse(resPutNotFound.body);
-      assert.equal(bodyPutNotFound.error, 'Launch not found');
+      assert.equal(bodyPutNotFound.error, 'Lançamento não encontrado');
       assert.equal(bodyPutNotFound.code, 'MASSAS_NOT_FOUND');
 
       // Create a launch by Alice for ownership testing
@@ -755,7 +758,7 @@ describe('massas routes', () => {
       });
       assert.equal(resPutForbidden.statusCode, 403);
       const bodyPutForbidden = JSON.parse(resPutForbidden.body);
-      assert.equal(bodyPutForbidden.error, 'Forbidden: cannot edit launches belonging to another user');
+      assert.equal(bodyPutForbidden.error, 'Este lançamento pertence a outro operário');
       assert.equal(bodyPutForbidden.code, 'MASSAS_FORBIDDEN');
 
       // 8. DELETE /:id invalid param ID
@@ -766,7 +769,7 @@ describe('massas routes', () => {
       });
       assert.equal(resDelBadId.statusCode, 400);
       const bodyDelBadId = JSON.parse(resDelBadId.body);
-      assert.equal(bodyDelBadId.error, 'Invalid launch ID');
+      assert.equal(bodyDelBadId.error, 'Lançamento inválido');
       assert.equal(bodyDelBadId.code, 'MASSAS_INVALID_ID');
 
       // 9. DELETE /:id not found
@@ -777,7 +780,7 @@ describe('massas routes', () => {
       });
       assert.equal(resDelNotFound.statusCode, 404);
       const bodyDelNotFound = JSON.parse(resDelNotFound.body);
-      assert.equal(bodyDelNotFound.error, 'Launch not found');
+      assert.equal(bodyDelNotFound.error, 'Lançamento não encontrado');
       assert.equal(bodyDelNotFound.code, 'MASSAS_NOT_FOUND');
 
       // 10. DELETE /:id forbidden for another user
@@ -788,7 +791,7 @@ describe('massas routes', () => {
       });
       assert.equal(resDelForbidden.statusCode, 403);
       const bodyDelForbidden = JSON.parse(resDelForbidden.body);
-      assert.equal(bodyDelForbidden.error, 'Forbidden: cannot delete launches belonging to another user');
+      assert.equal(bodyDelForbidden.error, 'Este lançamento pertence a outro operário');
       assert.equal(bodyDelForbidden.code, 'MASSAS_FORBIDDEN');
     });
 
@@ -823,7 +826,7 @@ describe('massas routes', () => {
 
       assert.deepEqual(JSON.parse(resWithEs.body), JSON.parse(resWithoutLang.body));
       assert.deepEqual(JSON.parse(resWithPt.body), JSON.parse(resWithoutLang.body));
-      assert.equal(JSON.parse(resWithEs.body).error, 'Invalid date format');
+      assert.equal(JSON.parse(resWithEs.body).error, 'Data inválida');
       assert.equal(JSON.parse(resWithEs.body).code, 'MASSAS_INVALID_DATE_FORMAT');
     });
   });
@@ -862,7 +865,9 @@ describe('POST /api/massas-launch import ownership', () => {
       payload: { date, ent_lan: 8001, operator_name: 'CARLA', items: [{ product_code: '1045', boxes: 1 }] },
     });
     assert.equal(refused.statusCode, 403, refused.body);
-    assert.equal((JSON.parse(refused.body) as { code: string }).code, 'MASSAS_FORBIDDEN');
+    const foreignSeat = JSON.parse(refused.body) as { code: string; error: string };
+    assert.equal(foreignSeat.code, 'MASSAS_FORBIDDEN');
+    assert.equal(foreignSeat.error, 'Este lançamento pertence a outro operário');
     const stored = db.prepare('SELECT COUNT(*) AS n FROM massa_launches WHERE ent_lan = 8001').get() as { n: number };
     assert.equal(stored.n, 0, 'the refusal stored a launch');
 
