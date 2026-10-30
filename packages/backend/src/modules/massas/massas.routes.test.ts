@@ -23,9 +23,11 @@ describe('massas routes', () => {
   let tokenBob = '';
   const passAlice = randomUUID();
   const passBob = randomUUID();
-  const dateStr = '2026-10-20';
-  // The only day a launch may still be rewritten: yesterday is a record the API itself refuses to touch.
-  const todayStr = getSaoPauloDateString();
+  // The only day a launch may be created or rewritten: the history takes no new rows, so the working day of
+  // these tests is today and a past day only ever appears as a planted fixture.
+  const dateStr = getSaoPauloDateString();
+  const todayStr = dateStr;
+  const pastStr = '2026-10-20';
 
   before(async () => {
     db = new Database(':memory:');
@@ -462,14 +464,15 @@ describe('massas routes', () => {
 
   it('answers 409 MASSAS_HISTORY_FROZEN when an Administrador rewrites a past day', async () => {
     // The screen no longer offers it, and the API must not accept it either: a request can be written by hand.
-    const launch = await app.inject({
-      method: 'POST',
-      url: '/api/massas-launch',
-      headers: { authorization: `Bearer ${tokenAlice}` },
-      payload: { date: dateStr, product_code: '1045', boxes: 3 },
-    });
-    assert.equal(launch.statusCode, 201);
-    const launchId = (JSON.parse(launch.body) as { created: { id: number }[] }).created[0].id;
+    // The row is planted directly because the past may not be created through the route under test.
+    const launchId = Number(
+      db
+        .prepare(
+          `INSERT INTO massa_launches (launch_date, product_code, boxes, user_id, created_at, updated_at)
+           VALUES (?, '1045', 3, 1, ?, ?)`,
+        )
+        .run(pastStr, `${pastStr}T10:00:00.000Z`, `${pastStr}T10:00:00.000Z`).lastInsertRowid,
+    );
 
     const edit = await app.inject({
       method: 'PUT',
@@ -493,7 +496,7 @@ describe('massas routes', () => {
     // Both refusals left the recorded day exactly as the plant left it.
     const day = await app.inject({
       method: 'GET',
-      url: `/api/massas-launch?date=${dateStr}`,
+      url: `/api/massas-launch?date=${pastStr}`,
       headers: { authorization: `Bearer ${tokenAlice}` },
     });
     const kept = (JSON.parse(day.body) as MassasLaunchDayView).launches.find((row) => row.id === launchId);
@@ -525,12 +528,22 @@ describe('massas routes', () => {
     });
     assert.equal(unauthRes.statusCode, 401);
 
-    // Create a launch on a specific date
+    // The day is shared with the tests above, so the assertion is the delta this launch makes.
+    const before = await app.inject({
+      method: 'GET',
+      url: '/api/massas-launch/history',
+      headers: { authorization: `Bearer ${tokenBob}` },
+    });
+    const beforeToday = (JSON.parse(before.body) as { days: { date: string; totalBoxes: number; totalUnits: number }[] }).days.find(
+      (d) => d.date === dateStr,
+    );
+
+    // Create a launch today: the history accepts the reading of a day that just closed, never a new row on it.
     await app.inject({
       method: 'POST',
       url: '/api/massas-launch',
       headers: { authorization: `Bearer ${tokenAlice}` },
-      payload: { date: '2026-10-18', product_code: '1045', boxes: 3 },
+      payload: { date: dateStr, product_code: '1045', boxes: 3 },
     });
 
     // 200 with auth
@@ -542,12 +555,10 @@ describe('massas routes', () => {
     assert.equal(authRes.statusCode, 200);
     const body = JSON.parse(authRes.body);
     assert.ok(Array.isArray(body.days));
-    const day18 = body.days.find((d: { date: string }) => d.date === '2026-10-18');
-    assert.ok(day18);
-    assert.equal(day18.productsCount, 1);
-    assert.equal(day18.totalBoxes, 3);
-    assert.equal(day18.totalUnits, 30);
-    assert.equal(day18.operatorsCount, 1);
+    const today = body.days.find((d: { date: string }) => d.date === dateStr);
+    assert.ok(today);
+    assert.equal(today.totalBoxes, (beforeToday?.totalBoxes ?? 0) + 3);
+    assert.equal(today.totalUnits, (beforeToday?.totalUnits ?? 0) + 30);
   });
 
   describe('S4 & S9: error codes, future dates and language neutrality', () => {
@@ -595,21 +606,32 @@ describe('massas routes', () => {
       assert.equal(body.created[0].launch_date, today);
     });
 
-    it('accepts launches for past dates and defaults omitted date to today', async () => {
-      // Past date
-      const pastDate = '2026-01-01';
-      const resPast = await app.inject({
-        method: 'POST',
-        url: '/api/massas-launch',
+    it('refuses a new launch on a past day for both roles and defaults an omitted date to today', async () => {
+      // S8: the history takes no new rows. The administrator's token is refused by the same guard as the
+      // worker's, because the day, not the person, is what closed.
+      for (const token of [tokenAlice, tokenBob]) {
+        const resPast = await app.inject({
+          method: 'POST',
+          url: '/api/massas-launch',
+          headers: { authorization: `Bearer ${token}` },
+          payload: {
+            date: '2026-01-01',
+            product_code: '1045',
+            boxes: 1,
+          },
+        });
+        assert.equal(resPast.statusCode, 409);
+        const pastBody = JSON.parse(resPast.body) as { error: string; code: string };
+        assert.equal(pastBody.code, 'MASSAS_HISTORY_FROZEN');
+        assert.equal(pastBody.error, 'O histórico de massas é somente leitura: dias passados não podem ser alterados');
+      }
+
+      const kept = await app.inject({
+        method: 'GET',
+        url: '/api/massas-launch?date=2026-01-01',
         headers: { authorization: `Bearer ${tokenAlice}` },
-        payload: {
-          date: pastDate,
-          product_code: '1045',
-          boxes: 1,
-        },
       });
-      assert.equal(resPast.statusCode, 201);
-      assert.equal(JSON.parse(resPast.body).created[0].launch_date, pastDate);
+      assert.deepEqual((JSON.parse(kept.body) as MassasLaunchDayView).launches, [], 'the refusal stored nothing');
 
       // Omitted date
       const resOmitted = await app.inject({
@@ -631,7 +653,7 @@ describe('massas routes', () => {
         url: '/api/massas-launch',
         headers: { authorization: `Bearer ${tokenAlice}` },
         payload: {
-          date: '2026-10-18',
+          date: dateStr,
           items: [{ product_code: '999999', boxes: 1 }],
         },
       });
@@ -816,7 +838,8 @@ describe('POST /api/massas-launch import ownership', () => {
       roleId,
     );
     const carlaId = db.prepare("SELECT id FROM users WHERE username = 'carla'").pluck().get() as number;
-    const date = '2026-10-21';
+    // Today: the API no longer takes a new launch on a past day, and this test is about ownership.
+    const date = dateStr;
     db.prepare(
       `INSERT INTO aero_movements
          (movement_date, ent_lan, product_code, product_desc, quantity, entry_date, operator_name, movement_type, synced_at)
@@ -855,6 +878,43 @@ describe('POST /api/massas-launch import ownership', () => {
     assert.equal(created.username, 'carla');
   });
 
+  it('checks every seat in a multi-item body, not just the first', async () => {
+    // The UI imports one seat per tap, but the API takes an array: a body whose first seat is the worker's
+    // own and whose second belongs to somebody else must be refused whole. Validating only the first item
+    // would let a hand-written request carry the whole plant's morning in behind one authorized seat.
+    const ownSeat = 8101;
+    const foreignSeat = 8102;
+    const date = dateStr;
+    for (const seat of [ownSeat, foreignSeat]) {
+      db.prepare(
+        `INSERT INTO aero_movements
+           (movement_date, ent_lan, product_code, product_desc, quantity, entry_date, operator_name, movement_type, synced_at)
+         VALUES (?, ?, '1045', 'MASSA', 20, ?, ?, 'E', ?)`,
+      ).run(date, seat, date, seat === ownSeat ? 'BOB' : 'ALICE', `${date}T10:00:00.000Z`);
+    }
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/massas-launch',
+      headers: { authorization: `Bearer ${tokenBob}` },
+      payload: {
+        date,
+        operator_name: 'BOB',
+        items: [
+          { product_code: '1045', boxes: 1, ent_lan: ownSeat },
+          { product_code: '1045', boxes: 1, ent_lan: foreignSeat },
+        ],
+      },
+    });
+    assert.equal(res.statusCode, 403, res.body);
+    assert.equal((JSON.parse(res.body) as { code: string }).code, 'MASSAS_FORBIDDEN');
+
+    const stored = db
+      .prepare('SELECT COUNT(*) AS n FROM massa_launches WHERE ent_lan IN (?, ?)')
+      .get(ownSeat, foreignSeat) as { n: number };
+    assert.equal(stored.n, 0, 'a refusal must store neither the foreign seat nor the authorized one');
+  });
+
   it('lets an administrator import a seat that belongs to a worker', async () => {
     const roleId = db.prepare("SELECT id FROM roles WHERE name = 'Trabalhador'").pluck().get() as number;
     db.prepare('INSERT INTO users (username, password_hash, display_name, role_id, is_active) VALUES (?,?,?,?,1)').run(
@@ -863,7 +923,7 @@ describe('POST /api/massas-launch import ownership', () => {
       'Diego',
       roleId,
     );
-    const date = '2026-10-22';
+    const date = dateStr;
     db.prepare(
       `INSERT INTO aero_movements
          (movement_date, ent_lan, product_code, product_desc, quantity, entry_date, operator_name, movement_type, synced_at)

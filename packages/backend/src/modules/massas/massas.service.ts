@@ -153,6 +153,10 @@ export function createMassaLaunches(
     items: CreateLaunchItem[];
   },
 ): MassaIndividualLaunch[] {
+  // S8: the history admits no new rows. Checked before the items are read, so a refused request learns the
+  // reason the day is closed and not something about its boxes.
+  assertDayStillOpen(params.date);
+
   if (params.items.length === 0) {
     throw new Error('No items to launch');
   }

@@ -22,6 +22,14 @@ or deletes, not even an admin.
 - **S7.** «Los asientos 35937 (Victor) y 35939 (Gustavo) del día de hoy no los toques por SQL: dejalos
   en el espejo para que Wilkin y los operarios prueben la importación con identidad y con las
   restricciones de rol directamente desde la UI.»
+- **S9.** «Si un trabajador envía en el cuerpo `items` un arreglo donde el primer elemento tiene `ent_lan`
+  propio y los siguientes tienen `ent_lan` de otro operario, la petición se rechaza entera.» El `POST`
+  valida cada asiento reclamado, no el primero, y una negativa no guarda ninguno.
+- **S8.** «los lanzamientos nuevos con fechas pasadas NO están permitidos bajo ninguna circunstancia. El
+  histórico debe ser 100% de solo lectura: ni altas, ni ediciones, ni eliminaciones.» El backend
+  rechaza cualquier `POST /api/massas-launch` con fecha pasada con `409 MASSAS_HISTORY_FROZEN`, tanto
+  para operarios como para administradores; la UI de Web y Android no ofrece dar de alta en una fecha
+  pasada.
 
 ## Tasks
 
@@ -33,6 +41,8 @@ or deletes, not even an admin.
 | T4 | S4, S5 | web: the history reads, never writes | done |
 | T5 | S4, S6 | Android: past days opened from the history offer no edit or delete, admin included | 6455a2a |
 | T6 | all | delivery: suites, containers, signed APK, docs | 38c662b |
+| T7 | S8 | backend + web + Android: no new launch on a past day, nobody | in progress |
+| T8 | S9 | backend: every claimed seat is checked, not the first | in progress |
 
 ## Log
 
@@ -88,3 +98,27 @@ importing 35939 (GUSTAVO's), and `201` to an administrator importing 35937; `PUT
 2026-10-29 launch answer `409 MASSAS_HISTORY_FROZEN` to an administrator, that day keeps exactly its seven
 launches and their boxes, and the same administrator still rewrites a fresh 2026-10-30 launch with `200`. The
 signed 0.6.1 APK (versionCode 6001) is what `/api/app/download-apk` serves.
+
+**L6 (a further directive, verbatim).**
+
+> Sumamos otra directiva clave de Wilkin sobre el histórico: los lanzamientos nuevos con fechas pasadas NO
+> están permitidos bajo ninguna circunstancia. El histórico debe ser 100% de solo lectura: ni altas, ni
+> ediciones, ni eliminaciones.
+>
+> Meté la guardia assertDayStillOpen en createMassaLaunches (en el backend) para que ante cualquier intento
+> de POST con fecha pasada rechace con 409 MASSAS_HISTORY_FROZEN (tanto para operarios como para
+> administradores). Asegurate de que en la Web y en Android la UI no ofrezca dar de alta en fechas pasadas y
+> que las suites de tests reflejen esta inmutabilidad total. Todo a main, sin ramas y sin Co-Authored-By.
+
+This reopens S4 as S8: the freeze now covers the birth of a record, not only its later life. The tests that
+used `createMassaLaunches` to fabricate history move to a direct fixture insert, because the service is
+exactly the door the new rule closes.
+
+**L7 (the verifier's finding, verbatim).**
+
+> Si un trabajador envía en el cuerpo `items` un arreglo donde el primer elemento tiene `ent_lan` propio
+> (autorizado) y los elementos subsecuentes tienen `ent_lan` pertenecientes a otro operario (ajenos),
+> `canImportSeat` valida únicamente el primer asiento y permite la solicitud.
+
+The first fix read `seatItems.find(...)`, which is one seat out of an array the API accepts whole. T8 makes
+the check total: every claimed seat is resolved and the request is refused when any of them is foreign.

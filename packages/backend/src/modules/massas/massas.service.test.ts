@@ -15,7 +15,9 @@ import { getSaoPauloDateString } from '../../utils/date.js';
 
 describe('massas launch service', () => {
   let db: Database.Database;
-  const testDate = '2026-10-20';
+  // The only day the service still accepts a new launch: the past is a record, and the freeze now covers
+  // the birth of a row as well as its later life.
+  const testDate = getSaoPauloDateString();
   let userAliceId: number;
   let userBobId: number;
 
@@ -38,6 +40,24 @@ describe('massas launch service', () => {
       .run('bob', 'hash', 'Bob Santos', roleWorker);
     userBobId = Number(resBob.lastInsertRowid);
   });
+
+
+  /**
+   * A launch written straight into the table.
+   *
+   * The service itself refuses to create a row on a past day, which is the rule under test here, so a test
+   * about reading or freezing yesterday has to plant its fixture the way the day was really recorded: a
+   * direct row, not a call through the door the rule closes.
+   */
+  function insertPastLaunch(date: string, userId: number, productCode = '1045', boxes = 4): number {
+    const result = db
+      .prepare(
+        `INSERT INTO massa_launches (launch_date, product_code, boxes, user_id, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+      )
+      .run(date, productCode, boxes, userId, `${date}T10:00:00.000Z`, `${date}T10:00:00.000Z`);
+    return Number(result.lastInsertRowid);
+  }
 
   it('keeps the seat an imported launch came from and attributes it to that seat\'s operator', () => {
     // The seat says VICTOR; the request arrives signed by whoever pressed Importar. The launch has to carry
@@ -91,6 +111,29 @@ describe('massas launch service', () => {
 
     // The refusal is total: the day still holds exactly the first launch.
     assert.equal(massasLaunchDayView(db, testDate).launches.length, 1);
+  });
+
+  it('refuses to create a launch on a past day, administrator included', () => {
+    // S8: the history admits no new rows either. A launch recorded for yesterday after midnight is a number
+    // nobody typed on the day it claims, and the audit the company keeps is exactly that claim.
+    const yesterday = getSaoPauloDateString(new Date(Date.now() - 86_400_000));
+
+    // The service takes no role: the freeze is a property of the day, so the administrator's id is refused
+    // by the very same line that refuses the worker's.
+    for (const userId of [userAliceId, userBobId]) {
+      assert.throws(
+        () =>
+          createMassaLaunches(db, {
+            date: yesterday,
+            userId,
+            items: [{ product_code: '1045', boxes: 2 }],
+          }),
+        (err: Error & { code?: string }) => err.code === 'HISTORY_FROZEN',
+      );
+    }
+
+    assert.deepEqual(massasLaunchDayView(db, yesterday).launches, [], 'the past day gained nothing');
+    assert.deepEqual(massasLaunchHistory(db), [], 'the history is empty because nobody recorded anything');
   });
 
   it('answers all 10 massas products at zero when day has no launches', () => {
@@ -202,15 +245,11 @@ describe('massas launch service', () => {
     // The history answers "who launched this, and when". An edit after midnight turns yesterday's book into
     // something nobody recorded, and a role that can do it is a role that can erase the plant's trail.
     const pastDate = getSaoPauloDateString(new Date(Date.now() - 86_400_000));
-    const [launch] = createMassaLaunches(db, {
-      date: pastDate,
-      userId: userAliceId,
-      items: [{ product_code: '1045', boxes: 4 }],
-    });
+    const launchId = insertPastLaunch(pastDate, userAliceId);
 
     for (const userRole of ['Administrador', undefined]) {
       assert.throws(
-        () => updateMassaLaunch(db, { id: launch.id, userId: userAliceId, boxes: 10, userRole }),
+        () => updateMassaLaunch(db, { id: launchId, userId: userAliceId, boxes: 10, userRole }),
         (err: Error & { code?: string }) => err.code === 'HISTORY_FROZEN',
       );
     }
@@ -221,15 +260,11 @@ describe('massas launch service', () => {
 
   it('refuses to delete a launch from a past day, administrator included', () => {
     const pastDate = getSaoPauloDateString(new Date(Date.now() - 86_400_000));
-    const [launch] = createMassaLaunches(db, {
-      date: pastDate,
-      userId: userAliceId,
-      items: [{ product_code: '1045', boxes: 4 }],
-    });
+    const launchId = insertPastLaunch(pastDate, userAliceId);
 
     for (const userRole of ['Administrador', undefined]) {
       assert.throws(
-        () => deleteMassaLaunch(db, { id: launch.id, userId: userAliceId, userRole }),
+        () => deleteMassaLaunch(db, { id: launchId, userId: userAliceId, userRole }),
         (err: Error & { code?: string }) => err.code === 'HISTORY_FROZEN',
       );
     }
@@ -322,18 +357,15 @@ describe('massas launch service', () => {
     // Empty history
     assert.deepEqual(massasLaunchHistory(db), []);
 
-    // Date 1: 2026-10-19
-    // Alice launches 1045 (10 un/cx) 2 boxes (20 units)
-    createMassaLaunches(db, {
-      date: '2026-10-19',
-      userId: userAliceId,
-      items: [{ product_code: '1045', boxes: 2 }],
-    });
+    const today = getSaoPauloDateString();
+    const yesterday = getSaoPauloDateString(new Date(Date.now() - 86_400_000));
 
-    // Date 2: 2026-10-20
-    // Alice launches 1045 (10 un/cx) 3 boxes (30 units) and 84 (20 un/cx) 2 boxes (40 units)
+    // Yesterday: a row written on the day, planted directly because the service no longer creates past days.
+    insertPastLaunch(yesterday, userAliceId, '1045', 2);
+
+    // Today: Alice launches 1045 (10 un/cx) 3 boxes (30 units) and 84 (20 un/cx) 2 boxes (40 units)
     createMassaLaunches(db, {
-      date: '2026-10-20',
+      date: today,
       userId: userAliceId,
       items: [
         { product_code: '1045', boxes: 3 },
@@ -342,7 +374,7 @@ describe('massas launch service', () => {
     });
     // Bob launches 84 (20 un/cx) 1 box (20 units)
     createMassaLaunches(db, {
-      date: '2026-10-20',
+      date: today,
       userId: userBobId,
       items: [{ product_code: '84', boxes: 1 }],
     });
@@ -350,15 +382,15 @@ describe('massas launch service', () => {
     const history = massasLaunchHistory(db);
     assert.equal(history.length, 2);
 
-    // Ordered DESC: 2026-10-20 first
-    assert.equal(history[0].date, '2026-10-20');
+    // Ordered DESC: today first
+    assert.equal(history[0].date, today);
     assert.equal(history[0].productsCount, 2); // 1045 and 84
     assert.equal(history[0].totalBoxes, 6); // 3 + 2 + 1
     assert.equal(history[0].totalUnits, 90); // 30 + 40 + 20
     assert.equal(history[0].operatorsCount, 2); // Alice and Bob
 
-    // 2026-10-19 second
-    assert.equal(history[1].date, '2026-10-19');
+    // Yesterday second
+    assert.equal(history[1].date, yesterday);
     assert.equal(history[1].productsCount, 1);
     assert.equal(history[1].totalBoxes, 2);
     assert.equal(history[1].totalUnits, 20);

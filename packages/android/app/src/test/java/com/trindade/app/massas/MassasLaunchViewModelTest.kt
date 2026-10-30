@@ -429,8 +429,18 @@ class MassasLaunchViewModelTest {
         val testVm = newViewModel(fakeRepo)
         testScheduler.runCurrent()
 
+        // A confirmation prepared while the day was still open...
+        testVm.onQuantityChange("1045", "2")
+        testVm.requestLaunchConfirmation()
+        assertTrue(testVm.state.value.showConfirmLaunchDialog)
+
         testVm.loadDay("2020-01-01")
         testScheduler.runCurrent()
+
+        // ...and executed after the screen moved to yesterday: the POST never leaves the phone.
+        testVm.confirmLaunch()
+        testScheduler.runCurrent()
+        assertNull("a past day must not create a launch", fakeRepo.lastCreatedItems)
 
         assertTrue(testVm.state.value.isReadOnly)
         assertEquals("2020-01-01", testVm.state.value.date)

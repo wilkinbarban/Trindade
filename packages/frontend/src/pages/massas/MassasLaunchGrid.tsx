@@ -12,6 +12,12 @@ interface MassasLaunchGridProps {
   onQuantityChange: (code: string, rawVal: string) => void;
   onLaunch: () => void;
   submitting: boolean;
+  /**
+   * A closed day: the grid shows what the plant produced and offers no way to add to it.
+   *
+   * The buttons and the box fields are the gesture that creates a row, so a read-only grid draws neither.
+   */
+  readOnly?: boolean;
   /** Optional control rendered beside the launch button, e.g. the company-sync switch. */
   erpControl?: ReactNode;
 }
@@ -22,6 +28,7 @@ export function MassasLaunchGrid({
   onQuantityChange,
   onLaunch,
   submitting,
+  readOnly = false,
   erpControl,
 }: MassasLaunchGridProps) {
   const { t } = useTranslation();
@@ -86,16 +93,27 @@ export function MassasLaunchGrid({
                     menos que recorrer con el pulgar. */}
                 <div className="mt-2 flex items-center gap-2">
                   <div className="min-w-0 flex-1">
-                    <Input
-                      type="number"
-                      min="0"
-                      step="1"
-                      inputMode="numeric"
-                      placeholder="0 cx"
-                      value={currentBoxes}
-                      onChange={(e) => onQuantityChange(product.code, e.target.value)}
-                      className="h-11 text-base text-center font-bold sm:h-9 sm:text-sm"
-                    />
+                    {readOnly ? (
+                      // The day's own number, in the place the field would be: the operator reads the record
+                      // instead of an empty box that suggests it can still be filled.
+                      <span
+                        className="flex h-11 items-center justify-center rounded-md border border-gray-200 bg-white text-base font-bold text-gray-900 sm:h-9 sm:text-sm"
+                        data-testid={`massas-closed-${product.code}`}
+                      >
+                        {product.totalBoxes} cx
+                      </span>
+                    ) : (
+                      <Input
+                        type="number"
+                        min="0"
+                        step="1"
+                        inputMode="numeric"
+                        placeholder="0 cx"
+                        value={currentBoxes}
+                        onChange={(e) => onQuantityChange(product.code, e.target.value)}
+                        className="h-11 text-base text-center font-bold sm:h-9 sm:text-sm"
+                      />
+                    )}
                   </div>
                   <span
                     className={`w-14 shrink-0 text-right text-xs font-semibold ${
@@ -110,20 +128,30 @@ export function MassasLaunchGrid({
           })}
         </div>
 
-        {/* Action Row: Botón Lançar SIN botón resetear */}
-        <div className="mt-6 flex flex-col sm:flex-row items-center justify-end gap-3 pt-4 border-t border-gray-100">
-          {erpControl && <div className="w-full sm:w-auto sm:mr-auto">{erpControl}</div>}
-          <Button
-            type="button"
-            onClick={onLaunch}
-            disabled={itemsToLaunch.length === 0 || submitting}
-            className="min-h-[44px] w-full bg-amber-600 px-6 font-semibold text-white hover:bg-amber-700 sm:w-auto"
+        {/* Action Row: Botón Lançar SIN botón resetear. En un día cerrado no hay fila: no hay nada que lanzar. */}
+        {!readOnly && (
+          <div className="mt-6 flex flex-col sm:flex-row items-center justify-end gap-3 pt-4 border-t border-gray-100">
+            {erpControl && <div className="w-full sm:w-auto sm:mr-auto">{erpControl}</div>}
+            <Button
+              type="button"
+              onClick={onLaunch}
+              disabled={itemsToLaunch.length === 0 || submitting}
+              className="min-h-[44px] w-full bg-amber-600 px-6 font-semibold text-white hover:bg-amber-700 sm:w-auto"
+            >
+              <Send className="h-4 w-4 mr-2" />
+              {submitting ? t('massas.launching') : t('massas.launch')}
+              {totalLaunchBoxes > 0 && ` (${totalLaunchBoxes} cx)`}
+            </Button>
+          </div>
+        )}
+        {readOnly && (
+          <p
+            className="mt-6 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600"
+            data-testid="massas-day-closed"
           >
-            <Send className="h-4 w-4 mr-2" />
-            {submitting ? t('massas.launching') : t('massas.launch')}
-            {totalLaunchBoxes > 0 && ` (${totalLaunchBoxes} cx)`}
-          </Button>
-        </div>
+            {t('massas.dayClosed', 'Histórico somente leitura: este dia não aceita novos lançamentos.')}
+          </p>
+        )}
       </CardContent>
     </Card>
   );

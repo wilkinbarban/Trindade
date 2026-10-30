@@ -97,16 +97,19 @@ export async function massasRoutes(fastify: FastifyInstance) {
     // The owner comes from the mirrored seat rather than from the body, so naming somebody else in
     // `operator_name` cannot hand a worker boxes that are not theirs. A seat the mirror never saw has no
     // owner here, and an owner nobody can prove is an administrator's to import.
-    const claimedSeat = seatItems.find((item) => item.ent_lan !== null)?.ent_lan ?? null;
-    // No seat, no import: a manual launch is the asker's own work and keeps the owner rule out of it.
-    if (
-      claimedSeat !== null &&
-      !canImportSeat({
-        ownerUserId: resolveSeatOwnerUserId(fastify.db, claimedSeat),
-        userId: request.user!.sub,
-        isAdmin: request.user?.role === 'Administrador',
-      })
-    ) {
+    // Every seat in the body is checked, not just the first: the array is the unit the API accepts, so one
+    // authorized seat at the front must not carry somebody else's seats in behind it. No seat means no
+    // import, and a manual launch is the asker's own work that the owner rule never touches.
+    const claimedSeats = seatItems.flatMap((item) => (item.ent_lan === null ? [] : [item.ent_lan]));
+    const refusedSeat = claimedSeats.find(
+      (seat) =>
+        !canImportSeat({
+          ownerUserId: resolveSeatOwnerUserId(fastify.db, seat),
+          userId: request.user!.sub,
+          isAdmin: request.user?.role === 'Administrador',
+        }),
+    );
+    if (refusedSeat !== undefined) {
       return reply
         .status(403)
         .send(apiError('This ERP seat belongs to another operator', MASSAS_ERROR_CODES.FORBIDDEN));
@@ -122,6 +125,17 @@ export async function massasRoutes(fastify: FastifyInstance) {
       return reply.status(201).send({ created });
     } catch (error) {
       const code = (error as unknown as { code?: string })?.code;
+      if (code === 'HISTORY_FROZEN') {
+        // The day closed at midnight: no role reopens it, and the answer says so instead of blaming the body.
+        return reply
+          .status(409)
+          .send(
+            apiError(
+              'O histórico de massas é somente leitura: dias passados não podem ser alterados',
+              MASSAS_ERROR_CODES.HISTORY_FROZEN,
+            ),
+          );
+      }
       if (code === 'ALREADY_IMPORTED') {
         return reply
           .status(409)

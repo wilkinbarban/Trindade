@@ -28,6 +28,7 @@ import {
 } from '../lib/massas-unified';
 import { MassasWhatsAppShare } from './massas/MassasWhatsAppShare';
 import { saoPauloToday } from '../lib/date';
+import { isClosedDay } from '../lib/massas-day';
 import {
   aeroBridgeCallbackFor,
   aeroSettingsReady,
@@ -79,6 +80,8 @@ export function MassasLaunchPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const [date, setDate] = useState(saoPauloToday());
+  // Today is the only day that still accepts boxes: yesterday is a record the API refuses to reopen.
+  const dayIsClosed = isClosedDay(date, saoPauloToday());
   const [dayView, setDayView] = useState<MassasLaunchDayView | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -249,6 +252,9 @@ export function MassasLaunchPage() {
   );
 
   const handleRequestLaunch = () => {
+    // Defence in depth: the grid hides the button, and the handler refuses anyway, because a closed day
+    // reached from a stale render must not become a 409 the operator has to decode.
+    if (dayIsClosed) return;
     if (!dayView || submitting) return;
     const items = dayView.products
       .map((p) => {
@@ -977,6 +983,7 @@ export function MassasLaunchPage() {
           onQuantityChange={handleQuantityChange}
           onLaunch={handleRequestLaunch}
           submitting={submitting}
+          readOnly={dayIsClosed}
           erpControl={
             aeroAllowed ? (
               <div className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 sm:py-1">
@@ -1066,7 +1073,6 @@ export function MassasLaunchPage() {
           unifiedDate={date}
           canSync={aeroAllowed && aeroSettingsReady(aeroSettings)}
           deviceLimited={deviceLimited}
-          onSync={handleSyncFromErp}
           onImport={(request) => void handleImportErpSeat(request)}
           importingEntLan={importingEntLan}
           onToggleAck={handleToggleAck}
