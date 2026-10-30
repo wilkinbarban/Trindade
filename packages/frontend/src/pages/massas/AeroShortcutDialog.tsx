@@ -1,9 +1,13 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Check, Copy } from 'lucide-react';
+import { Check, Copy, Download } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Dialog } from '../../components/ui/dialog';
-import { aeroBridgeShortcutRecipe, type AeroSettings } from '../../lib/aero-integration';
+import {
+  AERO_SHORTCUT_ICLOUD_URL,
+  aeroBridgeShortcutRecipe,
+  type AeroSettings,
+} from '../../lib/aero-integration';
 
 interface AeroShortcutDialogProps {
   open: boolean;
@@ -51,6 +55,15 @@ function RecipeValue({ id, label, value, copyLabel, copied, onCopy }: RecipeValu
         </Button>
       </div>
     </div>
+  );
+}
+
+function StepBlock({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section>
+      <h4 className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-amber-800">{title}</h4>
+      <ol className="space-y-3">{children}</ol>
+    </section>
   );
 }
 
@@ -141,11 +154,33 @@ export function AeroShortcutDialog({ open, onClose, settings }: AeroShortcutDial
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+          {/* El enlace certificado va primero y con el tamaño de un botón: instalar en un toque es el camino
+              principal, y armar veinte acciones a mano es el respaldo. */}
+          <div className="mb-4 rounded-xl border border-emerald-300 bg-emerald-50 p-3" data-testid="aero-shortcut-icloud">
+            <div className="flex items-start justify-between gap-2">
+              <h3 className="text-sm font-bold text-emerald-900">{t('massas.aero.shortcutIcloudTitle')}</h3>
+              <span className="shrink-0 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                {t('massas.aero.shortcutIcloudBadge')}
+              </span>
+            </div>
+            <p className="mt-1 text-xs leading-relaxed text-emerald-900">{t('massas.aero.shortcutIcloudHint')}</p>
+            <a
+              href={AERO_SHORTCUT_ICLOUD_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-testid="aero-shortcut-icloud-link"
+              className="mt-2.5 inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-700"
+            >
+              <Download className="h-4 w-4 shrink-0" />
+              <span className="min-w-0">{t('massas.aero.shortcutIcloudButton')}</span>
+            </a>
+          </div>
+
           <h3 className="mb-1.5 text-sm font-bold text-gray-900">
             {t('massas.aero.shortcutLaunchTitle', { count: recipe.actionCount })}
           </h3>
 
-          {/* El nombre es preparación en la app, no una de las diecisiete acciones: por eso no lleva número y
+          {/* El nombre es preparación en la app, no una de las veinte acciones: por eso no lleva número y
               la lista numera exactamente las acciones que hay que agregar. */}
           <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
             <div className="flex items-baseline gap-2">
@@ -157,129 +192,152 @@ export function AeroShortcutDialog({ open, onClose, settings }: AeroShortcutDial
             <p className="mt-0.5 text-xs leading-relaxed text-amber-900">{t('massas.aero.shortcutNameHint')}</p>
           </div>
 
-          <ol className="space-y-3">
-            <StepItem n={1}>
-              <span>{t('massas.aero.shortcutStepInput')}</span>
-            </StepItem>
+          {/* Cuatro bloques numerados 1–20: el operario sigue el que necesita y sabe dónde está parado. */}
+          <div className="space-y-4">
+            <StepBlock title={t('massas.aero.shortcutBlockUnpack')}>
+              <StepItem n={1}>
+                <span>{t('massas.aero.shortcutStepInput')}</span>
+              </StepItem>
 
-            <StepItem n={2}>
-              <span>{t('massas.aero.shortcutStepUrl')}</span>
-              <RecipeValue
-                id="url"
-                label={keyLabel}
-                value={recipe.keys.url}
-                copyLabel={copyLabel}
-                copied={copied === 'url'}
-                onCopy={copy}
-              />
-            </StepItem>
+              <StepItem n={2}>
+                <span>{t('massas.aero.shortcutStepUrl')}</span>
+                <RecipeValue
+                  id="url"
+                  label={keyLabel}
+                  value={recipe.keys.url}
+                  copyLabel={copyLabel}
+                  copied={copied === 'url'}
+                  onCopy={copy}
+                />
+              </StepItem>
 
-            {/* Opción (a): el Authorization sale del diccionario `headers`, que es lo que el sobre trae.
-                La receta anterior pedía una clave `auth` que nunca viajó. */}
-            <StepItem n={3}>
-              <span>{t('massas.aero.shortcutStepHeaders')}</span>
-              <RecipeValue
-                id="headers"
-                label={keyLabel}
-                value={recipe.keys.headers}
-                copyLabel={copyLabel}
-                copied={copied === 'headers'}
-                onCopy={copy}
-              />
-            </StepItem>
+              {/* Opción (a): el Authorization sale del diccionario `headers`, que es lo que el sobre trae.
+                  La receta anterior pedía una clave `auth` que nunca viajó. */}
+              <StepItem n={3}>
+                <span>{t('massas.aero.shortcutStepHeaders')}</span>
+                <RecipeValue
+                  id="headers"
+                  label={keyLabel}
+                  value={recipe.keys.headers}
+                  copyLabel={copyLabel}
+                  copied={copied === 'headers'}
+                  onCopy={copy}
+                />
+              </StepItem>
 
-            <StepItem n={4}>
-              <span>{t('massas.aero.shortcutStepAuthorization')}</span>
-              <RecipeValue
-                id="authorization"
-                label={keyLabel}
-                value={recipe.keys.authorization}
-                copyLabel={copyLabel}
-                copied={copied === 'authorization'}
-                onCopy={copy}
-              />
-            </StepItem>
+              <StepItem n={4}>
+                <span>{t('massas.aero.shortcutStepAuthorization')}</span>
+                <RecipeValue
+                  id="authorization"
+                  label={keyLabel}
+                  value={recipe.keys.authorization}
+                  copyLabel={copyLabel}
+                  copied={copied === 'authorization'}
+                  onCopy={copy}
+                />
+              </StepItem>
 
-            <StepItem n={5}>
-              <span>{t('massas.aero.shortcutStepCallback')}</span>
-              <RecipeValue
-                id="callback"
-                label={keyLabel}
-                value={recipe.keys.callback}
-                copyLabel={copyLabel}
-                copied={copied === 'callback'}
-                onCopy={copy}
-              />
-            </StepItem>
+              <StepItem n={5}>
+                <span>{t('massas.aero.shortcutStepCallback')}</span>
+                <RecipeValue
+                  id="callback"
+                  label={keyLabel}
+                  value={recipe.keys.callback}
+                  copyLabel={copyLabel}
+                  copied={copied === 'callback'}
+                  onCopy={copy}
+                />
+              </StepItem>
+            </StepBlock>
 
-            <StepItem n={6}>
-              <span>{t('massas.aero.shortcutStepBodiesCheck')}</span>
-              <RecipeValue
-                id="bodies"
-                label={keyLabel}
-                value={recipe.keys.bodies}
-                copyLabel={copyLabel}
-                copied={copied === 'bodies'}
-                onCopy={copy}
-              />
-            </StepItem>
+            <StepBlock title={t('massas.aero.shortcutBlockBatch')}>
+              <StepItem n={6}>
+                <span>{t('massas.aero.shortcutStepBodiesCheck')}</span>
+                <RecipeValue
+                  id="bodies"
+                  label={keyLabel}
+                  value={recipe.keys.bodies}
+                  copyLabel={copyLabel}
+                  copied={copied === 'bodies'}
+                  onCopy={copy}
+                />
+              </StepItem>
 
-            <StepItem n={7}>
-              <span>{t('massas.aero.shortcutStepRepeat')}</span>
-            </StepItem>
+              <StepItem n={7}>
+                <span>{t('massas.aero.shortcutStepReset')}</span>
+              </StepItem>
 
-            <StepItem n={8}>
-              <span>{t('massas.aero.shortcutStepBatchFetch')}</span>
-              <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                {t('massas.aero.shortcutHeadersTitle')}
-              </p>
-              <p className="text-xs leading-relaxed text-gray-500">{t('massas.aero.shortcutHeadersHint')}</p>
-            </StepItem>
+              <StepItem n={8}>
+                <span>{t('massas.aero.shortcutStepRepeat')}</span>
+              </StepItem>
 
-            <StepItem n={9}>
-              <span>{t('massas.aero.shortcutStepBatchCollect')}</span>
-            </StepItem>
+              <StepItem n={9}>
+                <span>{t('massas.aero.shortcutStepBatchFetch')}</span>
+                <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  {t('massas.aero.shortcutHeadersTitle')}
+                </p>
+                <p className="text-xs leading-relaxed text-gray-500">{t('massas.aero.shortcutHeadersHint')}</p>
+              </StepItem>
 
-            <StepItem n={10}>
-              <span>{t('massas.aero.shortcutStepRepeatEnd')}</span>
-            </StepItem>
+              <StepItem n={10}>
+                <span>{t('massas.aero.shortcutStepBatchCollect')}</span>
+              </StepItem>
 
-            <StepItem n={11}>
-              <span>{t('massas.aero.shortcutStepJoin')}</span>
-            </StepItem>
+              <StepItem n={11}>
+                <span>{t('massas.aero.shortcutStepRepeatEnd')}</span>
+              </StepItem>
 
-            <StepItem n={12}>
-              <span>{t('massas.aero.shortcutStepBracket')}</span>
-            </StepItem>
+              <StepItem n={12}>
+                <span>{t('massas.aero.shortcutStepJoin')}</span>
+              </StepItem>
 
-            <StepItem n={13}>
-              <span>{t('massas.aero.shortcutStepBatchEncode')}</span>
-            </StepItem>
+              <StepItem n={13}>
+                <span>{t('massas.aero.shortcutStepBracket')}</span>
+              </StepItem>
 
-            <StepItem n={14}>
-              <span>{t('massas.aero.shortcutStepElse')}</span>
-            </StepItem>
+              <StepItem n={14}>
+                <span>{t('massas.aero.shortcutStepBatchEncode')}</span>
+              </StepItem>
+            </StepBlock>
 
-            <StepItem n={15}>
-              <span>{t('massas.aero.shortcutStepSingleFetch')}</span>
-              <RecipeValue
-                id="body"
-                label={keyLabel}
-                value={recipe.keys.body}
-                copyLabel={copyLabel}
-                copied={copied === 'body'}
-                onCopy={copy}
-              />
-            </StepItem>
+            <StepBlock title={t('massas.aero.shortcutBlockSingle')}>
+              <StepItem n={15}>
+                <span>{t('massas.aero.shortcutStepElse')}</span>
+              </StepItem>
 
-            <StepItem n={16}>
-              <span>{t('massas.aero.shortcutStepSingleEncode')}</span>
-            </StepItem>
+              {/* `body` no puede quedar con ese nombre en la misma receta que `bodies`: iOS resuelve por
+                  variable y el POST individual salía con el último elemento de la repetición. */}
+              <StepItem n={16}>
+                <span className="font-semibold text-amber-900">{t('massas.aero.shortcutStepBodyItem')}</span>
+                <RecipeValue
+                  id="body"
+                  label={keyLabel}
+                  value={recipe.keys.body}
+                  copyLabel={copyLabel}
+                  copied={copied === 'body'}
+                  onCopy={copy}
+                />
+              </StepItem>
 
-            <StepItem n={17}>
-              <span>{t('massas.aero.shortcutStepBack')}</span>
-            </StepItem>
-          </ol>
+              <StepItem n={17}>
+                <span>{t('massas.aero.shortcutStepSingleFetch')}</span>
+              </StepItem>
+
+              <StepItem n={18}>
+                <span>{t('massas.aero.shortcutStepSingleEncode')}</span>
+              </StepItem>
+            </StepBlock>
+
+            <StepBlock title={t('massas.aero.shortcutBlockReturn')}>
+              <StepItem n={19}>
+                <span>{t('massas.aero.shortcutStepEndIf')}</span>
+              </StepItem>
+
+              <StepItem n={20}>
+                <span>{t('massas.aero.shortcutStepBack')}</span>
+              </StepItem>
+            </StepBlock>
+          </div>
 
           <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-xs leading-relaxed text-emerald-900">
             {t('massas.aero.shortcutDone')}

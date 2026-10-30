@@ -25,6 +25,16 @@ export const AERO_INTEGRATION_USERNAME = 'wilkin';
 export const AERO_DEFAULT_BRIDGE_SHORTCUT_NAME = 'Aero32 Bridge';
 
 /**
+ * The shortcut Wilkin built and certified on his own iPhone.
+ *
+ * Building twenty actions by hand is where a new phone loses a step, so this link is the main path: it opens
+ * the Atajos app with the shortcut ready to install, and the recipe below stays as the explanation and as the
+ * fallback for a phone that cannot reach iCloud.
+ */
+export const AERO_SHORTCUT_ICLOUD_URL =
+  'https://www.icloud.com/shortcuts/3216695a428f42539fec7abbd5419f34';
+
+/**
  * The name the split design used for the launch shortcut, kept only as the key of the settings migration.
  *
  * A phone that stored it gets {`Aero32 Bridge` instead, because that shortcut no
@@ -935,9 +945,10 @@ export interface AeroBridgeShortcutRecipe {
   /** The header value the page now puts in each envelope, quoted so the panel can show it. */
   authorization: string;
   /**
-   * How many actions the recipe really takes on the phone: the dictionary read, the five values, the
-   * `bodies` test, the repeat with its two steps, the join, the bracket, the encode, the single-product
-   * branch with its two steps, and the open. Seventeen counting both branches.
+   * How many actions the recipe really takes on the phone, in four blocks: unpacking the envelope (five
+   * reads), the batch branch (the `bodies` test, the empty list, the repeat, the join, the bracket and the
+   * encode), the single-product branch (the `body_item` rename, its POST and its encode) and the return.
+   * Twenty counting both branches, which is what the certified shortcut has.
    */
   actionCount: number;
   /** The endpoints the one bridge can reach, so the dialog never understates what it covers. */
@@ -949,10 +960,11 @@ export interface AeroBridgeShortcutRecipe {
 /**
  * The bridge recipe, in the shape the dialog copies it.
  *
- * Counted honestly, and in two branches: the batch branch (a `bodies` test, a repeat that posts each element
- * and appends it, a join, a bracket and an encode) and the single-product branch that was already in
- * production (one POST and its encode). Seventeen actions, one shortcut, and a phone with the old eight
- * still works because it ignores `bodies` and posts `body`.
+ * Counted honestly, and in four blocks: unpacking the envelope, the batch branch (a `bodies` test, an empty
+ * `respostas`, a repeat that posts each element and appends it, a join, a bracket and an encode), the
+ * single-product branch (the `body_item` rename, its POST and its encode) and the return to Safari. Twenty
+ * actions, one shortcut, and a phone with the old eight still works because it ignores `bodies` and posts
+ * `body`.
  */
 export function aeroBridgeShortcutRecipe(args: {
   wsUrl: string;
@@ -974,7 +986,7 @@ export function aeroBridgeShortcutRecipe(args: {
     contentType: 'application/json',
     accept: 'application/json',
     authorization: basicAuthHeader(args.username, args.password),
-    actionCount: 17,
+    actionCount: 20,
     endpoints: {
       entrada: aeroEndpoint(args.wsUrl, 'entradasitem'),
       // El lote va al mismo endpoint, una vez por producto: el atajo repite la petición.

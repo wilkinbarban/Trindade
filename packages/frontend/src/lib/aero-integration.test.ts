@@ -7,6 +7,7 @@ import {
   AERO_INTEGRATION_USERNAME,
   AERO_PENDING_SYNC_STORAGE_KEY,
   AERO_SETTINGS_STORAGE_KEY,
+  AERO_SHORTCUT_ICLOUD_URL,
   AERO_ENTRY_SERIES,
   AERO_TEST_TIMEOUT_MS,
   DEFAULT_AERO_SETTINGS,
@@ -953,8 +954,19 @@ describe('aero-integration: the bridge shortcut recipe', () => {
       callback: 'callback',
     });
     assert.equal(recipe.contentType, 'application/json');
-    // Diecisiete contando las dos ramas: la de un producto y la del lote.
-    assert.equal(recipe.actionCount, 17);
+    // Veinte contando las dos ramas: la de un producto y la del lote, más el renombre a `body_item` y el
+    // cierre del `Si`. Es el número que Wilkin validó contra su enlace de iCloud.
+    assert.equal(recipe.actionCount, 20);
+  });
+
+  it('points at the certified shortcut, so a new phone installs it instead of building it', () => {
+    // El enlace es el camino principal: veinte acciones a mano en un teléfono nuevo es donde se pierde un
+    // paso. La receta queda como respaldo, no como la única forma de instalar.
+    assert.equal(AERO_SHORTCUT_ICLOUD_URL, 'https://www.icloud.com/shortcuts/3216695a428f42539fec7abbd5419f34');
+    const url = new URL(AERO_SHORTCUT_ICLOUD_URL);
+    assert.equal(url.protocol, 'https:');
+    assert.equal(url.host, 'www.icloud.com');
+    assert.match(url.pathname, /^\/shortcuts\/[0-9a-f]{32}$/);
   });
 
   it('asks the recipe to read only keys the envelope really carries', () => {
