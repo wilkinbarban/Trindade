@@ -111,6 +111,7 @@ export function MassasUnifiedTable({
                           onClick={() =>
                             onImport({
                               entLan: row.entLans[0],
+                              operatorName: row.operatorName,
                               productCode: row.productCode,
                               boxes: row.boxes,
                               date,

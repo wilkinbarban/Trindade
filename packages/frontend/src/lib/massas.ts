@@ -16,6 +16,8 @@ export interface MassaIndividualLaunch {
   user_id: number;
   username: string;
   display_name: string;
+  /** The ERP seat this launch was imported from; null when it was typed here. */
+  ent_lan?: number | null;
   created_at: string;
   updated_at: string;
 }

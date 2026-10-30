@@ -1305,6 +1305,34 @@ describe('aero-integration: ERP movements mirror', () => {
     assert.deepEqual(reconciliation.unmatchedLaunchIds, [4]);
   });
 
+  it('pairs a launch with the seat it was imported from, whatever the operator names say', () => {
+    // The tablet recorded the seat under VICTOR; the import landed in Trindade under whoever pressed the
+    // button. Before the seat was stored, the name was the only bridge and it refused this pair forever.
+    const seats = [
+      { entLan: 35937, productCode: '005000', productDesc: 'MASSA ROLO 1KG', quantity: 270, entryDate: '2026-10-30', operatorName: 'VICTOR', movementType: 'E' as const },
+    ];
+    const reconciliation = reconcileAeroMovements(seats, [
+      { id: 90, launch_date: '2026-10-30', product_code: '5000', units: 270, username: 'wilkin', ent_lan: 35937 },
+    ]);
+
+    assert.deepEqual(reconciliation.reconciled, [35937]);
+    assert.deepEqual(reconciliation.matchedLaunchIds, [90]);
+    assert.deepEqual(reconciliation.unmatchedLaunchIds, []);
+  });
+
+  it('lets the seat win over the name, so a typed launch keeps waiting for its own seat', () => {
+    const seats = [
+      { entLan: 35937, productCode: '005000', productDesc: 'MASSA ROLO 1KG', quantity: 270, entryDate: '2026-10-30', operatorName: 'VICTOR', movementType: 'E' as const },
+    ];
+    const reconciliation = reconcileAeroMovements(seats, [
+      { id: 90, launch_date: '2026-10-30', product_code: '5000', units: 270, username: 'victor', ent_lan: 35937 },
+      { id: 91, launch_date: '2026-10-30', product_code: '5000', units: 270, username: 'victor' },
+    ]);
+
+    assert.deepEqual(reconciliation.matchedLaunchIds, [90]);
+    assert.deepEqual(reconciliation.unmatchedLaunchIds, [91]);
+  });
+
   it('does not reconcile across days', () => {
     const seats = [
       { entLan: 9, productCode: '001192', productDesc: 'X', quantity: 90, entryDate: '2026-10-27', operatorName: 'A', movementType: 'E' as const },

@@ -188,6 +188,31 @@ export function aeroMirrorSeats(
  * product, and the units fit whole boxes -- a launch here is counted in boxes, and inventing a fraction
  * would record something the factory never counted.
  */
+/**
+ * The body the import sends: the boxes, plus the identity of the seat they came from.
+ *
+ * The seat and its operator are what make the imported launch pair with the company's record; a launch
+ * without them belongs to whoever pressed the button and can only be matched by name, which is a guess
+ * between two people.
+ */
+export function aeroImportPayload(
+  movement: Pick<AeroErpMovementItem, 'entLan' | 'operatorName'>,
+  plan: AeroImportPlan,
+  date: string,
+): {
+  date: string;
+  ent_lan: number;
+  operator_name: string;
+  items: { product_code: string; boxes: number }[];
+} {
+  return {
+    date,
+    ent_lan: movement.entLan,
+    operator_name: movement.operatorName.trim(),
+    items: [{ product_code: plan.productCode, boxes: plan.boxes }],
+  };
+}
+
 export function aeroImportPlan(
   movement: AeroErpMovementItem,
   products: readonly AeroImportProduct[],

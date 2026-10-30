@@ -68,6 +68,7 @@ import {
   type AeroSyncFeedback,
 } from '../lib/aero-feedback';
 import {
+  aeroImportPayload,
   aeroMovementsEnvelope,
   lastSyncLabel,
   readAeroMovementsSnapshot,
@@ -515,16 +516,23 @@ export function MassasLaunchPage() {
    */
   const handleImportErpSeat = async (request: {
     entLan: number;
+    operatorName: string;
     productCode: string;
     boxes: number;
     date: string;
   }) => {
     setImportingEntLan(request.entLan);
     try {
-      await api.post('/massas-launch', {
-        date: request.date,
-        items: [{ product_code: request.productCode, boxes: request.boxes }],
-      });
+      // The seat and the operator the tablet wrote travel with the boxes: without them the launch belongs
+      // to whoever pressed Importar and can only be paired by name, which is how a seat never settled.
+      await api.post(
+        '/massas-launch',
+        aeroImportPayload(
+          { entLan: request.entLan, operatorName: request.operatorName },
+          { productCode: request.productCode, boxes: request.boxes },
+          request.date,
+        ),
+      );
       setNotice({ type: 'success', message: t('massas.erp.imported') });
       await Promise.all([load(date), loadMirror(date)]);
     } catch (err) {

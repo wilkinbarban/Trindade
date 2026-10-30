@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { basicAuthHeader } from './aero-integration';
 import {
+  aeroImportPayload,
   aeroImportPlan,
   aeroMirrorSeats,
   aeroMovementsEnvelope,
@@ -186,6 +187,17 @@ describe('aero-mirror: bringing an ERP seat into Trindade', () => {
   it('refuses an empty or fractional quantity', () => {
     assert.equal(aeroImportPlan(seat({ quantity: 0 }), catalog), null);
     assert.equal(aeroImportPlan(seat({ quantity: 4.5 }), catalog), null);
+  });
+
+  it('sends the seat and the operator the tablet wrote, not the importer', () => {
+    // Without these two the launch belongs to whoever pressed the button and the seat is forgotten, which
+    // is exactly the pair that never reconciled.
+    assert.deepEqual(aeroImportPayload(seat({ entLan: 35937, operatorName: 'VICTOR' }), { productCode: '5000', boxes: 27 }, '2026-10-30'), {
+      date: '2026-10-30',
+      ent_lan: 35937,
+      operator_name: 'VICTOR',
+      items: [{ product_code: '5000', boxes: 27 }],
+    });
   });
 });
 

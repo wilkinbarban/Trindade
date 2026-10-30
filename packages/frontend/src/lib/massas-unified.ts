@@ -54,6 +54,8 @@ export interface MassasUnifiedInput {
 /** What importing a seat sends: the seat, its product, the whole boxes it fits and the day it belongs to. */
 export interface AeroImportRequest {
   entLan: number;
+  /** The operator the tablet wrote on the seat; the import belongs to them, not to whoever pressed. */
+  operatorName: string;
   productCode: string;
   boxes: number;
   date: string;

@@ -37,6 +37,7 @@ function launch(args: Partial<MassaIndividualLaunch> & { id: number }): MassaInd
     user_id: 1,
     username: args.username ?? 'alice',
     display_name: args.display_name ?? 'Alice',
+    ent_lan: args.ent_lan ?? null,
     created_at: `${DATE} 10:00:00`,
     updated_at: `${DATE} 10:00:00`,
   };
@@ -106,6 +107,28 @@ describe('massasUnifiedRows', () => {
     assert.equal(rows[0].state, 'reconciled');
     assert.deepEqual(rows[0].launchIds, [1]);
     assert.equal(rows[0].units, 20);
+  });
+
+  /**
+   * The production defect, as a row: the tablet recorded the seat under VICTOR, the import landed under
+   * Wilkin, and the name comparison refused the pair. The seat stayed erpOnly, the Importar button stayed on
+   * screen, and every click added another orphan launch to the day.
+   */
+  it('settles a seat imported by another operator, using the seat stored with the launch', () => {
+    const rows = massasUnifiedRows(
+      input({
+        launches: [
+          launch({ id: 90, product_code: '1047', boxes: 3, username: 'wilkin', display_name: 'Wilkin', ent_lan: 35937 }),
+        ],
+        movements: [seat({ entLan: 35937, productCode: '001047', quantity: 18, operatorName: 'VICTOR' })],
+      }),
+    );
+
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].state, 'reconciled');
+    assert.deepEqual(rows[0].launchIds, [90]);
+    // No leftover erpOnly row means no leftover Importar button.
+    assert.equal(rows.some((row) => row.state === 'erpOnly'), false);
   });
 
   it('keeps a launch Delphi has not seen as pending, and remembers the day it was already carried', () => {

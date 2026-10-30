@@ -170,7 +170,10 @@ describe('aero bridge wiring: the ERP mirror', () => {
   });
 
   it('imports a seat as a new local launch and never writes to the company record', () => {
-    assert.ok(launch.includes("api.post('/massas-launch'"));
+    assert.match(launch, /api\.post\(\s*'\/massas-launch'/);
+    // El cuerpo lleva el asiento y su operador: sin ellos el lanzamiento queda a nombre de quien apretó el
+    // botón y no hay forma de conciliarlo con la tableta.
+    assert.ok(launch.includes('aeroImportPayload('));
     assert.equal(/api\.(put|del)\(`\/integration\/aero/.test(launch), false);
     assert.equal(/integration\/aero\/movements`\s*,\s*\{?\s*method: 'PUT'/.test(launch), false);
   });

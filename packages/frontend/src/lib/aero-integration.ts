@@ -755,6 +755,8 @@ export interface AeroLocalLaunchLike {
    * record the same boxes on the same day and one of them may never have opened Trindade.
    */
   username: string;
+  /** The ERP seat this launch was imported from, when it came from one. */
+  ent_lan?: number | null;
 }
 
 export interface AeroMovementReconciliation {
@@ -786,8 +788,30 @@ export function reconcileAeroMovements(
   movements: readonly AeroErpMovementItem[],
   launches: readonly AeroLocalLaunchLike[],
 ): AeroMovementReconciliation {
+  const reconciled: number[] = [];
+  const matchedLaunchIds: number[] = [];
+  const consumed = new Set<number>();
+
+  // First pass: a launch imported from a seat is the same row of the company's book, so it pairs whatever
+  // the operator names say. The name was never enough -- the tablet writes VICTOR where Trindade has
+  // wilkin -- and refusing that pair left the seat importable forever.
+  const bySeat = new Map<number, number>();
+  for (const launch of launches) {
+    if (launch.ent_lan !== null && launch.ent_lan !== undefined) bySeat.set(launch.ent_lan, launch.id);
+  }
+  for (const movement of movements) {
+    if (movement.movementType !== 'E') continue;
+    const id = bySeat.get(movement.entLan);
+    if (id === undefined || consumed.has(id)) continue;
+    consumed.add(id);
+    reconciled.push(movement.entLan);
+    matchedLaunchIds.push(id);
+  }
+
+  // Second pass: what the plant typed here has no seat, so it still pairs on day, product, units and name.
   const byKey = new Map<string, number[]>();
   for (const launch of launches) {
+    if (consumed.has(launch.id)) continue;
     const key = aeroReconciledKey(
       aeroMovementKey(launch.launch_date, launch.product_code, launch.units),
       launch.username,
@@ -797,10 +821,10 @@ export function reconcileAeroMovements(
     else byKey.set(key, [launch.id]);
   }
 
-  const reconciled: number[] = [];
-  const matchedLaunchIds: number[] = [];
+  const takenSeats = new Set(reconciled);
   for (const movement of movements) {
     if (movement.movementType !== 'E') continue;
+    if (takenSeats.has(movement.entLan)) continue;
     const operator = aeroOperatorKey(movement.operatorName);
     if (!operator) continue;
     const key = aeroReconciledKey(
