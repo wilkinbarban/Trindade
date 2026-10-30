@@ -98,3 +98,36 @@ export const MassasErrorResponseSchema = z
   .strict();
 
 
+
+/**
+ * The reconciled day: what the plant really made, from both screens that record it.
+ *
+ * It is the shape the integral report and the unified table read, so the contract describes it instead of
+ * letting the route answer a body nobody published.
+ */
+export const MassasReportBalanceSchema = z.object({
+  producedUnits: z.number(),
+  registeredUnits: z.number(),
+  differenceUnits: z.number(),
+  reconciledSeats: z.number(),
+  pendingSeats: z.number(),
+});
+
+export const MassasReportOperatorSchema = z.object({
+  operatorKey: z.string(),
+  displayName: z.string(),
+  boxes: z.number(),
+  units: z.number(),
+  entLans: z.array(z.number()),
+  onlyErp: z.boolean(),
+});
+
+export const MassasReportDayViewSchema = z.object({
+  date: z.string(),
+  operators: z.array(MassasReportOperatorSchema),
+  products: z.array(MassaProductTotalSchema),
+  totalBoxes: z.number(),
+  totalUnits: z.number(),
+  balance: MassasReportBalanceSchema,
+  reconciledEntLans: z.array(z.number()),
+});

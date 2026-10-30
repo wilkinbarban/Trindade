@@ -50,11 +50,11 @@ import {
   aeroTestResultEvent,
   clearAeroPendingTest,
   loadAeroPendingTest,
+  saveAeroTestOutcome,
   type AeroTestOutcome,
 } from '../lib/aero-test';
 import { clearAeroQueue, readAeroQueue, takeAeroBatch, writeAeroQueue, type AeroQueue } from '../lib/aero-queue';
 import { AERO_BATCH_MAX, buildAeroLaunchTrips } from '../lib/aero-batch';
-import { AeroIntegrationPanel } from './massas/AeroIntegrationPanel';
 import { formatDateLabel } from '../lib/date';
 import { AeroResultDialog } from './massas/AeroResultDialog';
 import {
@@ -651,6 +651,8 @@ export function MassasLaunchPage() {
         aeroTestResultEvent({ verdict: parsed.verdict, raw: parsed.raw, destinationUrl }),
       );
       setAeroTestOutcome({ verdict: parsed.verdict, raw: parsed.raw, destinationUrl });
+      // The panel that asked for this test may now be the one in the admin area, one trip away.
+      saveAeroTestOutcome({ verdict: parsed.verdict, raw: parsed.raw, destinationUrl });
       return;
     }
 
@@ -829,6 +831,7 @@ export function MassasLaunchPage() {
       clearAeroPendingTest();
       void postAeroAuditEvent(aeroTestNoVerdictEvent({ destinationUrl: pending.destinationUrl }));
       setAeroTestOutcome({ verdict: 'unknown', raw: '', destinationUrl: pending.destinationUrl });
+      saveAeroTestOutcome({ verdict: 'unknown', raw: '', destinationUrl: pending.destinationUrl });
     };
     document.addEventListener('visibilitychange', onVisibility);
     return () => document.removeEventListener('visibilitychange', onVisibility);
@@ -993,16 +996,6 @@ export function MassasLaunchPage() {
               </div>
             ) : undefined
           }
-        />
-      )}
-
-      {/* Company integration: settings and the shortcut recipe, only for the owner admin. */}
-      {aeroAllowed && (
-        <AeroIntegrationPanel
-          settings={aeroSettings}
-          onSettingsSaved={setAeroSettings}
-          testOutcome={aeroTestOutcome}
-          onTestOutcomeHandled={handleTestOutcomeHandled}
         />
       )}
 

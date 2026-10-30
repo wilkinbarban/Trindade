@@ -119,6 +119,7 @@ import {
   MassasLaunchCreateResponseSchema,
   MassasLaunchDayViewSchema,
   MassasLaunchDeleteResponseSchema,
+  MassasReportDayViewSchema,
   MassasLaunchUpdateBodySchema,
   MassasErrorResponseSchema,
 } from '../modules/massas/massas.schema.js';
@@ -333,6 +334,7 @@ registerComponent(registry, 'StockHistory', StockHistorySchema);
   registerComponent(registry, 'MassasLaunchDeleteResponse', MassasLaunchDeleteResponseSchema);
   registerComponent(registry, 'MassaHistoryDay', MassaHistoryDaySchema);
   registerComponent(registry, 'MassasHistoryResponse', MassasHistoryResponseSchema);
+  registerComponent(registry, 'MassasReportDayView', MassasReportDayViewSchema);
   registerComponent(registry, 'AeroLogRequest', AeroLogBodySchema);
   registerComponent(registry, 'AeroLogResponse', AeroLogResponseSchema);
   registerComponent(registry, 'AeroMovement', AeroMovementSchema);
@@ -1510,6 +1512,21 @@ registerComponent(registry, 'StockHistory', StockHistorySchema);
     responses: {
       200: jsonResponse('The day view with collective totals and individual launches', MassasLaunchDayViewSchema),
       400: massasErrorResponse('The query parameters failed validation'),
+      401: UNAUTHORIZED,
+    },
+  });
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/massas-launch/report',
+    summary: 'Read the plant day reconciled with the company ERP',
+    description:
+      'The day as the factory really produced it: the Trindade launches plus the seats the company tablet ' +
+      'recorded, each box counted once, with the balance between what was registered and what was produced.',
+    tags: ['massas'],
+    responses: {
+      200: jsonResponse('The reconciled day view', MassasReportDayViewSchema),
+      400: massasErrorResponse('The date failed validation'),
       401: UNAUTHORIZED,
     },
   });

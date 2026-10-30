@@ -27,7 +27,9 @@ describe('result dialogs wiring', () => {
   });
 
   it('opens the connection test window from both channels', () => {
-    assert.ok(panel.includes('connectionVerdictTone(testOutcome.verdict)'));
+    // El veredicto puede llegar por props (lanzamiento) o por almacenamiento (Panel Admin).
+    assert.ok(panel.includes('connectionVerdictTone(outcome.verdict)'));
+    assert.ok(panel.includes('loadAeroTestOutcome()'));
     assert.ok(panel.includes('describeProbe(outcome, t)'));
     assert.ok(panel.includes('testId="aero-test-result-modal"'));
   });

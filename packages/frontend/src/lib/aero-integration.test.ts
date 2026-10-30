@@ -75,7 +75,8 @@ describe('aero-integration: constants & types', () => {
     assert.equal(AERO_DEFAULT_SHORTCUT_NAME, 'Aero32 Estoque');
     assert.equal(AERO_TEST_TIMEOUT_MS, 8000);
     assert.deepEqual(DEFAULT_AERO_SETTINGS, {
-      wsUrl: '',
+      // La dirección de la planta viaja escrita: un teléfono nuevo sólo pregunta quién lanza (S12).
+      wsUrl: 'http://192.168.25.250:1453/api',
       username: '',
       password: '',
       shortcutName: 'Aero32 Bridge',

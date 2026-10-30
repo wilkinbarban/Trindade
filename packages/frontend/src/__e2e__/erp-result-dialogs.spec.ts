@@ -75,11 +75,12 @@ test.describe('result dialogs on a phone screen', () => {
   });
 
   test('the connection test opens its own verdict window', async ({ page }) => {
-    // Only the integration owner sees the panel, so the run needs that account to exist.
+    // The integration lives in the admin area now, so the run needs that account to exist (S11).
     await ensureAeroOwner(page);
     await loginViaApi(page, AERO_OWNER);
-    await page.goto('/massas-launch');
-    await expect(page.getByRole('heading', { name: 'Lançamento de Massas' })).toBeVisible();
+    await page.goto('/admin');
+    await page.locator('[data-testid="admin-tab-integration"]').click();
+    await expect(page.locator('[data-testid="admin-integration-tab"]')).toBeVisible();
 
     // An unconfigured panel starts open; its header toggles, so it is only clicked once the fields are known
     // to be missing. Checking too early toggles a panel that was already open and closes it.

@@ -91,8 +91,11 @@ export interface AeroSettings {
   lastSyncAt: string | null;
 }
 
+/** The plant's own address: a fresh phone only has to type who is launching. */
+export const AERO_DEFAULT_WS_URL = 'http://192.168.25.250:1453/api';
+
 export const DEFAULT_AERO_SETTINGS: AeroSettings = {
-  wsUrl: '',
+  wsUrl: AERO_DEFAULT_WS_URL,
   username: '',
   password: '',
   shortcutName: AERO_DEFAULT_BRIDGE_SHORTCUT_NAME,
@@ -398,6 +401,23 @@ export function formatAeroProductCode(code: string | number | null | undefined):
   if (!clean) return '';
   return clean.length < 6 ? clean.padStart(6, '0') : clean;
 }
+
+/**
+ * Which controls of the integration screen a given operator may actually edit.
+ *
+ * The split is deliberate: the address decides where every launch of the shift goes, so it stays with the
+ * account that owns the integration; the credentials belong to whoever is holding the phone and are typed by
+ * them, on that phone, for that person only.
+ */
+export function aeroSettingsEditable(
+  user: { username: string; role?: string } | null | undefined,
+): { wsUrl: boolean; credentials: boolean } {
+  const username = String(user?.username ?? '').trim().toLowerCase();
+  return { wsUrl: username === AERO_WS_URL_OWNER, credentials: Boolean(username) };
+}
+
+/** The account allowed to move the plant address. Nothing else about him is special here. */
+export const AERO_WS_URL_OWNER = 'wilkin';
 
 /**
  * The origin sentence the ERP keeps for an entry launched here.

@@ -23,6 +23,8 @@ import { AeroResultDialog } from './AeroResultDialog';
 import { postAeroAuditEvent } from '../../lib/aero-audit';
 import {
   aeroTestRequestedEvent,
+  clearAeroTestOutcome,
+  loadAeroTestOutcome,
   saveAeroPendingTest,
   type AeroTestOutcome,
 } from '../../lib/aero-test';
@@ -31,6 +33,12 @@ import { AeroShortcutDialog } from './AeroShortcutDialog';
 interface AeroIntegrationPanelProps {
   settings: AeroSettings;
   onSettingsSaved: (settings: AeroSettings) => void;
+  /** The address is the plant's: only the integration owner may move it (S12). */
+  canEditUrl?: boolean;
+  /** The credentials are the operator's own; nobody else types them (S13). */
+  canEditCredentials?: boolean;
+  /** In its own admin tab the panel is the page, so it opens expanded instead of hiding behind a toggle. */
+  defaultOpen?: boolean;
   /** What the phone brought back from the test shortcut, handed down by the page that owns the callback. */
   testOutcome?: AeroTestOutcome | null;
   onTestOutcomeHandled?: () => void;
@@ -49,11 +57,19 @@ type Notice = { tone: 'ok' | 'warn' | 'error'; text: string };
 export function AeroIntegrationPanel({
   settings,
   onSettingsSaved,
+  canEditUrl = false,
+  canEditCredentials = true,
+  defaultOpen,
   testOutcome,
   onTestOutcomeHandled,
 }: AeroIntegrationPanelProps) {
   const { t } = useTranslation();
-  const [open, setOpen] = useState(() => !aeroSettingsReady(settings));
+  const [open, setOpen] = useState(() => defaultOpen ?? !aeroSettingsReady(settings));
+  // El atajo vuelve siempre a la pantalla de lanzamiento; cuando el panel vive en el Panel Admin, el veredicto
+  // llega por almacenamiento y no por props.
+  const [storedOutcome, setStoredOutcome] = useState<AeroTestOutcome | null>(() =>
+    testOutcome === undefined ? loadAeroTestOutcome() : null,
+  );
   const [draft, setDraft] = useState({
     wsUrl: settings.wsUrl,
     username: settings.username,
@@ -190,24 +206,28 @@ export function AeroIntegrationPanel({
    * inside a collapsed card reads as no result at all.
    */
   useEffect(() => {
-    if (!testOutcome) return;
+    const outcome = testOutcome ?? storedOutcome;
+    if (!outcome) return;
     setOpen(true);
     setProbe(null);
     setBusy(null);
     const text =
-      testOutcome.verdict === 'ok'
+      outcome.verdict === 'ok'
         ? t('massas.aero.testShortcutOk')
-        : testOutcome.verdict === 'error'
+        : outcome.verdict === 'error'
           ? t('massas.aero.testShortcutError')
           : t('massas.aero.testShortcutUnknown');
     setNotice({
-      tone: testOutcome.verdict === 'ok' ? 'ok' : testOutcome.verdict === 'error' ? 'error' : 'warn',
+      tone: outcome.verdict === 'ok' ? 'ok' : outcome.verdict === 'error' ? 'error' : 'warn',
       text,
     });
-    setTestResult({ tone: connectionVerdictTone(testOutcome.verdict), message: text });
+    setTestResult({ tone: connectionVerdictTone(outcome.verdict), message: text });
     scrollToNotice.current = true;
+    // El veredicto se consumió: guardarlo haría que el panel lo repita en la próxima visita.
+    clearAeroTestOutcome();
+    setStoredOutcome(null);
     onTestOutcomeHandled?.();
-  }, [testOutcome, onTestOutcomeHandled, t]);
+  }, [testOutcome, storedOutcome, onTestOutcomeHandled, t]);
 
   /**
    * El veredicto se lee solo si se ve.
@@ -285,9 +305,15 @@ export function AeroIntegrationPanel({
               placeholder={t('massas.aero.urlPlaceholder')}
               value={draft.wsUrl}
               onChange={(event) => setDraft((current) => ({ ...current, wsUrl: event.target.value }))}
-              className="h-11 text-base"
+              disabled={!canEditUrl}
+              readOnly={!canEditUrl}
+              aria-describedby="aero-ws-url-note"
+              className="h-11 text-base read-only:bg-gray-50 read-only:text-gray-600"
               data-testid="aero-ws-url"
             />
+            <p id="aero-ws-url-note" className="text-[11px] text-gray-500 leading-relaxed">
+              {canEditUrl ? t('massas.aero.urlEditable') : t('massas.aero.urlLocked')}
+            </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -303,6 +329,8 @@ export function AeroIntegrationPanel({
                 autoComplete="off"
                 value={draft.username}
                 onChange={(event) => setDraft((current) => ({ ...current, username: event.target.value }))}
+                disabled={!canEditCredentials}
+                readOnly={!canEditCredentials}
                 className="h-11 text-base"
                 data-testid="aero-ws-user"
               />
@@ -317,6 +345,8 @@ export function AeroIntegrationPanel({
                 autoComplete="off"
                 value={draft.password}
                 onChange={(event) => setDraft((current) => ({ ...current, password: event.target.value }))}
+                disabled={!canEditCredentials}
+                readOnly={!canEditCredentials}
                 className="h-11 text-base"
                 data-testid="aero-ws-pass"
               />

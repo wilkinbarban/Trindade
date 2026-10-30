@@ -14,8 +14,10 @@ test.use({ viewport: { width: 375, height: 667 } });
 
 async function openShortcutDialog(page: import('@playwright/test').Page) {
   await loginAsAeroOwner(page);
-  await page.goto('/massas-launch');
-  await expect(page.getByRole('heading', { name: 'Lançamento de Massas' })).toBeVisible();
+  // La receta del atajo vive ahora en el Panel Admin: producción quedó sin configuración técnica (S11).
+  await page.goto('/admin');
+  await page.locator('[data-testid="admin-tab-integration"]').click();
+  await expect(page.locator('[data-testid="admin-integration-tab"]')).toBeVisible();
 
   const open = page.getByRole('button', { name: /Instalar Atalho no iPhone/ });
   await expect(open).toBeVisible({ timeout: 15000 });

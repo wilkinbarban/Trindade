@@ -9,6 +9,12 @@ import { LoadingSpinner } from '../../components/ui/loading-spinner';
 import { passwordIssue, passwordIssueKey } from '../../lib/password-policy';
 import { cleanPhone, filterPhoneInput } from '../../lib/phone';
 import { ROLE_ID } from '../../lib/roles';
+import { AeroIntegrationPanel } from '../massas/AeroIntegrationPanel';
+import {
+  aeroSettingsEditable,
+  loadAeroSettings,
+  type AeroSettings,
+} from '../../lib/aero-integration';
 
 /**
  * The hint under a new-password field.
@@ -81,7 +87,7 @@ interface User {
   is_active: number;
 }
 
-type TabKey = 'categories' | 'tasks' | 'drivers' | 'vehicles' | 'timeSlots' | 'workers' | 'profile';
+type TabKey = 'categories' | 'tasks' | 'drivers' | 'vehicles' | 'timeSlots' | 'workers' | 'integration' | 'profile';
 
 interface Tab {
   key: TabKey;
@@ -96,6 +102,7 @@ function getTabs(t: (key: string) => string): Tab[] {
     { key: 'vehicles', labelKey: 'admin.tabs.vehicles' },
     { key: 'timeSlots', labelKey: 'admin.tabs.timeSlots' },
     { key: 'workers', labelKey: 'admin.tabs.workers' },
+    { key: 'integration', labelKey: 'admin.tabs.integration' },
     { key: 'profile', labelKey: 'admin.tabs.profile' },
   ];
 }
@@ -181,11 +188,14 @@ export function AdminDashboard() {
 
   const isAdmin = user?.role === 'Administrador';
   const isWorker = user?.role === 'Trabalhador';
+  // La integración la ve todo el mundo: el operario configura sus credenciales y el atajo desde su teléfono.
   const TABS = getTabs(t).filter((tab) =>
-    isWorker ? ['tasks', 'drivers', 'profile'].includes(tab.key) : tab.key !== 'profile'
+    isWorker ? ['tasks', 'drivers', 'integration', 'profile'].includes(tab.key) : tab.key !== 'profile'
   );
 
   const [activeTab, setActiveTab] = useState<TabKey>(isWorker ? 'tasks' : 'categories');
+  const [aeroSettings, setAeroSettings] = useState<AeroSettings>(loadAeroSettings);
+  const aeroSettingsAccess = aeroSettingsEditable(user ? { username: user.username, role: user.role } : null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -311,7 +321,7 @@ export function AdminDashboard() {
   }, [t, user, isAdmin, isWorker]);
 
   useEffect(() => {
-    if (isWorker && !['tasks', 'drivers', 'profile'].includes(activeTab)) {
+    if (isWorker && !['tasks', 'drivers', 'integration', 'profile'].includes(activeTab)) {
       setActiveTab('tasks');
       return;
     }
@@ -792,6 +802,7 @@ export function AdminDashboard() {
           <button
             key={tab.key}
             onClick={() => { setActiveTab(tab.key); handleCancel(); }}
+            data-testid={`admin-tab-${tab.key}`}
             className={`px-3 py-1.5 text-sm rounded-md transition-colors shrink-0 ${
               activeTab === tab.key
                 ? 'bg-blue-100 text-blue-700 font-medium'
@@ -1092,8 +1103,25 @@ export function AdminDashboard() {
         </form>
       )}
 
+      {/* Integração ERP / Aero32: configuración, credenciales y atajo, fuera de la pantalla de producción. */}
+      {activeTab === 'integration' && (
+        <div data-testid="admin-integration-tab" className="space-y-3">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">{t('admin.integration.title')}</h2>
+            <p className="text-xs text-gray-500">{t('admin.integration.subtitle')}</p>
+          </div>
+          <AeroIntegrationPanel
+            settings={aeroSettings}
+            onSettingsSaved={setAeroSettings}
+            canEditUrl={aeroSettingsAccess.wsUrl}
+            canEditCredentials={aeroSettingsAccess.credentials}
+            defaultOpen
+          />
+        </div>
+      )}
+
       {/* Data tables */}
-      <Card>
+      <Card className={activeTab === 'integration' ? 'hidden' : undefined}>
         <CardContent className="pt-4">
           {/* Categories */}
           {activeTab === 'categories' && (

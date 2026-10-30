@@ -240,7 +240,8 @@
       "vehicles": "Vehículos",
       "timeSlots": "Horarios",
       "workers": "Trabajadores",
-      "profile": "Perfil"
+      "profile": "Perfil",
+      "integration": "Integración ERP"
     },
     "accessDenied": "Acceso Restringido",
     "accessDeniedDesc": "Esta área es exclusiva para administradores.",
@@ -355,6 +356,10 @@
       "passwordSuccess": "Contraseña actualizada con éxito",
       "profileAndPasswordSuccess": "Perfil y contraseña actualizados con éxito",
       "saveError": "Error al actualizar perfil"
+    },
+    "integration": {
+      "title": "Integração ERP / Aero32",
+      "subtitle": "Configuración de la empresa, sus credenciales y el atajo del teléfono."
     }
   },
   "audit": {
@@ -624,7 +629,9 @@
       "shortcutBlockReturn": "D · Retorno a Safari · 19 y 20",
       "shortcutStepReset": "Acción 7 — «Establecer variable»: creá respostas como lista vacía, para que el lote no herede nada de un uso anterior.",
       "shortcutStepBodyItem": "Acción 16 — «Obtener valor del diccionario» con la clave body y renombrá la variable a body_item. No puede quedar body: iOS la confunde con bodies y el cuerpo sale con el último elemento del lote.",
-      "shortcutStepEndIf": "Acción 19 — «Fin del Si»: cierra la condición del paso 6."
+      "shortcutStepEndIf": "Acción 19 — «Fin del Si»: cierra la condición del paso 6.",
+      "urlEditable": "El único admin autorizado a cambiar la dirección de la planta.",
+      "urlLocked": "Dirección fija de la planta. Solo el admin autorizado puede cambiarla."
     },
     "historyShort": "Historial",
     "todayShort": "Hoy",

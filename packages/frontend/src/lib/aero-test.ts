@@ -176,3 +176,44 @@ export function aeroTestNoVerdictEvent(args: { destinationUrl: string }): AeroTe
     note: 'the operator returned without a shortcut result',
   };
 }
+
+/**
+ * The verdict the phone brought back from the test shortcut.
+ *
+ * The shortcut always returns to the launch screen, but the panel that asked for it now lives in the admin
+ * panel, one trip away from the page that receives the answer. Storing it lets the answer survive the
+ * navigation; it is cleared as soon as the panel shows it, so a stale verdict never outlives its trip.
+ */
+const AERO_TEST_OUTCOME_KEY = 'aero_test_outcome';
+
+export function saveAeroTestOutcome(outcome: AeroTestOutcome): void {
+  try {
+    globalThis.localStorage?.setItem(AERO_TEST_OUTCOME_KEY, JSON.stringify(outcome));
+  } catch {
+    // Storage disabled: the launch screen already showed the answer, and nothing is owed to the panel.
+  }
+}
+
+export function loadAeroTestOutcome(): AeroTestOutcome | null {
+  try {
+    const raw = globalThis.localStorage?.getItem(AERO_TEST_OUTCOME_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<AeroTestOutcome>;
+    if (parsed.verdict !== 'ok' && parsed.verdict !== 'error' && parsed.verdict !== 'unknown') return null;
+    return {
+      verdict: parsed.verdict,
+      raw: String(parsed.raw ?? ''),
+      destinationUrl: String(parsed.destinationUrl ?? ''),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function clearAeroTestOutcome(): void {
+  try {
+    globalThis.localStorage?.removeItem(AERO_TEST_OUTCOME_KEY);
+  } catch {
+    // Nothing to clear when nothing could be written.
+  }
+}
