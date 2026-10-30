@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, type FormEvent } from 'react';
+import { Fragment, useEffect, useState, useCallback, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { LucideImage, LucideTrash2, LucideUpload } from 'lucide-react';
@@ -13,6 +13,7 @@ import {
   type FormState,
 } from '../components/reports/CategorySection';
 import { ReceiptsSection } from '../components/reports/ReceiptsSection';
+import { hasTemperatureTasks } from '../lib/report-sections';
 import { MassasReportSection } from '../components/reports/MassasReportSection';
 import { ERP_RECEIPT_CATEGORY_ID, usesErpReceipts } from '../lib/receipts';
 import { saoPauloToday } from '../lib/date';
@@ -244,6 +245,19 @@ export function ReportsPage() {
   }
 
   // ---- Loading / Error states ----
+  // A produção do dia, dos dois lados que a registram. Uma definição só, porque ela aparece no mesmo lugar
+  // em dois caminhos: debaixo de Temperaturas quando o relatório tem essa categoria, e no topo quando não tem.
+  const massasCard = (
+    <Card className="mb-6" data-testid="report-massas-card">
+      <CardContent className="pt-6">
+        <MassasReportSection date={saoPauloToday()} />
+      </CardContent>
+    </Card>
+  );
+  const massasAfterCategories = categories.some(
+    (cat) => !cat.parent_category_id && hasTemperatureTasks(cat),
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -312,34 +326,33 @@ export function ReportsPage() {
           </CardContent>
         </Card>
 
-        {/* A produção do dia, dos dois lados que a registram. Fica antes das categorias porque é o que o
-            relatório vai contar; as categorias são o que o operador marca. */}
-        <Card className="mb-6" data-testid="report-massas-card">
-          <CardContent className="pt-6">
-            <MassasReportSection date={saoPauloToday()} />
-          </CardContent>
-        </Card>
+        {/* Dynamic category sections. A produção do dia entra logo abaixo de Temperaturas: é a última coisa
+            que o operador lê antes de contar quanto saiu, e separá-las obrigava a subir e descer a página
+            para conferir a mesma manhã duas vezes. */}
+        {!massasAfterCategories && massasCard}
 
-        {/* Dynamic category sections */}
         {categories.filter((cat) => !cat.parent_category_id).map((cat) => (
-          <Card key={cat.id} className="mb-6">
-            <CardContent className="pt-6">
-              {cat.id === ERP_RECEIPT_CATEGORY_ID && usesErpReceipts(saoPauloToday()) ? (
-                // Recebimento já não se marca: o ERP responde pelo dia. O relatório novo nunca é de um dia
-                // anterior ao corte, porque o servidor carimba a data de hoje.
-                <ReceiptsSection date={saoPauloToday()} />
-              ) : (
-              <CategorySection
-                category={cat}
-                children={categories.filter((child) => child.parent_category_id === cat.id)}
-                form={form}
-                onItemChange={handleItemChange}
-                onTemperatureChange={handleTemperatureChange}
-                onSelectedProductsChange={handleSelectedProductsChange}
-              />
-              )}
-            </CardContent>
-          </Card>
+          <Fragment key={cat.id}>
+            <Card className="mb-6">
+              <CardContent className="pt-6">
+                {cat.id === ERP_RECEIPT_CATEGORY_ID && usesErpReceipts(saoPauloToday()) ? (
+                  // Recebimento já não se marca: o ERP responde pelo dia. O relatório novo nunca é de um dia
+                  // anterior ao corte, porque o servidor carimba a data de hoje.
+                  <ReceiptsSection date={saoPauloToday()} />
+                ) : (
+                <CategorySection
+                  category={cat}
+                  children={categories.filter((child) => child.parent_category_id === cat.id)}
+                  form={form}
+                  onItemChange={handleItemChange}
+                  onTemperatureChange={handleTemperatureChange}
+                  onSelectedProductsChange={handleSelectedProductsChange}
+                />
+                )}
+              </CardContent>
+            </Card>
+            {hasTemperatureTasks(cat) && massasCard}
+          </Fragment>
         ))}
 
         {/* Notes */}

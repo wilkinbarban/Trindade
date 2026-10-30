@@ -296,12 +296,6 @@ export function ReportViewPage() {
         );
       })}
 
-      <Card className="mb-4" data-testid="report-massas-card">
-        <CardContent className="pt-6">
-          <MassasReportSection date={report.report_date} />
-        </CardContent>
-      </Card>
-
       {erpReceipts && (
         <Card className="mb-4" data-testid="report-receipts-card">
           <CardContent className="pt-6">
@@ -332,6 +326,12 @@ export function ReportViewPage() {
           </CardContent>
         </Card>
       )}
+
+      <Card className="mb-4" data-testid="report-massas-card">
+        <CardContent className="pt-6">
+          <MassasReportSection date={report.report_date} />
+        </CardContent>
+      </Card>
 
 
 
