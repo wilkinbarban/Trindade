@@ -2,8 +2,8 @@
 
 Artefacto de diseño del salto que Wilkin definió con el orquestador: una sola producción de planta, un
 relatorio que la cuenta completa, y la integración ERP donde se configura y no donde se produce.
-Estado: **implementación en curso** con las decisiones del cierre ya tomadas por Wilkin y registradas en D1–D8.
-T1, T2 y T3 cerrados con commits sobre `main`; T4–T9 pendientes.
+Estado: **implementado y verificado** con las decisiones del cierre ya tomadas por Wilkin y registradas en
+D1–D8. T1–T9 cerrados con commits sobre `main`.
 
 ## Specs
 
@@ -256,10 +256,23 @@ hereda esas aserciones.
 - **T7** (S11, S12, S13, S14, D4) — Pestaña `integration` en `AdminDashboard`, `wsUrl` por defecto y
   read-only salvo `wilkin`, credenciales por operario, iCloud y test habilitados; retiro de
   `AeroIntegrationPanel` de `MassasLaunchPage`; tests de `aeroSettingsEditable` y de cableado.
+  Evidencia: `22abed3`; 371/371 frontend, 583/583 backend, `tsc` limpio, 3/3 E2E
+  `admin-integration.spec.ts` (dueño edita, operario bloqueado, admin que no es dueño bloqueado) y 2/2
+  `aero-shortcut-dialog.spec.ts`. Cerrada también la deuda de contrato de T3: `GET /api/massas-launch/report`
+  quedó publicado en OpenAPI.
 - **T8** (S15, S16) — Barra de balance con `massasBalance` y verificación 375 px/44 px/cero desbordes en los
   tres frentes.
+  Evidencia: `7a02210`; 4/4 puros de `massasBalance` (conciliado + seat, lanzamiento pendiente, mixto, día
+  vacío), 375/375 frontend, `tsc` limpio, 2/2 E2E `massas-unified.spec.ts` a 375 px (barra arriba de las filas,
+  cero desbordes).
+  Decisión de T8: la barra mide las filas que la tabla muestra, así que sigue al filtro de trabajador; el
+  `balance` del reporte mide el día completo desde el ERP. Un seat de un producto fuera de catálogo no genera
+  fila y por lo tanto tampoco suma en la barra, que es lo que el operario puede accionar.
 - **T9** — Cierre: suites frontend y backend, `tsc --noEmit`, Playwright completo, `docker compose up -d
   --build web` y HTTP 200.
+  Evidencia: 375/375 frontend, 583/583 backend, `tsc` limpio, Playwright **80/80** (`a76c16a`, `30724a4`
+  arreglaron dos specs que se contaban las cajas entre sí y una fecha fija que no sobrevivía a una segunda
+  corrida), `docker compose up -d --build web` con la web y `api:200` en `http://localhost:8085`.
 
 ## Log
 
