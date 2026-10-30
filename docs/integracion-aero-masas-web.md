@@ -411,7 +411,33 @@ En la fábrica:
 8. Probar el camino de fallo: apagar el Wi-Fi, lanzar, y confirmar que el lanzamiento **igual** quedó
    guardado en Trindade y que la tarjeta de confirmación manual permite registrar la falla.
 
-## 9. Límites conocidos
+## 9. Errores: qué lee el operario
+
+Toda negativa del módulo de masas viaja con dos campos y en portugués: `code` es el hecho
+(`MASSAS_HISTORY_FROZEN`) y `error` es la frase que el operario puede leer. El código decide antes que la
+frase, porque una frase se reescribe y un código no; la frase es el respaldo de un cliente viejo o de un
+proxy que pierde el campo.
+
+| `code` | HTTP | Lo que dice la pantalla |
+| --- | --- | --- |
+| `MASSAS_HISTORY_FROZEN` | 409 | O histórico de massas é somente leitura: dias passados não podem ser alterados. |
+| `MASSAS_FORBIDDEN` | 403 | Este lançamento pertence a outro operário. |
+| `MASSAS_ALREADY_IMPORTED` | 409 | Este lançamento do ERP já foi importado. |
+| `MASSAS_RECONCILED` | 409 | Esta produção já foi conciliada com o ERP e não pode ser alterada. |
+| `MASSAS_FUTURE_DATE` | 400 | Não é possível lançar em datas futuras. |
+| `MASSAS_NOT_FOUND` | 404 | Lançamento não encontrado. |
+| `MASSAS_INVALID_BOXES` | 400 | Quantidade de caixas inválida. |
+| `MASSAS_CREATE_FAILED`, `…_UPDATE_FAILED`, `…_DELETE_FAILED` | 400 | Não foi possível registrar/atualizar/excluir o lançamento. |
+
+El resto de los códigos (`MASSAS_INVALID_DATE_FORMAT`, `MASSAS_INVALID_LAUNCH_DATA`, `MASSAS_EMPTY_ITEMS`,
+`MASSAS_INVALID_ID`) siguen la misma regla y tienen su frase en la tabla de i18n de la Web.
+
+La frase del servicio no viaja al cliente: un fallo interno responde `MASSAS_CREATE_FAILED` con el texto
+genérico y deja el detalle en el log. Si el código es uno que esta versión no conoce —un backend más nuevo
+que la app—, Android muestra la frase del servidor tal como llegó, y sólo si no hay frase cae al código
+con el número de estado.
+
+## 10. Límites conocidos
 
 - El Atajo necesita el teléfono en la red de la fábrica; no hay acceso remoto al WebService.
 - Sin retorno del Atajo (el operador lo cancela), la página no puede adivinar el resultado: lo pregunta.
@@ -422,7 +448,7 @@ En la fábrica:
 - La respuesta vuelve por la URL del callback: un rango de movimientos muy grande puede superar lo que iOS
   está dispuesto a abrir. Es un motivo más para no pedir historiales largos desde el teléfono.
 
-## 10. Evolución y Roadmap: Bajas de Stock y Consulta de Movimientos
+## 11. Evolución y Roadmap: Bajas de Stock y Consulta de Movimientos
 
 A partir de la ingeniería inversa de `base.apk`, el modelo de datos de la empresa soporta dos
 funcionalidades clave a incorporar. El contrato ya está listo -- el atajo único sabe llevar `saidasitem` y

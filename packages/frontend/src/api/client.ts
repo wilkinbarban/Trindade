@@ -261,7 +261,10 @@ async function request<T>(
   if (!response.ok) {
     // Las dos claves: la guarda del invitado responde { message } y el resto de la API responde { error }.
     const rawError = (data && (data.message || data.error)) || '';
-    const mappedKey = resolveApiErrorKey(response.status, rawError);
+    // The semantic code travels with the sentence: a translated backend or a rewording must not turn a
+    // known refusal into a raw message on screen.
+    const rawCode = (data && (data as { code?: string }).code) || '';
+    const mappedKey = resolveApiErrorKey(response.status, rawError, rawCode);
     const message = mappedKey ? i18n.t(mappedKey) : (rawError || i18n.t('api.requestFailed'));
 
     // El invitado es de solo lectura: se reconoce ESE rechazo -- y solo ese -- para mostrarle el aviso

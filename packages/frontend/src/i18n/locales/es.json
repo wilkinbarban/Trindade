@@ -695,6 +695,21 @@
     "syncHeader": {
       "action": "Sincronizar con ERP",
       "lastSync": "Último sync"
+    },
+    "error": {
+      "historyFrozen": "El histórico de masas es de solo lectura: los días pasados no pueden modificarse.",
+      "forbidden": "Este lanzamiento pertenece a otro operario.",
+      "alreadyImported": "Este lanzamiento del ERP ya fue importado.",
+      "futureDate": "No es posible lanzar en fechas futuras.",
+      "invalidDate": "Fecha inválida.",
+      "invalidData": "Datos de lanzamiento inválidos.",
+      "emptyItems": "Enviá una lista de ítems o informá producto y cajas.",
+      "invalidId": "Lanzamiento inválido.",
+      "invalidBoxes": "Cantidad de cajas inválida.",
+      "notFound": "Lanzamiento no encontrado.",
+      "createFailed": "No fue posible registrar el lanzamiento.",
+      "updateFailed": "No fue posible actualizar el lanzamiento.",
+      "deleteFailed": "No fue posible eliminar el lanzamiento."
     }
   },
   "moduleHelp": {
