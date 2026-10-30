@@ -57,6 +57,9 @@ import { clearAeroQueue, readAeroQueue, takeAeroBatch, writeAeroQueue, type Aero
 import { AERO_BATCH_MAX, buildAeroLaunchTrips } from '../lib/aero-batch';
 import { formatDateLabel } from '../lib/date';
 import { AeroResultDialog } from './massas/AeroResultDialog';
+import { AeroDeviceBanner } from '../components/aero/AeroDeviceBanner';
+import { useDevice } from '../contexts/DeviceContext';
+import { canControlAero } from '../lib/device-detection';
 import {
   batchSyncFeedback,
   launchMirrorHint,
@@ -113,6 +116,11 @@ export function MassasLaunchPage() {
   const [aeroSettings, setAeroSettings] = useState<AeroSettings>(loadAeroSettings);
   const [aeroTestOutcome, setAeroTestOutcome] = useState<AeroTestOutcome | null>(null);
   const [syncToErp, setSyncToErp] = useState(() => aeroSettings.syncEnabled && aeroSettingsReady(aeroSettings));
+  // El sistema operativo decide si estas acciones pueden mover algo. En una computadora no hay forma de
+  // hablar con Aero32: la tabla y el espejo se ven enteros y deshabilitados, con el banner que dice qué
+  // dispositivo sí puede.
+  const device = useDevice();
+  const deviceLimited = !canControlAero(device);
   const [syncAwaiting, setSyncAwaiting] = useState<{ date: string; remaining: number } | null>(() => {
     const queue = readAeroQueue();
     // The indicator counts products, not trips: "3 pendentes" is what the operator launched, and after a
@@ -868,6 +876,7 @@ export function MassasLaunchPage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-4 pb-12 sm:space-y-6">
+      {aeroAllowed && deviceLimited && <AeroDeviceBanner device={device} />}
       {/* Encabezado y Selección de Fecha. Sin el emoji: en un teléfono la placa del espagueti y el
           botón se llevaban el ancho que el título necesitaba. Debajo de `sm` las acciones bajan a su
           propio renglón y la fecha sigue alcanzable con el pulgar. */}
@@ -890,7 +899,7 @@ export function MassasLaunchPage() {
               <button
                 type="button"
                 onClick={handleSyncFromErp}
-                disabled={mirror.loading || !aeroSettingsReady(aeroSettings)}
+                disabled={mirror.loading || !aeroSettingsReady(aeroSettings) || deviceLimited}
                 className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg bg-amber-600 px-3 text-xs font-semibold text-white transition-colors hover:bg-amber-700 disabled:opacity-50"
                 data-testid="massas-sync-erp"
               >
@@ -977,7 +986,7 @@ export function MassasLaunchPage() {
                   aria-checked={syncToErp}
                   aria-labelledby="aero-sync-label"
                   onClick={() => handleToggleSync(!syncToErp)}
-                  disabled={!aeroSettingsReady(aeroSettings)}
+                  disabled={!aeroSettingsReady(aeroSettings) || deviceLimited}
                   className="inline-flex h-11 w-14 shrink-0 items-center justify-center rounded-full disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
                   data-testid="aero-sync-switch"
                 >
@@ -1048,6 +1057,7 @@ export function MassasLaunchPage() {
           unifiedRows={unifiedRows}
           unifiedDate={date}
           canSync={aeroAllowed && aeroSettingsReady(aeroSettings)}
+          deviceLimited={deviceLimited}
           onSync={handleSyncFromErp}
           onImport={(request) => void handleImportErpSeat(request)}
           importingEntLan={importingEntLan}

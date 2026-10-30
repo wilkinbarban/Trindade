@@ -29,6 +29,9 @@ import {
   type AeroTestOutcome,
 } from '../../lib/aero-test';
 import { AeroShortcutDialog } from './AeroShortcutDialog';
+import { AeroDeviceBanner } from '../../components/aero/AeroDeviceBanner';
+import { useDevice } from '../../contexts/DeviceContext';
+import { canControlAero } from '../../lib/device-detection';
 
 interface AeroIntegrationPanelProps {
   settings: AeroSettings;
@@ -60,6 +63,11 @@ export function AeroIntegrationPanel({
   onTestOutcomeHandled,
 }: AeroIntegrationPanelProps) {
   const { t } = useTranslation();
+  // El sistema operativo decide si este panel puede mover algo. En una computadora la integración se ve
+  // entera y deshabilitada: esconderla haría creer que no existe, y el banner al lado explica qué dispositivo
+  // sí la tiene. Los permisos por rol siguen aplicando encima de esto.
+  const device = useDevice();
+  const deviceLimited = !canControlAero(device);
   // El atajo vuelve siempre a la pantalla de lanzamiento; cuando el panel vive en el Panel Admin, el veredicto
   // llega por almacenamiento y no por props.
   const [storedOutcome, setStoredOutcome] = useState<AeroTestOutcome | null>(() =>
@@ -274,6 +282,12 @@ export function AeroIntegrationPanel({
         </span>
       </div>
 
+      {deviceLimited && (
+        <div className="border-t border-gray-100 px-4 pt-3">
+          <AeroDeviceBanner device={device} />
+        </div>
+      )}
+
       <div id="aero-integration-body" className="border-t border-gray-100 px-4 pb-4 pt-4 space-y-4">
         <div className="space-y-1.5">
           <label htmlFor="aero-ws-url" className="block text-xs font-semibold text-gray-600">
@@ -289,14 +303,18 @@ export function AeroIntegrationPanel({
             placeholder={t('massas.aero.urlPlaceholder')}
             value={draft.wsUrl}
             onChange={(event) => setDraft((current) => ({ ...current, wsUrl: event.target.value }))}
-            disabled={!canEditUrl}
-            readOnly={!canEditUrl}
+            disabled={!canEditUrl || deviceLimited}
+            readOnly={!canEditUrl || deviceLimited}
             aria-describedby="aero-ws-url-note"
             className="h-11 text-base read-only:bg-gray-50 read-only:text-gray-600"
             data-testid="aero-ws-url"
           />
           <p id="aero-ws-url-note" className="text-[11px] text-gray-500 leading-relaxed">
-            {canEditUrl ? t('massas.aero.urlEditable') : t('massas.aero.urlLocked')}
+            {deviceLimited
+              ? t('massas.aero.deviceLocked')
+              : canEditUrl
+                ? t('massas.aero.urlEditable')
+                : t('massas.aero.urlLocked')}
           </p>
         </div>
 
@@ -313,7 +331,7 @@ export function AeroIntegrationPanel({
               autoComplete="off"
               value={draft.username}
               onChange={(event) => setDraft((current) => ({ ...current, username: event.target.value }))}
-              disabled={!canEditCredentials}
+              disabled={!canEditCredentials || deviceLimited}
               readOnly={!canEditCredentials}
               className="h-11 text-base"
               data-testid="aero-ws-user"
@@ -329,7 +347,7 @@ export function AeroIntegrationPanel({
               autoComplete="off"
               value={draft.password}
               onChange={(event) => setDraft((current) => ({ ...current, password: event.target.value }))}
-              disabled={!canEditCredentials}
+              disabled={!canEditCredentials || deviceLimited}
               readOnly={!canEditCredentials}
               className="h-11 text-base"
               data-testid="aero-ws-pass"
@@ -373,7 +391,7 @@ export function AeroIntegrationPanel({
           <Button
             type="button"
             onClick={handleTest}
-            disabled={busy !== null}
+            disabled={busy !== null || deviceLimited}
             variant="outline"
             className="min-h-[44px] w-full sm:w-auto font-semibold"
             data-testid="aero-test"
@@ -384,7 +402,7 @@ export function AeroIntegrationPanel({
           <Button
             type="button"
             onClick={handleSave}
-            disabled={busy !== null}
+            disabled={busy !== null || deviceLimited}
             className="min-h-[44px] w-full sm:w-auto bg-amber-600 hover:bg-amber-700 text-white font-semibold"
             data-testid="aero-save"
           >
@@ -393,6 +411,7 @@ export function AeroIntegrationPanel({
           <Button
             type="button"
             onClick={() => setShortcutOpen(true)}
+            disabled={deviceLimited}
             variant="outline"
             className="min-h-[44px] w-full sm:w-auto font-semibold"
             data-testid="aero-shortcut-open"
@@ -402,7 +421,7 @@ export function AeroIntegrationPanel({
           <Button
             type="button"
             onClick={handleClear}
-            disabled={busy !== null}
+            disabled={busy !== null || deviceLimited}
             variant="ghost"
             className="min-h-[44px] w-full sm:w-auto sm:ml-auto text-red-600 hover:bg-red-50 font-semibold"
           >

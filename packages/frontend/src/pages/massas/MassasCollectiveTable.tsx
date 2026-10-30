@@ -43,6 +43,8 @@ interface MassasCollectiveTableProps {
   unifiedRows?: MassasUnifiedRow[];
   unifiedDate?: string;
   canSync?: boolean;
+  /** Set on a system where the integration cannot run; the actions render disabled instead of vanishing. */
+  deviceLimited?: boolean;
   onSync?: () => void;
   onImport?: (request: AeroImportRequest) => void;
   importingEntLan?: number | null;
@@ -67,6 +69,7 @@ export function MassasCollectiveTable({
   unifiedRows,
   unifiedDate = '',
   canSync = false,
+  deviceLimited = false,
   onSync,
   onImport,
   importingEntLan = null,
@@ -119,6 +122,7 @@ export function MassasCollectiveTable({
               rows={unifiedRows}
               date={unifiedDate}
               canSync={canSync}
+              deviceLimited={deviceLimited}
               onSync={onSync}
               onImport={onImport}
               importingEntLan={importingEntLan}

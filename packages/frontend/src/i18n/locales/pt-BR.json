@@ -631,7 +631,8 @@
       "shortcutStepBodyItem": "Ação 16 — «Obter Valor do Dicionário» com a chave body e renomeie a variável para body_item. Não pode ficar body: o iOS confunde com bodies e o corpo sai com o último item do lote.",
       "shortcutStepEndIf": "Ação 19 — «Fim do Se»: fecha a condição do passo 6.",
       "urlEditable": "O único admin autorizado a mudar o endereço da fábrica.",
-      "urlLocked": "Endereço fixo da fábrica. Só o admin autorizado pode mudá-lo."
+      "urlLocked": "Endereço fixo da fábrica. Só o admin autorizado pode mudá-lo.",
+      "deviceLocked": "Só para editar no iPhone com Atalhos ou no app Android."
     },
     "historyShort": "Histórico",
     "todayShort": "Hoje",
@@ -936,5 +937,18 @@
     "qrWithoutPhone": "Aponte a câmera para acessar o link de download ou aplicativo web.",
     "qrCodeAlt": "Código QR de Acesso",
     "generatingQr": "Gerando QR Code..."
+  },
+  "aeroDevice": {
+    "title": "Conexão com o Aero32 ERP indisponível no {{os}}",
+    "body": "A conexão direta com o Aero32 ERP ainda não foi desenvolvida para {{os}}. Por enquanto funciona no iPhone com Atalhos e no app Android. O restante dos módulos da web funciona normalmente.",
+    "readOnly": "Somente leitura",
+    "downloadTitle": "Use o app Android",
+    "downloadBody": "No celular a web não consegue falar com o Aero32 ERP. O app nativo consegue: baixe e continue trabalhando sem atalhos.",
+    "downloadAction": "Baixar o app",
+    "downloadRetry": "Tentar o download de novo",
+    "downloadFailed": "Não conseguimos iniciar o download. Verifique a conexão e tente de novo.",
+    "downloadContinue": "Continuar no navegador",
+    "downloadStarting": "Iniciando o download…",
+    "unknownOs": "dispositivo"
   }
 }

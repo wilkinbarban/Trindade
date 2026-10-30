@@ -631,7 +631,8 @@
       "shortcutStepBodyItem": "Acción 16 — «Obtener valor del diccionario» con la clave body y renombrá la variable a body_item. No puede quedar body: iOS la confunde con bodies y el cuerpo sale con el último elemento del lote.",
       "shortcutStepEndIf": "Acción 19 — «Fin del Si»: cierra la condición del paso 6.",
       "urlEditable": "El único admin autorizado a cambiar la dirección de la planta.",
-      "urlLocked": "Dirección fija de la planta. Solo el admin autorizado puede cambiarla."
+      "urlLocked": "Dirección fija de la planta. Solo el admin autorizado puede cambiarla.",
+      "deviceLocked": "Sólo se puede editar desde el iPhone con Atajos o desde la app Android."
     },
     "historyShort": "Historial",
     "todayShort": "Hoy",
@@ -936,5 +937,18 @@
     "qrWithoutPhone": "Apunta la cámara para acceder al enlace de descarga o aplicación web.",
     "qrCodeAlt": "Código QR de Acceso",
     "generatingQr": "Generando Código QR..."
+  },
+  "aeroDevice": {
+    "title": "Conexión con Aero32 ERP no disponible en {{os}}",
+    "body": "La conexión directa con Aero32 ERP todavía no está desarrollada para {{os}}. Por ahora funciona en iPhone con Atajos y en la app Android. El resto de los módulos de la web funciona con normalidad.",
+    "readOnly": "Sólo lectura",
+    "downloadTitle": "Usá la app de Android",
+    "downloadBody": "En el teléfono la web no puede hablar con Aero32 ERP. La app nativa sí: descargala y seguí trabajando sin atajos.",
+    "downloadAction": "Descargar la app",
+    "downloadRetry": "Reintentar la descarga",
+    "downloadFailed": "No pudimos iniciar la descarga. Revisá la conexión y probá de nuevo.",
+    "downloadContinue": "Continuar en el navegador",
+    "downloadStarting": "Iniciando la descarga…",
+    "unknownOs": "dispositivo"
   }
 }

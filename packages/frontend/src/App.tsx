@@ -2,6 +2,9 @@ import { Suspense, lazy, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { DeviceProvider, useDevice } from './contexts/DeviceContext';
+import { AndroidAppGate } from './components/aero/AndroidAppGate';
+import { androidGateDecision, readAndroidBypass } from './lib/android-gate';
 import { AppShell } from './components/layout/AppShell';
 import { LoadingSpinner } from './components/ui/loading-spinner';
 import { GuestReadonlyNotice } from './components/ui/guest-readonly-notice';
@@ -25,6 +28,25 @@ const AuditPage = lazy(() => import('./pages/admin/AuditPage').then(m => ({ defa
 const ShareAppPage = lazy(() => import('./pages/ShareAppPage').then(m => ({ default: m.ShareAppPage })));
 const MassasLaunchPage = lazy(() => import('./pages/MassasLaunchPage').then(m => ({ default: m.MassasLaunchPage })));
 const MassasHistoryPage = lazy(() => import('./pages/MassasHistoryPage').then(m => ({ default: m.MassasHistoryPage })));
+
+/**
+ * The Android intercept, above the router because it is not about a page.
+ *
+ * A phone that lands on the web cannot reach the ERP, so the useful thing to show is how to get the app that
+ * can. Everything else -- logging in, the setup gate, the routes -- stays behind this decision untouched.
+ * The choice to continue in the browser is remembered here, not in the download screen, so the gate and the
+ * screen cannot disagree about whether the operator asked to stay.
+ */
+function DeviceGate({ children }: { children: React.ReactNode }) {
+  const device = useDevice();
+  const [bypassed, setBypassed] = useState(readAndroidBypass);
+
+  if (androidGateDecision(device, bypassed) === 'showDownload') {
+    return <AndroidAppGate onContinueInBrowser={() => setBypassed(true)} />;
+  }
+
+  return <>{children}</>;
+}
 
 function LazyFallback() {
   return (
@@ -98,6 +120,8 @@ function SetupGate({ children }: { children: React.ReactNode }) {
 export function App() {
   return (
     <AuthProvider>
+      <DeviceProvider>
+      <DeviceGate>
       <SetupGate><BrowserRouter basename={import.meta.env.BASE_URL}>
         <Routes>
           <Route
@@ -244,6 +268,8 @@ export function App() {
         </Routes>
       <GuestReadonlyNotice />
       </BrowserRouter></SetupGate>
+      </DeviceGate>
+      </DeviceProvider>
     </AuthProvider>
   );
 }

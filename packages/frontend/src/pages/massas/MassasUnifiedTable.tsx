@@ -11,6 +11,12 @@ interface MassasUnifiedTableProps {
   rows: MassasUnifiedRow[];
   date: string;
   canSync?: boolean;
+  /**
+   * True on a system where the integration cannot run. The actions stay visible and disabled, with the
+   * banner above explaining which devices do work: a button that disappears reads as a feature that does
+   * not exist, and the operator has no way to learn otherwise.
+   */
+  deviceLimited?: boolean;
   onSync?: () => void;
   onImport?: (request: AeroImportRequest) => void;
   importingEntLan?: number | null;
@@ -44,6 +50,7 @@ export function MassasUnifiedTable({
   rows,
   date,
   canSync = false,
+  deviceLimited = false,
   onSync,
   onImport,
   importingEntLan = null,
@@ -109,7 +116,7 @@ export function MassasUnifiedTable({
                               date,
                             })
                           }
-                          disabled={busy}
+                          disabled={busy || deviceLimited}
                           className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg bg-sky-600 px-3 text-xs font-semibold text-white disabled:opacity-50"
                           data-testid={`massas-import-${row.entLans[0]}`}
                         >
@@ -129,7 +136,7 @@ export function MassasUnifiedTable({
                           <button
                             type="button"
                             onClick={onSync}
-                            disabled={!canSync}
+                            disabled={!canSync || deviceLimited}
                             className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg bg-amber-600 px-3 text-xs font-semibold text-white disabled:opacity-50"
                             data-testid="massas-unified-send"
                           >
