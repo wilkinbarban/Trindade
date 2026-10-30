@@ -492,6 +492,73 @@ describe('schema migration', () => {
     db.close();
   });
 
+  it('gives an imported seat its own identity on the launch (revision 9)', () => {
+    const path = join(fixtureRoot(), 'revision-eight.db');
+    const build = new Database(path);
+    build.exec(schema);
+    build.exec(seed);
+    // The revision 8 shape has no seat column and no seat index, whatever the current baseline declares.
+    // The index goes first: SQLite refuses to drop a column an index still names.
+    build.exec('DROP INDEX IF EXISTS uq_massa_launches_ent_lan');
+    dropColumnIfPresent(build, 'massa_launches', 'ent_lan');
+    build.pragma('user_version = 8');
+    const userId = insertUser(build, 'revision-eight');
+    build
+      .prepare(
+        `INSERT INTO massa_launches (launch_date, product_code, boxes, user_id, created_at, updated_at)
+         VALUES ('2026-10-30', '22', 2, ?, '2026-10-30T11:00:00.000Z', '2026-10-30T11:00:00.000Z')`,
+      )
+      .run(userId);
+    build.close();
+
+    const db = new Database(path);
+    assert.equal(readSchemaReport(db).version, 8);
+    const result = migrateDatabase(db);
+    assert.equal(result.outcome, 'migrated');
+    assert.equal(result.from, 8);
+    assert.equal(result.to, SCHEMA_VERSION);
+    assert.equal(db.pragma('user_version', { simple: true }), SCHEMA_VERSION);
+
+    const columns = (db.prepare('PRAGMA table_info(massa_launches)').all() as { name: string }[]).map((c) => c.name);
+    assert.ok(columns.includes('ent_lan'), 'revision 9 must add massa_launches.ent_lan');
+
+    // Widening a table rewrites nothing: the launches typed before this build are still here, and the
+    // column is empty for them because nobody knows which seat they came from.
+    assert.deepEqual(db.prepare('SELECT product_code, boxes, ent_lan FROM massa_launches').all(), [
+      { product_code: '22', boxes: 2, ent_lan: null },
+    ]);
+    db.close();
+  });
+
+  it('refuses a second launch for the same seat and allows many unseated ones (revision 9)', () => {
+    const path = join(fixtureRoot(), 'revision-eight-seats.db');
+    const build = new Database(path);
+    build.exec(schema);
+    build.exec(seed);
+    build.exec('DROP INDEX IF EXISTS uq_massa_launches_ent_lan');
+    dropColumnIfPresent(build, 'massa_launches', 'ent_lan');
+    build.pragma('user_version = 8');
+    build.close();
+
+    const db = new Database(path);
+    migrateDatabase(db);
+    const userId = insertUser(db, 'seats');
+    const insert = db.prepare(
+      `INSERT INTO massa_launches (launch_date, product_code, boxes, user_id, ent_lan, created_at, updated_at)
+       VALUES ('2026-10-30', ?, 1, ?, ?, '2026-10-30T12:00:00.000Z', '2026-10-30T12:00:00.000Z')`,
+    );
+
+    // A launch typed by hand has no seat, and there can be as many of those as the day needs.
+    insert.run('22', userId, null);
+    insert.run('22', userId, null);
+    insert.run('5000', userId, 35937);
+
+    // The same seat twice is the duplicated import this revision exists to prevent.
+    assert.throws(() => insert.run('5000', userId, 35937), /UNIQUE constraint failed/);
+    assert.deepEqual(db.prepare('SELECT COUNT(*) AS n FROM massa_launches').get(), { n: 3 });
+    db.close();
+  });
+
   // Guards the stepwise list against drifting from SCHEMA_VERSION: a build that supports
   // a revision its steps cannot reach would leave every migrated database stamped low.
   it('leaves every lower revision stamped at exactly the supported revision', () => {

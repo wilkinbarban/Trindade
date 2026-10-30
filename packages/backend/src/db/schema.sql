@@ -253,9 +253,14 @@ CREATE TABLE IF NOT EXISTS massa_launches (
   boxes           INTEGER NOT NULL,
   user_id         INTEGER NOT NULL REFERENCES users(id),
   created_at      TEXT NOT NULL,
-  updated_at      TEXT NOT NULL
+  updated_at      TEXT NOT NULL,
+  -- Revision 9: the ERP seat this launch was imported from. NULL for a launch typed by hand.
+  ent_lan         INTEGER DEFAULT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_massa_launches_date ON massa_launches(launch_date);
+-- One launch per seat, many launches without one: the same seat imported twice is a duplicate.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_massa_launches_ent_lan
+  ON massa_launches(ent_lan) WHERE ent_lan IS NOT NULL;
 
 -- Revision 7: the company ERP's movement seats, mirrored so the plant reads one snapshot.
 -- The ERP is the authority for ENT_LAN; this table never edits it, only copies what the bridge brought.
