@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { fillAllTemperatureInputs, getE2EIdentities, goToProtected } from './auth-helpers';
+import { saoPauloToday } from '../lib/date';
 
 async function cleanTodayReports(page: Page) {
   const identities = await getE2EIdentities(page);
@@ -114,6 +115,17 @@ test.describe('Report View & Export', () => {
     });
     expect(launchRes.ok()).toBeTruthy();
 
+    // Other specs launch the same product on the same day, so the export is checked against the day's real
+    // total instead of the single box this test added.
+    const dayRes = await page.request.get(
+      `http://localhost:3099/api/massas-launch?date=${saoPauloToday()}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    const dayUnits = ((await dayRes.json()).launches as Array<{ product_code: string; units: number }>)
+      .filter((launch) => launch.product_code === '1045')
+      .reduce((total, launch) => total + launch.units, 0);
+    expect(dayUnits).toBeGreaterThanOrEqual(10);
+
     await goToProtected(page, '/reports');
     await page.waitForSelector('[data-testid="report-builder-form"]', { timeout: 10000 });
     await page.locator('[data-testid="check-task-1"]').check();
@@ -130,7 +142,7 @@ test.describe('Report View & Export', () => {
     const text = await page.locator('[data-testid="export-text-content"]').textContent();
     expect(text).toContain('🍝 *LANÇAMENTO DE MASSAS*');
     expect(text).toContain('Por Operário:');
-    expect(text).toContain('📦 CASEIRA: 10 un');
+    expect(text).toContain(`📦 CASEIRA: ${dayUnits} un`);
     expect(text).toContain('Resumo Coletivo:');
   });
 
