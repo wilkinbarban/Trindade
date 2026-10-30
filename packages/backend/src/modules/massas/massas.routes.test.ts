@@ -24,6 +24,8 @@ describe('massas routes', () => {
   const passAlice = randomUUID();
   const passBob = randomUUID();
   const dateStr = '2026-10-20';
+  // The only day a launch may still be rewritten: yesterday is a record the API itself refuses to touch.
+  const todayStr = getSaoPauloDateString();
 
   before(async () => {
     db = new Database(':memory:');
@@ -314,7 +316,7 @@ describe('massas routes', () => {
       method: 'POST',
       url: '/api/massas-launch',
       headers: { authorization: `Bearer ${tokenAlice}` },
-      payload: { date: dateStr, product_code: '60', boxes: 3 },
+      payload: { date: todayStr, product_code: '60', boxes: 3 },
     });
     const launchId = JSON.parse(createRes.body).created[0].id;
 
@@ -343,7 +345,7 @@ describe('massas routes', () => {
       method: 'POST',
       url: '/api/massas-launch',
       headers: { authorization: `Bearer ${tokenBob}` },
-      payload: { date: dateStr, product_code: '1045', boxes: 2 },
+      payload: { date: todayStr, product_code: '1045', boxes: 2 },
     });
     const bobLaunchId = JSON.parse(bobCreateRes.body).created[0].id;
 
@@ -364,7 +366,7 @@ describe('massas routes', () => {
       method: 'POST',
       url: '/api/massas-launch',
       headers: { authorization: `Bearer ${tokenAlice}` },
-      payload: { date: dateStr, product_code: '1045', boxes: 2 },
+      payload: { date: todayStr, product_code: '1045', boxes: 2 },
     });
     assert.equal(launch.statusCode, 201);
     const launchId = (JSON.parse(launch.body) as { created: { id: number }[] }).created[0].id;
@@ -373,7 +375,7 @@ describe('massas routes', () => {
       `INSERT INTO aero_movements
          (movement_date, ent_lan, product_code, product_desc, quantity, entry_date, operator_name, movement_type, synced_at)
        VALUES (?, 7100, '1045', 'MASSA', 20, ?, 'ALICE', 'E', '2026-10-20T12:00:00.000Z')`,
-    ).run(dateStr, dateStr);
+    ).run(todayStr, todayStr);
 
     const edit = await app.inject({
       method: 'PUT',
@@ -395,7 +397,7 @@ describe('massas routes', () => {
     // The row is still the two boxes the plant launched, not the nine the refused edit asked for.
     const day = await app.inject({
       method: 'GET',
-      url: `/api/massas-launch?date=${dateStr}`,
+      url: `/api/massas-launch?date=${todayStr}`,
       headers: { authorization: `Bearer ${tokenAlice}` },
     });
     const launches = (JSON.parse(day.body) as MassasLaunchDayView).launches;
@@ -409,7 +411,7 @@ describe('massas routes', () => {
       method: 'POST',
       url: '/api/massas-launch',
       headers: { authorization: `Bearer ${tokenAlice}` },
-      payload: { date: dateStr, product_code: '60', boxes: 3 },
+      payload: { date: todayStr, product_code: '60', boxes: 3 },
     });
     const aliceLaunchId = JSON.parse(aliceCreateRes.body).created[0].id;
 
@@ -426,7 +428,7 @@ describe('massas routes', () => {
       method: 'POST',
       url: '/api/massas-launch',
       headers: { authorization: `Bearer ${tokenBob}` },
-      payload: { date: dateStr, product_code: '91', boxes: 5 },
+      payload: { date: todayStr, product_code: '91', boxes: 5 },
     });
     const launchId = JSON.parse(createRes.body).created[0].id;
 
@@ -444,7 +446,7 @@ describe('massas routes', () => {
       method: 'POST',
       url: '/api/massas-launch',
       headers: { authorization: `Bearer ${tokenBob}` },
-      payload: { date: dateStr, product_code: '91', boxes: 1 },
+      payload: { date: todayStr, product_code: '91', boxes: 1 },
     });
     const bobOwnLaunchId = JSON.parse(bobOwnCreateRes.body).created[0].id;
 
@@ -456,6 +458,46 @@ describe('massas routes', () => {
     });
     assert.equal(bobDelRes.statusCode, 200);
     assert.deepEqual(JSON.parse(bobDelRes.body), { ok: true });
+  });
+
+  it('answers 409 MASSAS_HISTORY_FROZEN when an Administrador rewrites a past day', async () => {
+    // The screen no longer offers it, and the API must not accept it either: a request can be written by hand.
+    const launch = await app.inject({
+      method: 'POST',
+      url: '/api/massas-launch',
+      headers: { authorization: `Bearer ${tokenAlice}` },
+      payload: { date: dateStr, product_code: '1045', boxes: 3 },
+    });
+    assert.equal(launch.statusCode, 201);
+    const launchId = (JSON.parse(launch.body) as { created: { id: number }[] }).created[0].id;
+
+    const edit = await app.inject({
+      method: 'PUT',
+      url: `/api/massas-launch/${launchId}`,
+      headers: { authorization: `Bearer ${tokenAlice}` },
+      payload: { boxes: 9 },
+    });
+    assert.equal(edit.statusCode, 409);
+    const editBody = JSON.parse(edit.body) as { error: string; code: string };
+    assert.equal(editBody.code, 'MASSAS_HISTORY_FROZEN');
+    assert.equal(editBody.error, 'O histórico de massas é somente leitura: dias passados não podem ser alterados');
+
+    const removal = await app.inject({
+      method: 'DELETE',
+      url: `/api/massas-launch/${launchId}`,
+      headers: { authorization: `Bearer ${tokenAlice}` },
+    });
+    assert.equal(removal.statusCode, 409);
+    assert.equal((JSON.parse(removal.body) as { code: string }).code, 'MASSAS_HISTORY_FROZEN');
+
+    // Both refusals left the recorded day exactly as the plant left it.
+    const day = await app.inject({
+      method: 'GET',
+      url: `/api/massas-launch?date=${dateStr}`,
+      headers: { authorization: `Bearer ${tokenAlice}` },
+    });
+    const kept = (JSON.parse(day.body) as MassasLaunchDayView).launches.find((row) => row.id === launchId);
+    assert.equal(kept?.boxes, 3);
   });
 
   it('PUT and DELETE return 404 for non-existent launch', async () => {
@@ -678,7 +720,7 @@ describe('massas routes', () => {
         method: 'POST',
         url: '/api/massas-launch',
         headers: { authorization: `Bearer ${tokenAlice}` },
-        payload: { date: dateStr, product_code: '1045', boxes: 3 },
+        payload: { date: todayStr, product_code: '1045', boxes: 3 },
       });
       const aliceLaunchId = JSON.parse(createRes.body).created[0].id;
 

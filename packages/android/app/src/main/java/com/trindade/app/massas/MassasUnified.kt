@@ -45,7 +45,28 @@ data class MassasUnifiedRow(
     val importable: Boolean,
     /** True when the operator already said this pending launch is loaded on the tablet. */
     val tabletAcked: Boolean,
+    /**
+     * The account the line belongs to, or null when nobody here owns it.
+     *
+     * A seat takes it from the stored ERP row and a launch from its author, so the screen asks one
+     * question -- may this person import this? -- instead of resolving names on the phone. Null is
+     * "unknown", and unknown is never the worker's.
+     */
+    val ownerUserId: Int? = null,
 )
+
+/**
+ * Whether this viewer may import this seat.
+ *
+ * The backend refuses a seat that belongs to somebody else, and this is the same rule asked one step
+ * earlier, on the row: a button a worker can only fail with is worse than no button.
+ */
+fun canImportRow(row: MassasUnifiedRow, viewerId: Int?, isAdmin: Boolean): Boolean {
+    if (row.state != MassasRowState.ERP_ONLY || !row.importable) return false
+    if (isAdmin) return true
+    val owner = row.ownerUserId ?: return false
+    return owner == viewerId
+}
 
 /**
  * The launches the ERP already has.
@@ -202,6 +223,7 @@ fun massasUnifiedRows(input: MassasUnifiedInput, operatorFilter: String = ""): L
                 entLans = emptyList(),
                 importable = false,
                 tabletAcked = !reconciled && launch.id in input.ackedLaunchIds,
+                ownerUserId = launch.userId,
             ),
         )
     }
@@ -228,6 +250,7 @@ fun massasUnifiedRows(input: MassasUnifiedInput, operatorFilter: String = ""): L
                 entLans = listOf(seat.entLan),
                 importable = plan != null,
                 tabletAcked = false,
+                ownerUserId = seat.ownerUserId,
             ),
         )
     }

@@ -164,6 +164,11 @@ export async function massasRoutes(fastify: FastifyInstance) {
           .status(409)
           .send(apiError('This production was already reconciled with the ERP and cannot change', MASSAS_ERROR_CODES.RECONCILED));
       }
+      if (code === 'HISTORY_FROZEN') {
+        return reply
+          .status(409)
+          .send(apiError('O histórico de massas é somente leitura: dias passados não podem ser alterados', MASSAS_ERROR_CODES.HISTORY_FROZEN));
+      }
       const message = error instanceof Error ? error.message : 'Failed to update launch';
       return reply.status(400).send(apiError(message, MASSAS_ERROR_CODES.UPDATE_FAILED));
     }
@@ -194,6 +199,11 @@ export async function massasRoutes(fastify: FastifyInstance) {
         return reply
           .status(409)
           .send(apiError('This production was already reconciled with the ERP and cannot change', MASSAS_ERROR_CODES.RECONCILED));
+      }
+      if (code === 'HISTORY_FROZEN') {
+        return reply
+          .status(409)
+          .send(apiError('O histórico de massas é somente leitura: dias passados não podem ser alterados', MASSAS_ERROR_CODES.HISTORY_FROZEN));
       }
       const message = error instanceof Error ? error.message : 'Failed to delete launch';
       return reply.status(400).send(apiError(message, MASSAS_ERROR_CODES.DELETE_FAILED));

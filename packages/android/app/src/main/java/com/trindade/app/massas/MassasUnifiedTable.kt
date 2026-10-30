@@ -28,6 +28,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.trindade.app.R
 
+/** The one role name the API answers that may import anybody's seat. */
+private const val ADMIN_ROLE = "Administrador"
+
 /**
  * One day of the plant, no matter which screen wrote each box.
  *
@@ -71,10 +74,18 @@ fun MassasUnifiedTable(
                 )
             } else {
                 BalanceBar(balance = balance, modifier = Modifier.fillMaxWidth())
+                val viewer = state.currentUser
                 rows.forEach { row ->
                     UnifiedRow(
                         row = row,
                         readOnly = state.isReadOnly,
+                        // The same rule the API enforces: a worker keeps their own seats, an administrator
+                        // keeps every one, and a seat nobody here owns is not a worker's to claim.
+                        canImport = canImportRow(
+                            row = row,
+                            viewerId = viewer?.id,
+                            isAdmin = viewer?.role == ADMIN_ROLE,
+                        ),
                         onSend = { onSend(row) },
                         onAcknowledge = { onAcknowledge(row) },
                         onImport = { onImport(row) },
@@ -127,6 +138,7 @@ private fun BalanceBar(balance: MassasBalance, modifier: Modifier = Modifier) {
 private fun UnifiedRow(
     row: MassasUnifiedRow,
     readOnly: Boolean,
+    canImport: Boolean,
     onSend: () -> Unit,
     onAcknowledge: () -> Unit,
     onImport: () -> Unit,
@@ -166,7 +178,7 @@ private fun UnifiedRow(
                     secondaryLabel = if (row.tabletAcked) null else stringResource(R.string.massas_action_on_tablet),
                     onSecondary = onAcknowledge,
                 )
-                MassasRowState.ERP_ONLY -> if (row.importable) {
+                MassasRowState.ERP_ONLY -> if (canImport) {
                     ActionRow(
                         primaryLabel = stringResource(R.string.massas_action_import),
                         onPrimary = onImport,

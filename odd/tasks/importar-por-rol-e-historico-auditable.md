@@ -29,9 +29,9 @@ or deletes, not even an admin.
 | --- | --- | --- | --- |
 | T1 | S1, S2 | backend: resolve the seat's owner from the mirror, refuse a worker's foreign seat with 403 | done |
 | T2 | S3 | web: expose the owner on the mirror row and hide the import button from a worker | done |
-| T3 | S3 | Android: same owner check on the unified row and its import action | pending |
+| T3 | S3 | Android: same owner check on the unified row and its import action | 4e6d9c1 |
 | T4 | S4, S5 | web: the history reads, never writes | done |
-| T5 | S4, S6 | Android: past days opened from the history offer no edit or delete, admin included | pending |
+| T5 | S4, S6 | Android: past days opened from the history offer no edit or delete, admin included | 4e6d9c1 |
 | T6 | all | delivery: suites, containers, signed APK, docs | pending |
 
 ## Log
@@ -72,3 +72,10 @@ Delphi screen typed, and it is already stored in `aero_movements`. Reading the o
 crafted body cannot claim somebody else's seat, and it makes the row the frontend hides and the request
 the backend refuses come from the same fact. An `ent_lan` the mirror does not know leaves the owner
 unknown, and unknown belongs to the admin alone: a worker cannot prove a seat is theirs by naming it.
+
+**L4. The freeze is a server rule, not a screen preference.** S4 says "bajo ninguna circunstancia", and a
+hidden button is not a circumstance the server can check: `PUT`/`DELETE /api/massas-launch/:id` answer
+`409 MASSAS_HISTORY_FROZEN` for any launch whose day is not today in São Paulo, before roles and before
+reconciliation are weighed. The order matters — an administrator is refused for the same reason a worker is.
+The API's own tests that exercise editing and deleting now run on today, because yesterday is exactly the
+day those tests must no longer reach.

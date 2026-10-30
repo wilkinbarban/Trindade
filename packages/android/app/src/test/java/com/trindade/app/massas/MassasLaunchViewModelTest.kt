@@ -465,6 +465,26 @@ class MassasLaunchViewModelTest {
         testVm.promptDelete(1)
         assertNull(testVm.state.value.deleteConfirmLaunchId)
 
+        // Importing a tablet seat into yesterday is a write, so a past day refuses it too
+        val pastSeat = MassasUnifiedRow(
+            key = "seat-35937",
+            state = MassasRowState.ERP_ONLY,
+            operatorName = "VICTOR",
+            operatorKey = "victor",
+            productCode = "1045",
+            productName = "MASSA CASEIRA",
+            boxes = 2,
+            units = 20,
+            launchIds = emptyList(),
+            entLans = listOf(35937),
+            importable = true,
+            tabletAcked = false,
+            ownerUserId = 1,
+        )
+        testVm.importErpSeat(pastSeat)
+        testScheduler.runCurrent()
+        assertNull("a past day must not reach the API", fakeRepo.lastCreatedItems)
+
         // Return to today clears isReadOnly
         testVm.loadDay(MassasLaunchViewModel.saopauloToday())
         testScheduler.runCurrent()

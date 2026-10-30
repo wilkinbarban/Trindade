@@ -81,4 +81,5 @@ fun AeroStoredMovement.toLogic(): AeroErpMovement = AeroErpMovement(
     entryDate = entryDate,
     operatorName = operatorName,
     movementType = movementType,
+    ownerUserId = ownerUserId,
 )

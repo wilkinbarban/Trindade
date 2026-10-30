@@ -3,6 +3,7 @@ import { aeroMovementsTableExists, listAeroMovements } from '../integration/aero
 import { MASSAS, type StockProduct } from '../stock/stock.catalog.js';
 import { resolveOperatorUserId } from './massas-operator.js';
 import { reconcileMassasDay } from './massas-reconcile.js';
+import { getSaoPauloDateString } from '../../utils/date.js';
 
 export interface MassaProductTotal {
   code: string;
@@ -235,6 +236,21 @@ export function createMassaLaunches(
  * The whole day is compared, not the row alone, because reconciliation is a decision about pairs: the same
  * launch can be reconciled or not depending on which seats arrived.
  */
+/**
+ * A day the plant already closed.
+ *
+ * Yesterday is a record, not a draft: editing or deleting it after midnight turns the book into something
+ * nobody recorded, and a role that can rewrite it can erase the plant's trail. This is asserted before every
+ * other check -- before roles, before reconciliation -- because nobody, an administrator included, may
+ * rewrite a past day. Today is still open while the plant is working.
+ */
+function assertDayStillOpen(launchDate: string): void {
+  if (launchDate === getSaoPauloDateString()) return;
+  const err = new Error('O histórico de massas é somente leitura: dias passados não podem ser alterados');
+  (err as unknown as { code: string }).code = 'HISTORY_FROZEN';
+  throw err;
+}
+
 function assertLaunchNotReconciled(db: Database.Database, launchId: number, launchDate: string): void {
   if (!aeroMovementsTableExists(db)) return;
   const seats = listAeroMovements(db, launchDate);
@@ -270,6 +286,8 @@ export function updateMassaLaunch(
     (err as unknown as { code: string }).code = 'NOT_FOUND';
     throw err;
   }
+
+  assertDayStillOpen(existing.launch_date);
 
   const isAdmin = params.userRole === 'Administrador';
   if (!isAdmin && existing.user_id !== params.userId) {
@@ -336,6 +354,8 @@ export function deleteMassaLaunch(
     (err as unknown as { code: string }).code = 'NOT_FOUND';
     throw err;
   }
+
+  assertDayStillOpen(existing.launch_date);
 
   const isAdmin = params.userRole === 'Administrador';
   if (!isAdmin && existing.user_id !== params.userId) {

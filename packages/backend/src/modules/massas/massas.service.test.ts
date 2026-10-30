@@ -11,6 +11,7 @@ import {
   massasLaunchHistory,
   updateMassaLaunch,
 } from './massas.service.js';
+import { getSaoPauloDateString } from '../../utils/date.js';
 
 describe('massas launch service', () => {
   let db: Database.Database;
@@ -176,8 +177,10 @@ describe('massas launch service', () => {
   });
 
   it('allows owner to update boxes and recomputes units', () => {
+    // Today is the only day a screen may still change: what is done is done, so the update tests run on it.
+    const today = getSaoPauloDateString();
     const [launch] = createMassaLaunches(db, {
-      date: testDate,
+      date: today,
       userId: userAliceId,
       items: [{ product_code: '1045', boxes: 4 }],
     });
@@ -190,14 +193,55 @@ describe('massas launch service', () => {
     assert.equal(updated.boxes, 10);
     assert.equal(updated.units, 100);
 
-    const view = massasLaunchDayView(db, testDate);
+    const view = massasLaunchDayView(db, today);
     assert.equal(view.totalBoxes, 10);
     assert.equal(view.totalUnits, 100);
   });
 
-  it('enforces RBAC on update: refuses when another user attempts to update', () => {
+  it('refuses to rewrite a launch from a past day, administrator included', () => {
+    // The history answers "who launched this, and when". An edit after midnight turns yesterday's book into
+    // something nobody recorded, and a role that can do it is a role that can erase the plant's trail.
+    const pastDate = getSaoPauloDateString(new Date(Date.now() - 86_400_000));
     const [launch] = createMassaLaunches(db, {
-      date: testDate,
+      date: pastDate,
+      userId: userAliceId,
+      items: [{ product_code: '1045', boxes: 4 }],
+    });
+
+    for (const userRole of ['Administrador', undefined]) {
+      assert.throws(
+        () => updateMassaLaunch(db, { id: launch.id, userId: userAliceId, boxes: 10, userRole }),
+        (err: Error & { code?: string }) => err.code === 'HISTORY_FROZEN',
+      );
+    }
+
+    const view = massasLaunchDayView(db, pastDate);
+    assert.equal(view.totalBoxes, 4, 'the frozen day keeps exactly the boxes the plant recorded');
+  });
+
+  it('refuses to delete a launch from a past day, administrator included', () => {
+    const pastDate = getSaoPauloDateString(new Date(Date.now() - 86_400_000));
+    const [launch] = createMassaLaunches(db, {
+      date: pastDate,
+      userId: userAliceId,
+      items: [{ product_code: '1045', boxes: 4 }],
+    });
+
+    for (const userRole of ['Administrador', undefined]) {
+      assert.throws(
+        () => deleteMassaLaunch(db, { id: launch.id, userId: userAliceId, userRole }),
+        (err: Error & { code?: string }) => err.code === 'HISTORY_FROZEN',
+      );
+    }
+
+    assert.equal(massasLaunchDayView(db, pastDate).launches.length, 1, 'the frozen day still has its launch');
+  });
+
+  it('enforces RBAC on update: refuses when another user attempts to update', () => {
+    // RBAC is only reachable on a day that can still change: a past day is frozen before roles are weighed.
+    const today = getSaoPauloDateString();
+    const [launch] = createMassaLaunches(db, {
+      date: today,
       userId: userAliceId,
       items: [{ product_code: '1045', boxes: 4 }],
     });
@@ -214,7 +258,7 @@ describe('massas launch service', () => {
 
     // Bob creates a launch, Alice (admin) edits it successfully
     const [bobLaunch] = createMassaLaunches(db, {
-      date: testDate,
+      date: today,
       userId: userBobId,
       items: [{ product_code: '1045', boxes: 2 }],
     });
@@ -229,8 +273,9 @@ describe('massas launch service', () => {
   });
 
   it('allows owner to delete launch and enforces RBAC for other users', () => {
+    const today = getSaoPauloDateString();
     const [launch] = createMassaLaunches(db, {
-      date: testDate,
+      date: today,
       userId: userAliceId,
       items: [{ product_code: '1045', boxes: 4 }],
     });
@@ -247,7 +292,7 @@ describe('massas launch service', () => {
 
     // Bob creates a launch, Alice (admin) deletes it successfully
     const [bobLaunch] = createMassaLaunches(db, {
-      date: testDate,
+      date: today,
       userId: userBobId,
       items: [{ product_code: '1045', boxes: 2 }],
     });
@@ -268,7 +313,7 @@ describe('massas launch service', () => {
       });
     });
 
-    const view = massasLaunchDayView(db, testDate);
+    const view = massasLaunchDayView(db, today);
     assert.equal(view.launches.length, 0);
     assert.equal(view.totalBoxes, 0);
   });

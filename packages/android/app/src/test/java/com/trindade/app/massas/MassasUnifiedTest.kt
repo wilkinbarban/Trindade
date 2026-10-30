@@ -47,6 +47,7 @@ class MassasUnifiedTest {
         operatorName: String = "JEFFERSON",
         entryDate: String = "2026-10-30",
         movementType: String = "E",
+        ownerUserId: Int? = null,
     ) = AeroErpMovement(
         entLan = entLan,
         productCode = productCode,
@@ -55,6 +56,7 @@ class MassasUnifiedTest {
         entryDate = entryDate,
         operatorName = operatorName,
         movementType = movementType,
+        ownerUserId = ownerUserId,
     )
 
     private val products = listOf(
@@ -259,5 +261,78 @@ class MassasUnifiedTest {
             ),
         )
         assertTrue("Without a catalogue there is no way to know what is production", rows.isEmpty())
+    }
+
+    /**
+     * Who the table offers the import to. The backend refuses a seat that belongs to somebody else, and this
+     * is the same rule asked one step earlier: a button a worker can only fail with is a button that lies.
+     */
+    @Test
+    fun `a worker is offered only the seat the ERP attributes to them`() {
+        val rows = massasUnifiedRows(
+            MassasUnifiedInput(
+                launches = emptyList(),
+                movements = listOf(seat(entLan = 35937, operatorName = "VICTOR", ownerUserId = 12)),
+                products = products,
+            ),
+        )
+        val row = rows.single()
+        assertEquals(12, row.ownerUserId)
+        assertTrue(canImportRow(row, viewerId = 12, isAdmin = false))
+        assertFalse(canImportRow(row, viewerId = 17, isAdmin = false))
+    }
+
+    @Test
+    fun `an administrator is offered every seat`() {
+        val rows = massasUnifiedRows(
+            MassasUnifiedInput(
+                launches = emptyList(),
+                movements = listOf(seat(entLan = 35937, operatorName = "VICTOR", ownerUserId = 12)),
+                products = products,
+            ),
+        )
+        assertTrue(canImportRow(rows.single(), viewerId = 1, isAdmin = true))
+    }
+
+    @Test
+    fun `a seat whose operator names nobody here stays an administrator's`() {
+        val rows = massasUnifiedRows(
+            MassasUnifiedInput(
+                launches = emptyList(),
+                movements = listOf(seat(entLan = 35939, operatorName = "MARIA", ownerUserId = null)),
+                products = products,
+            ),
+        )
+        val row = rows.single()
+        assertEquals(null, row.ownerUserId)
+        assertFalse(canImportRow(row, viewerId = 17, isAdmin = false))
+        assertTrue(canImportRow(row, viewerId = 1, isAdmin = true))
+    }
+
+    @Test
+    fun `a seat that does not fit whole boxes is offered to nobody`() {
+        val rows = massasUnifiedRows(
+            MassasUnifiedInput(
+                launches = emptyList(),
+                movements = listOf(seat(entLan = 35940, quantity = 15.0, ownerUserId = 12)),
+                products = products,
+            ),
+        )
+        val row = rows.single()
+        assertFalse(row.importable)
+        assertFalse(canImportRow(row, viewerId = 12, isAdmin = false))
+        assertFalse(canImportRow(row, viewerId = 1, isAdmin = true))
+    }
+
+    @Test
+    fun `a launch row names its author`() {
+        val rows = massasUnifiedRows(
+            MassasUnifiedInput(
+                launches = listOf(launch(id = 4, username = "gustavo", displayName = "Gustavo")),
+                movements = emptyList(),
+                products = products,
+            ),
+        )
+        assertEquals(1, rows.single().ownerUserId)
     }
 }

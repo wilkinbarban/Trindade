@@ -106,6 +106,8 @@ data class AeroStoredMovement(
     @SerialName("entry_date") val entryDate: String,
     @SerialName("operator_name") val operatorName: String,
     @SerialName("movement_type") val movementType: String,
+    /** The account the seat belongs to, or null when the name on it belongs to nobody here. */
+    @SerialName("owner_user_id") val ownerUserId: Int? = null,
 )
 
 @Serializable

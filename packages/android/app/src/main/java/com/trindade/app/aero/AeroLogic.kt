@@ -279,6 +279,13 @@ data class AeroErpMovement(
     /** `ENT_USU`, uppercase, as the ERP records the operator. */
     val operatorName: String,
     val movementType: String,
+    /**
+     * The account the backend attributes this seat to, or null when the name on it belongs to nobody here.
+     *
+     * A seat read straight from the ERP in the app cannot be resolved, so it stays null there; the stored
+     * snapshot answers it. Null is "unknown", and unknown is not a worker's seat.
+     */
+    val ownerUserId: Int? = null,
 )
 
 /** What came back from a movements query: the seats, or the reason there are none. */
