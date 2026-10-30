@@ -238,12 +238,12 @@ de claves escrita al lado: si la receta dice `headers`, el sobre tiene que traer
   `headers` (opción a) con el test validando el sobre real, i18n `pt-BR`/`es`, 375 px y 44 px.
 - **T7** ✅ `38c963f`, `a42aa61` (S9, S10) — E2E: tres productos vuelven en un solo `aero_action=entrada_lote` con tres respuestas →
   modal «3 sincronizados» y una sola línea de resultado en la bitácora. Suites, typecheck, build y HTTP 200.
-- **T8** (S13, S14, S15, D9, D10, D11) — `AeroShortcutDialog`: tarjeta destacada arriba con el botón de iCloud
+- **T8** ✅ `87d945b` (S13, S14, S15, D9, D10, D11) — `AeroShortcutDialog`: tarjeta destacada arriba con el botón de iCloud
   (`https://www.icloud.com/shortcuts/3216695a428f42539fec7abbd5419f34`, pestaña nueva, `noopener noreferrer`,
   44 px) y la receta manual reescrita en cuatro bloques con los 20 pasos, incluido el renombre a `body_item`
   del paso 16. `actionCount` a 20, URL en `aero-integration.ts`, i18n `pt-BR`/`es`. Tests unitarios del
   conteo, del enlace y de las claves copiables.
-- **T9** (S7, S9, S10) — `aero-shortcut-dialog.spec.ts`: botón de iCloud por `data-testid`, href exacto,
+- **T9** ✅ `3a4a4f1` (S7, S9, S10) — `aero-shortcut-dialog.spec.ts`: botón de iCloud por `data-testid`, href exacto,
   pestaña nueva, 44 px, los cuatro bloques y los 20 pasos, cero desborde en 375 px. Suites, typecheck, build
   y HTTP 200.
 
@@ -316,3 +316,9 @@ de claves escrita al lado: si la receta dice `headers`, el sobre tiene que traer
   'Instalar Atajo Listo (1 toque)'). 2) Clarificar y reescribir la receta manual paso a paso con los 20 pasos
   exactos y claros, destacando que en el paso 16 se renombra la variable a 'body_item' para no confundirla con
   'bodies'. Actualiza aero-shortcut-dialog.spec.ts, corre suites y Playwright, comitea en main y rebuild web.»
+- **L8** — Cierre de T8/T9 (2026-10-29), observado y no inferido: `packages/frontend` 349/349, `packages/backend`
+  569/569, Playwright 71/71 (los dos del diálogo incluidos), `tsc --noEmit` limpio, `docker compose up -d
+  --build web` y `web=200` / `api=200` en `http://localhost:8085`. Los dos defects que el RED encontró fueron
+  del test, no del producto: cortar la receta por `<ol>` caía en el helper `StepBlock` (componente vacío), y
+  `text=Ação 1` también matcheaba «Ação 10»; el primero se cortó por `<StepBlock>`, el segundo se ancló con
+  `^Ação N —`.
