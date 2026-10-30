@@ -825,8 +825,9 @@ export function AdminDashboard() {
         </div>
       )}
 
-      {/* Add button */}
-      {activeTab !== 'profile' && (
+      {/* Add button: only the tabs that have something to create. Integração ERP is configuration, and the
+          button there promised a form that does not exist. */}
+      {!['profile', 'integration'].includes(activeTab) && (
       <div className="flex justify-end mb-3">
         <Button size="sm" onClick={() => {
           if (showForm) {
@@ -1115,7 +1116,6 @@ export function AdminDashboard() {
             onSettingsSaved={setAeroSettings}
             canEditUrl={aeroSettingsAccess.wsUrl}
             canEditCredentials={aeroSettingsAccess.credentials}
-            defaultOpen
           />
         </div>
       )}

@@ -82,12 +82,9 @@ test.describe('result dialogs on a phone screen', () => {
     await page.locator('[data-testid="admin-tab-integration"]').click();
     await expect(page.locator('[data-testid="admin-integration-tab"]')).toBeVisible();
 
-    // An unconfigured panel starts open; its header toggles, so it is only clicked once the fields are known
-    // to be missing. Checking too early toggles a panel that was already open and closes it.
+    // The panel is the page in its own tab, so the fields are already there: no accordion to open first.
     const urlField = page.locator('[data-testid="aero-ws-url"]');
-    await urlField
-      .waitFor({ state: 'visible', timeout: 3000 })
-      .catch(() => page.getByRole('button', { name: /Configuração Integração Empresa/ }).click());
+    await expect(urlField).toBeVisible();
     await urlField.fill('http://127.0.0.1:9/usuarios/');
     await page.locator('[data-testid="aero-ws-user"]').fill('wilkin');
     await page.locator('[data-testid="aero-ws-pass"]').fill('segredo');

@@ -25,6 +25,17 @@ test.describe('integration tab in the admin panel', () => {
 
     // The shortcut recipe and the connection test live here too, at thumb size.
     await expect(page.getByRole('button', { name: /Instalar Atalho no iPhone/ })).toBeVisible();
+
+    // Nothing to create on this tab, and nothing to unfold: the panel is the page.
+    await expect(page.getByRole('button', { name: '+ Novo' })).toHaveCount(0);
+    await expect(page.locator('[data-testid="admin-integration-tab"] [aria-expanded]')).toHaveCount(0);
+    await expect(page.locator('[data-testid="admin-integration-tab"] svg.lucide-chevron-down')).toHaveCount(0);
+    // The body is there on arrival, without a tap: the address is already on screen.
+    await expect(page.locator('[data-testid="aero-ws-pass"]')).toBeVisible();
+
+    // The button is absent here, not from the panel: the tabs that do create still offer it.
+    await page.locator('[data-testid="admin-tab-categories"]').click();
+    await expect(page.getByRole('button', { name: '+ Novo' })).toBeVisible();
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     );

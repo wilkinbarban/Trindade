@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, Loader2, Plug, ShieldCheck } from 'lucide-react';
+import { Loader2, Plug, ShieldCheck } from 'lucide-react';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -37,8 +37,6 @@ interface AeroIntegrationPanelProps {
   canEditUrl?: boolean;
   /** The credentials are the operator's own; nobody else types them (S13). */
   canEditCredentials?: boolean;
-  /** In its own admin tab the panel is the page, so it opens expanded instead of hiding behind a toggle. */
-  defaultOpen?: boolean;
   /** What the phone brought back from the test shortcut, handed down by the page that owns the callback. */
   testOutcome?: AeroTestOutcome | null;
   onTestOutcomeHandled?: () => void;
@@ -49,22 +47,19 @@ type Notice = { tone: 'ok' | 'warn' | 'error'; text: string };
 /**
  * The company WebService settings, kept on the phone and shown to nobody else.
  *
- * Collapsed into one row that states whether the integration is ready, because this is the module an
- * operator opens with wet hands: the configuration is a one-time errand and the day view must not pay
- * for it. It opens by itself only when there is nothing configured yet, which is the state that needs
- * a person.
+ * This panel has a tab of its own now, so it is the page: everything stays visible, with no accordion to
+ * open first. The header states whether the integration is ready, which is the only question the operator
+ * has before touching the fields.
  */
 export function AeroIntegrationPanel({
   settings,
   onSettingsSaved,
   canEditUrl = false,
   canEditCredentials = true,
-  defaultOpen,
   testOutcome,
   onTestOutcomeHandled,
 }: AeroIntegrationPanelProps) {
   const { t } = useTranslation();
-  const [open, setOpen] = useState(() => defaultOpen ?? !aeroSettingsReady(settings));
   // El atajo vuelve siempre a la pantalla de lanzamiento; cuando el panel vive en el Panel Admin, el veredicto
   // llega por almacenamiento y no por props.
   const [storedOutcome, setStoredOutcome] = useState<AeroTestOutcome | null>(() =>
@@ -202,13 +197,12 @@ export function AeroIntegrationPanel({
   /**
    * The verdict the phone brought back.
    *
-   * Opens the panel first: the operator returns to the page after using another app, and a result hidden
-   * inside a collapsed card reads as no result at all.
+   * It still scrolls itself into view: the operator returns to the page after using another app, and an
+   * answer below the fold reads as no answer at all.
    */
   useEffect(() => {
     const outcome = testOutcome ?? storedOutcome;
     if (!outcome) return;
-    setOpen(true);
     setProbe(null);
     setBusy(null);
     const text =
@@ -256,15 +250,9 @@ export function AeroIntegrationPanel({
   return (
     <Card className="border-gray-200 shadow-sm overflow-hidden">
       {/* En un teléfono el título no entra junto a la insignia: se cortaba en "Configuración I..." y
-          el panel dejaba de decir qué era. Debajo de `sm` el título ocupa su renglón, la insignia baja
-          alineada con el texto y solo el chevron comparte fila. */}
-      <button
-        type="button"
-        onClick={() => setOpen((current) => !current)}
-        aria-expanded={open}
-        aria-controls="aero-integration-body"
-        className="flex w-full min-h-[56px] flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 text-left hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500"
-      >
+          el panel dejaba de decir qué era. Debajo de `sm` el título ocupa su renglón y la insignia baja
+          alineada con el texto. */}
+      <div className="flex min-h-[56px] flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
         <span className="flex min-w-0 flex-1 items-center gap-2">
           <Plug className="h-4 w-4 shrink-0 text-gray-500" />
           <span className="min-w-0">
@@ -283,150 +271,145 @@ export function AeroIntegrationPanel({
             {ready && <ShieldCheck className="h-3 w-3" />}
             {ready ? t('massas.aero.configured') : t('massas.aero.notConfigured')}
           </span>
-          <ChevronDown
-            className={`h-4 w-4 shrink-0 text-gray-500 transition-transform sm:ml-0 ${open ? 'rotate-180' : ''} max-sm:ml-auto`}
-          />
         </span>
-      </button>
+      </div>
 
-      {open && (
-        <div id="aero-integration-body" className="border-t border-gray-100 px-4 pb-4 pt-4 space-y-4">
+      <div id="aero-integration-body" className="border-t border-gray-100 px-4 pb-4 pt-4 space-y-4">
+        <div className="space-y-1.5">
+          <label htmlFor="aero-ws-url" className="block text-xs font-semibold text-gray-600">
+            {t('massas.aero.urlLabel')}
+          </label>
+          <Input
+            id="aero-ws-url"
+            type="url"
+            inputMode="url"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            placeholder={t('massas.aero.urlPlaceholder')}
+            value={draft.wsUrl}
+            onChange={(event) => setDraft((current) => ({ ...current, wsUrl: event.target.value }))}
+            disabled={!canEditUrl}
+            readOnly={!canEditUrl}
+            aria-describedby="aero-ws-url-note"
+            className="h-11 text-base read-only:bg-gray-50 read-only:text-gray-600"
+            data-testid="aero-ws-url"
+          />
+          <p id="aero-ws-url-note" className="text-[11px] text-gray-500 leading-relaxed">
+            {canEditUrl ? t('massas.aero.urlEditable') : t('massas.aero.urlLocked')}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <label htmlFor="aero-ws-url" className="block text-xs font-semibold text-gray-600">
-              {t('massas.aero.urlLabel')}
+            <label htmlFor="aero-ws-user" className="block text-xs font-semibold text-gray-600">
+              {t('massas.aero.userLabel')}
             </label>
             <Input
-              id="aero-ws-url"
-              type="url"
-              inputMode="url"
+              id="aero-ws-user"
               autoCapitalize="none"
               autoCorrect="off"
               spellCheck={false}
-              placeholder={t('massas.aero.urlPlaceholder')}
-              value={draft.wsUrl}
-              onChange={(event) => setDraft((current) => ({ ...current, wsUrl: event.target.value }))}
-              disabled={!canEditUrl}
-              readOnly={!canEditUrl}
-              aria-describedby="aero-ws-url-note"
-              className="h-11 text-base read-only:bg-gray-50 read-only:text-gray-600"
-              data-testid="aero-ws-url"
+              autoComplete="off"
+              value={draft.username}
+              onChange={(event) => setDraft((current) => ({ ...current, username: event.target.value }))}
+              disabled={!canEditCredentials}
+              readOnly={!canEditCredentials}
+              className="h-11 text-base"
+              data-testid="aero-ws-user"
             />
-            <p id="aero-ws-url-note" className="text-[11px] text-gray-500 leading-relaxed">
-              {canEditUrl ? t('massas.aero.urlEditable') : t('massas.aero.urlLocked')}
-            </p>
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <label htmlFor="aero-ws-user" className="block text-xs font-semibold text-gray-600">
-                {t('massas.aero.userLabel')}
-              </label>
-              <Input
-                id="aero-ws-user"
-                autoCapitalize="none"
-                autoCorrect="off"
-                spellCheck={false}
-                autoComplete="off"
-                value={draft.username}
-                onChange={(event) => setDraft((current) => ({ ...current, username: event.target.value }))}
-                disabled={!canEditCredentials}
-                readOnly={!canEditCredentials}
-                className="h-11 text-base"
-                data-testid="aero-ws-user"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label htmlFor="aero-ws-pass" className="block text-xs font-semibold text-gray-600">
-                {t('massas.aero.passwordLabel')}
-              </label>
-              <Input
-                id="aero-ws-pass"
-                type="password"
-                autoComplete="off"
-                value={draft.password}
-                onChange={(event) => setDraft((current) => ({ ...current, password: event.target.value }))}
-                disabled={!canEditCredentials}
-                readOnly={!canEditCredentials}
-                className="h-11 text-base"
-                data-testid="aero-ws-pass"
-              />
-            </div>
-          </div>
-
-          <p className="text-xs text-gray-500 leading-relaxed">{t('massas.aero.fieldsHint')}</p>
-
-          {probeMessage && (
-            <p
-              role="status"
-              className={`text-xs sm:text-sm rounded-lg border px-3 py-2 leading-relaxed ${
-                probe?.kind === 'ok'
-                  ? 'bg-green-50 border-green-200 text-green-800'
-                  : 'bg-red-50 border-red-200 text-red-800'
-              }`}
-            >
-              {probeMessage}
-            </p>
-          )}
-
-          {notice && (
-            <p
-              ref={noticeRef}
-              data-testid="aero-notice"
-              role="status"
-              className={`text-xs sm:text-sm rounded-lg border px-3 py-2 ${
-                notice.tone === 'ok'
-                  ? 'bg-green-50 border-green-200 text-green-800'
-                  : notice.tone === 'warn'
-                    ? 'bg-amber-50 border-amber-200 text-amber-800'
-                    : 'bg-red-50 border-red-200 text-red-800'
-              }`}
-            >
-              {notice.text}
-            </p>
-          )}
-
-          <div className="grid grid-cols-1 sm:flex sm:flex-wrap gap-2">
-            <Button
-              type="button"
-              onClick={handleTest}
-              disabled={busy !== null}
-              variant="outline"
-              className="min-h-[44px] w-full sm:w-auto font-semibold"
-              data-testid="aero-test"
-            >
-              {busy === 'test' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              {busy === 'test' ? t('massas.aero.testing') : t('massas.aero.test')}
-            </Button>
-            <Button
-              type="button"
-              onClick={handleSave}
-              disabled={busy !== null}
-              className="min-h-[44px] w-full sm:w-auto bg-amber-600 hover:bg-amber-700 text-white font-semibold"
-              data-testid="aero-save"
-            >
-              {t('massas.aero.save')}
-            </Button>
-            <Button
-              type="button"
-              onClick={() => setShortcutOpen(true)}
-              variant="outline"
-              className="min-h-[44px] w-full sm:w-auto font-semibold"
-              data-testid="aero-shortcut-open"
-            >
-              {t('massas.aero.shortcut')}
-            </Button>
-            <Button
-              type="button"
-              onClick={handleClear}
-              disabled={busy !== null}
-              variant="ghost"
-              className="min-h-[44px] w-full sm:w-auto sm:ml-auto text-red-600 hover:bg-red-50 font-semibold"
-            >
-              {t('massas.aero.clear')}
-            </Button>
+          <div className="space-y-1.5">
+            <label htmlFor="aero-ws-pass" className="block text-xs font-semibold text-gray-600">
+              {t('massas.aero.passwordLabel')}
+            </label>
+            <Input
+              id="aero-ws-pass"
+              type="password"
+              autoComplete="off"
+              value={draft.password}
+              onChange={(event) => setDraft((current) => ({ ...current, password: event.target.value }))}
+              disabled={!canEditCredentials}
+              readOnly={!canEditCredentials}
+              className="h-11 text-base"
+              data-testid="aero-ws-pass"
+            />
           </div>
         </div>
-      )}
+
+        <p className="text-xs text-gray-500 leading-relaxed">{t('massas.aero.fieldsHint')}</p>
+
+        {probeMessage && (
+          <p
+            role="status"
+            className={`text-xs sm:text-sm rounded-lg border px-3 py-2 leading-relaxed ${
+              probe?.kind === 'ok'
+                ? 'bg-green-50 border-green-200 text-green-800'
+                : 'bg-red-50 border-red-200 text-red-800'
+            }`}
+          >
+            {probeMessage}
+          </p>
+        )}
+
+        {notice && (
+          <p
+            ref={noticeRef}
+            data-testid="aero-notice"
+            role="status"
+            className={`text-xs sm:text-sm rounded-lg border px-3 py-2 ${
+              notice.tone === 'ok'
+                ? 'bg-green-50 border-green-200 text-green-800'
+                : notice.tone === 'warn'
+                  ? 'bg-amber-50 border-amber-200 text-amber-800'
+                  : 'bg-red-50 border-red-200 text-red-800'
+            }`}
+          >
+            {notice.text}
+          </p>
+        )}
+
+        <div className="grid grid-cols-1 sm:flex sm:flex-wrap gap-2">
+          <Button
+            type="button"
+            onClick={handleTest}
+            disabled={busy !== null}
+            variant="outline"
+            className="min-h-[44px] w-full sm:w-auto font-semibold"
+            data-testid="aero-test"
+          >
+            {busy === 'test' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            {busy === 'test' ? t('massas.aero.testing') : t('massas.aero.test')}
+          </Button>
+          <Button
+            type="button"
+            onClick={handleSave}
+            disabled={busy !== null}
+            className="min-h-[44px] w-full sm:w-auto bg-amber-600 hover:bg-amber-700 text-white font-semibold"
+            data-testid="aero-save"
+          >
+            {t('massas.aero.save')}
+          </Button>
+          <Button
+            type="button"
+            onClick={() => setShortcutOpen(true)}
+            variant="outline"
+            className="min-h-[44px] w-full sm:w-auto font-semibold"
+            data-testid="aero-shortcut-open"
+          >
+            {t('massas.aero.shortcut')}
+          </Button>
+          <Button
+            type="button"
+            onClick={handleClear}
+            disabled={busy !== null}
+            variant="ghost"
+            className="min-h-[44px] w-full sm:w-auto sm:ml-auto text-red-600 hover:bg-red-50 font-semibold"
+          >
+            {t('massas.aero.clear')}
+          </Button>
+        </div>
+      </div>
 
       <AeroResultDialog
         open={testResult !== null}
