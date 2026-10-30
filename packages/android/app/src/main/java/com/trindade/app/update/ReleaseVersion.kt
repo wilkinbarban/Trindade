@@ -27,9 +27,13 @@ object ReleaseVersion {
     /**
      * What comparing the newest release with this build produces.
      *
-     * Three answers rather than a boolean, because the third one fits neither truth value: "a newer
-     * version exists" and "this build is current" are both claims about the two versions, and a string
-     * that is not a version supports neither.
+     * Four answers rather than a boolean, because two of them fit neither truth value: "a newer version
+     * exists" and "this build is current" are both claims about the two versions, and a string that is
+     * not a version supports neither. [Older] and [SameVersion] are separate for the same kind of reason,
+     * one level down: both mean "there is nothing to install", but they are different facts about the two
+     * versions, and the phone acts differently on each -- only the same version invites the detector to
+     * compare the release's APK against the installed one. Folding them into one answer is what turned an
+     * older release whose asset differed in size into a mandatory update of a newer build.
      */
     sealed interface Comparison {
 
@@ -42,8 +46,17 @@ object ReleaseVersion {
          */
         data class Newer(val version: String) : Comparison
 
-        /** The newest release is this build's version, or older. */
-        data object UpToDate : Comparison
+        /** The newest release carries exactly this build's version. */
+        data object SameVersion : Comparison
+
+        /**
+         * The newest release is older than this build.
+         *
+         * Reachable whenever the phone runs an APK published by hand or GitHub lags its own tag, and it
+         * is the answer that must never lead anywhere: there is no newer release to install, and the
+         * older one is not a patch of this build either.
+         */
+        data object Older : Comparison
 
         /** One of the two strings is not `major.minor.patch`, so this client cannot say. */
         data object Undetermined : Comparison
@@ -57,9 +70,10 @@ object ReleaseVersion {
      * `"0.10.0"` sorts before `"0.9.0"` because `'1' < '9'`. A client that got this backwards would
      * offer the operator an older APK as an update, which is the one outcome worse than saying nothing.
      *
-     * [Comparison.UpToDate] covers equal as well as older, and the direction matters: a build at or
-     * ahead of the newest release -- an APK installed by hand, or GitHub lagging its own tag -- is
-     * current. There is never a suggestion to go backwards.
+     * [Comparison.Older] is kept apart from [Comparison.SameVersion] rather than merged into one
+     * "current" answer: a build ahead of the newest release -- an APK installed by hand, or GitHub
+     * lagging its own tag -- has nothing to install either way, but it is not the same version, and
+     * saying it is invites a comparison of the two APKs that can only end in a wrong answer.
      *
      * Both sides go through the same shape rule, so an unreadable version on either one is
      * [Comparison.Undetermined] rather than a silent "no update available".
@@ -71,11 +85,11 @@ object ReleaseVersion {
         for (component in 0 until COMPONENTS) {
             val difference = latest[component].compareTo(current[component])
             if (difference != 0) {
-                return if (difference > 0) Comparison.Newer(normalize(latestTag)) else Comparison.UpToDate
+                return if (difference > 0) Comparison.Newer(normalize(latestTag)) else Comparison.Older
             }
         }
 
-        return Comparison.UpToDate
+        return Comparison.SameVersion
     }
 
     /**

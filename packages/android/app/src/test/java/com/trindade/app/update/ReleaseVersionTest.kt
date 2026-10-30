@@ -27,26 +27,38 @@ class ReleaseVersionTest {
     }
 
     @Test
-    fun `a build ahead of the newest release is up to date, and no downgrade is ever suggested`() {
+    fun `a release older than this build is reported as older, not as the same version`() {
         // The same pair the other way round. Nothing here may come back as "a newer version exists",
         // because the version it would name is older than the one on the phone: an operator running an
         // APK published by hand, or a release GitHub has not caught up with yet.
+        //
+        // And it may not come back as the same version either. These two answers are different facts, and
+        // the phone acts differently on each: "same version" invites the detector to compare the APK's
+        // digest and size, which is how an older release whose asset differs got promoted to a patch of
+        // this one and locked the app behind a mandatory update dialog.
         assertEquals(
-            Comparison.UpToDate,
+            Comparison.Older,
             ReleaseVersion.compare(latestTag = "v0.9.0", currentVersion = "0.10.0"),
         )
         assertEquals(
-            Comparison.UpToDate,
+            Comparison.Older,
             ReleaseVersion.compare(latestTag = "v0.9.9", currentVersion = "1.0.0"),
+        )
+        assertEquals(
+            Comparison.Older,
+            ReleaseVersion.compare(latestTag = "v0.5.3", currentVersion = "0.6.0"),
         )
     }
 
     @Test
-    fun `the release this build already carries is up to date`() {
-        assertEquals(Comparison.UpToDate, ReleaseVersion.compare(latestTag = "v0.3.0", currentVersion = "0.3.0"))
+    fun `the release this build already carries is the same version`() {
+        assertEquals(Comparison.SameVersion, ReleaseVersion.compare(latestTag = "v0.3.0", currentVersion = "0.3.0"))
         // Equality is per component and not per string, so the two spellings of one version are equal
         // too -- and neither of them is a newer release.
-        assertEquals(Comparison.UpToDate, ReleaseVersion.compare(latestTag = "0.3.0", currentVersion = "0.3.0"))
+        assertEquals(Comparison.SameVersion, ReleaseVersion.compare(latestTag = "0.3.0", currentVersion = "0.3.0"))
+        // The current app against the release actually sitting on GitHub: same version, whatever the tag
+        // on the phone was built from.
+        assertEquals(Comparison.SameVersion, ReleaseVersion.compare(latestTag = "v0.6.0", currentVersion = "0.6.0"))
     }
 
     @Test
@@ -56,7 +68,7 @@ class ReleaseVersionTest {
         assertEquals(Comparison.Newer("0.3.10"), ReleaseVersion.compare("v0.3.10", "0.3.9"))
         assertEquals(Comparison.Newer("0.4.0"), ReleaseVersion.compare("v0.4.0", "0.3.99"))
         assertEquals(Comparison.Newer("1.0.0"), ReleaseVersion.compare("v1.0.0", "0.9.9"))
-        assertEquals(Comparison.UpToDate, ReleaseVersion.compare("v0.9.9", "1.0.0"))
+        assertEquals(Comparison.Older, ReleaseVersion.compare("v0.9.9", "1.0.0"))
     }
 
     @Test
@@ -65,8 +77,8 @@ class ReleaseVersionTest {
         // comparison has to read both spellings as one version.
         assertEquals(Comparison.Newer("0.4.0"), ReleaseVersion.compare(latestTag = "v0.4.0", currentVersion = "0.3.0"))
         assertEquals(Comparison.Newer("0.4.0"), ReleaseVersion.compare(latestTag = "0.4.0", currentVersion = "0.3.0"))
-        assertEquals(Comparison.UpToDate, ReleaseVersion.compare(latestTag = "v0.3.0", currentVersion = "0.3.0"))
-        assertEquals(Comparison.UpToDate, ReleaseVersion.compare(latestTag = "0.3.0", currentVersion = "0.3.0"))
+        assertEquals(Comparison.SameVersion, ReleaseVersion.compare(latestTag = "v0.3.0", currentVersion = "0.3.0"))
+        assertEquals(Comparison.SameVersion, ReleaseVersion.compare(latestTag = "0.3.0", currentVersion = "0.3.0"))
     }
 
     @Test

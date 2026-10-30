@@ -215,4 +215,51 @@ class UpdateDetectorTest {
         assertEquals(UpdateType.SAME_RELEASE_PATCH, availability.type)
         assertTrue(availability.isUpdateAvailable)
     }
+
+    @Test
+    fun checkUpdate_withOlderReleaseThanTheInstalledBuild_returnsNoneWhateverTheAssetLooksLike() {
+        // The loop Wilkin hit on the phone: GitHub still says v0.5.3 while the installed build is 0.6.0,
+        // and the older release ships a 10.8 MB APK against this build's 11.1 MB. Comparing the asset of
+        // an older release with the installed build says "different" for the obvious reason, and reading
+        // that difference as a patch promoted the old release into a mandatory update: the dialog came up,
+        // the app locked itself into the profile route, and the only thing the operator could do was
+        // close it and open it again into the same dialog.
+        //
+        // An older release is not this build's version to patch. It is older, full stop.
+        val currentBuildTime = Instant.parse("2026-05-18T10:00:00Z").toEpochMilli()
+        val release = createRelease(
+            tagName = "v0.5.3",
+            assetUpdatedAt = "2026-06-01T12:00:00Z",
+            assetDigest = "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+            assetSize = 10774704L,
+        )
+
+        val availability = UpdateDetector.checkUpdate(
+            release = release,
+            currentVersionName = "0.6.0",
+            currentBuildTimeMillis = currentBuildTime,
+            installedSha256 = "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+            installedSizeBytes = 11115300L,
+        )
+
+        assertEquals(UpdateType.NONE, availability.type)
+        assertFalse(availability.isUpdateAvailable)
+    }
+
+    @Test
+    fun checkUpdate_withOlderReleaseAndNoSizeToCompare_returnsNone() {
+        // The same pair with nothing to compare but the timestamp, which is newer than the build on
+        // purpose: an older release must not reach that fallback at all, because a re-uploaded old asset
+        // is newer by the clock and older by every measure that matters.
+        val release = createRelease(tagName = "v0.5.3", assetUpdatedAt = "2026-06-01T12:00:00Z")
+
+        val availability = UpdateDetector.checkUpdate(
+            release = release,
+            currentVersionName = "0.6.0",
+            currentBuildTimeMillis = Instant.parse("2026-05-18T10:00:00Z").toEpochMilli(),
+        )
+
+        assertEquals(UpdateType.NONE, availability.type)
+        assertFalse(availability.isUpdateAvailable)
+    }
 }

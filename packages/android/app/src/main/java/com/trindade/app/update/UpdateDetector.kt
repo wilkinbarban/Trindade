@@ -27,7 +27,14 @@ object UpdateDetector {
      *      or SAME_RELEASE_PATCH if different.
      *    - If size is available: returns NONE if sizes match, or SAME_RELEASE_PATCH if different.
      *    - Fallback: compares remote asset updated_at strictly against currentBuildTimeMillis.
-     * 3. Undetermined if version tag cannot be parsed.
+     * 3. Nothing at all if tagName < currentVersionName: an older release is not a patch of this build.
+     * 4. Undetermined if version tag cannot be parsed.
+     *
+     * The second rule applies **only to the same version**. An older release whose APK is a different
+     * size, digest or timestamp is older by every measure this check has, and comparing its asset with
+     * the installed build answers the wrong question: the difference is guaranteed and means nothing.
+     * Reading it as a patch put a mandatory update dialog in front of an operator already running a newer
+     * build, with no way forward.
      */
     fun checkUpdate(
         release: GitHubRelease,
@@ -37,17 +44,22 @@ object UpdateDetector {
         installedSizeBytes: Long = -1L,
     ): UpdateAvailability {
         val apkAsset = release.assets.firstOrNull { it.name.endsWith(".apk") }
-        val comparison = ReleaseVersion.compare(release.tagName, currentVersionName)
 
-        if (comparison is ReleaseVersion.Comparison.Undetermined) {
-            return UpdateAvailability(UpdateType.UNDETERMINED, release, apkAsset)
+        when (ReleaseVersion.compare(release.tagName, currentVersionName)) {
+            is ReleaseVersion.Comparison.Undetermined ->
+                return UpdateAvailability(UpdateType.UNDETERMINED, release, apkAsset)
+
+            is ReleaseVersion.Comparison.Newer ->
+                return UpdateAvailability(UpdateType.NEW_RELEASE, release, apkAsset)
+
+            // Nothing to install, and nothing to compare: this build is ahead of the newest release.
+            is ReleaseVersion.Comparison.Older ->
+                return UpdateAvailability(UpdateType.NONE, release, apkAsset)
+
+            is ReleaseVersion.Comparison.SameVersion -> Unit
         }
 
-        if (comparison is ReleaseVersion.Comparison.Newer) {
-            return UpdateAvailability(UpdateType.NEW_RELEASE, release, apkAsset)
-        }
-
-        if (comparison is ReleaseVersion.Comparison.UpToDate && apkAsset != null) {
+        if (apkAsset != null) {
             val remoteDigest = apkAsset.digest?.removePrefix("sha256:")?.trim()
             val localDigest = installedSha256?.removePrefix("sha256:")?.trim()
 
