@@ -1,5 +1,6 @@
 package com.trindade.app.massas
 
+import androidx.annotation.StringRes
 import com.trindade.app.R
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -264,7 +265,10 @@ class MassasLaunchViewModel @Inject constructor(
      * The code decides when this build knows it, whatever language the sentence arrived in; otherwise the
      * server's own text stands, and the status code is the last resort for a body nobody could read.
      */
-    private fun refusalMessage(result: MassasWriteResult.Refused): UiText = when (result.errorCode) {
+    private fun refusalMessage(
+        result: MassasWriteResult.Refused,
+        @StringRes fallbackRes: Int = R.string.massas_error_create_refused,
+    ): UiText = when (result.errorCode) {
         "MASSAS_HISTORY_FROZEN" -> UiText.of(R.string.massas_error_history_frozen)
         "MASSAS_FORBIDDEN" -> UiText.of(R.string.massas_error_forbidden)
         "MASSAS_ALREADY_IMPORTED" -> UiText.of(R.string.massas_error_already_imported)
@@ -275,7 +279,7 @@ class MassasLaunchViewModel @Inject constructor(
         else -> result.message
             ?.takeIf { it.isNotBlank() }
             ?.let { UiText.literal(it) }
-            ?: UiText.of(R.string.massas_error_create_refused, result.statusCode)
+            ?: UiText.of(fallbackRes, result.statusCode)
     }
 
     fun selectOperator(operatorId: Int?) {
@@ -552,7 +556,7 @@ class MassasLaunchViewModel @Inject constructor(
                 is MassasWriteResult.Refused -> {
                     _state.value = _state.value.copy(
                         isSubmitting = false,
-                        errorMessage = refusalMessage(result),
+                        errorMessage = refusalMessage(result, R.string.massas_error_create_refused),
                     )
                 }
                 is MassasWriteResult.Unreachable -> {
@@ -615,7 +619,7 @@ class MassasLaunchViewModel @Inject constructor(
                 is MassasWriteResult.Refused -> {
                     _state.value = _state.value.copy(
                         isSubmitting = false,
-                        errorMessage = refusalMessage(result),
+                        errorMessage = refusalMessage(result, R.string.massas_error_create_refused),
                     )
                 }
                 is MassasWriteResult.Unreachable -> {
@@ -688,7 +692,7 @@ class MassasLaunchViewModel @Inject constructor(
                 is MassasWriteResult.Refused -> {
                     _state.value = _state.value.copy(
                         isSubmitting = false,
-                        errorMessage = refusalMessage(result),
+                        errorMessage = refusalMessage(result, R.string.massas_error_update),
                     )
                 }
                 is MassasWriteResult.Unreachable -> {
@@ -733,7 +737,7 @@ class MassasLaunchViewModel @Inject constructor(
                 is MassasWriteResult.Refused -> {
                     _state.value = _state.value.copy(
                         isSubmitting = false,
-                        errorMessage = refusalMessage(result),
+                        errorMessage = refusalMessage(result, R.string.massas_error_delete),
                     )
                 }
                 is MassasWriteResult.Unreachable -> {
