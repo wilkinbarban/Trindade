@@ -108,6 +108,11 @@ export async function massasRoutes(fastify: FastifyInstance) {
       if (code === 'FORBIDDEN') {
         return reply.status(403).send(apiError('Forbidden: cannot edit launches belonging to another user', MASSAS_ERROR_CODES.FORBIDDEN));
       }
+      if (code === 'RECONCILED') {
+        return reply
+          .status(409)
+          .send(apiError('This production was already reconciled with the ERP and cannot change', MASSAS_ERROR_CODES.RECONCILED));
+      }
       const message = error instanceof Error ? error.message : 'Failed to update launch';
       return reply.status(400).send(apiError(message, MASSAS_ERROR_CODES.UPDATE_FAILED));
     }
@@ -133,6 +138,11 @@ export async function massasRoutes(fastify: FastifyInstance) {
       }
       if (code === 'FORBIDDEN') {
         return reply.status(403).send(apiError('Forbidden: cannot delete launches belonging to another user', MASSAS_ERROR_CODES.FORBIDDEN));
+      }
+      if (code === 'RECONCILED') {
+        return reply
+          .status(409)
+          .send(apiError('This production was already reconciled with the ERP and cannot change', MASSAS_ERROR_CODES.RECONCILED));
       }
       const message = error instanceof Error ? error.message : 'Failed to delete launch';
       return reply.status(400).send(apiError(message, MASSAS_ERROR_CODES.DELETE_FAILED));

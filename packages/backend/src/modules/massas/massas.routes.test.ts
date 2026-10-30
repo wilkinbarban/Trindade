@@ -239,6 +239,50 @@ describe('massas routes', () => {
     assert.equal(updatedBob.boxes, 6);
   });
 
+  it('refuses to edit or delete a launch the ERP already recorded, even for an Administrador', async () => {
+    const launch = await app.inject({
+      method: 'POST',
+      url: '/api/massas-launch',
+      headers: { authorization: `Bearer ${tokenAlice}` },
+      payload: { date: dateStr, product_code: '1045', boxes: 2 },
+    });
+    assert.equal(launch.statusCode, 201);
+    const launchId = (JSON.parse(launch.body) as { created: { id: number }[] }).created[0].id;
+
+    db.prepare(
+      `INSERT INTO aero_movements
+         (movement_date, ent_lan, product_code, product_desc, quantity, entry_date, operator_name, movement_type, synced_at)
+       VALUES (?, 7100, '1045', 'MASSA', 20, ?, 'ALICE', 'E', '2026-10-20T12:00:00.000Z')`,
+    ).run(dateStr, dateStr);
+
+    const edit = await app.inject({
+      method: 'PUT',
+      url: `/api/massas-launch/${launchId}`,
+      headers: { authorization: `Bearer ${tokenAlice}` },
+      payload: { boxes: 9 },
+    });
+    assert.equal(edit.statusCode, 409);
+    assert.equal(JSON.parse(edit.body).code, 'MASSAS_RECONCILED');
+
+    const remove = await app.inject({
+      method: 'DELETE',
+      url: `/api/massas-launch/${launchId}`,
+      headers: { authorization: `Bearer ${tokenAlice}` },
+    });
+    assert.equal(remove.statusCode, 409);
+    assert.equal(JSON.parse(remove.body).code, 'MASSAS_RECONCILED');
+
+    // The row is still the two boxes the plant launched, not the nine the refused edit asked for.
+    const day = await app.inject({
+      method: 'GET',
+      url: `/api/massas-launch?date=${dateStr}`,
+      headers: { authorization: `Bearer ${tokenAlice}` },
+    });
+    const launches = (JSON.parse(day.body) as MassasLaunchDayView).launches;
+    const kept = launches.find((row) => row.id === launchId);
+    assert.equal(kept?.boxes, 2);
+  });
+
   it('DELETE /api/massas-launch/:id permits owner and Administrador to delete, and returns 403 for other workers', async () => {
     // Alice creates a launch
     const aliceCreateRes = await app.inject({

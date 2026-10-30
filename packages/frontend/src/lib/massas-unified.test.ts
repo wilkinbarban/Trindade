@@ -1,6 +1,11 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { massasUnifiedRows, type MassasUnifiedInput } from './massas-unified';
+import {
+  massasUnifiedRows,
+  reconciledLaunchIds,
+  type MassasUnifiedInput,
+  type MassasUnifiedRow,
+} from './massas-unified';
 import type { AeroErpMovementItem } from './aero-integration';
 import type { MassaIndividualLaunch } from './massas';
 
@@ -57,6 +62,41 @@ function input(overrides: Partial<MassasUnifiedInput> = {}): MassasUnifiedInput 
     ...overrides,
   };
 }
+
+describe('reconciledLaunchIds', () => {
+  it('names the launches the ERP already has, and only those', () => {
+    // A launch Delphi has seen is settled: editing or deleting it here would leave the plant's day and the
+    // company's book disagreeing, with no screen able to say which one is right.
+    const rows = massasUnifiedRows(
+      input({
+        launches: [launch({ id: 1 }), launch({ id: 2, product_code: '1047' })],
+        movements: [seat({ entLan: 900 })],
+      }),
+    );
+
+    assert.deepEqual([...reconciledLaunchIds(rows)].sort(), [1]);
+  });
+
+  it('leaves a pending launch manageable, and a day with no rows open', () => {
+    const pending = massasUnifiedRows(input({ launches: [launch({ id: 7 })] }));
+    assert.deepEqual([...reconciledLaunchIds(pending)], []);
+
+    // The history screen reads past days and has no ERP half at all: nothing is settled there.
+    assert.deepEqual([...reconciledLaunchIds(undefined)], []);
+    assert.deepEqual([...reconciledLaunchIds([])], []);
+  });
+
+  it('settles every launch behind a reconciled row, not just the first', () => {
+    // The row is built here: what this test is about is the helper reading the whole list, not how many
+    // launches the matcher happens to pair with one seat.
+    const rows: MassasUnifiedRow[] = [
+      { ...massasUnifiedRows(input({ launches: [launch({ id: 3 })] }))[0], state: 'reconciled', launchIds: [3, 4] },
+      { ...massasUnifiedRows(input({ launches: [launch({ id: 5 })] }))[0], state: 'pendingErp', launchIds: [5] },
+    ];
+
+    assert.deepEqual([...reconciledLaunchIds(rows)].sort(), [3, 4]);
+  });
+});
 
 describe('massasUnifiedRows', () => {
   it('shows one reconciled row for a launch the ERP already has, not two', () => {

@@ -519,6 +519,7 @@
     "launchError": "Erro ao registrar lançamento",
     "updateSuccess": "Lançamento atualizado com sucesso",
     "updateError": "Erro ao atualizar lançamento",
+    "reconciledLocked": "Esta produção já foi conciliada com o ERP e não pode ser alterada.",
     "deleteConfirm": "Tem certeza que deseja excluir este lançamento?",
     "deleteSuccess": "Lançamento excluído com sucesso",
     "deleteError": "Erro ao excluir lançamento",
@@ -688,7 +689,8 @@
       "acked": "já na tablet",
       "import": "Importar",
       "notWholeBoxes": "Não fecha caixas inteiras",
-      "send": "Enviar ao ERP"
+      "send": "Enviar ao ERP",
+      "settled": "Conciliado com o ERP, não editável"
     },
     "syncHeader": {
       "action": "Sincronizar com ERP",

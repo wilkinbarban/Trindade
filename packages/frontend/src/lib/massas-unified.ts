@@ -25,6 +25,22 @@ export interface MassasUnifiedRow {
   tabletAcked: boolean;
 }
 
+/**
+ * The launches the ERP already has.
+ *
+ * A reconciled launch is settled: Delphi holds the seat, so editing its boxes or deleting it here would leave
+ * the plant's day and the company's book telling different numbers with no screen able to say which is right.
+ * The table asks this before drawing any control, which is the only place the rule can hold for both screens.
+ */
+export function reconciledLaunchIds(rows: readonly MassasUnifiedRow[] | undefined | null): Set<number> {
+  const ids = new Set<number>();
+  for (const row of rows ?? []) {
+    if (row.state !== 'reconciled') continue;
+    for (const id of row.launchIds) ids.add(id);
+  }
+  return ids;
+}
+
 export interface MassasUnifiedInput {
   launches: readonly MassaIndividualLaunch[];
   /** The ERP's day, exactly as the bridge stored it. */

@@ -1,5 +1,7 @@
 import type Database from 'better-sqlite3';
+import { aeroMovementsTableExists, listAeroMovements } from '../integration/aero.movements.service.js';
 import { MASSAS, type StockProduct } from '../stock/stock.catalog.js';
+import { reconcileMassasDay } from './massas-reconcile.js';
 
 export interface MassaProductTotal {
   code: string;
@@ -198,6 +200,31 @@ export function createMassaLaunches(
   }).immediate();
 }
 
+
+/**
+ * Refuses to touch a launch the Delphi tablet already recorded.
+ *
+ * The rule is about consistency, not about who is asking: once the ERP has a seat describing these same
+ * boxes, editing or deleting the launch here would leave the two databases counting different production
+ * with nobody the wiser. An administrator is refused too, and if the seat itself is wrong it is corrected in
+ * Aero32 — Trindade cannot be the origin of that correction.
+ *
+ * The whole day is compared, not the row alone, because reconciliation is a decision about pairs: the same
+ * launch can be reconciled or not depending on which seats arrived.
+ */
+function assertLaunchNotReconciled(db: Database.Database, launchId: number, launchDate: string): void {
+  if (!aeroMovementsTableExists(db)) return;
+  const seats = listAeroMovements(db, launchDate);
+  if (seats.length === 0) return;
+  const launch = massasLaunchDayView(db, launchDate).launches.find((row) => row.id === launchId);
+  if (!launch) return;
+  const { matchedLaunchIds } = reconcileMassasDay([launch], seats);
+  if (!matchedLaunchIds.includes(launchId)) return;
+  const err = new Error('Esta produção já foi conciliada com o ERP e não pode ser alterada');
+  (err as unknown as { code: string }).code = 'RECONCILED';
+  throw err;
+}
+
 export function updateMassaLaunch(
   db: Database.Database,
   params: {
@@ -227,6 +254,8 @@ export function updateMassaLaunch(
     (err as unknown as { code: string }).code = 'FORBIDDEN';
     throw err;
   }
+
+  assertLaunchNotReconciled(db, params.id, existing.launch_date);
 
   const now = nowIso();
   db.prepare('UPDATE massa_launches SET boxes = ?, updated_at = ? WHERE id = ?').run(params.boxes, now, params.id);
@@ -274,8 +303,8 @@ export function deleteMassaLaunch(
   },
 ): void {
   const existing = db
-    .prepare('SELECT id, user_id FROM massa_launches WHERE id = ?')
-    .get(params.id) as { id: number; user_id: number } | undefined;
+    .prepare('SELECT id, user_id, launch_date FROM massa_launches WHERE id = ?')
+    .get(params.id) as { id: number; user_id: number; launch_date: string } | undefined;
 
   if (!existing) {
     const err = new Error('Launch not found');
@@ -289,6 +318,8 @@ export function deleteMassaLaunch(
     (err as unknown as { code: string }).code = 'FORBIDDEN';
     throw err;
   }
+
+  assertLaunchNotReconciled(db, params.id, existing.launch_date);
 
   db.prepare('DELETE FROM massa_launches WHERE id = ?').run(params.id);
 }

@@ -519,6 +519,7 @@
     "launchError": "Error al registrar lanzamiento",
     "updateSuccess": "Lanzamiento actualizado con éxito",
     "updateError": "Error al actualizar lanzamiento",
+    "reconciledLocked": "Esta producción ya fue conciliada con el ERP y no puede modificarse.",
     "deleteConfirm": "¿Estás seguro de que querés borrar este lanzamiento?",
     "deleteSuccess": "Lanzamiento borrado con éxito",
     "deleteError": "Error al borrar lanzamiento",
@@ -688,7 +689,8 @@
       "acked": "ya en tablet",
       "import": "Importar",
       "notWholeBoxes": "No cierra cajas enteras",
-      "send": "Enviar al ERP"
+      "send": "Enviar al ERP",
+      "settled": "Conciliado con el ERP, no editable"
     },
     "syncHeader": {
       "action": "Sincronizar con ERP",

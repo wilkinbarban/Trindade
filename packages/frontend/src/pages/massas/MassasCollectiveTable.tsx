@@ -3,9 +3,13 @@ import { useTranslation } from 'react-i18next';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
-import { Edit2, Trash2, Check, X, ShieldAlert } from 'lucide-react';
+import { Edit2, Trash2, Check, X, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { MassasUnifiedTable } from './MassasUnifiedTable';
-import type { AeroImportRequest, MassasUnifiedRow } from '../../lib/massas-unified';
+import {
+  reconciledLaunchIds,
+  type AeroImportRequest,
+  type MassasUnifiedRow,
+} from '../../lib/massas-unified';
 import {
   extractOperators,
   filterLaunchesByOperator,
@@ -105,6 +109,15 @@ export function MassasCollectiveTable({
     return groupProductsFromLaunches(displayedLaunches, products);
   }, [displayedLaunches, products]);
 
+  /**
+   * Los lanzamientos que Delphi ya asentó.
+   *
+   * Un lanzamiento conciliado está cerrado: su caja ya existe en el ERP, así que editar la cantidad o
+   * borrarlo acá dejaría el día de la planta y el libro de la empresa diciendo cosas distintas, sin ninguna
+   * pantalla capaz de decir cuál es la buena. La regla se dibuja en la fila, no se le confía al operario.
+   */
+  const reconciledIds = useMemo(() => reconciledLaunchIds(unifiedRows), [unifiedRows]);
+
   const workersByProduct = useMemo(() => {
     const map = new Map<string, string[]>();
     for (const product of activeProducts) {
@@ -199,7 +212,9 @@ export function MassasCollectiveTable({
             <div className="space-y-2.5">
               {displayedLaunches.map((launch) => {
                 const isOwner = currentUserId === launch.user_id;
-                const canManage = isOwner || isAdmin;
+                const reconciled = reconciledIds.has(launch.id);
+                // Conciliado manda sobre el rol: ni el administrador edita lo que el ERP ya asentó.
+                const canManage = (isOwner || isAdmin) && !reconciled;
                 const isEditing = editingLaunchId === launch.id;
 
                 return (
@@ -294,6 +309,16 @@ export function MassasCollectiveTable({
                                     <Trash2 className="h-4 w-4" />
                                   </Button>
                                 </>
+                              ) : reconciled ? (
+                                // El motivo importa: no es «de otro operador», es que el ERP ya lo tiene.
+                                <span
+                                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md"
+                                  title={t('massas.unified.settled')}
+                                  data-testid={`massas-settled-${launch.id}`}
+                                >
+                                  <ShieldCheck className="h-3.5 w-3.5" />
+                                  {t('massas.unified.stateReconciled')}
+                                </span>
                               ) : (
                                 <span
                                   className="inline-flex items-center gap-1 text-[11px] text-gray-500 bg-gray-100/90 px-2.5 py-1 rounded-md"

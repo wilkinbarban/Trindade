@@ -138,6 +138,13 @@ Cada intento —exitoso o no— se registra en la bitácora del backend, en dos 
 antes de que el teléfono salga, y la de `result` cuando vuelve. Saber que el pedido nunca salió del
 teléfono es la mitad del diagnóstico, y una línea `requested` sin `result` es exactamente eso.
 
+**Adónde vuelve el atajo.** El panel se mudó al Panel Admin, así que la prueba apunta su callback a
+`/admin?tab=integration` en vez de a la pantalla de lanzamiento. El atajo abre exactamente la URL que se le
+entrega, y una que aterrizara en `/massas-launch` dejaba el veredicto en una pantalla que ya no puede
+dibujarlo: el operario volvía, no veía nada y el intento quedaba sin respuesta visible. El panel lee sus
+propios parámetros (`aero_action`, `aero_data`), limpia el query con `replaceState` y levanta el mismo
+diálogo de resultado que usa el camino del navegador, con la línea de auditoría correspondiente.
+
 ## 5. Receta del Atajo (Apple Shortcuts)
 
 Un archivo `.shortcut` tiene que estar firmado por el dispositivo que lo instala, e iOS solo acepta
@@ -325,6 +332,15 @@ como snapshot del día para que cualquier dispositivo la vea sin volver a ejecut
   `503 AERO_MOVEMENTS_NOT_MIGRATED`.
 - `synced_at` es cuándo Trindade supo del ERP, no cuándo ocurrió el movimiento: el asiento es inmutable
   en Aero32 y `entry_date` es lo que hizo la fábrica.
+
+**Un lanzamiento conciliado no se toca.** Cuando el asiento del ERP y el lanzamiento local describen la
+misma producción —misma fecha, mismo código, misma cantidad y mismo operario—, esa fila queda conciliada y
+deja de ofrecer editar y eliminar, para cualquier rol. No es una restricción de permisos sino de
+consistencia: Delphi ya asentó esa entrada, y corregirla en Trindade dejaría las dos bases contando cosas
+distintas sin que nadie vuelva a mirar. La pantalla lo dice con la insignia **Conciliado** en lugar de los
+botones apagados, y el backend rechaza el `PUT` y el `DELETE` de una fila conciliada aunque se los pida por
+fuera de la interfaz. Si el asiento del ERP está mal, se corrige en Aero32; Trindade no puede ser el origen
+de esa corrección.
 
 ## 7. Bitácora
 

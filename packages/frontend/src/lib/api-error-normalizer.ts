@@ -49,6 +49,11 @@ export function resolveApiErrorKey(status: number, rawMessage: string): string |
     if (msg.includes('Veículo já agendado') || msg.includes('Veículo')) {
       return 'loading.vehicleAlreadyScheduled';
     }
+    // A launch the ERP already recorded: the backend refuses the edit, and the screen has to say why
+    // instead of repeating an English sentence to a Portuguese-speaking operator.
+    if (msg.toLowerCase().includes('reconciled with the erp')) {
+      return 'massas.reconciledLocked';
+    }
   }
 
   if (status === 403) {

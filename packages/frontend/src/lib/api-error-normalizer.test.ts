@@ -68,3 +68,10 @@ test('isNetworkError: correctly detects network failures and fetch errors', () =
   assert.equal(isNetworkError(null), false);
   assert.equal(isNetworkError(undefined), false);
 });
+
+test('resolveApiErrorKey: maps the reconciled launch 409 to massas.reconciledLocked', () => {
+  assert.equal(
+    resolveApiErrorKey(409, 'This production was already reconciled with the ERP and cannot change'),
+    'massas.reconciledLocked',
+  );
+});
