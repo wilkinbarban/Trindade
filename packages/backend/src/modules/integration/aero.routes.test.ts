@@ -76,10 +76,7 @@ describe('Aero integration routes', () => {
     assert.equal(res.statusCode, 401);
   });
 
-  it('answers 403 for the fixture admin whose username is not wilkin, and leaves no line on disk', async () => {
-    const logFilePath = join(tempLogDir, AERO_LOG_FILE);
-    const hadLogFile = existsSync(logFilePath);
-
+  it('answers 200 for an admin who is not the owner, stamping their own identity', async () => {
     const res = await app.inject({
       method: 'POST',
       url: '/api/integration/aero/log',
@@ -87,35 +84,47 @@ describe('Aero integration routes', () => {
       payload: {
         event: 'test_connection',
         destinationUrl: 'http://192.168.1.50:8000/api/usuarios/',
+        note: 'client=web · via=bridge',
       },
     });
-    assert.equal(res.statusCode, 403);
-    assert.deepStrictEqual(JSON.parse(res.body), { error: 'Insufficient permissions' });
+    assert.equal(res.statusCode, 200);
+    assert.deepStrictEqual(JSON.parse(res.body), { ok: true });
 
-    if (!hadLogFile) {
-      assert.equal(existsSync(logFilePath), false, '403 must leave no line on disk');
-    }
+    const logFilePath = join(tempLogDir, AERO_LOG_FILE);
+    assert.ok(existsSync(logFilePath), 'log file must be created on disk');
+    const lines = readFileSync(logFilePath, 'utf-8').split('\n').filter(Boolean);
+    const lastLine = JSON.parse(lines[lines.length - 1]);
+    assert.equal(lastLine.user, fixtures.admin.username);
+    assert.equal(lastLine.role, 'Administrador');
+    assert.equal(lastLine.note, 'client=web · via=bridge');
   });
 
-  it('answers 403 for the fixture worker, and leaves no line on disk', async () => {
-    const logFilePath = join(tempLogDir, AERO_LOG_FILE);
-    const hadLogFile = existsSync(logFilePath);
-
+  it('answers 200 for a worker, stamping the true username and role of the operator who dispatched', async () => {
     const res = await app.inject({
       method: 'POST',
       url: '/api/integration/aero/log',
       headers: { authorization: `Bearer ${workerToken}` },
       payload: {
-        event: 'test_connection',
-        destinationUrl: 'http://192.168.1.50:8000/api/usuarios/',
+        event: 'launch_sync',
+        phase: 'result',
+        destinationUrl: 'http://192.168.1.50:8000/api/entradasitem',
+        httpStatus: 200,
+        launchId: 42,
+        note: 'client=android · via=native',
       },
     });
-    assert.equal(res.statusCode, 403);
-    assert.deepStrictEqual(JSON.parse(res.body), { error: 'Insufficient permissions' });
+    assert.equal(res.statusCode, 200);
+    assert.deepStrictEqual(JSON.parse(res.body), { ok: true });
 
-    if (!hadLogFile) {
-      assert.equal(existsSync(logFilePath), false, '403 must leave no line on disk');
-    }
+    const logFilePath = join(tempLogDir, AERO_LOG_FILE);
+    const lines = readFileSync(logFilePath, 'utf-8').split('\n').filter(Boolean);
+    const lastLine = JSON.parse(lines[lines.length - 1]);
+    assert.equal(lastLine.user, fixtures.worker.username);
+    assert.equal(lastLine.role, 'Trabalhador');
+    assert.equal(lastLine.event, 'launch_sync');
+    assert.equal(lastLine.phase, 'result');
+    assert.equal(lastLine.launchId, 42);
+    assert.equal(lastLine.note, 'client=android · via=native');
   });
 
   it('answers 200 for wilkin with role Administrador, appending line with user wilkin, event, and httpStatus', async () => {

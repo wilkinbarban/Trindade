@@ -1815,6 +1815,130 @@
         ],
         "additionalProperties": false
       },
+      "MassasReportDayView": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "operators": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "operatorKey": {
+                  "type": "string"
+                },
+                "displayName": {
+                  "type": "string"
+                },
+                "boxes": {
+                  "type": "number"
+                },
+                "units": {
+                  "type": "number"
+                },
+                "entLans": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  }
+                },
+                "onlyErp": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "operatorKey",
+                "displayName",
+                "boxes",
+                "units",
+                "entLans",
+                "onlyErp"
+              ]
+            }
+          },
+          "products": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "unitsPerBox": {
+                  "type": "integer"
+                },
+                "totalBoxes": {
+                  "type": "integer"
+                },
+                "totalUnits": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "code",
+                "name",
+                "unitsPerBox",
+                "totalBoxes",
+                "totalUnits"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "totalBoxes": {
+            "type": "number"
+          },
+          "totalUnits": {
+            "type": "number"
+          },
+          "balance": {
+            "type": "object",
+            "properties": {
+              "producedUnits": {
+                "type": "number"
+              },
+              "registeredUnits": {
+                "type": "number"
+              },
+              "differenceUnits": {
+                "type": "number"
+              },
+              "reconciledSeats": {
+                "type": "number"
+              },
+              "pendingSeats": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "producedUnits",
+              "registeredUnits",
+              "differenceUnits",
+              "reconciledSeats",
+              "pendingSeats"
+            ]
+          },
+          "reconciledEntLans": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          }
+        },
+        "required": [
+          "date",
+          "operators",
+          "products",
+          "totalBoxes",
+          "totalUnits",
+          "balance",
+          "reconciledEntLans"
+        ]
+      },
       "AeroLogRequest": {
         "type": "object",
         "properties": {
@@ -8660,6 +8784,47 @@
         }
       }
     },
+    "/api/massas-launch/report": {
+      "get": {
+        "summary": "Read the plant day reconciled with the company ERP",
+        "description": "The day as the factory really produced it: the Trindade launches plus the seats the company tablet recorded, each box counted once, with the balance between what was registered and what was produced.",
+        "tags": [
+          "massas"
+        ],
+        "responses": {
+          "200": {
+            "description": "The reconciled day view",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MassasReportDayView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The date failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MassasErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/massas-launch/history": {
       "get": {
         "summary": "List history of days with massas launches",
@@ -8843,7 +9008,7 @@
     "/api/integration/aero/log": {
       "post": {
         "summary": "Append an event to the company integration audit trail",
-        "description": "Restricted to the owner admin, and the identity written on the line is the one the token resolved to against the database, never one sent in the body. The event lands as one JSON line in the rotating audit log; credentials and authorization headers are never stored.",
+        "description": "Open to every signed-in operator, because anyone may dispatch a launch from their own phone and the plant needs the real author of each line. The identity written on the line is the one the token resolved to against the database, never one sent in the body. The event lands as one JSON line in the rotating audit log; credentials and authorization headers are never stored.",
         "tags": [
           "integration"
         ],
@@ -8879,16 +9044,6 @@
           },
           "401": {
             "description": "Missing or invalid token",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "The authenticated user is not the owner admin",
             "content": {
               "application/json": {
                 "schema": {

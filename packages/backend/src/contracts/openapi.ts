@@ -1598,16 +1598,16 @@ registerComponent(registry, 'StockHistory', StockHistorySchema);
     path: '/api/integration/aero/log',
     summary: 'Append an event to the company integration audit trail',
     description:
-      'Restricted to the owner admin, and the identity written on the line is the one the token resolved ' +
-      'to against the database, never one sent in the body. The event lands as one JSON line in the ' +
-      'rotating audit log; credentials and authorization headers are never stored.',
+      'Open to every signed-in operator, because anyone may dispatch a launch from their own phone and ' +
+      'the plant needs the real author of each line. The identity written on the line is the one the token ' +
+      'resolved to against the database, never one sent in the body. The event lands as one JSON line in ' +
+      'the rotating audit log; credentials and authorization headers are never stored.',
     tags: ['integration'],
     request: jsonRequest(AeroLogBodySchema),
     responses: {
       200: jsonResponse('The event was appended to the audit trail', AeroLogResponseSchema),
       400: jsonResponse('The event failed validation', AeroErrorResponseSchema),
       401: errorResponse('Missing or invalid token'),
-      403: errorResponse('The authenticated user is not the owner admin'),
     },
   });
 
