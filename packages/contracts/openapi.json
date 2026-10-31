@@ -2155,6 +2155,14 @@
               "null"
             ],
             "exclusiveMinimum": 0
+          },
+          "owner_status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "inactive",
+              "missing"
+            ]
           }
         },
         "required": [
@@ -2166,7 +2174,8 @@
           "operator_name",
           "movement_type",
           "synced_at",
-          "owner_user_id"
+          "owner_user_id",
+          "owner_status"
         ],
         "additionalProperties": false
       },
@@ -2294,6 +2303,14 @@
                     "null"
                   ],
                   "exclusiveMinimum": 0
+                },
+                "owner_status": {
+                  "type": "string",
+                  "enum": [
+                    "active",
+                    "inactive",
+                    "missing"
+                  ]
                 }
               },
               "required": [
@@ -2305,7 +2322,8 @@
                 "operator_name",
                 "movement_type",
                 "synced_at",
-                "owner_user_id"
+                "owner_user_id",
+                "owner_status"
               ],
               "additionalProperties": false
             }

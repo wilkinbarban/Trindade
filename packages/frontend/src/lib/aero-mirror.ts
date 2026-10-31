@@ -120,6 +120,13 @@ function readStoredSeat(raw: unknown): { item: AeroErpMovementItem; syncedAt: st
   if (!productCode || !productDesc || !entryDate || !operatorName) return null;
   if (movementType !== 'E' && movementType !== 'S') return null;
 
+  // A snapshot written before the field existed reads as absent, not as `missing`: the shape the rest of the
+  // app already knows stays the same, and the screens fall back to the owner they can see.
+  const ownerStatus =
+    record.owner_status === 'active' || record.owner_status === 'inactive' || record.owner_status === 'missing'
+      ? record.owner_status
+      : undefined;
+
   return {
     item: {
       entLan,
@@ -135,6 +142,7 @@ function readStoredSeat(raw: unknown): { item: AeroErpMovementItem; syncedAt: st
         typeof record.owner_user_id === 'number' && Number.isInteger(record.owner_user_id)
           ? record.owner_user_id
           : null,
+      ...(ownerStatus === undefined ? {} : { ownerStatus }),
     },
     syncedAt: snapshotText(record.synced_at),
   };

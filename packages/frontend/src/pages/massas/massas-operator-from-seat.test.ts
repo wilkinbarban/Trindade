@@ -36,6 +36,19 @@ describe('operator creation from ERP seat (S16-S19)', () => {
     assert.ok(page.includes("api.post('/admin/users'"));
   });
 
+  it('never offers creation on a deactivated operator, and says what to do instead (S19)', () => {
+    // The mirror says the account exists and is off. Creating it would be refused by the unique index after
+    // the administrator tried, so the row names the reactivation instead.
+    assert.ok(table.includes('seatNeedsReactivation(row)'));
+    assert.ok(table.includes('massas-reactivate-'));
+    assert.ok(table.includes("t('massas.unified.operatorInactive'"));
+    assert.equal(
+      table.includes("row.ownerUserId === null && row.importable"),
+      false,
+      'the unlinked hint must ask the owner status, not only the null owner',
+    );
+  });
+
   it('refreshes both the launches and the mirror immediately after creation (S18)', () => {
     assert.ok(page.includes('await Promise.all([load(date), loadMirror(date)])'));
   });

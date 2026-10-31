@@ -1,5 +1,5 @@
 import { aeroImportPlan, aeroMirrorSeats, type AeroImportProduct } from './aero-mirror';
-import { reconcileAeroMovements, type AeroErpMovementItem } from './aero-integration';
+import { reconcileAeroMovements, type AeroErpMovementItem, type SeatOwnerStatus } from './aero-integration';
 import type { MassaIndividualLaunch } from './massas';
 
 /** The three things a row can be, and the only three. */
@@ -31,6 +31,14 @@ export interface MassasUnifiedRow {
    * and unknown is never the worker's to import.
    */
   ownerUserId: number | null;
+  /**
+   * Why the seat has no owner, when the mirror said it: an account that was deactivated, or a name nobody
+   * here answers to.
+   *
+   * The difference decides the only useful action on the row -- reactivate or create -- and offering the
+   * wrong one wastes the administrator's attempt on a login the database will refuse.
+   */
+  ownerStatus?: SeatOwnerStatus;
 }
 
 /**
@@ -73,10 +81,32 @@ export function canImportRow(
  * Only an administrator, and only for an `erpOnly` seat whose operator is not linked yet (`ownerUserId === null`).
  */
 export function canCreateOperatorRow(
-  row: Pick<MassasUnifiedRow, 'state' | 'ownerUserId'>,
+  row: Pick<MassasUnifiedRow, 'state' | 'ownerUserId' | 'ownerStatus'>,
   viewer: { isAdmin?: boolean },
 ): boolean {
-  return Boolean(viewer.isAdmin) && row.state === 'erpOnly' && row.ownerUserId === null;
+  return Boolean(viewer.isAdmin) && row.state === 'erpOnly' && seatOwnerStatus(row) === 'missing';
+}
+
+/**
+ * What the mirror knows about the person on a row.
+ *
+ * An owned row is `active` by definition: only an active account can own a seat or author a launch. An
+ * unowned one falls back to what the mirror said, and an older snapshot that says nothing reads as
+ * `missing`, which is the answer that still offers a way forward.
+ */
+export function seatOwnerStatus(row: Pick<MassasUnifiedRow, 'ownerUserId' | 'ownerStatus'>): SeatOwnerStatus {
+  if (row.ownerUserId !== null && row.ownerUserId !== undefined) return 'active';
+  return row.ownerStatus === 'inactive' ? 'inactive' : 'missing';
+}
+
+/**
+ * Whether the seat waits on a reactivation instead of an alta.
+ *
+ * A deactivated operator cannot import and cannot be created again: the administrator reactivates the
+ * account in Admin › Operários, and the seat becomes importable on its own.
+ */
+export function seatNeedsReactivation(row: Pick<MassasUnifiedRow, 'ownerUserId' | 'ownerStatus'>): boolean {
+  return seatOwnerStatus(row) === 'inactive';
 }
 
 /**
@@ -208,6 +238,7 @@ export function massasUnifiedRows(
       importable: plan !== null,
       tabletAcked: false,
       ownerUserId: seat.ownerUserId ?? null,
+      ownerStatus: seat.ownerStatus,
     });
   }
 

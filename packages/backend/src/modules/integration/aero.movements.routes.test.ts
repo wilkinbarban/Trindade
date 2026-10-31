@@ -137,6 +137,43 @@ describe('Aero movements routes', () => {
     // The row the screens hide an import button on needs to know whose seat it is, and the answer has to
     // be the one the backend enforces -- the same resolution, from the same seat.
     assert.equal(movement.owner_user_id, wilkinId);
+    assert.equal(movement.owner_status, 'active');
+  });
+
+  it('tells a seat whose operator was deactivated from one nobody here answers to', async () => {
+    const roleId = REFERENCE_DATASET.roles.find((r) => r.name === 'Trabalhador')!.id;
+    db.prepare(
+      'INSERT INTO users (username, password_hash, display_name, role_id, is_active, security_version) VALUES (?, ?, ?, ?, 0, 1)',
+    ).run('jefferson', 'hash', 'Jefferson', roleId);
+
+    await app.inject({
+      method: 'POST',
+      url: url(),
+      headers: { authorization: `Bearer ${workerToken}` },
+      payload: {
+        date: '2026-10-23',
+        movements: [
+          { ...seat, ent_lan: 35952, entry_date: '2026-10-23', operator_name: 'JEFFERSON' },
+          { ...seat, ent_lan: 35947, entry_date: '2026-10-23', operator_name: 'JOAO H' },
+        ],
+      },
+    });
+
+    const res = await app.inject({
+      method: 'GET',
+      url: url('2026-10-23'),
+      headers: { authorization: `Bearer ${workerToken}` },
+    });
+    const movements = JSON.parse(res.body).movements as { operator_name: string; owner_user_id: number | null; owner_status: string }[];
+    const byOperator = new Map(movements.map((movement) => [movement.operator_name, movement]));
+
+    // Deactivated: the account exists, so the screen asks for a reactivation instead of offering to create
+    // the same login again -- which the unique index would refuse after the administrator tried.
+    assert.equal(byOperator.get('JEFFERSON')!.owner_status, 'inactive');
+    assert.equal(byOperator.get('JEFFERSON')!.owner_user_id, null, 'an inactive account may not import');
+    // Absent: nobody here has ever had that name, so creating the operator is the way in.
+    assert.equal(byOperator.get('JOAO H')!.owner_status, 'missing');
+    assert.equal(byOperator.get('JOAO H')!.owner_user_id, null);
   });
 
   it('keeps one row per ERP seat: a second sync of the same seat updates it instead of duplicating it', async () => {

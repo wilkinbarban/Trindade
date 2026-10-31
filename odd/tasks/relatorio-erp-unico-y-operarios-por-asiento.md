@@ -129,13 +129,13 @@ De una copia read-only de la base del contenedor (`/tmp/audit-trindade.db`, mtim
 | --- | --- | --- | --- | --- |
 | T1 | S1, S2, S3 | `massas-report.service.ts` ERP-only; catálogo de masas vs insumos decidido en el servidor; tests del servicio con el día auditado | contrato (respuesta del endpoint) | `4f97dda` |
 | T2 | S4, S8 | texto de WhatsApp nutrido del mismo snapshot ERP; tests del mensaje con Jonas/Viviane y sin Jaime | contrato (texto compartido) | `4f97dda` |
-| T3 | S5, S6 | Web: una tarjeta `Movimentações do ERP (Massas e Recebimento)` + botón único de sync en `ReportsPage.tsx`/`ReceiptsSection.tsx`/`MassasReportSection.tsx` | 3 (contrato de UI existente) | |
+| T3 | S5, S6 | Web: una tarjeta `Movimentações do ERP (Massas e Recebimento)` + botón único de sync en `ReportsPage.tsx`/`ReceiptsSection.tsx`/`MassasReportSection.tsx` | 3 (contrato de UI existente) | `d134b4c` |
 | T4 | S7 | Android: misma tarjeta y mismo botón en el detalle del reporte, strings `pt`/`es` | — | |
-| T5 | S9, S10, S11, S13 | Web: botón `+ Cadastrar Operário` y feedback verde; el alta deja de estar atada a los handlers | — | |
-| T6 | S12 | Web: WhatsApp/Copiar exigen el alta y no la reintentan | — | |
+| T5 | S9, S10, S11, S13 | Web: botón `+ Cadastrar Operário` y feedback verde; el alta deja de estar atada a los handlers | — | `d134b4c` |
+| T6 | S12 | Web: WhatsApp/Copiar exigen el alta y no la reintentan | — | `d134b4c` |
 | T7 | S9–S13 | Android: botón, feedback y las dos acciones sin alta implícita | — | |
 | T8 | S14, S15, S20 | backend sin fallback, `errorCode` nuevo para asiento sin dueño y para operario inactivo, OpenAPI y contrato Kotlin regenerados | 3 (changing a contract others consume) | `4ab41bf` |
-| T9 | S16, S17, S19 | Web: botón inline `+ Criar Operário: <NOMBRE>` para administrador y refresco de la tabla | — | |
+| T9 | S16, S17, S19 | Web: botón inline `+ Criar Operário: <NOMBRE>` para administrador, aviso de reactivación y refresco de la tabla | — | `d134b4c`, S19 en `feat(erp): a seat knows why it has no owner` |
 | T10 | S16–S19 | Android: mismo botón inline, mismo refresco, paridad de textos | — | |
 | T11 | S21, Q2 | script idempotente que crea `joaoh` y `jefferson` y reasigna los asientos `#35947` / `#35952`, con copia previa de `trindade.db` | 1 (reescribe datos) | `dbea09d` |
 | T12 | S5–S8 | suites completas, verificación independiente de los frentes con riesgo, Docker y APK | 5 (delivery) | |
@@ -160,6 +160,14 @@ El alta del operario que destraba el asiento es `POST /api/admin/users` con
 `{ username, password, display_name, role_id: 2 }`: el login sale de `deriveUsername(<NOMBRE DEL ASIENTO>)` y la
 senha de `quickWorkerPassword(login)`, la misma pareja del Frente 2.
 
+### El espejo dice por qué un asiento no tiene dueño (S19)
+
+`GET /api/integration/aero/movements` añade `owner_status: 'active' | 'inactive' | 'missing'` a cada asiento.
+`owner_user_id` sigue siendo `null` cuando nadie puede importar, y el estado nuevo dice si eso es porque la cuenta
+está desactivada (`inactive`, se reactiva en Admin › Operários) o porque el nombre no existe en Trindade
+(`missing`, se crea desde la fila). Sin ese dato, la fila de un operario dado de baja ofrecía crear un login que
+el índice único rechazaría después, y escondía la acción que sí funciona.
+
 ### T11: qué encontró la corrección en la base real
 
 La copia de `trindade.db` de producción (31/10) no tiene ningún lanzamiento importado: los 74 registros de
@@ -173,6 +181,16 @@ el flujo nuevo, esos asientos ni siquiera se pueden importar mal: la tabla unifi
 en la fila del asiento sin dueño, y el alta real de `jefferson` sale de ahí.
 
 ## Log
+
+### L4 — Corrección de la revisión (verbatim)
+
+> «El botón único de sync no debe mentir cuando el dispositivo no tiene acceso a la empresa, y la fila de un
+> operario inactivo no debe ofrecer un alta que el índice único va a rechazar.»
+
+Un solo cableado (`triggerAeroMovementsSync`) dispara el puente desde el reporte y desde el recibo; si no hay
+acceso, la cabecera dice `Atualizar` y refresca lo que ya leyó. El asiento de un operario dado de baja muestra
+`Operador inativo: reative em Admin › Operários` en lugar del alta, y `owner_status` viaja en el espejo para que
+la pantalla no tenga que adivinar.
 
 ### L1 — Pedido del usuario (verbatim)
 

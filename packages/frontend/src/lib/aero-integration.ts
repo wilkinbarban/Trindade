@@ -626,7 +626,17 @@ export interface AeroErpMovementItem {
    * snapshot always carries it. A missing or null owner is "unknown", and unknown is not a worker's seat.
    */
   ownerUserId?: number | null;
+  /**
+   * Why the seat has no owner, when it has none: `inactive` means the login exists and was deactivated,
+   * `missing` means nobody here has ever answered to that name.
+   *
+   * Absent on a seat read straight from the ERP, where there is no resolution to make.
+   */
+  ownerStatus?: SeatOwnerStatus;
 }
+
+/** What the mirror says about the person on a seat. */
+export type SeatOwnerStatus = 'active' | 'inactive' | 'missing';
 
 /**
  * What came back from the movements query: the seats, or the reason there are none.

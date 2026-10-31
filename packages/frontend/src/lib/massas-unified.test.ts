@@ -4,6 +4,8 @@ import {
   canImportRow,
   canCreateOperatorRow,
   deriveDisplayName,
+  seatNeedsReactivation,
+  seatOwnerStatus,
   massasUnifiedRows,
   reconciledLaunchIds,
   type MassasUnifiedInput,
@@ -56,6 +58,7 @@ function seat(args: Partial<AeroErpMovementItem> & { entLan: number }): AeroErpM
     operatorName: args.operatorName ?? 'ALICE',
     movementType: args.movementType ?? 'E',
     ownerUserId: args.ownerUserId ?? null,
+    ownerStatus: args.ownerStatus,
   };
 }
 
@@ -272,6 +275,28 @@ describe('who the table offers the import to', () => {
     assert.equal(canCreateOperatorRow(orphan, { isAdmin: false }), false);
     // When already linked, creation is not offered
     assert.equal(canCreateOperatorRow(workerSeat(), { isAdmin: true }), false);
+  });
+
+  it('tells a deactivated operator from one nobody has ever registered', () => {
+    // The mirror says why a seat has no owner. Deactivated means the login exists: offering to create it
+    // would fail on the unique index and hide the fix, which is reactivating the account.
+    const inactive = massasUnifiedRows(
+      input({ movements: [seat({ entLan: 35952, ownerUserId: null, ownerStatus: 'inactive' })] }),
+    ).find((row) => row.state === 'erpOnly')!;
+    assert.equal(seatOwnerStatus(inactive), 'inactive');
+    assert.equal(seatNeedsReactivation(inactive), true);
+    assert.equal(canCreateOperatorRow(inactive, { isAdmin: true }), false, 'creating would duplicate the login');
+    assert.equal(canImportRow(inactive, { userId: 1, isAdmin: true }), false);
+
+    const absent = massasUnifiedRows(
+      input({ movements: [seat({ entLan: 35947, ownerUserId: null, ownerStatus: 'missing' })] }),
+    ).find((row) => row.state === 'erpOnly')!;
+    assert.equal(seatOwnerStatus(absent), 'missing');
+    assert.equal(seatNeedsReactivation(absent), false);
+    assert.equal(canCreateOperatorRow(absent, { isAdmin: true }), true);
+
+    // A launched row is owned by its author even when the mirror field is absent.
+    assert.equal(seatOwnerStatus(workerSeat()), 'active');
   });
 
   it('derives display name in title case from uppercase ERP operator name', () => {

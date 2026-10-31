@@ -3,6 +3,8 @@ import { CloudUpload, Loader2, Smartphone, UserPlus } from 'lucide-react';
 import { MassasBalanceBar } from './MassasBalanceBar';
 import {
   canCreateOperatorRow,
+  seatNeedsReactivation,
+  seatOwnerStatus,
   canImportRow,
   massasBalance,
   type AeroImportRequest,
@@ -167,11 +169,24 @@ export function MassasUnifiedTable({
                           {t('massas.unified.createOperator', { name: row.operatorName })}
                         </button>
                       )}
-                    {row.state === 'erpOnly' && !isAdmin && row.ownerUserId === null && row.importable && (
-                      <span className="max-w-[9rem] text-right text-[11px] text-gray-500">
-                        {t('massas.unified.operatorNotLinked', 'Operador não vinculado')}
+                    {/* A deactivated operator is a different problem from an unregistered one: the login
+                        exists, so the fix is reactivating the account, not creating it again. */}
+                    {row.state === 'erpOnly' && seatNeedsReactivation(row) && (
+                      <span
+                        className="max-w-[9rem] text-right text-[11px] text-amber-600"
+                        data-testid={`massas-reactivate-${row.entLans[0]}`}
+                      >
+                        {t('massas.unified.operatorInactive', 'Operador inativo: reative em Admin › Operários')}
                       </span>
                     )}
+                    {row.state === 'erpOnly' &&
+                      !isAdmin &&
+                      row.importable &&
+                      seatOwnerStatus(row) === 'missing' && (
+                        <span className="max-w-[9rem] text-right text-[11px] text-gray-500">
+                          {t('massas.unified.operatorNotLinked', 'Operador não vinculado')}
+                        </span>
+                      )}
                     {/* The seat itself says why it cannot come in, whoever is reading: the reason is the
                         ERP's boxes, not the viewer's role. */}
                     {row.state === 'erpOnly' && !row.importable && (

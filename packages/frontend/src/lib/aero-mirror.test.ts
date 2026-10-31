@@ -80,6 +80,7 @@ describe('aero-mirror: reading the snapshot the backend stored', () => {
         movement_type: 'E',
         synced_at: '2026-10-28T12:00:00.000Z',
         owner_user_id: 1,
+        owner_status: 'active',
       },
       {
         ent_lan: 10543,
@@ -91,6 +92,7 @@ describe('aero-mirror: reading the snapshot the backend stored', () => {
         movement_type: 'E',
         synced_at: '2026-10-28T12:05:00.000Z',
         owner_user_id: null,
+        owner_status: 'inactive',
       },
     ],
   };
@@ -109,6 +111,7 @@ describe('aero-mirror: reading the snapshot the backend stored', () => {
         operatorName: 'WILKIN',
         movementType: 'E',
         ownerUserId: 1,
+        ownerStatus: 'active',
       },
       {
         entLan: 10543,
@@ -119,6 +122,7 @@ describe('aero-mirror: reading the snapshot the backend stored', () => {
         operatorName: 'MARCOS',
         movementType: 'E',
         ownerUserId: null,
+        ownerStatus: 'inactive',
       },
     ]);
   });

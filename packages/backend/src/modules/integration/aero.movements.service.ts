@@ -3,6 +3,15 @@ import type { AeroMovementItemInput } from './aero.movements.schema.js';
 import { matchOperatorUserId, type OperatorCandidate } from '../massas/massas-operator.js';
 
 /**
+ * What the seat's operator means for Trindade, in the terms a screen has to act on.
+ *
+ * `owner_user_id` answers who may import the seat today. This answers why, so the row can offer the one
+ * action that works: create the operator when the name is unknown, reactivate the account when it exists
+ * and was deactivated, or import when somebody owns it.
+ */
+export type SeatOwnerStatus = 'active' | 'inactive' | 'missing';
+
+/**
  * One mirrored seat of the company ERP, as this module stores and returns it.
  *
  * `synced_at` is when Trindade heard from the ERP, not when the movement happened: the seat is
@@ -26,6 +35,8 @@ export interface AeroMovement {
    * disagree.
    */
   owner_user_id: number | null;
+  /** Why `owner_user_id` is what it is: an active owner, a deactivated account, or nobody here. */
+  owner_status: SeatOwnerStatus;
 }
 
 interface RawAeroMovementRow extends AeroMovement {
@@ -110,10 +121,14 @@ export function listAeroMovements(db: Database.Database, date: string): AeroMove
 
   if (rows.length === 0) return [];
   const owners = seatOwners(db, rows.map((row) => row.operator_name));
-  return rows.map(({ id: _id, ...movement }) => ({
-    ...movement,
-    owner_user_id: owners.get(movement.operator_name) ?? null,
-  }));
+  return rows.map(({ id: _id, ...movement }) => {
+    const owner = owners.get(movement.operator_name);
+    return {
+      ...movement,
+      owner_user_id: owner?.userId ?? null,
+      owner_status: owner?.status ?? 'missing',
+    };
+  });
 }
 
 /**
@@ -122,13 +137,30 @@ export function listAeroMovements(db: Database.Database, date: string): AeroMove
  * One query for the day's people instead of one per seat: a day has a handful of operators and dozens of
  * seats, and the resolution itself is the same function that decides who may import.
  */
-function seatOwners(db: Database.Database, names: readonly string[]): Map<string, number | null> {
-  const users = db
+function seatOwners(
+  db: Database.Database,
+  names: readonly string[],
+): Map<string, { userId: number | null; status: SeatOwnerStatus }> {
+  const active = db
     .prepare('SELECT id, username, display_name FROM users WHERE is_active = 1 ORDER BY id')
     .all() as OperatorCandidate[];
-  const resolved = new Map<string, number | null>();
+  const inactive = db
+    .prepare('SELECT id, username, display_name FROM users WHERE is_active = 0 ORDER BY id')
+    .all() as OperatorCandidate[];
+  const resolved = new Map<string, { userId: number | null; status: SeatOwnerStatus }>();
   for (const name of names) {
-    resolved.set(name, matchOperatorUserId(users, name));
+    // Active first, exactly as the import rule resolves: a working person is never shadowed by a namesake
+    // who was deactivated. A deactivated account answers `null` for the owner, because it cannot import.
+    const activeMatch = matchOperatorUserId(active, name);
+    if (activeMatch !== null) {
+      resolved.set(name, { userId: activeMatch, status: 'active' });
+      continue;
+    }
+    const inactiveMatch = matchOperatorUserId(inactive, name);
+    resolved.set(name, {
+      userId: null,
+      status: inactiveMatch === null ? 'missing' : 'inactive',
+    });
   }
   return resolved;
 }

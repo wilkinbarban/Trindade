@@ -698,7 +698,8 @@
       "settled": "Conciliado con el ERP, no editable",
       "createOperator": "+ Crear Operario: {{name}}",
       "operatorCreated": "¡Operario registrado con éxito!",
-      "operatorNotLinked": "Operador no vinculado"
+      "operatorNotLinked": "Operador no vinculado",
+      "operatorInactive": "Operador inactivo: reactívelo en Admin › Operarios"
     },
     "syncHeader": {
       "action": "Sincronizar con ERP",
