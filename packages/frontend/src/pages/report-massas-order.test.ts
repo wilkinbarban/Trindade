@@ -21,16 +21,38 @@ describe('Massa do dia follows Temperaturas', () => {
 
   it('renders under the category that reads temperatures, wherever the plant put it', () => {
     assert.ok(create.includes('hasTemperatureTasks'), 'the placement is decided by the category, not by a fixed id');
-    assert.ok(create.includes('{hasTemperatureTasks(cat) && massasCard}'));
+    assert.ok(
+      create.includes('{cat.id === massasAfterCategoryId && massasCard}'),
+      'the card is placed by the category that reads temperatures',
+    );
   });
 
   it('keeps one card definition, so the two placements cannot drift apart', () => {
     assert.equal(create.match(/data-testid="report-massas-card"/g)?.length, 1);
-    assert.ok(create.includes('!massasAfterCategories && massasCard'), 'a report with no temperatures still shows it');
+    assert.ok(
+      create.includes('{massasAfterCategoryId === null && massasCard}'),
+      'a report with no temperatures still shows it',
+    );
+  });
+
+  it('draws it once even when more than one category reads temperatures', () => {
+    // The plant can add a second temperature category, and drawing the card after each of them showed the
+    // same day twice on one page. The card follows the last one instead of every one.
+    assert.ok(
+      create.includes(
+        'categories.filter((cat) => !cat.parent_category_id && hasTemperatureTasks(cat)).at(-1)?.id ?? null',
+      ),
+      'the placement is a single category, not a membership test inside the list',
+    );
+    assert.equal(
+      create.match(/\{cat\.id === massasAfterCategoryId && massasCard\}/g)?.length,
+      1,
+      'the card is offered by one branch only',
+    );
   });
 
   it('never renders it before the temperatures section in the create form', () => {
-    const massasPlacement = create.indexOf('{hasTemperatureTasks(cat) && massasCard}');
+    const massasPlacement = create.indexOf('{cat.id === massasAfterCategoryId && massasCard}');
     const categoriesMap = create.indexOf('{categories.filter((cat) => !cat.parent_category_id).map((cat) => (');
     assert.ok(categoriesMap > 0 && massasPlacement > categoriesMap);
   });

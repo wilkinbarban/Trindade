@@ -303,9 +303,11 @@ export function ReportsPage() {
       </CardContent>
     </Card>
   );
-  const massasAfterCategories = categories.some(
-    (cat) => !cat.parent_category_id && hasTemperatureTasks(cat),
-  );
+  // The day's production sits right below Temperaturas, and there may be more than one temperature category:
+  // it follows the last of them, once. Rendering it after each one drew the same card twice on a page whose
+  // categories somebody else grew.
+  const massasAfterCategoryId =
+    categories.filter((cat) => !cat.parent_category_id && hasTemperatureTasks(cat)).at(-1)?.id ?? null;
 
   if (loading) {
     return (
@@ -378,7 +380,7 @@ export function ReportsPage() {
         {/* Dynamic category sections. A produção do dia entra logo abaixo de Temperaturas: é a última coisa
             que o operador lê antes de contar quanto saiu, e separá-las obrigava a subir e descer a página
             para conferir a mesma manhã duas vezes. */}
-        {!massasAfterCategories && massasCard}
+        {massasAfterCategoryId === null && massasCard}
 
         {categories.filter((cat) => !cat.parent_category_id).map((cat) => (
           cat.id === ERP_RECEIPT_CATEGORY_ID && usesErpReceipts(saoPauloToday()) ? null : (
@@ -395,7 +397,7 @@ export function ReportsPage() {
                   />
                 </CardContent>
               </Card>
-              {hasTemperatureTasks(cat) && massasCard}
+              {cat.id === massasAfterCategoryId && massasCard}
             </Fragment>
           )
         ))}
