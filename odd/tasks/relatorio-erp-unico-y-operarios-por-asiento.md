@@ -15,14 +15,19 @@ Estado: **especificación a revisión**. No se escribió código todavía (S0).
   llamar a `massasLaunchDayView` y de importar `massa_launches`; su única fuente es `aero_movements` con
   `movement_type = 'E'`.
 - **S2** — «Massas do dia» lee «exclusivamente los movimientos de entrada de productos del catálogo de masas en
-  aero_movements»: entradas (`movement_type = 'E'`) cuyo `product_code` está en el catálogo `MASSAS`, sin excepción y
-  sin restar lo que un lanzamiento local crea ya conciliado.
-- **S3** — «Recebimento» lee «las entradas de insumos/materias primas en aero_movements»: entradas cuyo código no está
-  en el catálogo de masas, que es lo que hoy ya hace `supplyReceipts`
+  aero_movements»: entradas (`movement_type = 'E'`) cuyo `product_code` está en el catálogo `MASSAS`, que son
+  exactamente diez códigos —`1045`, `39`, `60`, `84`, `91`, `1192`, `5000`, `1047`, `22`, `1616`— comparados sin los
+  ceros de relleno del ERP (`000084` es `84`). Sin excepción y sin restar lo que un lanzamiento local crea ya
+  conciliado.
+- **S3** — «Recebimento de Insumos» lee **toda** entrada de `aero_movements` cuyo código no esté en esos diez, y la
+  regla es taxativa: `001800` brotinho, `001591` unit fa, `000138` pizza, `000787` canudo y `001040` farinha son
+  insumo/recebimento, no masa, aunque estén en el catálogo de tercerizados
   (`packages/backend/src/modules/reports/receipts.service.ts:72`, `:107`).
 - **S4** — Con el reporte del 2026-10-30, el texto de WhatsApp no menciona ningún lanzamiento local huérfano —«los
-  2.800 rolos de Jaime»— y sí muestra los asientos del ERP con su cifra real: `JONAS` con `6940 un` y el asiento de
-  `VIVIANE` con su total del día, «sin duplicaciones ni números inventados».
+  2.800 rolos de Jaime»— y muestra a `JONAS` con `6940 un` y a `VIVIANE` con su total del día **bajo «Recebimento de
+  Insumos» y no bajo «Massas do dia»**, «sin duplicaciones ni números inventados». El módulo Lançamento de Massas no
+  muestra ni acepta ninguno de esos códigos: `launchMassas` ya rechaza todo `product_code` fuera del catálogo
+  (`massas.service.ts:165`) y la tabla unificada filtra por el mismo catálogo.
 - **S5** — En Relatório, Web y Android muestran «un solo apartado/tarjeta: «Movimentações do ERP (Massas e
   Recebimento)»» que contiene los dos bloques; ya no son dos tarjetas separadas
   (`packages/frontend/src/pages/ReportsPage.tsx:257` para massas y `:341` para a categoría de Recebimento). La tarjeta
@@ -82,6 +87,8 @@ Estado: **especificación a revisión**. No se escribió código todavía (S0).
   `errorCode` nuevos, regenerados por los scripts del repo y verificados por `scripts/verify-openapi-artifact.sh`.
 - **S21** — Ninguna fila existente de `massa_launches` ni de `aero_movements` se borra o reescribe sin una decisión
   explícita registrada en el Log (ver Q2).
+- **S22** — Las dos secciones de la tarjeta unificada se reparten el día sin solaparse: un asiento está en `Massas do
+  dia` o en `Recebimento de Insumos`, nunca en las dos, y el total de la tarjeta es la suma de ambas.
 
 ## Decisiones resueltas (L2)
 
@@ -231,3 +238,16 @@ minutos cada una; en ese caso van tres writers en background con superficies dis
 >
 > Tenés LUZ VERDE para arrancar con la implementación de T1 en adelante. Todo directo a main sin ramas, con commits
 > atómicos convencionales y cero mención a IA. Dale gas.
+
+### L3 — Corrección del usuario sobre la separación masa / insumo (verbatim)
+
+> Che, observación clave de Wilkin recién confirmada en código:
+> Lo que lanzaron Jonas y Viviane en el ERP (códigos 001800 brotinho, 001591 unit fa, 000138 pizza, 000787 canudo,
+> 001040 farinha) NO pertenece al catálogo MASSAS (que son únicamente los 10 códigos: 1045, 39, 60, 84, 91, 1192,
+> 5000, 1047, 22, 1616).
+> Por lo tanto, la regla de filtrado de supplyReceipts / isSupplyReceipt es taxativa:
+> - Todo lo que lanzaron Jonas y Viviane es INSUMO / RECEBIMENTO.
+> - En la tarjeta unificada del Relatório y en el mensaje de WhatsApp, Jonas y Viviane deben mostrarse bajo la
+>   sección 'Recebimento de Insumos' y NO bajo 'Massas do dia'.
+> - En el módulo 'Lançamento de Massas', no deben aparecer jamás porque ese módulo es exclusivo del catálogo MASSAS.
+> Asegurate de que S2, S3, S4 y los tests de T1/T2 respeten esta separación limpia.
