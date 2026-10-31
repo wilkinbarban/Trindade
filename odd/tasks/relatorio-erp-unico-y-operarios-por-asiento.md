@@ -321,6 +321,22 @@ Dry-run de adopción contra una copia de la base productiva (checkpoint de WAL i
 `JOAO H` → crearía `joaoh` y movería 1 lanzamiento; el 35952 lo ocupa `JEFFERSON` → crearía `jefferson` y movería
 1 lanzamiento. El md5 del archivo no cambió entre dos corridas: el dry-run no escribe nada.
 
+Adopción real ejecutada contra el volumen `trindade_sqlite_data` con autorización explícita de Wilkin, después de un
+checkpoint de WAL y de una copia manual verificada con `PRAGMA integrity_check` (`trindade.manual-pre-adopt-2026-10-31T09-51-33Z.db`):
+
+```
+Backup: /app/packages/backend/data/trindade.pre-adopt-2026-10-31T09-51-49-860Z.db
+seat 35947  created  operator JOAO H     -> joaoh (#20)      launches moved: 1
+seat 35952  created  operator JEFFERSON  -> jefferson (#21)  launches moved: 1
+```
+
+Estado verificado en la base viva: `joaoh` (#20, "Joao H", `role_id=2`, activo) y `jefferson` (#21, "Jefferson",
+`role_id=2`, activo), ambos con el hash que corresponde a la contraseña que generan las pantallas
+(`bcrypt.compareSync` verdadero para los dos); los lanzamientos 99 y 100 pasan de `user_id=1` a `20` y `21`; totales
+intactos (80 lanzamientos, 44 movimientos del espejo); dos entradas en `audit_logs` con `reason: erp_seat_adoption`,
+`from_user_id: 1` y `to_user_id` 20/21. Una segunda corrida responde `already-owned` con 0 movimientos y no duplica
+usuarios ni auditoría. `joaoh` inicia sesión con rol Trabalhador y lee el reporte del 2026-10-30.
+
 La suite E2E volvió a verde después de tres correcciones que el propio frente destapó:
 
 - el día compartido entre specs ya no se puede fabricar en el pasado (`MASSAS_HISTORY_FROZEN`), así que los specs
