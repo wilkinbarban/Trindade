@@ -33,16 +33,20 @@ class SharePasswordTest {
     }
 
     @Test
-    fun `derives the login from the name, without accents or capitals`() {
-        assertEquals("joao.da.silva", deriveUsername("João da Silva"))
-        assertEquals("maria.jose", deriveUsername("María José"))
+    fun `derives the login from the name, without accents, capitals or dots`() {
+        assertEquals("joaodasilva", deriveUsername("João da Silva"))
+        assertEquals("mariajose", deriveUsername("María José"))
         assertEquals("pedro", deriveUsername("  Pedro  "))
-        assertEquals("ana.paula", deriveUsername("Ana Paula!"))
-        assertEquals("joao.silva_2", deriveUsername("joao.silva_2"))
+        assertEquals("anapaula", deriveUsername("Ana Paula!"))
+        assertEquals("joaosilva2", deriveUsername("joao.silva_2"))
+        // The ERP writes the operator on the seat, and that name is how the account gets created.
+        assertEquals("joaoh", deriveUsername("JOAO H"))
+        assertEquals("jefferson", deriveUsername("JEFFERSON"))
     }
 
     @Test
     fun `builds the password from the derived login`() {
         assertEquals("pedro1234567890", quickWorkerPassword(deriveUsername("Pedro")))
+        assertEquals("joaoh1234567890", quickWorkerPassword(deriveUsername("JOAO H")))
     }
 }

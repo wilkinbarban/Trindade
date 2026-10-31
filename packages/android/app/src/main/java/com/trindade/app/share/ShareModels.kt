@@ -42,10 +42,7 @@ fun deriveUsername(displayName: String): String {
         .replace(Regex("\\p{Mn}+"), "")
     return withoutAccents
         .lowercase()
-        .trim()
-        .replace(Regex("[^a-z0-9._-]+"), ".")
-        .trim('.')
-        .replace(Regex("\\.{2,}"), ".")
+        .replace(Regex("[^a-z0-9]+"), "")
 }
 
 /** Why the new worker could not be created; the screen turns each one into its own string. */

@@ -46,20 +46,19 @@ export function quickWorkerPassword(username: string): string {
 }
 
 /**
- * The login a display name suggests: lower-case, no accents, words joined with dots.
+ * The login a display name suggests: lower-case, no accents, words glued together.
  *
  * It is a suggestion, not a rule — the admin can type over it — so it stays deliberately simple and strips
- * anything a login cannot carry instead of trying to transliterate it.
+ * anything a login cannot carry instead of trying to transliterate it. The words are glued rather than joined
+ * with a dot because the name often arrives from an ERP seat written in capitals (`JOAO H`), and a person
+ * told their login is `joao.h` types a dot the phone keypad hides behind a second screen.
  */
 export function deriveUsername(displayName: string): string {
   return String(displayName ?? '')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9._-]+/g, '.')
-    .replace(/^\.+|\.+$/g, '')
-    .replace(/\.{2,}/g, '.');
+    .replace(/[^a-z0-9]+/g, '');
 }
 
 export function buildShareMessage(params: ShareMessageParams): string {

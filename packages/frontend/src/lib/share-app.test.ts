@@ -114,18 +114,23 @@ describe('quickWorkerPassword', () => {
 });
 
 describe('deriveUsername', () => {
-  it('lower-cases the name, drops the accents and joins the words with dots', () => {
-    assert.equal(deriveUsername('João da Silva'), 'joao.da.silva');
-    assert.equal(deriveUsername('María José'), 'maria.jose');
+  it('lower-cases the name, drops the accents and glues the words together', () => {
+    assert.equal(deriveUsername('João da Silva'), 'joaodasilva');
+    assert.equal(deriveUsername('María José'), 'mariajose');
     assert.equal(deriveUsername('  Pedro  '), 'pedro');
+    // The ERP writes the name on the seat, and its seats are how a new operator gets an account.
+    assert.equal(deriveUsername('JOAO H'), 'joaoh');
+    assert.equal(deriveUsername('JEFFERSON'), 'jefferson');
   });
 
-  it('keeps only what a login can carry', () => {
-    assert.equal(deriveUsername('Ana Paula!'), 'ana.paula');
-    assert.equal(deriveUsername('joao.silva_2'), 'joao.silva_2');
+  it('keeps only letters and digits', () => {
+    assert.equal(deriveUsername('Ana Paula!'), 'anapaula');
+    assert.equal(deriveUsername('joao.silva_2'), 'joaosilva2');
+    assert.equal(deriveUsername('---'), '');
   });
 
   it('is what the new worker password is built from', () => {
     assert.equal(quickWorkerPassword(deriveUsername('Pedro')), 'pedro1234567890');
+    assert.equal(quickWorkerPassword(deriveUsername('JOAO H')), 'joaoh1234567890');
   });
 });
