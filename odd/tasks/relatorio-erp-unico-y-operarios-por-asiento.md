@@ -130,15 +130,15 @@ De una copia read-only de la base del contenedor (`/tmp/audit-trindade.db`, mtim
 | T1 | S1, S2, S3 | `massas-report.service.ts` ERP-only; catálogo de masas vs insumos decidido en el servidor; tests del servicio con el día auditado | contrato (respuesta del endpoint) | `4f97dda` |
 | T2 | S4, S8 | texto de WhatsApp nutrido del mismo snapshot ERP; tests del mensaje con Jonas/Viviane y sin Jaime | contrato (texto compartido) | `4f97dda` |
 | T3 | S5, S6 | Web: una tarjeta `Movimentações do ERP (Massas e Recebimento)` + botón único de sync en `ReportsPage.tsx`/`ReceiptsSection.tsx`/`MassasReportSection.tsx` | 3 (contrato de UI existente) | `d134b4c` |
-| T4 | S7 | Android: misma tarjeta y mismo botón en el detalle del reporte, strings `pt`/`es` | — | |
+| T4 | S7 | Android: misma tarjeta y mismo botón en el detalle del reporte, strings `pt`/`es` | — | `e6c2352` |
 | T5 | S9, S10, S11, S13 | Web: botón `+ Cadastrar Operário` y feedback verde; el alta deja de estar atada a los handlers | — | `d134b4c` |
 | T6 | S12 | Web: WhatsApp/Copiar exigen el alta y no la reintentan | — | `d134b4c` |
-| T7 | S9–S13 | Android: botón, feedback y las dos acciones sin alta implícita | — | |
+| T7 | S9–S13 | Android: botón, feedback y las dos acciones sin alta implícita | — | `e6c2352` |
 | T8 | S14, S15, S20 | backend sin fallback, `errorCode` nuevo para asiento sin dueño y para operario inactivo, OpenAPI y contrato Kotlin regenerados | 3 (changing a contract others consume) | `4ab41bf` |
 | T9 | S16, S17, S19 | Web: botón inline `+ Criar Operário: <NOMBRE>` para administrador, aviso de reactivación y refresco de la tabla | — | `d134b4c`, S19 en `feat(erp): a seat knows why it has no owner` |
-| T10 | S16–S19 | Android: mismo botón inline, mismo refresco, paridad de textos | — | |
+| T10 | S16–S19 | Android: mismo botón inline, mismo refresco, paridad de textos | — | `e6c2352` |
 | T11 | S21, Q2 | script idempotente que crea `joaoh` y `jefferson` y reasigna los asientos `#35947` / `#35952`, con copia previa de `trindade.db` | 1 (reescribe datos) | `dbea09d` |
-| T12 | S5–S8 | suites completas, verificación independiente de los frentes con riesgo, Docker y APK | 5 (delivery) | |
+| T12 | S5–S8 | suites completas, verificación independiente de los frentes con riesgo, Docker y APK | 5 (delivery) | `5271d0c`, `a95708b` |
 
 Ruta: todas inline salvo que, al implementar, T3/T5/T9 y T4/T7/T10 se confirmen como unidades independientes de varias
 minutos cada una; en ese caso van tres writers en background con superficies disjuntas (Web, Android, backend).
@@ -298,3 +298,24 @@ la pantalla no tenga que adivinar.
 >   sección 'Recebimento de Insumos' y NO bajo 'Massas do dia'.
 > - En el módulo 'Lançamento de Massas', no deben aparecer jamás porque ese módulo es exclusivo del catálogo MASSAS.
 > Asegurate de que S2, S3, S4 y los tests de T1/T2 respeten esta separación limpia.
+
+### L5 — Evidencia de T4, T7, T10, T12 (Android y suites)
+
+Android cierra los tres frentes con la misma regla que la Web: una sola tarjeta `Movimentações do ERP` con el
+botón de sync en la cabecera, `+ Cadastrar Operário` explícito antes de compartir y el alta inline del asiento sin
+dueño para el administrador. `:app:testDebugUnitTest` corre en el contenedor fijado (1.131 pruebas, 0 fallos), y
+`:app:assembleRelease -PapiBaseUrl=https://trindademasas.duckdns.org/ -PversionName=0.7.0 -PversionCode=7000`
+produce `app-release-unsigned.apk` (11.136.752 bytes) en el mismo contenedor. Va sin firmar porque este entorno no
+tiene el keystore: firmar y publicar es decisión del usuario, no de la tarea.
+
+Verificación de la entrega: backend 640 pruebas en verde, frontend 468, Playwright 82 escenarios en verde sobre
+un servidor limpio, `docker build -f docker/Dockerfile.web` y la imagen `trindade-api:check` construidas.
+
+La suite E2E volvió a verde después de tres correcciones que el propio frente destapó:
+
+- el día compartido entre specs ya no se puede fabricar en el pasado (`MASSAS_HISTORY_FROZEN`), así que los specs
+  siembran el día de hoy y juzgan sus propias filas por id en vez de contar la tabla entera;
+- la tarjeta del día se dibujaba una vez por categoría con temperaturas: con dos, el mismo día aparecía dos veces
+  en la página, y ahora sigue a la última;
+- los specs que configuran, prueban o lanzan con la integración corren con el user agent del iPhone, que es el
+  dispositivo para el que el gate de dispositivos habilita esos controles.
