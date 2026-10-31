@@ -61,6 +61,7 @@ fun ReportGeneratorScreen(
     onOpenHistory: () -> Unit,
     onRetry: () -> Unit,
     onTurnoChange: (String) -> Unit = {},
+    onSyncErp: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var showHelpDialog by remember { mutableStateOf(false) }
@@ -234,9 +235,28 @@ fun ReportGeneratorScreen(
                     )
                 }
 
-                // Under the temperatures, the same place the detail screen puts it.
+                // Under the temperatures, where the web draws it too: the day's ERP movements -- massas and
+                // supply receipts -- in the one card with the one action that refreshes both. It replaced the
+                // massas-only card this screen used to draw, which was half of what the same screen shows in
+                // the browser and left the receipts reachable only from a report that already existed.
                 item {
-                    MassasDayCard(day = state.massasDay)
+                    ErpMovementsCard(
+                        massasDay = state.massasDay,
+                        receipts = state.receipts,
+                        isSyncing = state.isSyncingErp,
+                        onSync = onSyncErp,
+                    )
+                    // The answer to the action, drawn under the card that owns it rather than at the top of a
+                    // form taller than the screen: the operator pressed a button here, so the sentence they
+                    // read has to be here too.
+                    state.syncMessage?.let { message ->
+                        Text(
+                            text = message,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(top = 6.dp),
+                        )
+                    }
                 }
 
                 item {
@@ -336,5 +356,6 @@ fun ReportGeneratorRoute(
         onOpenHistory = onOpenHistory,
         onRetry = viewModel::retry,
         onTurnoChange = viewModel::selectTurno,
+        onSyncErp = viewModel::syncErp,
     )
 }

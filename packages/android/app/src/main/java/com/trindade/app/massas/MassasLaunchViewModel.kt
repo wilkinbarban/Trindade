@@ -99,6 +99,15 @@ class MassasLaunchViewModel @Inject constructor(
         /** Local time of the last successful sync, or null when this day was never synced. */
         val aeroSyncedAt: String? = null,
         val isSyncingAero: Boolean = false,
+        /**
+         * Lo que la última sincronización con el ERP respondió, sostenido aparte de los banners del módulo.
+         *
+         * El banner vive arriba de una columna más alta que la pantalla del teléfono, así que la respuesta a
+         * un botón que está más abajo quedaba fuera de la vista. El card de sincronización dibuja esto debajo
+         * de su propia acción, que es donde el operador está mirando cuando la aprieta.
+         */
+        val aeroSyncMessage: UiText? = null,
+        val aeroSyncFailed: Boolean = false,
         /** The universal filter over the unified table: an operator key, empty for everyone. */
         val operatorFilter: String = "",
         /** The search box: a product code, a name or an operator, matched on both sides. */
@@ -437,21 +446,31 @@ class MassasLaunchViewModel @Inject constructor(
         if (current.isSyncingAero) return
         val settings = current.aeroSettings
         if (!settings.ready) {
+            // The bridge has no settings yet: the press is what says so, because a disabled button over a
+            // sentence nobody has read is the same experience as a button that does nothing.
             _state.value = _state.value.copy(
-                errorMessage = UiText.of(R.string.massas_aero_not_configured),
+                aeroSyncMessage = UiText.of(R.string.massas_aero_not_configured),
+                aeroSyncFailed = true,
             )
             return
         }
 
         viewModelScope.launch {
-            _state.value = _state.value.copy(isSyncingAero = true, errorMessage = null, noticeMessage = null)
+            _state.value = _state.value.copy(
+                isSyncingAero = true,
+                aeroSyncMessage = null,
+                aeroSyncFailed = false,
+                errorMessage = null,
+                noticeMessage = null,
+            )
             when (val outcome = aeroDispatcher.syncDay(settings, current.date)) {
                 is AeroSyncOutcome.Synced -> {
                     aeroSettingsStore.markSynced(current.date, nowLabel())
                     _state.value = _state.value.copy(
                         isSyncingAero = false,
                         aeroSyncedAt = nowLabel(),
-                        noticeMessage = UiText.of(R.string.massas_aero_sync_done, outcome.saved.saved),
+                        aeroSyncMessage = UiText.of(R.string.massas_aero_sync_done, outcome.saved.saved),
+                        aeroSyncFailed = false,
                     )
                     refreshMirror(current.date)
                 }
@@ -459,13 +478,15 @@ class MassasLaunchViewModel @Inject constructor(
                     // The previous snapshot stands: saying "sem conexão" is the whole message.
                     _state.value = _state.value.copy(
                         isSyncingAero = false,
-                        errorMessage = UiText.of(R.string.massas_aero_unreachable),
+                        aeroSyncMessage = UiText.of(R.string.massas_aero_unreachable),
+                        aeroSyncFailed = true,
                     )
                 }
                 is AeroSyncOutcome.Failed -> {
                     _state.value = _state.value.copy(
                         isSyncingAero = false,
-                        errorMessage = UiText.of(R.string.massas_aero_sync_failed, outcome.reason ?: "-"),
+                        aeroSyncMessage = UiText.of(R.string.massas_aero_sync_failed, outcome.reason ?: "-"),
+                        aeroSyncFailed = true,
                     )
                 }
             }

@@ -161,6 +161,7 @@ class ReportGeneratorScreenTest {
                     onSubmit = {},
                     onOpenHistory = {},
                     onRetry = {},
+                    onSyncErp = {},
                 )
             }
         }
@@ -172,6 +173,27 @@ class ReportGeneratorScreenTest {
     }
 
     // ---- The tests ----
+
+    /**
+     * The generator carries the same card the report's detail screen carries, in the same place: under the
+     * temperatures. Before this it drew the massas only, so the day's receipts were reachable from the browser
+     * and from a report that already existed -- never from the screen the operator uses to file one.
+     */
+    @Test
+    fun `the day's ERP movements are drawn under the temperatures`() {
+        render(state(listOf(category(1, "Cozinha"))))
+
+        displayed(context.getString(R.string.report_erp_movements_title))
+        displayed(context.getString(R.string.report_receipts_title))
+    }
+
+    /** The answer to the card's action is drawn under it, where the action is. */
+    @Test
+    fun `the card reports what the last sync answered`() {
+        render(state(listOf(category(1, "Cozinha"))).copy(syncMessage = "Movimentações do ERP atualizadas."))
+
+        displayed("Movimentações do ERP atualizadas.")
+    }
 
     /**
      * The wiring this file exists for: the screen hands each root its own children, so a child category
@@ -387,6 +409,7 @@ class ReportGeneratorScreenTest {
                     onSubmit = {},
                     onOpenHistory = {},
                     onRetry = {},
+                    onSyncErp = {},
                 )
             }
         }
@@ -412,6 +435,7 @@ class ReportGeneratorScreenTest {
                     onSubmit = {},
                     onOpenHistory = {},
                     onRetry = {},
+                    onSyncErp = {},
                 )
             }
         }
@@ -472,6 +496,7 @@ class ReportGeneratorScreenTest {
                     onSubmit = { submitted++ },
                     onOpenHistory = {},
                     onRetry = {},
+                    onSyncErp = {},
                 )
             }
         }
@@ -544,6 +569,7 @@ class ReportGeneratorScreenTest {
                     onSubmit = {},
                     onOpenHistory = {},
                     onRetry = {},
+                    onSyncErp = {},
                 )
             }
         }
@@ -596,6 +622,7 @@ class ReportGeneratorScreenTest {
                     onSubmit = {},
                     onOpenHistory = {},
                     onRetry = {},
+                    onSyncErp = {},
                 )
             }
         }

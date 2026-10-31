@@ -11,7 +11,11 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import com.trindade.app.aero.AeroDispatcher
+import com.trindade.app.aero.AeroSettingsPort
+import com.trindade.app.aero.AeroSyncOutcome
 import com.trindade.app.contract.models.MassasReportDayView
+import com.trindade.app.contract.models.ReportReceipts
 import com.trindade.app.massas.MassasDaySource
 import com.trindade.app.massas.MassasLaunchViewModel
 import kotlinx.coroutines.flow.update
@@ -35,6 +39,10 @@ class ReportGeneratorViewModel @Inject constructor(
     // Optional, like the detail screen's: a test about the form needs no second source, and a build
     // without one draws the form without the day's count.
     private val massasDaySource: MassasDaySource? = null,
+    // The ERP bridge, optional for the same reason: without it the card draws the day it read and offers no
+    // sync, which is what a test about the form asks for.
+    private val aeroDispatcher: AeroDispatcher? = null,
+    private val aeroSettingsStore: AeroSettingsPort? = null,
 ) : ViewModel() {
 
     /** The three things the server supplies before this form can be answered at all. */
@@ -82,6 +90,12 @@ class ReportGeneratorViewModel @Inject constructor(
         val showValidation: Boolean = false,
         /** The day's massas, under the temperatures the operator has just read. */
         val massasDay: MassasReportDayView? = null,
+        /** The incoming supplies the ERP registered for that same day. */
+        val receipts: ReportReceipts? = null,
+        /** Whether an ERP sync via bridge is currently in progress. */
+        val isSyncingErp: Boolean = false,
+        /** What the last ERP sync answered, shown next to the card's action. */
+        val syncMessage: String? = null,
     ) {
         val stage: Stage
             get() = when {
@@ -128,6 +142,7 @@ class ReportGeneratorViewModel @Inject constructor(
     fun load() {
         _state.update { it.copy(loading = true, message = null) }
         loadMassasDay()
+        loadReceipts()
         viewModelScope.launch {
             val categories = repository.categories()
             val offers = repository.productOffers()
@@ -201,6 +216,67 @@ class ReportGeneratorViewModel @Inject constructor(
         viewModelScope.launch {
             val day = source.reportDay(MassasLaunchViewModel.saopauloToday())
             if (day != null) _state.update { it.copy(massasDay = day) }
+        }
+    }
+
+    /**
+     * Reads the ERP's own receipts for today, the other half of the same card.
+     *
+     * The generator's day is the server's today (see [loadMassasDay]), so both halves of the card are about
+     * the day the report will be filed against rather than about a date the operator picked.
+     */
+    private fun loadReceipts() {
+        viewModelScope.launch {
+            val receipts = repository.receipts(MassasLaunchViewModel.saopauloToday())
+            _state.update { it.copy(receipts = receipts) }
+        }
+    }
+
+    /**
+     * Reads the plant's day from the ERP via bridge and refreshes both halves of the card.
+     *
+     * The same sequence the report's detail screen runs, and deliberately the same rules: a bridge that is
+     * not configured is a sentence rather than a silent no-op, because a button that does nothing is
+     * indistinguishable from one that is broken.
+     */
+    fun syncErp() {
+        if (state.value.isSyncingErp) return
+        val dispatcher = aeroDispatcher
+        val store = aeroSettingsStore
+        if (dispatcher == null || store == null) {
+            _state.update { it.copy(syncMessage = ERP_NOT_CONFIGURED) }
+            return
+        }
+        val date = MassasLaunchViewModel.saopauloToday()
+
+        viewModelScope.launch {
+            val settings = store.load()
+            if (!settings.ready) {
+                _state.update { it.copy(syncMessage = ERP_NOT_CONFIGURED) }
+                return@launch
+            }
+            _state.update { it.copy(isSyncingErp = true, syncMessage = null) }
+            when (val outcome = dispatcher.syncDay(settings, date)) {
+                is AeroSyncOutcome.Synced -> {
+                    store.markSynced(date, MassasLaunchViewModel.nowLabel())
+                    val massas = massasDaySource?.reportDay(date)
+                    val receipts = repository.receipts(date)
+                    _state.update {
+                        it.copy(
+                            isSyncingErp = false,
+                            massasDay = massas ?: it.massasDay,
+                            receipts = receipts ?: it.receipts,
+                            syncMessage = ERP_SYNC_DONE,
+                        )
+                    }
+                }
+                is AeroSyncOutcome.Unreachable ->
+                    _state.update { it.copy(isSyncingErp = false, syncMessage = ERP_UNREACHABLE) }
+                is AeroSyncOutcome.Failed ->
+                    _state.update {
+                        it.copy(isSyncingErp = false, syncMessage = ERP_SYNC_FAILED.format(outcome.reason ?: "-"))
+                    }
+            }
         }
     }
 
@@ -318,6 +394,12 @@ class ReportGeneratorViewModel @Inject constructor(
             .associate { task -> task.id to List(task.temperatureReadings) { "" } }
 
     private companion object {
+        /** Said when the ERP bridge has no settings yet, in the same words the launch screen uses. */
+        const val ERP_NOT_CONFIGURED = "Configure a integração com o ERP em Administração antes de sincronizar."
+        const val ERP_SYNC_DONE = "Movimentações do ERP atualizadas."
+        const val ERP_UNREACHABLE = "Sem conexão com o ERP. Verifique a rede e tente de novo."
+        const val ERP_SYNC_FAILED = "Falha ao sincronizar com o ERP: %s"
+
         const val UNREACHABLE = "Sem conexão com o servidor. Verifique a rede e tente de novo."
 
         /** The duplicate refusal, in the server's and the web's own words. */

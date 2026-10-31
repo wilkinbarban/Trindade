@@ -64,6 +64,135 @@ class ReportGeneratorViewModelTest {
      * a test about what a submission carries has to fill the whole set first: what it asserts is the body,
      * and the body only exists once the readings do.
      */
+    /**
+     * The two halves of the card the generator now draws are read together on open, because the card is
+     * one thing to the operator: the massas of the day and the supplies the ERP registered for it.
+     */
+    @Test
+    fun `load reads the day's receipts beside the massas`() {
+        api.receiptsToReturn = com.trindade.app.contract.models.ReportReceipts(
+            date = "2026-05-04",
+            migrated = true,
+            syncedAt = "07:10",
+            receipts = emptyList(),
+        )
+
+        val model = viewModel()
+
+        assertEquals("2026-05-04", model.state.value.receipts?.date)
+    }
+
+    /**
+     * A bridge without settings is a sentence, not a silent no-op: the press is the only chance this screen
+     * has to say the ERP was never configured, and a button that answers nothing is a broken button.
+     */
+    @Test
+    fun `syncErp without settings says why, where the card draws it`() {
+        val model = ReportGeneratorViewModel(
+            repository = ReportsRepository(api),
+            aeroDispatcher = aeroDispatcher(movements = com.trindade.app.aero.AeroMovementsResult.Ok(emptyList(), 0)),
+            aeroSettingsStore = settingsPort(ready = false),
+        )
+
+        model.syncErp()
+
+        assertEquals(
+            "Configure a integração com o ERP em Administração antes de sincronizar.",
+            model.state.value.syncMessage,
+        )
+        assertFalse(model.state.value.isSyncingErp)
+    }
+
+    @Test
+    fun `syncErp stores the plant's day and refreshes both halves of the card`() {
+        api.receiptsToReturn = com.trindade.app.contract.models.ReportReceipts(
+            date = "2026-05-04",
+            migrated = true,
+            syncedAt = "07:10",
+            receipts = emptyList(),
+        )
+        val mirror = object : com.trindade.app.aero.AeroMirrorPort {
+            val snapshots = mutableListOf<String>()
+            override suspend fun saveMovements(date: String, movements: List<com.trindade.app.aero.AeroErpMovement>) =
+                com.trindade.app.network.AeroMovementsSaved(0, 0).also { snapshots.add(date) }
+
+            override suspend fun log(request: com.trindade.app.network.AeroAuditLogRequest) = Unit
+        }
+        val model = ReportGeneratorViewModel(
+            repository = ReportsRepository(api),
+            aeroDispatcher = aeroDispatcher(
+                movements = com.trindade.app.aero.AeroMovementsResult.Ok(emptyList(), 0),
+                mirror = mirror,
+            ),
+            aeroSettingsStore = settingsPort(ready = true),
+        )
+
+        model.syncErp()
+
+        assertEquals(1, mirror.snapshots.size)
+        assertEquals("Movimentações do ERP atualizadas.", model.state.value.syncMessage)
+        assertNotNull(model.state.value.receipts)
+        assertFalse(model.state.value.isSyncingErp)
+    }
+
+    /** A refusal carries the plant's own reason, which is the only part of it the operator can act on. */
+    @Test
+    fun `syncErp reports the plant's refusal with its reason`() {
+        val model = ReportGeneratorViewModel(
+            repository = ReportsRepository(api),
+            aeroDispatcher = aeroDispatcher(
+                movements = com.trindade.app.aero.AeroMovementsResult.Failed("sem permissão"),
+            ),
+            aeroSettingsStore = settingsPort(ready = true),
+        )
+
+        model.syncErp()
+
+        assertEquals("Falha ao sincronizar com o ERP: sem permissão", model.state.value.syncMessage)
+        assertFalse(model.state.value.isSyncingErp)
+    }
+
+    private fun aeroDispatcher(
+        movements: com.trindade.app.aero.AeroMovementsResult,
+        mirror: com.trindade.app.aero.AeroMirrorPort = object : com.trindade.app.aero.AeroMirrorPort {
+            override suspend fun saveMovements(date: String, movements: List<com.trindade.app.aero.AeroErpMovement>) =
+                com.trindade.app.network.AeroMovementsSaved(0, 0)
+
+            override suspend fun log(request: com.trindade.app.network.AeroAuditLogRequest) = Unit
+        },
+    ) = com.trindade.app.aero.AeroDispatcher(
+        erp = object : com.trindade.app.aero.AeroErpPort {
+            override suspend fun postEntry(
+                settings: com.trindade.app.aero.AeroSettings,
+                payload: com.trindade.app.aero.AeroEntryPayload,
+            ) = com.trindade.app.aero.AeroWriteResult.Ok(null)
+
+            override suspend fun readMovements(settings: com.trindade.app.aero.AeroSettings, date: String) = movements
+        },
+        mirror = mirror,
+    )
+
+    private fun settingsPort(ready: Boolean) = object : com.trindade.app.aero.AeroSettingsPort {
+        private val settings = com.trindade.app.aero.AeroSettings(
+            wsUrl = if (ready) "http://plant.lan/ws" else "",
+            username = if (ready) "trindade" else "",
+            password = if (ready) "secret" else "",
+        )
+        private val marks = mutableMapOf<String, String>()
+
+        override fun load(): com.trindade.app.aero.AeroSettings = settings
+
+        override fun save(settings: com.trindade.app.aero.AeroSettings) = Unit
+
+        override fun isConfigured(): Boolean = settings.ready
+
+        override fun syncedAt(date: String): String? = marks[date]
+
+        override fun markSynced(date: String, at: String) {
+            marks[date] = at
+        }
+    }
+
     private fun fillTemperatures(model: ReportGeneratorViewModel, value: String = "-18") {
         model.onTemperatureChange(TEMPERATURE_TASK_ID, index = 0, value = value)
         model.onTemperatureChange(TEMPERATURE_TASK_ID, index = 1, value = value)

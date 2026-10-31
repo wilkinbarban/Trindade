@@ -281,33 +281,14 @@ fun MassasLaunchScreen(
         // Sincronización con el ERP: el día de la planta, leído en un viaje y guardado en el backend.
         // Se dibuja dentro de la misma tarjeta de la fecha porque es la fecha lo que se sincroniza, y con
         // la hora del último intento al lado para que "ya lo hice" sea verificable y no un recuerdo.
-        Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = state.aeroSyncedAt?.let { stringResource(R.string.massas_synced_at, it) }
-                        ?: stringResource(R.string.massas_never_synced),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1f),
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                AdminSecondaryButton(
-                    text = stringResource(R.string.massas_sync_erp),
-                    onClick = { viewModel.syncAeroDay() },
-                    enabled = state.aeroReady && !state.isSyncingAero,
-                    modifier = Modifier.testTag(MASSAS_SYNC_TAG),
-                )
-            }
-        }
+        MassasErpSyncCard(
+            syncedAt = state.aeroSyncedAt,
+            aeroReady = state.aeroReady,
+            isSyncing = state.isSyncingAero,
+            onSync = viewModel::syncAeroDay,
+            result = state.aeroSyncMessage,
+            resultIsError = state.aeroSyncFailed,
+        )
 
         // La tabla unificada: lo lanzado aquí, lo que el ERP ya tiene y lo que sólo está en el ERP.
         MassasUnifiedTable(

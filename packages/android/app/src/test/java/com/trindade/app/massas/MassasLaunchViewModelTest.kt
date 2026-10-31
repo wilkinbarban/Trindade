@@ -795,7 +795,8 @@ class MassasLaunchViewModelTest {
         testVm.syncAeroDay()
         testScheduler.runCurrent()
 
-        assertEquals(R.string.massas_aero_unreachable, testVm.state.value.errorMessage?.resId)
+        assertEquals(R.string.massas_aero_unreachable, testVm.state.value.aeroSyncMessage?.resId)
+        assertTrue(testVm.state.value.aeroSyncFailed)
         // Nothing was stored: an empty snapshot reads as "the plant produced nothing today".
         assertTrue(mirrorPort.snapshots.isEmpty())
         assertNull(settingsPort.syncedAt(testVm.state.value.date))
@@ -813,8 +814,32 @@ class MassasLaunchViewModelTest {
         testScheduler.runCurrent()
 
         assertEquals(1, mirrorPort.snapshots.size)
-        assertNull(testVm.state.value.errorMessage)
+        // The answer is drawn under the card's own button now, not in the module's banner.
+        assertEquals(R.string.massas_aero_sync_done, testVm.state.value.aeroSyncMessage?.resId)
+        assertFalse(testVm.state.value.aeroSyncFailed)
         assertNotNull(settingsPort.syncedAt(testVm.state.value.date))
+    }
+
+    /**
+     * The press is what says the bridge was never configured.
+     *
+     * A disabled button over a sentence nobody has read is the same experience as one that does nothing, so
+     * the action stays enabled and the reason it cannot run is the answer to the press.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun syncAeroDay_whenTheBridgeHasNoSettings_saysSoWhereTheCardDrawsIt() = runTest {
+        val repo = DayRepository(massasApi, dayWith())
+        settingsPort.settings = com.trindade.app.aero.AeroSettings()
+        val testVm = newViewModel(repo)
+        testScheduler.runCurrent()
+
+        testVm.syncAeroDay()
+        testScheduler.runCurrent()
+
+        assertEquals(R.string.massas_aero_not_configured, testVm.state.value.aeroSyncMessage?.resId)
+        assertTrue(testVm.state.value.aeroSyncFailed)
+        assertNull(testVm.state.value.errorMessage)
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
