@@ -311,6 +311,16 @@ tiene el keystore: firmar y publicar es decisión del usuario, no de la tarea.
 Verificación de la entrega: backend 640 pruebas en verde, frontend 468, Playwright 82 escenarios en verde sobre
 un servidor limpio, `docker build -f docker/Dockerfile.web` y la imagen `trindade-api:check` construidas.
 
+APK firmado y desplegado: `:app:assembleRelease -PrequireSigned=true` con el keystore oficial montado en `/keys`
+produce `app-release.apk` (versionCode 7000, versionName 0.7.0, 11.149.040 bytes, un firmante, esquema v2,
+certificado `ee0e404b…431f6`). Las mismas copias quedan en `~/Desktop`, `~/backups` y `packages/backend/apk`, y
+`GET /api/app/latest-release` responde `v0.7.0` con `apkSize` 11149040 después de reconstruir `api` y `web`; el
+sha256 del binario descargado coincide con el compilado (`903b37af…298d4b`).
+
+Dry-run de adopción contra una copia de la base productiva (checkpoint de WAL incluido): el asiento 35947 lo ocupa
+`JOAO H` → crearía `joaoh` y movería 1 lanzamiento; el 35952 lo ocupa `JEFFERSON` → crearía `jefferson` y movería
+1 lanzamiento. El md5 del archivo no cambió entre dos corridas: el dry-run no escribe nada.
+
 La suite E2E volvió a verde después de tres correcciones que el propio frente destapó:
 
 - el día compartido entre specs ya no se puede fabricar en el pasado (`MASSAS_HISTORY_FROZEN`), así que los specs
