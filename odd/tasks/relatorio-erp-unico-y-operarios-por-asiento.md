@@ -25,7 +25,9 @@ Estado: **especificación a revisión**. No se escribió código todavía (S0).
   `VIVIANE` con su total del día, «sin duplicaciones ni números inventados».
 - **S5** — En Relatório, Web y Android muestran «un solo apartado/tarjeta: «Movimentações do ERP (Massas e
   Recebimento)»» que contiene los dos bloques; ya no son dos tarjetas separadas
-  (`packages/frontend/src/pages/ReportsPage.tsx:257` para massas y `:341` para a categoría de Recebimento).
+  (`packages/frontend/src/pages/ReportsPage.tsx:257` para massas y `:341` para a categoría de Recebimento). La tarjeta
+  muestra **sólo el total producido del ERP y el desglose por operario**: la barra comparativa local (Producido /
+  No ERP / Diferencia) sale del Relatório y queda en el módulo Lançamento de Massas (Q1).
 - **S6** — Ese apartado tiene «un solo botón: [ 🔄 Sincronizar com ERP ] en la cabecera, que ejecuta la lectura del ERP
   vía bridge/atajo y refresca ambos bloques a la vez». La lectura es la que ya existe: `POST
   /api/integration/aero/movements` con el día consultado, y ambos bloques se repintan con la respuesta.
@@ -58,12 +60,16 @@ Estado: **especificación a revisión**. No se escribió código todavía (S0).
   vinculado en Trindade, el backend rechaza la importación en lugar de inventar un dueño», también para un
   administrador (lo que hoy permite `canImportSeat`, `massas-import-policy.ts:25`).
 - **S15** — El rechazo llega con un `errorCode` propio y su sentencia en portugués, y deja `massa_launches` intacto:
-  ningún lanzamiento nuevo, ningún `updated_at` tocado.
+  ningún lanzamiento nuevo, ningún `updated_at` tocado. Un operario que existe con `is_active = 0` no cuenta como
+  vinculado: el rechazo dice que está inactivo y pide reactivarlo, y la UI no ofrece crear un duplicado que rompa por
+  el `UNIQUE` del login (Q4).
 - **S16** — En la tabla unificada / espejo ERP, «si existe: muestra el botón normal [ Importar ]»; «si NO existe (ej.
   JEFFERSON o JOAO H): para el Administrador, se muestra el botón inline [ + Criar Operário: JEFFERSON ]». El nombre
   mostrado es el del asiento, en mayúsculas como lo escribió el ERP.
 - **S17** — Un clic en ese botón «crea automáticamente el usuario con rol Trabalhador (role_id: 2), display 'Jefferson',
-  login 'jefferson' y contraseña determinista 'jefferson1234567890' (>= 15 caracteres)».
+  login 'jefferson' y contraseña determinista 'jefferson1234567890' (>= 15 caracteres)». El login se deriva **sin
+  puntos**: `JOAO H` da `joaoh` y su contraseña `joaoh1234567890` (Q3), y la misma regla rige el login sugerido del
+  Frente 2.
 - **S18** — «La tabla se refresca al instante, reconoce al nuevo operario y el botón se transforma en [ Importar ] con la
   autoría real asignada a su id»: el lanzamiento importado a continuación queda con `user_id` del operario creado, no
   del importador.
@@ -77,27 +83,18 @@ Estado: **especificación a revisión**. No se escribió código todavía (S0).
 - **S21** — Ninguna fila existente de `massa_launches` ni de `aero_movements` se borra o reescribe sin una decisión
   explícita registrada en el Log (ver Q2).
 
-## Decisiones abiertas antes de implementar
+## Decisiones resueltas (L2)
 
-Estas cuatro no las puedo resolver yo: cambian producto o tocan datos ya guardados.
+Las cuatro quedaron respondidas por el usuario (L2) antes de implementar.
 
-- **Q1 — qué pasa con la barra de balance del Relatório.** Hoy compara «producido» (local + ERP no conciliado) contra
-  «registrado» (ERP). Si el reporte es ERP-only, el lado local desaparece. Opciones: **(a)** la barra muestra sólo el
-  total del ERP y el desglose por operario; **(b)** la barra se retira del Relatório y queda en el módulo Lançamento,
-  donde sí hay dos fuentes; **(c)** la barra compara entradas ERP contra asientos conciliados del día. Recomiendo
-  **(b)**: el reporte no debe insinuar una diferencia que ya no puede explicar.
-- **Q2 — los dos lanzamientos ya guardados bajo Wilkin.** Los asientos `#35947` (JOAO H, 270 un) y `#35952` (JEFFERSON,
-  135 un) ya están en `massa_launches` con `user_id = 1`. Opciones: **(a)** dejarlos como están y sólo bloquear los
-  futuros; **(b)** corregirlos con un script idempotente y auditable que crea el operario y reasigna el `user_id`,
-  previa copia de la base. Recomiendo **(b)** después de T9, como tarea separada y con tu OK explícito por escrito,
-  porque reescribe datos de producción.
-- **Q3 — nombres que el ERP escribe distinto.** El asiento dice `JEFFERSON` y `JOAO H`. Al derivar: display `Jefferson`,
-  login `jefferson`; para `JOAO H`, display `Joao H` y login `joao.h`. ¿Aceptás `joao.h`, o preferís `joaoh`? La regla
-  actual (`deriveUsername`) produce el punto.
-- **Q4 — operario inactivo.** `resolveOperatorUserId` sólo considera `is_active = 1`
-  (`massas-operator.ts:93`). Un asiento de alguien dado de baja cuenta hoy como «no existe» y ofrecería crear un
-  duplicado con el mismo login. Propongo que la UI y el backend distingan «no existe» de «existe pero inactivo», y que
-  el segundo caso no ofrezca alta sino que pida reactivar. Confirmame si lo incluimos en este frente.
+- **Q1 — barra de balance del Relatório: se retira.** El Relatório es 100 % ERP: muestra el total producido del ERP y el
+  desglose limpio por operario. La barra comparativa pertenece al módulo Lançamento de Massas, donde sí hay dos fuentes.
+- **Q2 — los dos lanzamientos bajo Wilkin: se corrigen en T11.** Script idempotente, previa copia de `trindade.db`, que
+  crea `joaoh` y `jefferson` y reasigna el `user_id` de los asientos `#35947` y `#35952`.
+- **Q3 — derivación de login: sin puntos.** `JOAO H` → `joaoh` y `joaoh1234567890`; la misma regla rige el login
+  sugerido del Frente 2 (`Maria Silva` → `mariasilva`).
+- **Q4 — operario inactivo: se informa, no se duplica.** `is_active = 0` no cuenta como vinculado; el backend y la UI
+  dicen que está inactivo y piden reactivarlo, sin ofrecer un alta que rompa por el `UNIQUE` del login.
 
 ## Fuera de alcance
 
@@ -130,10 +127,10 @@ De una copia read-only de la base del contenedor (`/tmp/audit-trindade.db`, mtim
 | T5 | S9, S10, S11, S13 | Web: botón `+ Cadastrar Operário` y feedback verde; el alta deja de estar atada a los handlers | — | |
 | T6 | S12 | Web: WhatsApp/Copiar exigen el alta y no la reintentan | — | |
 | T7 | S9–S13 | Android: botón, feedback y las dos acciones sin alta implícita | — | |
-| T8 | S14, S15, S20 | backend sin fallback, `errorCode` nuevo, OpenAPI y contrato Kotlin regenerados | 3 (changing a contract others consume) | |
+| T8 | S14, S15, S20 | backend sin fallback, `errorCode` nuevo para asiento sin dueño y para operario inactivo, OpenAPI y contrato Kotlin regenerados | 3 (changing a contract others consume) | |
 | T9 | S16, S17, S19 | Web: botón inline `+ Criar Operário: <NOMBRE>` para administrador y refresco de la tabla | — | |
 | T10 | S16–S19 | Android: mismo botón inline, mismo refresco, paridad de textos | — | |
-| T11 | S21 / Q2 | corrección de los dos lanzamientos auditados (sólo con decisión escrita) | 1 (reescribe datos) | |
+| T11 | S21, Q2 | script idempotente que crea `joaoh` y `jefferson` y reasigna los asientos `#35947` / `#35952`, con copia previa de `trindade.db` | 1 (reescribe datos) | |
 | T12 | S5–S8 | suites completas, verificación independiente de los frentes con riesgo, Docker y APK | 5 (delivery) | |
 
 Ruta: todas inline salvo que, al implementar, T3/T5/T9 y T4/T7/T10 se confirmen como unidades independientes de varias
@@ -212,3 +209,25 @@ minutos cada una; en ese caso van tres writers en background con superficies dis
 > Por favor, armá el artefacto ODD completo con sus especificaciones (S) y tareas (T) bien detalladas para ambas
 > aplicaciones en odd/tasks/, guardalo en Engram y avísame cuando esté listo para que lo revise antes de empezar a
 > implementar.
+
+### L2 — Decisiones del usuario (verbatim)
+
+> Che, impecable la redacción del artefacto ODD en odd/tasks/relatorio-erp-unico-y-operarios-por-asiento.md. Las 21
+> specs y 12 tareas cubren los 3 frentes con total precisión.
+>
+> Acá tenés las respuestas oficiales a las cuatro decisiones para destrabar la implementación:
+>
+> 1. Q1 (Barra de balance en Relatório): Aprobado retirar la barra comparativa local del Relatório. El Relatório ahora
+> es 100% ERP, así que muestra únicamente el total producido del ERP y el desglose limpio por operario. La barra de
+> balance comparativa pertenece al módulo Lançamento de Massas.
+> 2. Q2 (Los dos lanzamientos auditados bajo Wilkin): Aprobado corregirlos en T11 con un script idempotente (previa
+> copia de seguridad de trindade.db). Crea los usuarios joaoh y jefferson y reasigna el user_id correspondiente a los
+> lanzamientos #35947 y #35952 para que la base quede limpia y sin distorsión.
+> 3. Q3 (Derivación de login): Usá joaoh (sin puntos), minúsculas y limpio, manteniendo la contraseña determinista de >=
+> 15 caracteres (joaoh1234567890).
+> 4. Q4 (Operario inactivo): Aprobado. Si el operario ya existe pero está con is_active = 0, la UI y el backend deben
+> indicar que está inactivo y pedir reactivación en vez de intentar crear un usuario duplicado que rompa por UNIQUE
+> constraint.
+>
+> Tenés LUZ VERDE para arrancar con la implementación de T1 en adelante. Todo directo a main sin ramas, con commits
+> atómicos convencionales y cero mención a IA. Dale gas.
