@@ -461,6 +461,21 @@ funcionalidades clave a incorporar. El contrato ya está listo -- el atajo únic
   - Reutiliza la cola y el mismo atajo único, con `aero_action=saida` en la vuelta.
   - Escala la cantidad x100 y formatea el código a 6 dígitos con ceros a la izquierda.
 
+### 10.3 Relatório diário lido do ERP — implementado
+- **Objetivo**: que el relatório del día diga lo que la empresa registró, sin mezclarlo con lo que la
+  planta escribió en Trindade.
+- **Ruta**: `GET /api/massas-launch/report?date=YYYY-MM-DD`, alimentada **sólo** por `aero_movements` con
+  `movement_type = 'E'`. `massa_launches` no se lee.
+- **Clasificación**: los diez códigos del catálogo de masas (`1045`, `39`, `60`, `84`, `91`, `1192`,
+  `5000`, `1047`, `22`, `1616`) son **Massas**; cualquier otro asiento del día —brotinho, pizza, canudo,
+  harina, lo que cargó un tercero— es **Recebimento de Insumos**. El corte lo hace el servidor, así que
+  Web, Android y el texto de WhatsApp no pueden discrepar.
+- **Consecuencia**: el `balance` compara el día contra sí mismo (`differenceUnits: 0`, `reconciledSeats`
+  y `pendingSeats` en cero) y la barra comparativa ya no se dibuja en el Relatório; queda en Lançamento
+  de Masas, que es donde tiene sentido.
+- **Operarios**: cada operario del día sale del ERP. Si su nombre no resuelve a una cuenta, aparece
+  igual —con su producción—, marcado para que el administrador pueda crearlo desde el asiento.
+
 ### 10.2 Vista de Movimientos del Usuario (ERP vs Trindade) — implementado
 - **Objetivo**: Mostrar en la interfaz de Trindade qué se registró efectivamente en el ERP, y permitir
   importar al lanzamiento local lo que se hizo desde otra vía.
@@ -482,10 +497,18 @@ funcionalidades clave a incorporar. El contrato ya está listo -- el atajo únic
     lanzamientos huérfanos.
   - **Importar es de quien es el asiento.** `POST /massas-launch` resuelve el dueño del asiento en
     `aero_movements` — no en el cuerpo de la petición — y responde `403 MASSAS_FORBIDDEN` cuando un
-    trabajador intenta importar un asiento de otro operario o uno que ningún usuario de Trindade
-    reclama. Un administrador importa cualquiera. El espejo expone el mismo `owner_user_id` resuelto con
+    trabajador intenta importar un asiento de otro operario. Un administrador importa el asiento de
+    cualquier operario **que exista en Trindade**. El espejo expone el mismo `owner_user_id` resuelto con
     las mismas reglas, así que Web y Android ocultan el botón en la misma fila que el backend rechazaría:
-    un botón que solo puede fallar es peor que ningún botón.
+    un botón que solo fallar es peor que ningún botón.
+  - **Nadie hereda un asiento que no puede atribuir.** Cuando el nombre del asiento no resuelve a ningún
+    usuario, el import se rechaza con `409 MASSAS_OPERATOR_NOT_LINKED` —también para un administrador— en
+    lugar de anotarlo a nombre de quien aprieta el botón. Si el nombre resuelve a una cuenta desactivada,
+    el rechazo es `409 MASSAS_OPERATOR_INACTIVE`: existe y hay que reactivarla, no crear un duplicado que
+    el login único haría fallar. El alta que destraba la fila es `POST /api/admin/users` con
+    `{ username, password, display_name, role_id: 2 }`, donde el login sale del nombre del asiento
+    (`JOAO H` → `joaoh`, sin puntos ni iniciales) y la senha de `quickWorkerPassword(login)`. El espejo
+    marca esas filas y la pantalla ofrece `+ Criar Operário` en lugar de `Importar`.
   - **El histórico es solo lectura, desde el alta hasta el borrado.** `PUT` y `DELETE
     /api/massas-launch/:id` responden `409 MASSAS_HISTORY_FROZEN` para cualquier lanzamiento cuyo día no
     sea hoy en São Paulo, y lo hacen antes de mirar el rol: la regla vale igual para un administrador.
