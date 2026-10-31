@@ -2,6 +2,17 @@ import type { Page } from '@playwright/test';
 
 const API_BASE = 'http://localhost:3099/api';
 
+/**
+ * The user agent of the phone these screens are built for.
+ *
+ * The integration is gated by the device that opens it: a desktop browser reads the plant's day and nothing
+ * more, because the direct connection was only built for iOS. A spec that configures the connection, tests it
+ * or launches with it therefore runs as an iPhone -- that is the device whose buttons it is pressing.
+ */
+export const IPHONE_UA =
+  'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
+
+
 interface LoginResponse {
   token: string;
   user: { id: number; username: string; role: string };

@@ -106,20 +106,20 @@ test.describe('the ERP sync, read through each module lens', () => {
     expect(overflow).toBeLessThanOrEqual(0);
   });
 
-  test('the sync button on the report is thumb-sized and comes back to this page', async ({ page }) => {
+  test('the single sync button on the report is thumb-sized and honest without company access', async ({ page }) => {
     const identities = await getE2EIdentities(page);
     await loginViaApi(page, identities.worker);
 
     await page.goto('/reports');
     await page.waitForSelector('[data-testid="report-builder-form"]', { timeout: 15000 });
 
-    const sync = page.locator('[data-testid="receipts-sync"]');
+    // One control for the whole day, on the one card: the per-block buttons are gone.
+    await expect(page.locator('[data-testid="receipts-sync"]')).toHaveCount(0);
+    const sync = page.locator('[data-testid="erp-movements-sync"]');
     await expect(sync).toBeVisible();
     expect((await sync.boundingBox())!.height).toBeGreaterThanOrEqual(44);
 
-    // Without a configured shortcut the button explains itself instead of leaving for nowhere.
-    if (await page.locator('[data-testid="receipts-sync-hint"]').isVisible()) {
-      await expect(sync).toBeDisabled();
-    }
+    // This browser holds no company access, so the button says what it will really do: read the day again.
+    await expect(sync).toHaveText(/Atualizar/);
   });
 });

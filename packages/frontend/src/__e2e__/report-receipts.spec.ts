@@ -21,6 +21,9 @@ test.describe('Report receipts on a phone screen', () => {
     // The old fifteen checkboxes are gone: today's report has nothing to tick for Recebimento.
     await expect(page.locator('[data-testid="check-task-43"]')).toHaveCount(0);
 
+    // One card for the day, and it is the one that carries the mirrored supplies. The card follows the last
+    // temperature category, so a second one must not draw it twice.
+    await expect(page.locator('[data-testid="report-massas-card"]')).toHaveCount(1);
     const section = page.locator('[data-testid="receipts-section"]');
     await expect(section).toBeVisible();
 
@@ -30,10 +33,10 @@ test.describe('Report receipts on a phone screen', () => {
     );
     expect(overflow).toBeLessThanOrEqual(0);
 
-    // The refresh control is thumb-sized. Whether the day was already synced is not asserted here: every
-    // spec shares one database, and another one may have mirrored today before this runs.
-    await expect(page.locator('[data-testid="receipts-refresh"]')).toBeVisible();
-    expect((await page.locator('[data-testid="receipts-refresh"]').boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    // The card's single control is thumb-sized. It asks the company for the day when the device has access and
+    // refreshes what it already read when it does not, which is this browser's case.
+    await expect(page.locator('[data-testid="erp-movements-sync"]')).toBeVisible();
+    expect((await page.locator('[data-testid="erp-movements-sync"]').boundingBox())!.height).toBeGreaterThanOrEqual(44);
 
     // The phone brings the answer back; seeding it is the same call the shortcut makes. The day comes from
     // the server, so the test never disagrees with São Paulo's calendar around midnight.
@@ -71,7 +74,7 @@ test.describe('Report receipts on a phone screen', () => {
     });
     expect(seeded.status()).toBe(201);
 
-    await page.locator('[data-testid="receipts-refresh"]').click();
+    await page.locator('[data-testid="erp-movements-sync"]').click();
 
     const list = page.locator('[data-testid="receipts-list"]');
     await expect(list).toBeVisible();

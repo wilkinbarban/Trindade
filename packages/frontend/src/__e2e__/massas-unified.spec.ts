@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { getE2EIdentities, loginViaApi } from './auth-helpers';
+import { IPHONE_UA, getE2EIdentities, loginViaApi } from './auth-helpers';
 
 /**
  * The plant's day, as one table, on the phone the operator actually holds.
@@ -12,19 +12,19 @@ import { getE2EIdentities, loginViaApi } from './auth-helpers';
 const API = 'http://localhost:3099/api';
 
 /**
- * A date no other spec and no previous run of this one uses.
+ * The day the plant can still write: today, in São Paulo.
  *
- * The dev server is reused between runs, so the in-memory day survives: a fixed date would find last run's
- * launches still there and read them as this run's work. Dates stay in the past because the API refuses a
- * launch dated in the future.
+ * The API freezes yesterday and refuses tomorrow, so this spec cannot take a day of its own. It isolates itself
+ * with operators and `ENT_LAN`s instead, and reads the day before judging it, because every spec shares one
+ * server and the day may already hold seats another one mirrored.
  */
-function uniqueDay(offset = 0): string {
-  const start = Date.UTC(2025, 5, 1);
-  const days = (Math.floor(Date.now() / 1000) + offset) % 3000;
-  return new Date(start - days * 86_400_000).toISOString().slice(0, 10);
+function today(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
 }
 
-test.use({ viewport: { width: 375, height: 667 } });
+// The screen's owner is an iPhone: on a desktop browser the integration is shown read-only by design, and the
+// import this spec walks through would be a disabled button.
+test.use({ viewport: { width: 375, height: 667 }, userAgent: IPHONE_UA });
 
 // This spec walks the whole day twice (seed, reload, import): the default 30s budget is spent on the walk, not
 // on an assertion that would catch a regression.
@@ -40,16 +40,13 @@ test.describe('unified massas day on a phone screen', () => {
     const mine = identities.worker.username.toUpperCase();
 
     await page.goto('/massas-launch');
-    // A day of its own: every spec shares one database and the server survives between runs, so "today" and any
-    // fixed date are not guaranteed to be empty.
-    const date = uniqueDay();
+    const date = today();
     await page.locator('[data-testid="massas-launch-date"]').fill(date);
     await expect(page.locator('[data-testid="massas-launch-date"]')).toHaveValue(date);
 
     // One table, no tabs: the two lists are gone and the reason is on every row.
     await expect(page.locator('[data-testid="massas-unified"]')).toBeVisible();
     await expect(page.locator('[data-testid="massas-tab-erp"]')).toHaveCount(0);
-    await expect(page.locator('[data-testid="massas-unified-empty"]')).toContainText('Nenhuma massa lançada');
 
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -100,7 +97,9 @@ test.describe('unified massas day on a phone screen', () => {
       headers: { authorization: `Bearer ${token}` },
       data: { date, items: [{ product_code: '5000', boxes: 1 }] },
     });
-    expect(local.status()).toBe(201);
+    const localBody = await local.text();
+    expect(local.status(), localBody).toBe(201);
+    const ownLaunchId = (JSON.parse(localBody).created as Array<{ id: number }>)[0].id;
 
     await page.goto('/massas-launch');
     await page.locator('[data-testid="massas-launch-date"]').fill(date);
@@ -108,7 +107,6 @@ test.describe('unified massas day on a phone screen', () => {
 
     const unified = page.locator('[data-testid="massas-unified"]');
     const erpOnly = unified.locator('[data-state="erpOnly"]');
-    const pending = unified.locator('[data-state="pendingErp"]');
 
     // The company seat nobody launched here is importable in whole boxes: 90 units of a 15-unit box.
     const seat = page.locator('[data-testid="massas-unified-row-seat-10542"]');
@@ -127,17 +125,22 @@ test.describe('unified massas day on a phone screen', () => {
       'data-state',
       'erpOnly',
     );
-    await expect(pending).toHaveCount(1);
-    await expect(pending).toContainText('MASSA ROLO 1KG');
-    await expect(pending).toContainText('Pendente ERP');
-    expect(await erpOnly.count()).toBe(2);
+    // The worker's own launch is the pending row, whether or not the day already held other operators'
+    // launches: the row is found by its id, not by being the only one on the table.
+    const ownPending = page.locator(`[data-testid="massas-unified-row-launch-${ownLaunchId}"]`);
+    await expect(ownPending).toHaveAttribute('data-state', 'pendingErp');
+    await expect(ownPending).toContainText('MASSA ROLO 1KG');
+    await expect(ownPending).toContainText('Pendente ERP');
+    // The day is shared, so what belongs to this run is counted, not the table: two seats and the worker's
+    // launch are here, whatever else the day already held.
+    expect(await erpOnly.count()).toBeGreaterThanOrEqual(2);
 
     // A pending row can be acknowledged on this phone without pretending Delphi has it.
-    const ack = pending.locator('[data-testid^="massas-ack-"]');
+    const ack = ownPending.locator('[data-testid^="massas-ack-"]');
     expect((await ack.boundingBox())!.height).toBeGreaterThanOrEqual(44);
     await ack.click();
-    await expect(pending).toContainText('já na tablet');
-    await expect(pending).toHaveAttribute('data-state', 'pendingErp');
+    await expect(ownPending).toContainText('já na tablet');
+    await expect(ownPending).toHaveAttribute('data-state', 'pendingErp');
 
     // 90 units of a 15-unit box are 6 boxes: the import is offerable, and the control is thumb-sized.
     const importButton = page.locator('[data-testid="massas-import-10542"]');
@@ -162,7 +165,8 @@ test.describe('unified massas day on a phone screen', () => {
     const stored = await page.request.get(`${API}/integration/aero/movements?date=${date}`, {
       headers: { authorization: `Bearer ${token}` },
     });
-    expect((await stored.json()).movements).toHaveLength(3);
+    const entLans = ((await stored.json()).movements as Array<{ ent_lan: number }>).map((row) => row.ent_lan);
+    expect(entLans).toEqual(expect.arrayContaining([10542, 35914, 35911]));
 
     const day = await page.request.get(`${API}/massas-launch?date=${date}`, {
       headers: { authorization: `Bearer ${token}` },
@@ -185,14 +189,16 @@ test.describe('the day balance on a phone screen', () => {
     await loginViaApi(page, identities.worker);
     const login = await page.request.post(`${API}/auth/login`, { data: identities.worker });
     const token = (await login.json()).token as string;
-    const date = uniqueDay(1);
+    const date = today();
 
     // One launch of fifteen units that never reached Delphi, and one company seat of ninety.
     const local = await page.request.post(`${API}/massas-launch`, {
       headers: { authorization: `Bearer ${token}` },
       data: { date, items: [{ product_code: '5000', boxes: 1 }] },
     });
-    expect(local.status()).toBe(201);
+    const localBody = await local.text();
+    expect(local.status(), localBody).toBe(201);
+    const ownLaunchId = (JSON.parse(localBody).created as Array<{ id: number }>)[0].id;
     const seeded = await page.request.post(`${API}/integration/aero/movements`, {
       headers: { authorization: `Bearer ${token}` },
       data: {
@@ -221,28 +227,36 @@ test.describe('the day balance on a phone screen', () => {
     const day = await page.request.get(`${API}/massas-launch?date=${date}`, {
       headers: { authorization: `Bearer ${token}` },
     });
-    const launchUnits = ((await day.json()).launches as Array<{ units: number }>).reduce(
-      (total, launch) => total + launch.units,
-      0,
-    );
-    const erpDay = await page.request.get(`${API}/integration/aero/movements?date=${date}`, {
+    const launches = (await day.json()).launches as Array<{ units: number; ent_lan: number | null }>;
+    // A launch imported from a seat is the same box the company already counts: it moves to the registered
+    // side and only what Delphi still owes stays as pending work.
+    const launchUnits = launches.reduce((total, launch) => total + launch.units, 0);
+    const reconciledUnits = launches
+      .filter((launch) => launch.ent_lan !== null)
+      .reduce((total, launch) => total + launch.units, 0);
+    const pendingUnits = launchUnits - reconciledUnits;
+    // The seats the company has for the day, massas only: the box of packaging that arrives is a supply and
+    // never counts as production.
+    const report = await page.request.get(`${API}/massas-launch/report?date=${date}`, {
       headers: { authorization: `Bearer ${token}` },
     });
-    const seatedUnits = ((await erpDay.json()).movements as Array<{ quantity: number; movement_type: string }>)
-      .filter((movement) => movement.movement_type === 'E')
-      .reduce((total, movement) => total + movement.quantity, 0);
+    const seatedUnits = ((await report.json()).products as Array<{ totalUnits: number }>).reduce(
+      (total, product) => total + product.totalUnits,
+      0,
+    );
     expect(launchUnits).toBeGreaterThan(0);
-    // The seat this run counted, plus anything the day already held: both sides are read, not assumed.
     expect(seatedUnits).toBeGreaterThanOrEqual(90);
 
     const balance = page.locator('[data-testid="massas-balance"]');
     await expect(balance).toBeVisible();
+    // Every box somebody counted, whichever screen counted it, and each one once: the seat the launch came
+    // from is the registration and the launch is the work.
     await expect(page.locator('[data-testid="massas-balance-produced"]')).toContainText(
-      String(launchUnits + seatedUnits),
+      String(seatedUnits + pendingUnits),
     );
     await expect(page.locator('[data-testid="massas-balance-registered"]')).toContainText(String(seatedUnits));
     // Delphi still owes the local launch: the difference names it instead of hiding it.
-    await expect(page.locator('[data-testid="massas-balance-difference"]')).toContainText(`-${launchUnits}`);
+    await expect(page.locator('[data-testid="massas-balance-difference"]')).toContainText(`-${pendingUnits}`);
 
     // Above the rows: the summary is read before the detail, and both fit the phone.
     const bar = (await balance.boundingBox())!;

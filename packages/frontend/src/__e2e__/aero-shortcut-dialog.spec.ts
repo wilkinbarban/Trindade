@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { IPHONE_UA } from './auth-helpers';
 import { loginAsAeroOwner } from './aero-owner';
 
 /**
@@ -10,7 +11,7 @@ import { loginAsAeroOwner } from './aero-owner';
  */
 const ICLOUD_URL = 'https://www.icloud.com/shortcuts/3216695a428f42539fec7abbd5419f34';
 
-test.use({ viewport: { width: 375, height: 667 } });
+test.use({ viewport: { width: 375, height: 667 }, userAgent: IPHONE_UA });
 
 async function openShortcutDialog(page: import('@playwright/test').Page) {
   await loginAsAeroOwner(page);

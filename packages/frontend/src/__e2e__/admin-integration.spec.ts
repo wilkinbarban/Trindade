@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { getE2EIdentities, loginViaApi } from './auth-helpers';
+import { IPHONE_UA, getE2EIdentities, loginViaApi } from './auth-helpers';
 import { AERO_OWNER, loginAsAeroOwner } from './aero-owner';
 
 /**
@@ -9,7 +9,7 @@ import { AERO_OWNER, loginAsAeroOwner } from './aero-owner';
  * it; the credentials belong to whoever holds the phone and stay editable for every worker. This spec reads
  * both halves from the screen, because that is where an operator will look for them.
  */
-test.use({ viewport: { width: 375, height: 667 } });
+test.use({ viewport: { width: 375, height: 667 }, userAgent: IPHONE_UA });
 
 test.describe('integration tab in the admin panel', () => {
   test('the owner finds the plant address already written and may change it', async ({ page }) => {

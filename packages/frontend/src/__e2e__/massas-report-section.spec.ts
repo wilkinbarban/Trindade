@@ -4,27 +4,62 @@ import { fillAllTemperatureInputs, getE2EIdentities, goToProtected } from './aut
 /**
  * The Massas card on both report screens.
  *
- * The unit tests already know how the day is counted; what the browser has to prove is that the card is on
- * the report being filed and on the report being read, and that it reads the day the report describes.
+ * The report reads one side only -- the seats the company's ERP recorded -- so what the browser has to prove is
+ * that the card is on the report being filed and on the report being read, that it shows the day the ERP
+ * answered, and that a launch the plant typed but never sent is not part of this day.
  */
+const API = 'http://localhost:3099/api';
 
-async function launchBoxesToday(page: Page, boxes: number): Promise<void> {
+async function adminToken(page: Page): Promise<string> {
   const identities = await getE2EIdentities(page);
-  const loginRes = await page.request.post('http://localhost:3099/api/auth/login', {
-    data: identities.admin,
-  });
+  const loginRes = await page.request.post(`${API}/auth/login`, { data: identities.admin });
   expect(loginRes.ok()).toBeTruthy();
-  const token = (await loginRes.json()).token;
-  const res = await page.request.post('http://localhost:3099/api/massas-launch', {
+  return (await loginRes.json()).token as string;
+}
+
+/** The day the report files, read from the same calendar the screens use. */
+async function reportDay(page: Page): Promise<string> {
+  return page.evaluate(() =>
+    new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date()),
+  );
+}
+
+async function mirrorSeat(
+  page: Page,
+  args: { entLan: number; code: string; desc: string; units: number; operator: string },
+) {
+  const token = await adminToken(page);
+  const date = await reportDay(page);
+  const res = await page.request.post(`${API}/integration/aero/movements`, {
     headers: { Authorization: `Bearer ${token}` },
-    data: { product_code: '1045', boxes },
+    data: {
+      date,
+      movements: [
+        {
+          ent_lan: args.entLan,
+          product_code: args.code,
+          product_desc: args.desc,
+          quantity: args.units,
+          entry_date: date,
+          operator_name: args.operator,
+          movement_type: 'E',
+        },
+      ],
+    },
   });
   expect(res.ok()).toBeTruthy();
 }
 
 test.describe('Massas report section', () => {
-  test('the report being filed already shows the day it will report', async ({ page }) => {
-    await launchBoxesToday(page, 3);
+  test('the report being filed shows the day the company recorded', async ({ page }) => {
+    // The operator name is unique to this spec so the assertion cannot ride on a seat another spec seeded.
+    await mirrorSeat(page, {
+      entLan: 41101,
+      code: '001616',
+      desc: 'MASSA TOKO',
+      units: 30,
+      operator: 'CECILIA E2E',
+    });
 
     await goToProtected(page, '/reports');
     await page.waitForSelector('[data-testid="report-builder-form"]', { timeout: 10000 });
@@ -34,14 +69,13 @@ test.describe('Massas report section', () => {
     const section = card.locator('[data-testid="massas-report-section"]');
     await expect(section).toBeVisible();
 
-    // The launch is counted once, on its operator, with the product's units.
-    await expect(card.locator('[data-testid="massas-report-operators"]')).toBeVisible();
-    await expect(card.locator('[data-testid="massas-report-products"]')).toContainText('CASEIRA');
-    await expect(card.locator('[data-testid="massas-report-products"]')).toContainText('30 un');
+    // The seat is counted once, on the operator the company wrote, with its product.
+    await expect(card.locator('[data-testid="massas-report-operators"]')).toContainText('CECILIA E2E');
+    await expect(card.locator('[data-testid="massas-report-products"]')).toContainText('TOKO');
   });
 
   test('the saved report shows the same day on its own screen', async ({ page }) => {
-    await launchBoxesToday(page, 1);
+    await mirrorSeat(page, { entLan: 41102, code: '001616', desc: 'MASSA TOKO', units: 15, operator: 'WILKIN' });
 
     await goToProtected(page, '/reports');
     await page.waitForSelector('[data-testid="report-builder-form"]', { timeout: 10000 });
@@ -57,9 +91,8 @@ test.describe('Massas report section', () => {
     await expect(card).toContainText('Massas do dia');
   });
 
-  test('the card fits a 375px phone with 44px controls and no sideways scroll', async ({ page }) => {
+  test('the card fits a 375px phone with a 44px sync control and no sideways scroll', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 });
-    await launchBoxesToday(page, 1);
 
     await goToProtected(page, '/reports');
     await page.waitForSelector('[data-testid="report-massas-card"]', { timeout: 10000 });
@@ -69,8 +102,10 @@ test.describe('Massas report section', () => {
     );
     expect(overflow).toBeLessThanOrEqual(0);
 
-    const refresh = page.locator('[data-testid="massas-report-refresh"]');
-    const box = await refresh.boundingBox();
+    // One control for the whole card now; the section's own refresh button is gone with the second card.
+    const sync = page.locator('[data-testid="erp-movements-sync"]');
+    await expect(sync).toBeVisible();
+    const box = await sync.boundingBox();
     expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
     expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
   });

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { IPHONE_UA } from './auth-helpers';
 import { loginAsAeroOwner } from './aero-owner';
 
 /**
@@ -13,7 +14,11 @@ const AERO_SETTINGS_KEY = 'trindade.aero.integration.v1';
 const AERO_QUEUE_KEY = 'trindade.aero.queue.v1';
 
 /** A quiet weekday: every spec shares one database, so today is not guaranteed to be empty. */
-const DAY = '2026-09-16';
+/**
+ * The only day the plant can still write: the API froze every past day when the massas history became read
+ * only, so a fixed date no longer has boxes to type in.
+ */
+const DAY = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
 
 const SETTINGS = JSON.stringify({
   wsUrl: 'http://192.168.25.250:1453/api',
@@ -73,7 +78,7 @@ async function answer(page: Page, action: string, payload: unknown) {
   await page.goto(`/massas-launch?aero_action=${action}&aero_data=${encodeURIComponent(JSON.stringify(payload))}`);
 }
 
-test.use({ viewport: { width: 375, height: 667 } });
+test.use({ viewport: { width: 375, height: 667 }, userAgent: IPHONE_UA });
 
 test.describe('a launch of many products leaves once', () => {
   test('three products travel in one envelope and come back in one dialog', async ({ page }) => {

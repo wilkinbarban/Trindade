@@ -102,29 +102,43 @@ test.describe('Report View & Export', () => {
   });
 
   test('the massas section is part of the export, with no box to tick', async ({ page }) => {
-    // A launch of the day, so the report has plant production to show.
+    // A seat of the day in the company's book, so the report has production to show: the export reads the same
+    // ERP-only day the screen does.
     const identities = await getE2EIdentities(page);
     const loginRes = await page.request.post('http://localhost:3099/api/auth/login', {
       data: identities.admin,
     });
     expect(loginRes.ok()).toBeTruthy();
     const token = (await loginRes.json()).token;
-    const launchRes = await page.request.post('http://localhost:3099/api/massas-launch', {
+    const date = saoPauloToday();
+    const seatRes = await page.request.post('http://localhost:3099/api/integration/aero/movements', {
       headers: { Authorization: `Bearer ${token}` },
-      data: { product_code: '1045', boxes: 1 },
+      data: {
+        date,
+        movements: [
+          {
+            ent_lan: 41201,
+            product_code: '001045',
+            product_desc: 'MASSA CASEIRA',
+            quantity: 60,
+            entry_date: date,
+            operator_name: 'EXPORT E2E',
+            movement_type: 'E',
+          },
+        ],
+      },
     });
-    expect(launchRes.ok()).toBeTruthy();
+    expect(seatRes.status()).toBe(201);
 
-    // Other specs launch the same product on the same day, so the export is checked against the day's real
-    // total instead of the single box this test added.
+    // Other specs mirror seats on the same day, so the export is checked against the day's real total instead
+    // of the one seat this test added.
     const dayRes = await page.request.get(
-      `http://localhost:3099/api/massas-launch?date=${saoPauloToday()}`,
+      `http://localhost:3099/api/massas-launch/report?date=${date}`,
       { headers: { Authorization: `Bearer ${token}` } },
     );
-    const dayUnits = ((await dayRes.json()).launches as Array<{ product_code: string; units: number }>)
-      .filter((launch) => launch.product_code === '1045')
-      .reduce((total, launch) => total + launch.units, 0);
-    expect(dayUnits).toBeGreaterThanOrEqual(10);
+    const products = (await dayRes.json()).products as Array<{ code: string; totalUnits: number }>;
+    const dayUnits = products.find((product) => product.code === '1045')?.totalUnits ?? 0;
+    expect(dayUnits).toBeGreaterThanOrEqual(60);
 
     await goToProtected(page, '/reports');
     await page.waitForSelector('[data-testid="report-builder-form"]', { timeout: 10000 });

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { getE2EIdentities, loginViaApi } from './auth-helpers';
+import { IPHONE_UA, getE2EIdentities, loginViaApi } from './auth-helpers';
 import { AERO_OWNER, ensureAeroOwner } from './aero-owner';
 
 /**
@@ -28,7 +28,7 @@ function movementsCallbackUrl(success: boolean) {
   return `/massas-launch?aero_action=movimentos&aero_data=${encodeURIComponent(movementsAnswer(success))}`;
 }
 
-test.use({ viewport: { width: 375, height: 667 } });
+test.use({ viewport: { width: 375, height: 667 }, userAgent: IPHONE_UA });
 
 test.describe('result dialogs on a phone screen', () => {
   test('the movements sync says how many seats came back, and closes with a thumb', async ({ page }) => {
