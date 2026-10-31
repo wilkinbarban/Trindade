@@ -4,12 +4,13 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.trindade.app.BuildConfig
+import com.trindade.app.contract.models.LatestReleaseResponse
 import com.trindade.app.contract.models.ProfileResponseUser
+import com.trindade.app.network.SystemApi
 import com.trindade.app.network.runCatchingCancellable
 import com.trindade.app.update.ApkInstaller
 import com.trindade.app.update.Clock
 import com.trindade.app.update.DownloadState
-import com.trindade.app.update.GitHubReleaseApi
 import com.trindade.app.update.InstalledAppInfo
 import com.trindade.app.update.ReleaseVersion
 import com.trindade.app.update.UpdateDetector
@@ -41,15 +42,16 @@ import kotlinx.coroutines.launch
  *
  * One thing on this screen is not about the account at all: whether a newer release exists. It lives here
  * because the answer is drawn under the version line and because the screen already has an entry point to
- * run it on, and it is kept apart from the account in two directions -- a different source ([GitHubReleaseApi],
- * on a client that carries no token) and a state of its own ([UpdateStatus]) that never touches the error
+ * run it on, and it is kept apart from the account in two directions -- a different question, asked of the
+ * app's own API ([SystemApi.latestRelease]) rather than of the account routes, and a state of its own
+ * ([UpdateStatus]) that never touches the error
  * line. See [open] and [refreshUpdateCheck] for why the account and the update are two questions with two
  * answers rather than one result.
  */
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val repository: AuthRepository,
-    private val releases: GitHubReleaseApi,
+    private val api: SystemApi,
     private val clock: Clock,
     private val downloader: UpdateDownloader? = null,
     private val installer: ApkInstaller? = null,
@@ -131,8 +133,8 @@ class ProfileViewModel @Inject constructor(
      *
      * Four, not two, because the two that are not a comparison result are the ones a boolean would have
      * flattened: a check that has not answered yet, and a check that could not be made. The second is not
-     * an error about the operator or their session -- the account loaded, the token is fine, GitHub had a
-     * bad moment, or the tag is not one this client reads -- so it does not belong in [UiState.message],
+     * an error about the operator or their session -- the account loaded, the token is fine, the API had a
+     * bad moment, or the version is not one this client reads -- so it does not belong in [UiState.message],
      * which the screen draws in the error colour and which every other test in this app reads as
      * "something went wrong with the request you made".
      */
@@ -145,7 +147,7 @@ class ProfileViewModel @Inject constructor(
          * omission: a "checking..." line over somebody else's account screen would claim something is being
          * waited for, and it would flicker for one round trip on a line that only matters once there is a
          * sentence to read. What keeps the silence honest is that it is bounded, and the bound belongs to the
-         * client rather than here: `GitHubClient`'s own timeouts, chosen for this check rather than inherited
+         * client rather than here: the download client's own timeouts, chosen for this check rather than inherited
          * from a request the operator made, of which the whole-call one is the one that matters, because a
          * bound on a single read is not a bound on the check. So the blank line cannot outlast a wait anybody
          * agreed to. The values are `NetworkModule`'s to state and are kept there; what belongs in this
@@ -174,12 +176,12 @@ class ProfileViewModel @Inject constructor(
          * The check produced no answer, from either end.
          *
          * Two different causes land in this one state, and it covers both because the operator's side of
-         * them is the same. First, GitHub could not be asked, answered with something unreadable, named a
-         * tag this client reads no version out of, or answered a status that is not an answer (a 404 with no
-         * releases, a 403 from the rate limit). Second, this build's own `APP_VERSION_NAME` is not a version
+         * them is the same. First, the API could not be asked, answered with something unreadable, named a
+         * version this client reads no version out of, or answered a status that is not an answer (a 502
+         * while no APK is on disk). Second, this build's own `APP_VERSION_NAME` is not a version
          * [ReleaseVersion.compare] can read, which is that comparison's `Comparison.Undetermined` arm: a
-         * build declaration rather than anything remote, and the reason this state is not named after
-         * GitHub. Nothing the operator can do differs between the two, so there is one state and one quiet
+         * build declaration rather than anything remote, and the reason this state is not named after the
+         * endpoint. Nothing the operator can do differs between the two, so there is one state and one quiet
          * sentence for both -- and neither is a statement about their account, which is why neither reaches
          * [UiState.message].
          */
@@ -221,10 +223,10 @@ class ProfileViewModel @Inject constructor(
      * or leave a stale answer inside the window reading as a fresh one. Held together, writing a fresh
      * answer and its reading is one assignment, and there is no way to write half of it.
      *
-     * This is the cache [open] consults before asking GitHub again: a re-entry inside
+     * This is the cache [open] consults before asking again: a re-entry inside
      * [UPDATE_CACHE_MILLIS] shows this answer and makes no request, because the fact it carries changes a
-     * few times a month and every entry asking again is what spends GitHub's sixty anonymous requests an
-     * hour per source IP. It is written only when a check produced an answer and never when one failed --
+     * few times a month and every entry asking again is a round trip to the API this installation serves.
+     * It is written only when a check produced an answer and never when one failed --
      * see [open] for why a failure is deliberately not remembered.
      */
     private var lastUpdate: CachedUpdate? = null
@@ -285,7 +287,7 @@ class ProfileViewModel @Inject constructor(
         lastSeenGeneration = generation
 
         // Read before the state is touched, so what is shown and whether to fetch are one decision: a fresh
-        // answer goes into the state below and the coroutine launched under it asks GitHub nothing, while an
+        // answer goes into the state below and the coroutine launched under it asks the API nothing, while an
         // expired or absent one leaves Checking in place and is checked now.
         val cachedUpdate = freshCachedUpdate()
 
@@ -362,7 +364,7 @@ class ProfileViewModel @Inject constructor(
         // separate questions with separate answers, so a slow or failing account read must not hold the
         // update line back or take it down with it. What they share is the token.
         viewModelScope.launch {
-            // A fresh cached answer is used as it is and GitHub is not asked; otherwise the check runs now.
+            // A fresh cached answer is used as it is and the API is not asked; otherwise the check runs now.
             // Note what is not cached: a check that could not be made leaves [lastUpdate] alone, so the
             // next entry retries it rather than showing a cached failure for the length of the window.
             val update = cachedUpdate ?: refreshUpdateCheck()
@@ -392,47 +394,48 @@ class ProfileViewModel @Inject constructor(
     }
 
     /**
-     * Asks GitHub which release is newest, and compares it with the version this build carries.
+     * Asks this installation's API which build it serves, and compares it with the version this build carries.
      *
      * The call goes through [runCatchingCancellable] for the reason every repository in this app does: a
      * transport failure, a refusal and a payload that does not decode are all the same answer here --
      * "could not check" -- while a cancellation has to leave the coroutine rather than be reported as one,
      * which is the half a plain `runCatching` gets wrong. The decode failure is worth naming because it is
-     * reachable: [GitHubRelease] requires `tag_name`, so a body without it throws inside the call instead of
-     * answering null -- and without this wrapper that throw would leave the coroutine and take the screen
-     * with it, so the wrapper is load-bearing here rather than only tidy.
+     * reachable: [LatestReleaseResponse] requires `version`, so a body without it throws inside the call
+     * instead of answering null -- and without this wrapper that throw would leave the coroutine and take
+     * the screen with it, so the wrapper is load-bearing here rather than only tidy.
      *
-     * The endpoint's filters are not repeated here. GitHub's `releases/latest` already excludes drafts and
-     * prereleases, so a prerelease tag cannot arrive; and a tag this build's own comparison cannot read is
-     * [ReleaseVersion.Comparison.Undetermined], which is "could not check" on the screen rather than a
-     * guess dressed as an answer.
+     * The endpoint's filters are not repeated here: a version this build's own comparison cannot read is
+     * [ReleaseVersion.Comparison.Undetermined], which is "could not check" on the screen rather than a guess
+     * dressed as an answer. An address the API leaves empty is the same answer, because the one action this
+     * state draws would lead nowhere.
      */
     private suspend fun refreshUpdateCheck(): UpdateStatus {
-        val release = runCatchingCancellable { releases.latestRelease() }
+        val release = runCatchingCancellable { api.latestRelease() }
             .getOrNull()
             ?.takeIf { it.isSuccessful }
             ?.body()
             ?: return UpdateStatus.CouldNotCheck
 
+        val downloadUrl = release.apkUrl.takeIf { it.isNotBlank() } ?: return UpdateStatus.CouldNotCheck
+
         val availability = UpdateDetector.checkUpdate(
             release = release,
             currentVersionName = BuildConfig.APP_VERSION_NAME,
             currentBuildTimeMillis = BuildConfig.BUILD_TIME,
-            installedSha256 = context?.let { InstalledAppInfo.getInstalledApkSha256(it) },
             installedSizeBytes = context?.let { InstalledAppInfo.getInstalledApkSize(it) } ?: -1L,
         )
 
         return when (availability.type) {
             UpdateType.NEW_RELEASE -> UpdateStatus.Available(
-                version = release.tagName.removePrefix("v"),
-                downloadUrl = availability.apkAsset?.browserDownloadUrl,
-                assetSize = availability.apkAsset?.size ?: 0L,
+                version = release.version.removePrefix("v"),
+                downloadUrl = downloadUrl,
+                assetSize = release.apkSize?.toLong() ?: 0L,
                 isPatch = false,
             )
             UpdateType.SAME_RELEASE_PATCH -> UpdateStatus.Available(
-                version = release.tagName.removePrefix("v"),
-                downloadUrl = availability.apkAsset?.browserDownloadUrl,
-                assetSize = availability.apkAsset?.size ?: 0L,
+                version = release.version.removePrefix("v"),
+                downloadUrl = downloadUrl,
+                assetSize = release.apkSize?.toLong() ?: 0L,
                 isPatch = true,
             )
             UpdateType.NONE -> UpdateStatus.UpToDate
@@ -593,12 +596,12 @@ class ProfileViewModel @Inject constructor(
         const val MIN_PASSWORD_LENGTH = PasswordPolicy.MIN_GRAPHEMES
 
         /**
-         * How long a check's answer is trusted before the next entry asks GitHub again.
+         * How long a check's answer is trusted before the next entry asks again.
          *
-         * Thirty minutes: the fact changes a few times a month, and the request it saves is one of GitHub's
-         * sixty an hour for everybody behind the same source address, which a shared network or
-         * carrier-grade NAT exhausts quickly. Long enough that the ordinary re-entry is free, short enough
-         * that a release published after a check is seen within the same sitting.
+         * Thirty minutes: the fact changes a few times a month, so asking on every entry buys nothing and
+         * costs a round trip per entry, on a phone whose screen is opened and closed all day. Long enough
+         * that the ordinary re-entry is free, short enough that a release published after a check is seen
+         * within the same sitting.
          */
         const val UPDATE_CACHE_MILLIS = 30 * 60 * 1000L
 

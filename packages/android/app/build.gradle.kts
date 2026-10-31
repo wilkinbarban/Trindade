@@ -116,17 +116,17 @@ val requireSigned = (project.findProperty("requireSigned") as String?)?.equals("
 // -------------------------------------------------------------------------------------------------
 // The one URL rule every declared URL shares
 //
-// Three fields below are a URL this app speaks to or a link it hands somebody: apiBaseUrl and
-// githubApiBaseUrl become Retrofit base URLs, and releasesUrl becomes the address of a button the crew is
-// told to tap. All three fail the same way when they are wrong -- the string compiles, the APK installs,
+// Two fields below are a URL this app speaks to or a link it hands somebody: apiBaseUrl becomes a Retrofit
+// base URL, and releasesUrl becomes the address of a button the crew is told to tap. Both fail the same way
+// when they are wrong -- the string compiles, the APK installs,
 // and the failure surfaces at runtime inside a library that never names the property -- so all three are
 // checked by one function.
 //
-// That it is one function rather than three checks is the point, and it is not tidiness. The apiBaseUrl
-// guard was a prefix test that accepted "https://", the githubApiBaseUrl guard was written beside it by
-// copying that test, and releasesUrl was the one that had already been corrected. A rule with three copies
-// is a rule that is two edits away from going wrong again; this is the one place it lives, and a fourth
-// URL field is a call to this function rather than a fourth copy.
+// That it is one function rather than two checks is the point, and it is not tidiness. The apiBaseUrl
+// guard was a prefix test that accepted "https://", the guard for the second field was written beside it by
+// copying that test, and releasesUrl was the one that had already been corrected. A rule with several copies
+// is a rule that is two edits away from going wrong again; this is the one place it lives, and a new URL
+// field is a call to this function rather than another copy.
 // -------------------------------------------------------------------------------------------------
 
 /**
@@ -239,36 +239,6 @@ android {
                 "Got '$apiBaseUrl'."
         }
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
-
-        // Where the update check asks which release is newest. GitHub rather than this project's own
-        // backend, because the fact being asked for -- which release is newest -- lives there: a copy of
-        // it in the API would be a cache of something that backend does not own, stale on its own
-        // schedule and needing a deploy per release. The app already depends on GitHub for the download
-        // itself, so this adds no new dependency to the product.
-        //
-        // It has a default while apiBaseUrl deliberately does not, and the difference is what each value
-        // is about: a base URL for this project's deployment must never be guessed, while GitHub's address
-        // is a fact about the outside world that is the same for every build. Overriding it is therefore
-        // only ever a deliberate act -- a mirror or a proxy -- and the checks below are what make a
-        // deliberate act a checked one.
-        //
-        // https is required rather than allowed alongside http, which is the one place this guard is
-        // stricter than the apiBaseUrl one above: the development loopback is a host the debug network
-        // security config exempts and this is not, and the request travels to a public host over a network
-        // the phone does not control.
-        val githubApiBaseUrl = (project.findProperty("githubApiBaseUrl") as String?) ?: "https://api.github.com/"
-        requireUsableUrl(
-            fieldName = "githubApiBaseUrl",
-            value = githubApiBaseUrl,
-            allowedSchemes = setOf("https"),
-            reason = "The request travels to a public host over a network the phone does not control, " +
-                "so it must be https.",
-        )
-        require(githubApiBaseUrl.endsWith("/")) {
-            "githubApiBaseUrl must end with '/', because Retrofit resolves every endpoint relative to it. " +
-                "Got '$githubApiBaseUrl'."
-        }
-        buildConfigField("String", "GITHUB_API_BASE_URL", "\"$githubApiBaseUrl\"")
 
         // The app's own copy of the version, from the same single computation that filled versionCode and
         // versionName above, which is what makes what the operator reads on the Perfil screen the value

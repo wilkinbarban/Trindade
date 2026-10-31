@@ -2,20 +2,16 @@ package com.trindade.app.update
 
 import android.content.Context
 import java.io.File
-import java.io.FileInputStream
-import java.security.MessageDigest
 
 /**
- * Inspects the local installed APK binary on the device.
+ * Inspects the installed APK binary on the device.
  *
- * Provides size and SHA-256 calculation for the running application's base.apk,
- * allowing byte-level comparison against remote release asset digests to avoid
- * spurious update loops when release timestamps or re-upload times differ.
+ * Only its size, which is what the same-version rule compares: the API publishes no digest, so there is no
+ * second measure to read here and no reason to hash eleven megabytes on a phone. What the size buys is the
+ * patch case -- a rebuild of the same version is a different file, and the file the phone runs can be
+ * compared with the one being served without asking the operator to trust a timestamp.
  */
 object InstalledAppInfo {
-
-    @Volatile
-    private var cachedSha256: String? = null
 
     fun getInstalledApkFile(context: Context): File? =
         runCatching {
@@ -25,30 +21,4 @@ object InstalledAppInfo {
 
     fun getInstalledApkSize(context: Context): Long =
         getInstalledApkFile(context)?.length() ?: -1L
-
-    fun getInstalledApkSha256(context: Context): String? {
-        cachedSha256?.let { return it }
-
-        val file = getInstalledApkFile(context) ?: return null
-        return runCatching {
-            val digest = MessageDigest.getInstance("SHA-256")
-            FileInputStream(file).use { fis ->
-                val buffer = ByteArray(8192)
-                var bytesRead: Int
-                while (fis.read(buffer).also { bytesRead = it } != -1) {
-                    digest.update(buffer, 0, bytesRead)
-                }
-            }
-            val hex = digest.digest().joinToString("") { "%02x".format(it) }
-            cachedSha256 = hex
-            hex
-        }.getOrNull()
-    }
-
-    /**
-     * Visible for testing to reset in-memory cached digest.
-     */
-    internal fun clearCache() {
-        cachedSha256 = null
-    }
 }

@@ -17,9 +17,8 @@ import com.trindade.app.contract.models.SuccessResponse
 import com.trindade.app.contract.models.UpdateProfileRequest
 import com.trindade.app.network.AuthApi
 import com.trindade.app.update.Clock
-import com.trindade.app.update.GitHubAsset
-import com.trindade.app.update.GitHubRelease
-import com.trindade.app.update.GitHubReleaseApi
+import com.trindade.app.contract.models.LatestReleaseResponse
+import com.trindade.app.network.SystemApi
 import com.trindade.app.update.UpdateDetector
 import com.trindade.app.update.UpdateType
 import kotlinx.coroutines.CompletableDeferred
@@ -631,35 +630,35 @@ class ProfileViewModelTest {
 
     @Test
     fun `the update check runs when the screen opens`() {
-        val releases = StubGitHubReleaseApi()
+        val releases = StubSystemApi()
         val model = profileViewModel(releases = releases)
 
         model.open()
 
         // No action and no tap: entering the screen is the whole trigger, the way it is for the read above.
         assertEquals(1, releases.releaseCalls)
-        assertEquals(ProfileViewModel.UpdateStatus.Available("99.0.0"), model.state.value.update)
+        assertEquals(available("99.0.0"), model.state.value.update)
     }
 
     @Test
     fun `a newer release is reported with its number and not on the error line`() {
-        val model = profileViewModel(releases = StubGitHubReleaseApi())
+        val model = profileViewModel(releases = StubSystemApi())
 
         model.open()
 
         // The number as this app writes versions rather than the tag: the line sits directly under
         // "Versão do aplicativo", and the operator compares the two.
-        assertEquals(ProfileViewModel.UpdateStatus.Available("99.0.0"), model.state.value.update)
+        assertEquals(available("99.0.0"), model.state.value.update)
         // And the error line stays empty: a new version is not something that went wrong.
         assertNull(model.state.value.message)
     }
 
     @Test
     fun `a build on the newest release is reported as up to date`() {
-        val releases = StubGitHubReleaseApi().also {
+        val releases = StubSystemApi().also {
             // Written from BuildConfig rather than as a literal, because what this lane's build carries is a
             // build declaration and not a constant of these tests.
-            it.releaseAnswer = Response.success(GitHubRelease(tagName = "v" + BuildConfig.APP_VERSION_NAME))
+            it.releaseAnswer = Response.success(latestRelease("v" + BuildConfig.APP_VERSION_NAME))
         }
         val model = profileViewModel(releases = releases)
 
@@ -675,7 +674,7 @@ class ProfileViewModelTest {
         // profile, so the sentence about whether an update exists belongs there too -- a profile that failed
         // to load is exactly when somebody goes looking for it. The two answers therefore have to be able to
         // coexist, and one failing must not take the other down with it.
-        val releases = StubGitHubReleaseApi()
+        val releases = StubSystemApi()
         val model = profileViewModel(
             api = StubAuthApi(profileResponse = Response.error(500, errorOnlyBody("Internal error"))),
             releases = releases,
@@ -684,13 +683,13 @@ class ProfileViewModelTest {
         model.open()
 
         assertEquals(1, releases.releaseCalls)
-        assertEquals(ProfileViewModel.UpdateStatus.Available("99.0.0"), model.state.value.update)
+        assertEquals(available("99.0.0"), model.state.value.update)
         assertEquals(ProfileViewModel.UNREACHABLE, model.state.value.message)
     }
 
     @Test
     fun `a GitHub that cannot be reached says it could not check and leaves the error line empty`() {
-        val releases = StubGitHubReleaseApi().also { it.failWithTransport = true }
+        val releases = StubSystemApi().also { it.failWithTransport = true }
         val model = profileViewModel(releases = releases)
 
         model.open()
@@ -708,7 +707,7 @@ class ProfileViewModelTest {
         // 404 is what the endpoint answers while the repository has no releases at all, and a 403 is what
         // it answers when the unauthenticated rate limit is reached. Neither is a statement about the
         // operator.
-        val releases = StubGitHubReleaseApi().also {
+        val releases = StubSystemApi().also {
             it.releaseAnswer = Response.error(404, errorOnlyBody("Not Found"))
         }
         val model = profileViewModel(releases = releases)
@@ -724,8 +723,8 @@ class ProfileViewModelTest {
         // A prerelease tag is the case worth stating: `releases/latest` excludes drafts and prereleases by
         // GitHub's own rule, so one arriving means that rule did not hold -- and the answer is still not a
         // guess, because `v0.3.0-rc1` is not a version this build can be compared with.
-        val releases = StubGitHubReleaseApi().also {
-            it.releaseAnswer = Response.success(GitHubRelease(tagName = "v0.3.0-rc1"))
+        val releases = StubSystemApi().also {
+            it.releaseAnswer = Response.success(latestRelease("v0.3.0-rc1"))
         }
         val model = profileViewModel(releases = releases)
 
@@ -741,7 +740,7 @@ class ProfileViewModelTest {
         // necessarily the newest: the same race the read above is protected from, on the other request this
         // screen makes. Neither check is answered before the second entry, because that is the only shape in
         // which the guard below can be reached at all.
-        val releases = StubGitHubReleaseApi(gateReleases = true)
+        val releases = StubSystemApi(gateReleases = true)
         val model = profileViewModel(releases = releases)
 
         model.open()
@@ -751,16 +750,16 @@ class ProfileViewModelTest {
         assertEquals(ProfileViewModel.UpdateStatus.Checking, model.state.value.update)
 
         // The newer check answers first, with the version really in front of the operator.
-        releases.releaseAnswer = Response.success(GitHubRelease(tagName = "v0.10.0"))
+        releases.releaseAnswer = Response.success(latestRelease("v0.10.0"))
         releases.releaseGates[1].complete(Unit)
-        assertEquals(ProfileViewModel.UpdateStatus.Available("0.10.0"), model.state.value.update)
+        assertEquals(available("0.10.0"), model.state.value.update)
 
         // And the check that entry replaced answers after it, carrying what it was asked before the screen
         // moved on. Nothing of it is written: not the version, and not a return to the checking state.
-        releases.releaseAnswer = Response.success(GitHubRelease(tagName = "v0.9.0"))
+        releases.releaseAnswer = Response.success(latestRelease("v0.9.0"))
         releases.releaseGates[0].complete(Unit)
 
-        assertEquals(ProfileViewModel.UpdateStatus.Available("0.10.0"), model.state.value.update)
+        assertEquals(available("0.10.0"), model.state.value.update)
     }
 
     @Test
@@ -771,21 +770,21 @@ class ProfileViewModelTest {
         // the whole of its half hour, long after the screen stopped showing it. The cache is written only
         // by the newest entry, and this is what that has to mean from the outside.
         val clock = FakeClock()
-        val releases = StubGitHubReleaseApi(gateReleases = true)
+        val releases = StubSystemApi(gateReleases = true)
         val model = profileViewModel(releases = releases, clock = clock)
 
         model.open()
         model.open()
 
         // The newer check answers first, with the version really in front of the operator.
-        releases.releaseAnswer = Response.success(GitHubRelease(tagName = "v0.10.0"))
+        releases.releaseAnswer = Response.success(latestRelease("v0.10.0"))
         releases.releaseGates[1].complete(Unit)
 
         // And the check that entry replaced answers after it. It must not write, and the cache is not an
         // exception to that: the next entry is the one that would be given this older answer.
-        releases.releaseAnswer = Response.success(GitHubRelease(tagName = "v0.9.0"))
+        releases.releaseAnswer = Response.success(latestRelease("v0.9.0"))
         releases.releaseGates[0].complete(Unit)
-        assertEquals(ProfileViewModel.UpdateStatus.Available("0.10.0"), model.state.value.update)
+        assertEquals(available("0.10.0"), model.state.value.update)
 
         // A third entry, still inside the window, so it makes no request: what it shows is therefore what
         // was cached, and that can only be the newer answer.
@@ -793,7 +792,7 @@ class ProfileViewModelTest {
         model.open()
 
         assertEquals("a fresh cached answer is not a reason to ask again", 2, releases.releaseCalls)
-        assertEquals(ProfileViewModel.UpdateStatus.Available("0.10.0"), model.state.value.update)
+        assertEquals(available("0.10.0"), model.state.value.update)
     }
 
     @Test
@@ -803,12 +802,12 @@ class ProfileViewModelTest {
         // would make a claim about a question that is still open -- and, since an entry is also what happens
         // after the version could have changed, about a check that has not been made yet.
         val clock = FakeClock()
-        val releases = StubGitHubReleaseApi(gateReleases = true)
+        val releases = StubSystemApi(gateReleases = true)
         val model = profileViewModel(releases = releases, clock = clock)
 
         model.open()
         releases.releaseGates[0].complete(Unit)
-        assertEquals(ProfileViewModel.UpdateStatus.Available("99.0.0"), model.state.value.update)
+        assertEquals(available("99.0.0"), model.state.value.update)
 
         // Inside the window this answer would be reused; at the window's edge it is stale, so the entry asks
         // again -- which is the only way a second check is in the air at all.
@@ -828,7 +827,7 @@ class ProfileViewModelTest {
         // The common case the finding is about: entering the screen is the only trigger, so without a cache
         // every re-entry spent a request on a fact that changes a few times a month.
         val clock = FakeClock()
-        val releases = StubGitHubReleaseApi()
+        val releases = StubSystemApi()
         val model = profileViewModel(releases = releases, clock = clock)
 
         model.open()
@@ -838,13 +837,13 @@ class ProfileViewModelTest {
         model.open()
 
         assertEquals("a fresh answer is not a reason to ask again", 1, releases.releaseCalls)
-        assertEquals(ProfileViewModel.UpdateStatus.Available("99.0.0"), model.state.value.update)
+        assertEquals(available("99.0.0"), model.state.value.update)
     }
 
     @Test
     fun `a re-entry after the cache window asks GitHub again`() {
         val clock = FakeClock()
-        val releases = StubGitHubReleaseApi()
+        val releases = StubSystemApi()
         val model = profileViewModel(releases = releases, clock = clock)
 
         model.open()
@@ -863,7 +862,7 @@ class ProfileViewModelTest {
         // must not be remembered for half an hour. Re-entering is the natural retry, so the failure leaves
         // the cache untouched.
         val clock = FakeClock()
-        val releases = StubGitHubReleaseApi().also { it.failWithTransport = true }
+        val releases = StubSystemApi().also { it.failWithTransport = true }
         val model = profileViewModel(releases = releases, clock = clock)
 
         model.open()
@@ -883,8 +882,8 @@ class ProfileViewModelTest {
         // The half of the cache that is about the line rather than the request: an entry that fetches nothing
         // must draw the answer it has, not an empty line and not the checking state.
         val clock = FakeClock()
-        val releases = StubGitHubReleaseApi().also {
-            it.releaseAnswer = Response.success(GitHubRelease(tagName = "v" + BuildConfig.APP_VERSION_NAME))
+        val releases = StubSystemApi().also {
+            it.releaseAnswer = Response.success(latestRelease("v" + BuildConfig.APP_VERSION_NAME))
         }
         val model = profileViewModel(releases = releases, clock = clock)
 
@@ -900,7 +899,7 @@ class ProfileViewModelTest {
 
     @Test
     fun `checkForUpdates manually triggers check and updates state`() {
-        val releases = StubGitHubReleaseApi()
+        val releases = StubSystemApi()
         val model = profileViewModel(releases = releases)
         model.open()
 
@@ -909,19 +908,46 @@ class ProfileViewModelTest {
     }
 
     @Test
-    fun `detects patch update on same release tag when remote asset is newer than build time`() {
+    fun `the download action carries the address this project's api answered`() {
+        // The instruction the operator taps leads to our own download route rather than to a third party:
+        // the payload says where the binary is, and the app does not build that address itself.
+        val releases = StubSystemApi().also {
+            it.releaseAnswer = Response.success(
+                latestRelease(StubSystemApi.NEWEST_VERSION, apkUrl = "https://trindademasas.duckdns.org/api/app/download-apk"),
+            )
+        }
+        val model = profileViewModel(releases = releases)
+
+        model.open()
+
+        val update = model.state.value.update as ProfileViewModel.UpdateStatus.Available
+        assertEquals("https://trindademasas.duckdns.org/api/app/download-apk", update.downloadUrl)
+        assertEquals(11_149_040L, update.assetSize)
+    }
+
+    @Test
+    fun `a release that publishes no address offers no download`() {
+        // The endpoint answers an empty `apkUrl` while it has no binary to serve. A button drawn for an
+        // empty address is a tap that goes nowhere, so the state says what it can verify and no more.
+        val releases = StubSystemApi().also {
+            it.releaseAnswer = Response.success(latestRelease(StubSystemApi.NEWEST_VERSION, apkUrl = ""))
+        }
+        val model = profileViewModel(releases = releases)
+
+        model.open()
+
+        assertEquals(ProfileViewModel.UpdateStatus.CouldNotCheck, model.state.value.update)
+        assertNull(model.state.value.message)
+    }
+
+    @Test
+    fun `detects patch update on the same version when the published apk is newer than the build`() {
         val buildTime = java.time.Instant.parse("2026-10-18T10:00:00Z").toEpochMilli()
-        val asset = GitHubAsset(
-            name = "trindade-0.5.0.apk",
-            browserDownloadUrl = "https://example.com/trindade-0.5.0.apk",
-            updatedAt = "2026-10-18T12:00:00Z",
-            size = 10528616L,
+        val availability = UpdateDetector.checkUpdate(
+            release = latestRelease("v0.5.0", publishedAt = "2026-10-18T12:00:00Z"),
+            currentVersionName = "0.5.0",
+            currentBuildTimeMillis = buildTime,
         )
-        val release = GitHubRelease(
-            tagName = "v0.5.0",
-            assets = listOf(asset),
-        )
-        val availability = UpdateDetector.checkUpdate(release, "0.5.0", buildTime)
         assertEquals(UpdateType.SAME_RELEASE_PATCH, availability.type)
     }
 }
@@ -929,7 +955,7 @@ class ProfileViewModelTest {
 private fun profileViewModel(
     api: StubAuthApi = StubAuthApi(),
     store: StubTokenStore = StubTokenStore(),
-    releases: StubGitHubReleaseApi = StubGitHubReleaseApi(),
+    releases: StubSystemApi = StubSystemApi(),
     clock: Clock = FakeClock(),
 ) = profileSession(api, store, releases, clock).second
 
@@ -945,7 +971,7 @@ private fun profileViewModel(
 private fun profileSession(
     api: StubAuthApi = StubAuthApi(),
     store: StubTokenStore = StubTokenStore(),
-    releases: StubGitHubReleaseApi = StubGitHubReleaseApi(),
+    releases: StubSystemApi = StubSystemApi(),
     clock: Clock = FakeClock(),
 ): Pair<AuthRepository, ProfileViewModel> {
     val repository = AuthRepository(api, store, json())
@@ -1096,20 +1122,20 @@ private class StubAuthApi(
  * equal one, a failure -- and not about the wire format, which the DTO pins from its own side by requiring
  * `tag_name`.
  */
-private class StubGitHubReleaseApi(
+private class StubSystemApi(
     /**
      * When true, every check waits on its own gate before answering, so a test can hold two of them in the
      * air at once and choose which one lands last. The gate is released *before* the answer is built, on
      * purpose, exactly as in [StubAuthApi]: the answer is the one that is true when it lands.
      */
     private val gateReleases: Boolean = false,
-) : GitHubReleaseApi {
+) : SystemApi {
 
     var releaseCalls = 0
         private set
 
     /** The answer the next check builds, writable so a test can change what a held check carries. */
-    var releaseAnswer: Response<GitHubRelease> = Response.success(GitHubRelease(tagName = NEWEST_TAG))
+    var releaseAnswer: Response<LatestReleaseResponse> = Response.success(latestRelease(NEWEST_VERSION))
 
     /** Whether the call fails the way an unreachable host does, instead of answering with a status. */
     var failWithTransport = false
@@ -1117,14 +1143,22 @@ private class StubGitHubReleaseApi(
     /** One gate per check held open by [gateReleases], in the order the calls were made. */
     val releaseGates = mutableListOf<CompletableDeferred<Unit>>()
 
-    override suspend fun latestRelease(): Response<GitHubRelease> {
+    // The other three routes are not what these tests are about; a call to one of them is a test asking
+    // the wrong stub, so it fails loudly instead of answering an empty payload nobody asserted on.
+    override suspend fun dashboardSummary() = error("not part of the update check")
+
+    override suspend fun userOptions() = error("not part of the update check")
+
+    override suspend fun health() = error("not part of the update check")
+
+    override suspend fun latestRelease(): Response<LatestReleaseResponse> {
         releaseCalls++
         if (gateReleases) {
             val gate = CompletableDeferred<Unit>()
             releaseGates += gate
             gate.await()
         }
-        if (failWithTransport) throw java.io.IOException("github is unreachable")
+        if (failWithTransport) throw java.io.IOException("the api is unreachable")
         return releaseAnswer
     }
 
@@ -1133,9 +1167,40 @@ private class StubGitHubReleaseApi(
          * A release no build of this app can be ahead of, since even the debug lane declares a 0.x version.
          * What it buys is an assertion that does not depend on the number in this lane's versionName.
          */
-        const val NEWEST_TAG = "v99.0.0"
+        const val NEWEST_VERSION = "v99.0.0"
     }
 }
+
+/**
+ * The screen state a fresh [latestRelease] answer produces, so an assertion about the version does not have
+ * to also restate an address and a size it did not change.
+ */
+private fun available(version: String, isPatch: Boolean = false) = ProfileViewModel.UpdateStatus.Available(
+    version = version,
+    downloadUrl = "https://trindademasas.duckdns.org/api/app/download-apk",
+    assetSize = 11_149_040L,
+    isPatch = isPatch,
+)
+
+/**
+ * The answer `/api/app/latest-release` gives, in the shape the generated contract declares.
+ *
+ * The defaults are the size and the address the 0.7.0 build really published, so a test that only cares
+ * about the version still travels with a payload the app can act on.
+ */
+private fun latestRelease(
+    version: String,
+    apkUrl: String = "https://trindademasas.duckdns.org/api/app/download-apk",
+    apkSize: Long = 11_149_040L,
+    publishedAt: String? = "2026-10-31T06:24:08.000Z",
+) = LatestReleaseResponse(
+    version = version,
+    apkUrl = apkUrl,
+    apkName = "trindade.apk",
+    apkSize = java.math.BigDecimal(apkSize),
+    publishedAt = publishedAt,
+    webUrl = "https://trindademasas.duckdns.org",
+)
 
 /** A store that counts its clears, because "the session was forgotten" is what these tests assert on. */
 private class StubTokenStore(private val onClear: () -> Unit = {}) : TokenStore {

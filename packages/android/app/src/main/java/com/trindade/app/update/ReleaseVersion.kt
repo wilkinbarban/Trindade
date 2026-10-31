@@ -1,7 +1,7 @@
 package com.trindade.app.update
 
 /**
- * The comparison between the tag GitHub reports and the version this build carries.
+ * The comparison between the version the API reports and the version this build carries.
  *
  * Pure and in a file of its own, because it is the one part of the update check that can be wrong with
  * no phone, no network and no server: `0.10.0` is newer than `0.9.0` while as text it sorts before it,
@@ -52,7 +52,7 @@ object ReleaseVersion {
         /**
          * The newest release is older than this build.
          *
-         * Reachable whenever the phone runs an APK published by hand or GitHub lags its own tag, and it
+         * Reachable whenever the phone runs an APK published by hand or the API serves an older build, and it
          * is the answer that must never lead anywhere: there is no newer release to install, and the
          * older one is not a patch of this build either.
          */
@@ -71,7 +71,7 @@ object ReleaseVersion {
      * offer the operator an older APK as an update, which is the one outcome worse than saying nothing.
      *
      * [Comparison.Older] is kept apart from [Comparison.SameVersion] rather than merged into one
-     * "current" answer: a build ahead of the newest release -- an APK installed by hand, or GitHub
+     * "current" answer: a build ahead of what the API serves -- an APK installed by hand, or a deployment
      * lagging its own tag -- has nothing to install either way, but it is not the same version, and
      * saying it is invites a comparison of the two APKs that can only end in a wrong answer.
      *

@@ -2,6 +2,7 @@ package com.trindade.app.dashboard
 
 import com.trindade.app.loading.FakeLoadingApi
 import com.trindade.app.contract.models.DashboardSummary
+import com.trindade.app.contract.models.LatestReleaseResponse
 import com.trindade.app.contract.models.HealthResponse
 import com.trindade.app.contract.models.UserOptionsResponse
 import com.trindade.app.network.SystemApi
@@ -152,4 +153,6 @@ private class SlowFirstReadThenAnswers(
     override suspend fun userOptions(): Response<UserOptionsResponse> = error(FakeSystemApi.NOT_USED)
 
     override suspend fun health(): Response<HealthResponse> = error(FakeSystemApi.NOT_USED)
+
+    override suspend fun latestRelease(): Response<LatestReleaseResponse> = error(FakeSystemApi.NOT_USED)
 }

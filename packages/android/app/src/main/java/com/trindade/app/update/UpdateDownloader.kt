@@ -30,7 +30,7 @@ sealed interface DownloadState {
 
 @Singleton
 class UpdateDownloader @Inject constructor(
-    @NetworkModule.GitHubClient private val client: OkHttpClient,
+    @NetworkModule.PublicFileClient private val client: OkHttpClient,
     @ApplicationContext private val context: Context,
 ) {
     /**

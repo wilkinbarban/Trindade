@@ -1,49 +1,43 @@
 package com.trindade.app.update
 
+import com.trindade.app.contract.models.LatestReleaseResponse
+import java.math.BigDecimal
+import java.time.Instant
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.time.Instant
 
+/**
+ * The rules that decide whether the answer from `/api/app/latest-release` is an update.
+ *
+ * The payload carries no digest, so the digest rule the GitHub release allowed is gone rather than
+ * pretended: the size the API reports and the moment it was published are the two measures this build has,
+ * and an answer that carries neither is a version comparison and nothing more.
+ */
 class UpdateDetectorTest {
 
-    private fun createRelease(
-        tagName: String,
-        assetUpdatedAt: String? = null,
-        assetName: String = "trindade.apk",
-        assetDigest: String? = null,
-        assetSize: Long = 0L,
-    ): GitHubRelease {
-        val assets = if (assetUpdatedAt != null || assetDigest != null || assetSize > 0L) {
-            listOf(
-                GitHubAsset(
-                    name = assetName,
-                    browserDownloadUrl = "https://github.com/trindade/releases/download/$tagName/$assetName",
-                    updatedAt = assetUpdatedAt ?: "2026-05-18T12:00:00Z",
-                    size = assetSize,
-                    digest = assetDigest,
-                )
-            )
-        } else {
-            emptyList()
-        }
-
-        return GitHubRelease(
-            tagName = tagName,
-            name = "Release $tagName",
-            publishedAt = "2026-05-18T10:00:00Z",
-            assets = assets,
-        )
-    }
+    private fun release(
+        version: String,
+        apkSize: Long? = null,
+        publishedAt: String? = null,
+        apkUrl: String = "https://trindademasas.duckdns.org/api/app/download-apk",
+    ) = LatestReleaseResponse(
+        version = version,
+        apkUrl = apkUrl,
+        apkName = "trindade.apk",
+        apkSize = apkSize?.let(::BigDecimal),
+        publishedAt = publishedAt,
+        webUrl = "https://trindademasas.duckdns.org",
+    )
 
     @Test
-    fun checkUpdate_withHigherVersion_returnsNewRelease() {
-        val release = createRelease(tagName = "v0.6.0")
+    fun `a newer version is an update`() {
         val availability = UpdateDetector.checkUpdate(
-            release = release,
-            currentVersionName = "0.5.1",
-            currentBuildTimeMillis = 1000L,
+            release = release("v0.7.0"),
+            currentVersionName = "0.6.3",
+            currentBuildTimeMillis = 0L,
         )
 
         assertEquals(UpdateType.NEW_RELEASE, availability.type)
@@ -51,31 +45,13 @@ class UpdateDetectorTest {
     }
 
     @Test
-    fun checkUpdate_withSameVersionAndNewerAsset_returnsSameReleasePatch() {
-        val currentBuildTime = Instant.parse("2026-05-18T10:00:00Z").toEpochMilli()
-        val assetTime = "2026-05-18T12:00:00Z" // 2 hours newer
-        val release = createRelease(tagName = "v0.5.1", assetUpdatedAt = assetTime)
-
+    fun `the tag is read as the version it names`() {
+        // The endpoint answers a tag (`v0.7.0`) and the build carries a version (`0.7.0`); the comparison
+        // has to cross that on its own instead of the caller trimming a prefix the API might stop sending.
         val availability = UpdateDetector.checkUpdate(
-            release = release,
-            currentVersionName = "0.5.1",
-            currentBuildTimeMillis = currentBuildTime,
-        )
-
-        assertEquals(UpdateType.SAME_RELEASE_PATCH, availability.type)
-        assertTrue(availability.isUpdateAvailable)
-    }
-
-    @Test
-    fun checkUpdate_withSameVersionAndOlderOrEqualAsset_returnsNone() {
-        val currentBuildTime = Instant.parse("2026-05-18T15:00:00Z").toEpochMilli()
-        val assetTime = "2026-05-18T12:00:00Z" // older than build
-        val release = createRelease(tagName = "v0.5.1", assetUpdatedAt = assetTime)
-
-        val availability = UpdateDetector.checkUpdate(
-            release = release,
-            currentVersionName = "0.5.1",
-            currentBuildTimeMillis = currentBuildTime,
+            release = release("v0.7.0"),
+            currentVersionName = "0.7.0",
+            currentBuildTimeMillis = 0L,
         )
 
         assertEquals(UpdateType.NONE, availability.type)
@@ -83,12 +59,14 @@ class UpdateDetectorTest {
     }
 
     @Test
-    fun checkUpdate_withOlderRemoteVersion_returnsNone() {
-        val release = createRelease(tagName = "v0.4.0")
+    fun `an older version offers nothing`() {
+        // GitHub's newest release was 0.5.3 while the plant ran 0.7.0. An older build is not an update: it
+        // is a downgrade the installer refuses, which is the dialog with no way forward.
         val availability = UpdateDetector.checkUpdate(
-            release = release,
-            currentVersionName = "0.5.1",
-            currentBuildTimeMillis = 1000L,
+            release = release("v0.5.3", apkSize = 10_528_616L, publishedAt = "2026-08-01T00:00:00Z"),
+            currentVersionName = "0.7.0",
+            currentBuildTimeMillis = Instant.parse("2026-10-31T00:00:00Z").toEpochMilli(),
+            installedSizeBytes = 11_149_040L,
         )
 
         assertEquals(UpdateType.NONE, availability.type)
@@ -96,12 +74,11 @@ class UpdateDetectorTest {
     }
 
     @Test
-    fun checkUpdate_withInvalidTag_returnsUndetermined() {
-        val release = createRelease(tagName = "beta-invalid")
+    fun `a version this build cannot read is not a guess`() {
         val availability = UpdateDetector.checkUpdate(
-            release = release,
-            currentVersionName = "0.5.1",
-            currentBuildTimeMillis = 1000L,
+            release = release("v0.3.0-rc1"),
+            currentVersionName = "0.7.0",
+            currentBuildTimeMillis = 0L,
         )
 
         assertEquals(UpdateType.UNDETERMINED, availability.type)
@@ -109,64 +86,12 @@ class UpdateDetectorTest {
     }
 
     @Test
-    fun checkUpdate_withNonApkAsset_doesNotTriggerSameReleasePatch() {
-        val currentBuildTime = Instant.parse("2026-05-18T10:00:00Z").toEpochMilli()
-        val assetTime = "2026-05-18T12:00:00Z"
-        val release = createRelease(
-            tagName = "v0.5.1",
-            assetUpdatedAt = assetTime,
-            assetName = "trindade-notes.txt",
-        )
-
+    fun `the same version with a different size is a patch`() {
         val availability = UpdateDetector.checkUpdate(
-            release = release,
-            currentVersionName = "0.5.1",
-            currentBuildTimeMillis = currentBuildTime,
-        )
-
-        assertEquals(UpdateType.NONE, availability.type)
-        assertFalse(availability.isUpdateAvailable)
-    }
-
-    @Test
-    fun checkUpdate_withSameVersionAndMatchingDigest_returnsNone() {
-        val currentBuildTime = Instant.parse("2026-05-18T10:00:00Z").toEpochMilli()
-        val assetTime = "2026-05-18T12:00:00Z" // Newer timestamp on GitHub
-        val sha = "1cd5d57485e85d9bc21c2869c4f336ce37fe5af4c652b09a5ec7f860a2f49b43"
-        val release = createRelease(
-            tagName = "v0.5.1",
-            assetUpdatedAt = assetTime,
-            assetDigest = "sha256:$sha",
-        )
-
-        val availability = UpdateDetector.checkUpdate(
-            release = release,
-            currentVersionName = "0.5.1",
-            currentBuildTimeMillis = currentBuildTime,
-            installedSha256 = sha,
-        )
-
-        assertEquals(UpdateType.NONE, availability.type)
-        assertFalse(availability.isUpdateAvailable)
-    }
-
-    @Test
-    fun checkUpdate_withSameVersionAndDifferentDigest_returnsSameReleasePatch() {
-        val currentBuildTime = Instant.parse("2026-05-18T10:00:00Z").toEpochMilli()
-        val assetTime = "2026-05-18T12:00:00Z"
-        val remoteSha = "aaaa5d57485e85d9bc21c2869c4f336ce37fe5af4c652b09a5ec7f860a2f49b43"
-        val localSha = "bbbb5d57485e85d9bc21c2869c4f336ce37fe5af4c652b09a5ec7f860a2f49b43"
-        val release = createRelease(
-            tagName = "v0.5.1",
-            assetUpdatedAt = assetTime,
-            assetDigest = "sha256:$remoteSha",
-        )
-
-        val availability = UpdateDetector.checkUpdate(
-            release = release,
-            currentVersionName = "0.5.1",
-            currentBuildTimeMillis = currentBuildTime,
-            installedSha256 = localSha,
+            release = release("v0.7.0", apkSize = 11_149_040L),
+            currentVersionName = "0.7.0",
+            currentBuildTimeMillis = 0L,
+            installedSizeBytes = 10_900_292L,
         )
 
         assertEquals(UpdateType.SAME_RELEASE_PATCH, availability.type)
@@ -174,21 +99,12 @@ class UpdateDetectorTest {
     }
 
     @Test
-    fun checkUpdate_withSameVersionAndMatchingSize_returnsNone() {
-        val currentBuildTime = Instant.parse("2026-05-18T10:00:00Z").toEpochMilli()
-        val assetTime = "2026-05-18T12:00:00Z"
-        val size = 10774704L
-        val release = createRelease(
-            tagName = "v0.5.1",
-            assetUpdatedAt = assetTime,
-            assetSize = size,
-        )
-
+    fun `the same version with the same size is up to date`() {
         val availability = UpdateDetector.checkUpdate(
-            release = release,
-            currentVersionName = "0.5.1",
-            currentBuildTimeMillis = currentBuildTime,
-            installedSizeBytes = size,
+            release = release("v0.7.0", apkSize = 11_149_040L),
+            currentVersionName = "0.7.0",
+            currentBuildTimeMillis = 0L,
+            installedSizeBytes = 11_149_040L,
         )
 
         assertEquals(UpdateType.NONE, availability.type)
@@ -196,70 +112,48 @@ class UpdateDetectorTest {
     }
 
     @Test
-    fun checkUpdate_withSameVersionAndDifferentSize_returnsSameReleasePatch() {
-        val currentBuildTime = Instant.parse("2026-05-18T10:00:00Z").toEpochMilli()
-        val assetTime = "2026-05-18T12:00:00Z"
-        val release = createRelease(
-            tagName = "v0.5.1",
-            assetUpdatedAt = assetTime,
-            assetSize = 10774704L,
+    fun `without a size the publish moment decides`() {
+        val buildTime = Instant.parse("2026-10-31T00:00:00Z").toEpochMilli()
+
+        val newer = UpdateDetector.checkUpdate(
+            release = release("v0.7.0", publishedAt = "2026-10-31T06:24:08.000Z"),
+            currentVersionName = "0.7.0",
+            currentBuildTimeMillis = buildTime,
+        )
+        val same = UpdateDetector.checkUpdate(
+            release = release("v0.7.0", publishedAt = "2026-10-30T06:24:08.000Z"),
+            currentVersionName = "0.7.0",
+            currentBuildTimeMillis = buildTime,
         )
 
-        val availability = UpdateDetector.checkUpdate(
-            release = release,
-            currentVersionName = "0.5.1",
-            currentBuildTimeMillis = currentBuildTime,
-            installedSizeBytes = 9999999L,
-        )
-
-        assertEquals(UpdateType.SAME_RELEASE_PATCH, availability.type)
-        assertTrue(availability.isUpdateAvailable)
+        assertEquals(UpdateType.SAME_RELEASE_PATCH, newer.type)
+        assertEquals(UpdateType.NONE, same.type)
     }
 
     @Test
-    fun checkUpdate_withOlderReleaseThanTheInstalledBuild_returnsNoneWhateverTheAssetLooksLike() {
-        // The loop Wilkin hit on the phone: GitHub still says v0.5.3 while the installed build is 0.6.0,
-        // and the older release ships a 10.8 MB APK against this build's 11.1 MB. Comparing the asset of
-        // an older release with the installed build says "different" for the obvious reason, and reading
-        // that difference as a patch promoted the old release into a mandatory update: the dialog came up,
-        // the app locked itself into the profile route, and the only thing the operator could do was
-        // close it and open it again into the same dialog.
-        //
-        // An older release is not this build's version to patch. It is older, full stop.
-        val currentBuildTime = Instant.parse("2026-05-18T10:00:00Z").toEpochMilli()
-        val release = createRelease(
-            tagName = "v0.5.3",
-            assetUpdatedAt = "2026-06-01T12:00:00Z",
-            assetDigest = "sha256:1111111111111111111111111111111111111111111111111111111111111111",
-            assetSize = 10774704L,
-        )
-
+    fun `a size of zero is not a size`() {
+        // The API answers the size it read from disk, and a file it could not measure is not a file of zero
+        // bytes: comparing against zero would report every build as a patch forever.
         val availability = UpdateDetector.checkUpdate(
-            release = release,
-            currentVersionName = "0.6.0",
-            currentBuildTimeMillis = currentBuildTime,
-            installedSha256 = "sha256:2222222222222222222222222222222222222222222222222222222222222222",
-            installedSizeBytes = 11115300L,
+            release = release("v0.7.0", apkSize = 0L, publishedAt = "2026-10-30T00:00:00Z"),
+            currentVersionName = "0.7.0",
+            currentBuildTimeMillis = Instant.parse("2026-10-31T00:00:00Z").toEpochMilli(),
+            installedSizeBytes = 11_149_040L,
         )
 
         assertEquals(UpdateType.NONE, availability.type)
-        assertFalse(availability.isUpdateAvailable)
     }
 
     @Test
-    fun checkUpdate_withOlderReleaseAndNoSizeToCompare_returnsNone() {
-        // The same pair with nothing to compare but the timestamp, which is newer than the build on
-        // purpose: an older release must not reach that fallback at all, because a re-uploaded old asset
-        // is newer by the clock and older by every measure that matters.
-        val release = createRelease(tagName = "v0.5.3", assetUpdatedAt = "2026-06-01T12:00:00Z")
-
+    fun `an answer with no size and no moment is the version comparison alone`() {
         val availability = UpdateDetector.checkUpdate(
-            release = release,
-            currentVersionName = "0.6.0",
-            currentBuildTimeMillis = Instant.parse("2026-05-18T10:00:00Z").toEpochMilli(),
+            release = release("v0.7.0"),
+            currentVersionName = "0.7.0",
+            currentBuildTimeMillis = 0L,
+            installedSizeBytes = 11_149_040L,
         )
 
         assertEquals(UpdateType.NONE, availability.type)
-        assertFalse(availability.isUpdateAvailable)
+        assertNull(availability.release.publishedAt)
     }
 }

@@ -1,5 +1,8 @@
 package com.trindade.app.update
 
+import com.trindade.app.contract.models.LatestReleaseResponse
+import java.time.Instant
+
 enum class UpdateType {
     NEW_RELEASE,
     SAME_RELEASE_PATCH,
@@ -9,8 +12,7 @@ enum class UpdateType {
 
 data class UpdateAvailability(
     val type: UpdateType,
-    val release: GitHubRelease,
-    val apkAsset: GitHubAsset?,
+    val release: LatestReleaseResponse,
 ) {
     val isUpdateAvailable: Boolean get() = type == UpdateType.NEW_RELEASE || type == UpdateType.SAME_RELEASE_PATCH
 }
@@ -18,76 +20,56 @@ data class UpdateAvailability(
 object UpdateDetector {
 
     /**
-     * Checks if a GitHub release represents an update compared to the installed build.
+     * Reads the answer from `/api/app/latest-release` as a decision about the installed build.
      *
-     * Detects:
-     * 1. New release if tagName > currentVersionName (e.g. v0.6.0 > 0.5.0).
-     * 2. If tagName == currentVersionName and an APK asset is present:
-     *    - If both remote digest and installed SHA-256 are available: returns NONE if matching,
-     *      or SAME_RELEASE_PATCH if different.
-     *    - If size is available: returns NONE if sizes match, or SAME_RELEASE_PATCH if different.
-     *    - Fallback: compares remote asset updated_at strictly against currentBuildTimeMillis.
-     * 3. Nothing at all if tagName < currentVersionName: an older release is not a patch of this build.
-     * 4. Undetermined if version tag cannot be parsed.
+     * The rules, in the order they decide:
+     * 1. A newer `version` than the installed one is an update (`v0.7.0` against `0.6.3`).
+     * 2. An older one is nothing: an older build is not a patch of this one, and offering it produced the
+     *    mandatory dialog whose only action led to a downgrade the installer refuses.
+     * 3. A version this client cannot read is undetermined: `v0.3.0-rc1` is not something to compare, and a
+     *    guess is worse than saying so.
+     * 4. The same version, with both sizes known, is a patch when they differ and up to date when they match.
+     *    The size is the whole binary, so it moves whenever the build does.
+     * 5. The same version without a comparable size falls back to the moment the APK was published, strictly
+     *    after this build's own time. There is no digest rule: the API publishes none, and a rule over a field
+     *    that does not exist is a claim this check cannot keep.
      *
-     * The second rule applies **only to the same version**. An older release whose APK is a different
-     * size, digest or timestamp is older by every measure this check has, and comparing its asset with
-     * the installed build answers the wrong question: the difference is guaranteed and means nothing.
-     * Reading it as a patch put a mandatory update dialog in front of an operator already running a newer
-     * build, with no way forward.
+     * A size of zero, or none at all, is *not known* rather than *empty*: the route reports what it measured
+     * on disk, and reading a missing measurement as a zero-byte file would call every build a patch forever.
      */
     fun checkUpdate(
-        release: GitHubRelease,
+        release: LatestReleaseResponse,
         currentVersionName: String,
         currentBuildTimeMillis: Long,
-        installedSha256: String? = null,
         installedSizeBytes: Long = -1L,
     ): UpdateAvailability {
-        val apkAsset = release.assets.firstOrNull { it.name.endsWith(".apk") }
-
-        when (ReleaseVersion.compare(release.tagName, currentVersionName)) {
+        when (ReleaseVersion.compare(release.version, currentVersionName)) {
             is ReleaseVersion.Comparison.Undetermined ->
-                return UpdateAvailability(UpdateType.UNDETERMINED, release, apkAsset)
+                return UpdateAvailability(UpdateType.UNDETERMINED, release)
 
             is ReleaseVersion.Comparison.Newer ->
-                return UpdateAvailability(UpdateType.NEW_RELEASE, release, apkAsset)
+                return UpdateAvailability(UpdateType.NEW_RELEASE, release)
 
-            // Nothing to install, and nothing to compare: this build is ahead of the newest release.
             is ReleaseVersion.Comparison.Older ->
-                return UpdateAvailability(UpdateType.NONE, release, apkAsset)
+                return UpdateAvailability(UpdateType.NONE, release)
 
             is ReleaseVersion.Comparison.SameVersion -> Unit
         }
 
-        if (apkAsset != null) {
-            val remoteDigest = apkAsset.digest?.removePrefix("sha256:")?.trim()
-            val localDigest = installedSha256?.removePrefix("sha256:")?.trim()
-
-            if (!remoteDigest.isNullOrBlank() && !localDigest.isNullOrBlank()) {
-                return if (remoteDigest.equals(localDigest, ignoreCase = true)) {
-                    UpdateAvailability(UpdateType.NONE, release, apkAsset)
-                } else {
-                    UpdateAvailability(UpdateType.SAME_RELEASE_PATCH, release, apkAsset)
-                }
-            }
-
-            if (installedSizeBytes > 0L && apkAsset.size > 0L) {
-                return if (apkAsset.size == installedSizeBytes) {
-                    UpdateAvailability(UpdateType.NONE, release, apkAsset)
-                } else {
-                    UpdateAvailability(UpdateType.SAME_RELEASE_PATCH, release, apkAsset)
-                }
-            }
-
-            val assetMillis = runCatching {
-                java.time.Instant.parse(apkAsset.updatedAt).toEpochMilli()
-            }.getOrDefault(0L)
-
-            if (assetMillis > currentBuildTimeMillis) {
-                return UpdateAvailability(UpdateType.SAME_RELEASE_PATCH, release, apkAsset)
+        val remoteSize = release.apkSize?.toLong() ?: 0L
+        if (installedSizeBytes > 0L && remoteSize > 0L) {
+            return if (remoteSize == installedSizeBytes) {
+                UpdateAvailability(UpdateType.NONE, release)
+            } else {
+                UpdateAvailability(UpdateType.SAME_RELEASE_PATCH, release)
             }
         }
 
-        return UpdateAvailability(UpdateType.NONE, release, apkAsset)
+        val publishedMillis = release.publishedAt?.let { runCatching { Instant.parse(it).toEpochMilli() }.getOrNull() }
+        if (publishedMillis != null && publishedMillis > currentBuildTimeMillis) {
+            return UpdateAvailability(UpdateType.SAME_RELEASE_PATCH, release)
+        }
+
+        return UpdateAvailability(UpdateType.NONE, release)
     }
 }

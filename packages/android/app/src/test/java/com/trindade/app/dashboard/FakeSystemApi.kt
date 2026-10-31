@@ -2,6 +2,7 @@ package com.trindade.app.dashboard
 
 import com.trindade.app.contract.models.DashboardSummary
 import com.trindade.app.contract.models.HealthResponse
+import com.trindade.app.contract.models.LatestReleaseResponse
 import com.trindade.app.contract.models.UserOptionsResponse
 import com.trindade.app.network.SystemApi
 import okhttp3.MediaType.Companion.toMediaType
@@ -39,6 +40,10 @@ class FakeSystemApi(
     override suspend fun userOptions(): Response<UserOptionsResponse> = error(NOT_USED)
 
     override suspend fun health(): Response<HealthResponse> = error(NOT_USED)
+
+    // The update check is not what this fake is about: `ProfileViewModelTest` and `UpdateRepositoryTest`
+    // own that answer, and a call to it here is a test asking the wrong fake.
+    override suspend fun latestRelease(): Response<LatestReleaseResponse> = error(NOT_USED)
 
     companion object {
         const val NOT_USED = "this fake does not implement that call; add it when a test needs it"

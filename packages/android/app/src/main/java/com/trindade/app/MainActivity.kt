@@ -263,7 +263,6 @@ class MainActivity : ComponentActivity() {
                                     release = release,
                                     currentVersionName = com.trindade.app.BuildConfig.APP_VERSION_NAME,
                                     currentBuildTimeMillis = com.trindade.app.BuildConfig.BUILD_TIME,
-                                    installedSha256 = com.trindade.app.update.InstalledAppInfo.getInstalledApkSha256(this@MainActivity),
                                     installedSizeBytes = com.trindade.app.update.InstalledAppInfo.getInstalledApkSize(this@MainActivity),
                                 )
                                 updateAvailable = availability.isUpdateAvailable

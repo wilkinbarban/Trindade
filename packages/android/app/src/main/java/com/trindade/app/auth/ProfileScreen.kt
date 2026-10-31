@@ -280,12 +280,12 @@ fun ProfileScreen(
             //   error line at the top of the screen. That line is this screen's channel for something that
             //   went wrong with the operator's account -- a refused name, an unreadable profile -- and it is
             //   drawn in the error colour. A failed update check is not about them: their account loaded, the
-            //   session is fine, and GitHub had a bad moment or named a tag this client reads no version out
-            //   of. Colouring the screen's error line for it would say something untrue about their session,
+            //   session is fine, and the API had a bad moment or named a version this client cannot read.
+            //   Colouring the screen's error line for it would say something untrue about their session,
             //   and an operator who reads it that way starts looking for a fault at their end.
             //
             // The fourth state draws nothing at all. A "checking..." line would flicker for the length of one
-            // round trip to GitHub and say nothing anyone needs: this line only matters once there is a
+            // round trip to the API and say nothing anyone needs: this line only matters once there is a
             // sentence to read.
             when (val update = state.update) {
                 ProfileViewModel.UpdateStatus.Checking -> {

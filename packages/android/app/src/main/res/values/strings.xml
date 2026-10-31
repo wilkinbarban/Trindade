@@ -226,7 +226,7 @@
          eye, because the download action is directly below it; and a check that could not be made says
          so in the same quiet voice, because it is not a fault of the operator's session. It says
          "verificar" rather than "baixar" or "atualizar" on purpose: nothing is downloaded and nothing
-         is installed by this app, it only asks GitHub which release is newest. See the screen for why
+         is installed by this app, it only asks this installation's API which build it serves. See the screen for why
          this line is not drawn in the error colour. -->
     <string name="profile_update_up_to_date">Você já está na versão mais recente.</string>
     <!-- The number is the newest release without the tag's "v", so it reads the same way the version
