@@ -203,7 +203,9 @@ describe('App Routes - /api/app', () => {
 
       assert.strictEqual(response.statusCode, 200);
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.version, 'v0.6.3');
+      // The version the endpoint answers with is the version of the binary this build ships. Pinned to the
+      // string rather than to the constant on both sides, which would agree while naming the wrong file.
+      assert.strictEqual(body.version, 'v0.7.0');
       assert.strictEqual(body.apkUrl, TRINDADE_APK_DOWNLOAD_URL);
       assert.strictEqual(body.apkSize, 'PK\x03\x04signed-apk-bytes'.length);
     });
