@@ -1,6 +1,8 @@
 package com.trindade.app.reports
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
@@ -52,30 +54,58 @@ fun ErpMovementsCard(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            // Header with unified title and single [ 🔄 Sincronizar com ERP ] button
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Text(
-                    text = stringResource(R.string.report_erp_movements_title),
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.weight(1f).padding(end = 8.dp),
-                )
-                OutlinedButton(
-                    onClick = onSync,
-                    enabled = !isSyncing,
-                    modifier = Modifier.defaultMinSize(minHeight = 44.dp),
-                ) {
-                    if (isSyncing) {
-                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                    } else {
-                        Text(
-                            text = "🔄 " + stringResource(R.string.report_erp_sync),
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                        )
+            // Header: unified title and the single [ 🔄 Sincronizar com ERP ] action.
+            //
+            // Side by side the button takes the width it needs and leaves the title with whatever is left,
+            // which on a handset is four words to a line -- "Movimentações do ERP (Massas e Recebimento)"
+            // became a cramped stack of four lines, and the workspace was the phone's. So the row is a
+            // decision, taken from the width this card is actually given rather than from the device: below
+            // the breakpoint the title gets the full measure and the action becomes a full-width target
+            // underneath it, which is also where a thumb reaches on a handset.
+            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                val stacked = maxWidth < HEADER_STACK_BREAKPOINT
+
+                val title: @Composable () -> Unit = {
+                    Text(
+                        text = stringResource(R.string.report_erp_movements_title),
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+
+                val action: @Composable (Modifier) -> Unit = { actionModifier ->
+                    OutlinedButton(
+                        onClick = onSync,
+                        enabled = !isSyncing,
+                        modifier = actionModifier.defaultMinSize(minHeight = 44.dp),
+                    ) {
+                        if (isSyncing) {
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                        } else {
+                            Text(
+                                text = "🔄 " + stringResource(R.string.report_erp_sync),
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                            )
+                        }
+                    }
+                }
+
+                if (stacked) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        title()
+                        action(Modifier.fillMaxWidth())
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Box(modifier = Modifier.weight(1f).padding(end = 8.dp)) { title() }
+                        action(Modifier)
                     }
                 }
             }
@@ -169,3 +199,13 @@ fun ErpMovementsCard(
 }
 
 private fun BigDecimal.stripZeros(): String = stripTrailingZeros().toPlainString()
+
+/**
+ * Where the header stops being one row.
+ *
+ * 420dp is above the content width of every phone this app runs on (360dp and 375dp are the two the crew
+ * carries) and below the width a tablet's card gets, so the two shapes are decided by the room the card has
+ * rather than by which model is holding it. A tablet in split view can fall below it, which is the same
+ * answer for the same reason.
+ */
+private val HEADER_STACK_BREAKPOINT = 420.dp

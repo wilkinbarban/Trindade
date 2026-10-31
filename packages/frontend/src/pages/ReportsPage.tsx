@@ -273,12 +273,21 @@ export function ReportsPage() {
   // S5, S6, S8: Movimentações do ERP (Massas e Recebimento) num só card com botão de sincronização único.
   const massasCard = (
     <Card className="mb-6" data-testid="report-massas-card">
-      <CardHeader className="flex flex-row items-center justify-between pb-3">
-        <CardTitle>{t('reports.erpMovementsTitle', 'Movimentações do ERP (Massas e Recebimento)')}</CardTitle>
+      {/*
+        The header stacks on a phone and becomes the single row only when there is room for it. Side by side
+        on a 375-wide screen, the button took the width it needed and left the title four words wide, so
+        "Movimentações do ERP (Massas e Recebimento)" read as four cramped lines beside it -- and the button
+        itself overflowed the card's padding. Stacked, the title gets the full measure and the action gets a
+        full-width 44px target underneath, which is also the thumb reach that matters on a handset.
+      */}
+      <CardHeader className="flex flex-col gap-3 pb-3 sm:flex-row sm:items-center sm:justify-between">
+        <CardTitle className="text-base font-bold leading-snug sm:text-lg">
+          {t('reports.erpMovementsTitle', 'Movimentações do ERP (Massas e Recebimento)')}
+        </CardTitle>
         <Button
           type="button"
           onClick={handleSyncErpMovements}
-          className="min-h-[44px] gap-2 text-xs font-semibold"
+          className="min-h-[44px] w-full shrink-0 gap-2 text-xs font-semibold sm:w-auto"
           data-testid="erp-movements-sync"
           aria-label={
             canSyncErp ? t('massas.syncHeader.action', 'Sincronizar com ERP') : t('reports.receiptsRefresh', 'Atualizar')
