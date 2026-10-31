@@ -203,7 +203,7 @@ describe('App Routes - /api/app', () => {
 
       assert.strictEqual(response.statusCode, 200);
       const body = JSON.parse(response.body);
-      assert.strictEqual(body.version, 'v0.6.2');
+      assert.strictEqual(body.version, 'v0.6.3');
       assert.strictEqual(body.apkUrl, TRINDADE_APK_DOWNLOAD_URL);
       assert.strictEqual(body.apkSize, 'PK\x03\x04signed-apk-bytes'.length);
     });
