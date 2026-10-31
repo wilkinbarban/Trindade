@@ -1,7 +1,7 @@
 import type Database from 'better-sqlite3';
 import bcrypt from 'bcryptjs';
 import { deriveOperatorUsername, operatorDisplayName, quickWorkerPassword } from './operator-account.js';
-import { resolveOperatorLink } from './massas-operator.js';
+import { normalizeOperatorName, resolveOperatorLink } from './massas-operator.js';
 
 /**
  * Credits a seat to the operator the ERP signed on it, creating that operator when Trindade has none.
@@ -82,6 +82,10 @@ function adoptOne(db: Database.Database, entLan: number, dryRun: boolean): SeatA
     .get(entLan) as string | null | undefined;
 
   if (operatorName === undefined) {
+    return { entLan, status: 'missing-seat', operatorName: null, movedLaunches: 0 };
+  }
+  // A seat with no operator name is as unattributable as one the mirror never saw.
+  if (operatorName === null || normalizeOperatorName(operatorName) === '') {
     return { entLan, status: 'missing-seat', operatorName: null, movedLaunches: 0 };
   }
 

@@ -21,6 +21,7 @@ function movement(overrides: Partial<AeroMovement>): AeroMovement {
     operator_name: 'VINICIUS R',
     movement_type: 'E',
     synced_at: '2026-10-29T18:00:00.000Z',
+    owner_user_id: null,
     ...overrides,
   };
 }
