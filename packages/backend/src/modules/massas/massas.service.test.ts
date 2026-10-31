@@ -78,17 +78,56 @@ describe('massas launch service', () => {
     assert.equal(view.launches[0].ent_lan, 35937);
   });
 
-  it('keeps the seat even when the operator name matches nobody', () => {
-    // S2: no resolution means the authenticated user, but the seat is a fact about the boxes, not about
-    // the person, so it survives.
+  it('refuses a seat whose operator names nobody here, instead of lending it the importer', () => {
+    // The defect this closes: JOAO H and JEFFERSON imported under Wilkin because the seat's name resolved
+    // to nobody and the fallback handed the boxes to whoever pressed the button.
+    assert.throws(
+      () =>
+        createMassaLaunches(db, {
+          date: testDate,
+          userId: userBobId,
+          operatorName: 'MARIA DA SILVA',
+          items: [{ product_code: '22', boxes: 3, ent_lan: 35939 }],
+        }),
+      (error: unknown) => (error as { code?: string }).code === 'OPERATOR_NOT_LINKED',
+    );
+
+    const rows = db.prepare('SELECT COUNT(*) AS total FROM massa_launches').get() as { total: number };
+    assert.equal(rows.total, 0, 'the refusal writes nothing');
+  });
+
+  it('refuses a seat whose operator is inactive, and says so instead of offering a duplicate', () => {
+    const worker = db.prepare("SELECT id FROM roles WHERE name = 'Trabalhador'").pluck().get() as number;
+    db.prepare('INSERT INTO users (username, password_hash, display_name, role_id, is_active) VALUES (?, ?, ?, ?, 0)').run(
+      'maria',
+      'hash',
+      'Maria da Silva',
+      worker,
+    );
+
+    assert.throws(
+      () =>
+        createMassaLaunches(db, {
+          date: testDate,
+          userId: userBobId,
+          operatorName: 'MARIA DA SILVA',
+          items: [{ product_code: '22', boxes: 3 }],
+        }),
+      (error: unknown) => (error as { code?: string }).code === 'OPERATOR_INACTIVE',
+    );
+
+    const rows = db.prepare('SELECT COUNT(*) AS total FROM massa_launches').get() as { total: number };
+    assert.equal(rows.total, 0, 'the refusal writes nothing');
+  });
+
+  it('keeps the asker as the owner when the request names no operator at all', () => {
+    // A manual launch is the asker's own work: there is no seat, so there is nobody else it could be.
     const [created] = createMassaLaunches(db, {
       date: testDate,
       userId: userBobId,
-      operatorName: 'MARIA DA SILVA',
-      items: [{ product_code: '22', boxes: 3, ent_lan: 35939 }],
+      items: [{ product_code: '22', boxes: 3 }],
     });
 
-    assert.equal(created.ent_lan, 35939);
     assert.equal(created.user_id, userBobId);
   });
 

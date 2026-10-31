@@ -19,8 +19,20 @@ export interface SeatImportClaim {
 }
 
 export function canImportSeat(claim: SeatImportClaim): boolean {
+  // A seat whose operator is not linked here is nobody's to import: the launch would have to invent an
+  // owner, and the only honest way forward is creating the operator from the seat first -- which is what
+  // the screen offers an administrator instead of an Importar button.
+  if (claim.ownerUserId === null) return false;
   if (claim.isAdmin) return true;
-  // Not `ownerUserId ?? userId`: an unknown owner is not the asker's to claim. Letting the request body
-  // decide the owner is exactly the defect this rule closes.
-  return claim.ownerUserId !== null && claim.ownerUserId === claim.userId;
+  return claim.ownerUserId === claim.userId;
+}
+
+/**
+ * Whether the asker may create the operator a seat names, so the seat can be imported by its real owner.
+ *
+ * Only an administrator: creating accounts is an administrative act, and the screen shows this as the
+ * inline button on a seat nobody in Trindade answers to.
+ */
+export function canCreateSeatOperator(claim: { ownerUserId: number | null; isAdmin: boolean }): boolean {
+  return claim.isAdmin && claim.ownerUserId === null;
 }

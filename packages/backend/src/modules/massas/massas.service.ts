@@ -1,7 +1,7 @@
 import type Database from 'better-sqlite3';
 import { aeroMovementsTableExists, listAeroMovements } from '../integration/aero.movements.service.js';
 import { MASSAS, type StockProduct } from '../stock/stock.catalog.js';
-import { resolveOperatorUserId } from './massas-operator.js';
+import { normalizeOperatorName, resolveOperatorLink, resolveOperatorUserId } from './massas-operator.js';
 import { reconcileMassasDay } from './massas-reconcile.js';
 import { getSaoPauloDateString } from '../../utils/date.js';
 
@@ -170,9 +170,25 @@ export function createMassaLaunches(
     }
   }
 
-  // The seat decides the owner when it names somebody here; otherwise the importer keeps the launch. Both
-  // facts travel separately, because the seat is what reconciles and the person is who gets the credit.
-  const ownerId = resolveOperatorUserId(db, params.operatorName) ?? params.userId;
+  // The seat decides the owner when it names somebody here. A name that resolves to nobody is refused
+  // rather than lent to the importer: the boxes belong to the person the ERP wrote, and crediting whoever
+  // pressed the button is how a day ends up with the wrong names. A launch with no operator name at all is
+  // the asker's own work, so the asker keeps it.
+  let ownerId = params.userId;
+  if (normalizeOperatorName(params.operatorName) !== '') {
+    const link = resolveOperatorLink(db, params.operatorName);
+    if (link.status === 'missing') {
+      const err = new Error(`Operator not linked to a Trindade account: ${params.operatorName}`);
+      (err as unknown as { code: string }).code = 'OPERATOR_NOT_LINKED';
+      throw err;
+    }
+    if (link.status === 'inactive') {
+      const err = new Error(`Operator is inactive in Trindade: ${params.operatorName}`);
+      (err as unknown as { code: string }).code = 'OPERATOR_INACTIVE';
+      throw err;
+    }
+    ownerId = link.userId;
+  }
 
   const now = nowIso();
   const insertStmt = db.prepare(

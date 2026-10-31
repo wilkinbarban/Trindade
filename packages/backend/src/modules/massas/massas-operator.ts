@@ -95,6 +95,35 @@ export function resolveOperatorUserId(db: Database.Database, operatorName: strin
   return matchOperatorUserId(users, wanted);
 }
 
+/** What the seat's operator means for Trindade: a person to credit, a person to reactivate, or nobody. */
+export type OperatorLink =
+  | { status: 'linked'; userId: number }
+  | { status: 'inactive'; userId: number; username: string }
+  | { status: 'missing' };
+
+/**
+ * Resolves a seat's operator without letting "not found" and "found but deactivated" look the same.
+ *
+ * Active accounts are matched first, exactly as `resolveOperatorUserId` does, so a working person is never
+ * shadowed by a namesake who was deactivated. Only then the inactive ones answer, and the caller learns that
+ * the account exists: offering to create it again would collide with the unique login instead of reactivating.
+ */
+export function resolveOperatorLink(db: Database.Database, operatorName: string | null | undefined): OperatorLink {
+  const active = resolveOperatorUserId(db, operatorName);
+  if (active !== null) return { status: 'linked', userId: active };
+
+  const wanted = normalizeOperatorName(operatorName);
+  if (wanted === '') return { status: 'missing' };
+
+  const inactive = db
+    .prepare('SELECT id, username, display_name FROM users WHERE is_active = 0 ORDER BY id')
+    .all() as OperatorCandidate[];
+  const match = matchOperatorUserId(inactive, wanted);
+  if (match === null) return { status: 'missing' };
+  const person = inactive.find((candidate) => candidate.id === match)!;
+  return { status: 'inactive', userId: match, username: person.username };
+}
+
 /**
  * The person a mirrored seat belongs to, taken from what the ERP itself wrote on that seat.
  *

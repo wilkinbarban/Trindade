@@ -156,6 +156,62 @@ describe('massas routes', () => {
     assert.equal(body.balance.differenceUnits, 0);
   });
 
+  it('refuses an import whose operator is not linked here, with its own code', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/massas-launch',
+      headers: { authorization: `Bearer ${tokenAlice}` },
+      payload: {
+        date: dateStr,
+        product_code: '1047',
+        boxes: 27,
+        ent_lan: 35936,
+        operator_name: 'JOAO H',
+      },
+    });
+
+    assert.equal(res.statusCode, 409);
+    const body = JSON.parse(res.body) as { error: string; code: string };
+    assert.equal(body.code, 'MASSAS_OPERATOR_NOT_LINKED');
+    assert.match(body.error, /não está vinculado/i);
+    const rows = db.prepare('SELECT COUNT(*) AS total FROM massa_launches WHERE ent_lan = 35936').get() as {
+      total: number;
+    };
+    assert.equal(rows.total, 0, 'the refusal writes nothing');
+  });
+
+  it('refuses an import whose operator is inactive, telling the admin to reactivate instead of creating', async () => {
+    const workerRole = REFERENCE_DATASET.roles.find((r) => r.name === 'Trabalhador')!.id;
+    db.prepare('INSERT INTO users (username, password_hash, display_name, role_id, is_active) VALUES (?, ?, ?, ?, 0)').run(
+      'jefferson',
+      'hash',
+      'Jefferson',
+      workerRole,
+    );
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/massas-launch',
+      headers: { authorization: `Bearer ${tokenAlice}` },
+      payload: {
+        date: dateStr,
+        product_code: '1047',
+        boxes: 135,
+        ent_lan: 35952,
+        operator_name: 'JEFFERSON',
+      },
+    });
+
+    assert.equal(res.statusCode, 409);
+    const body = JSON.parse(res.body) as { error: string; code: string };
+    assert.equal(body.code, 'MASSAS_OPERATOR_INACTIVE');
+    assert.match(body.error, /inativ/i);
+    const rows = db.prepare('SELECT COUNT(*) AS total FROM massa_launches WHERE ent_lan = 35952').get() as {
+      total: number;
+    };
+    assert.equal(rows.total, 0, 'the refusal writes nothing');
+  });
+
   it('GET /report leaves a launch the ERP never saw out of the day', async () => {
     // The day is shared with the test above, so what it recorded is cleared first.
     db.exec('DELETE FROM massa_launches');
@@ -280,8 +336,8 @@ describe('massas routes', () => {
     assert.deepEqual(seats, [35937, 35939]);
   });
 
-  it('keeps the seat when the operator name names nobody, and refuses the same seat twice', async () => {
-    // An administrator, because a seat whose operator names nobody has no worker it could belong to.
+  it('refuses the seat of an unlinked operator, and refuses the same seat twice once it is linked', async () => {
+    // The name on the seat resolves to nobody, so there is no owner to record and the import is refused.
     const unknown = await app.inject({
       method: 'POST',
       url: '/api/massas-launch',
@@ -293,8 +349,23 @@ describe('massas routes', () => {
         items: [{ product_code: '91', boxes: 2 }],
       },
     });
-    assert.equal(unknown.statusCode, 201, unknown.body);
-    const created = (JSON.parse(unknown.body) as { created: MassaIndividualLaunch[] }).created[0];
+    assert.equal(unknown.statusCode, 409, unknown.body);
+    assert.equal((JSON.parse(unknown.body) as { code: string }).code, 'MASSAS_OPERATOR_NOT_LINKED');
+
+    // Once the operator is somebody Trindade knows, the same seat imports and then refuses to duplicate.
+    const linked = await app.inject({
+      method: 'POST',
+      url: '/api/massas-launch',
+      headers: { authorization: `Bearer ${tokenAlice}` },
+      payload: {
+        date: dateStr,
+        ent_lan: 35950,
+        operator_name: 'ALICE',
+        items: [{ product_code: '91', boxes: 2 }],
+      },
+    });
+    assert.equal(linked.statusCode, 201, linked.body);
+    const created = (JSON.parse(linked.body) as { created: MassaIndividualLaunch[] }).created[0];
     assert.equal(created.ent_lan, 35950);
     assert.equal(created.username, 'alice');
 
@@ -305,7 +376,7 @@ describe('massas routes', () => {
       payload: {
         date: dateStr,
         ent_lan: 35950,
-        operator_name: 'MARIA DA SILVA',
+        operator_name: 'ALICE',
         items: [{ product_code: '91', boxes: 2 }],
       },
     });

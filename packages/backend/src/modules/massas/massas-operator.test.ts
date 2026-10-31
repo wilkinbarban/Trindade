@@ -132,12 +132,27 @@ describe('massas import ownership', () => {
     gustavoId = addWorker(db, 'gustavo', 'Gustavo');
   });
 
-  it('lets an administrator import any seat, known owner or not', async () => {
+  it("lets an administrator import any seat that has a known owner", async () => {
     const { canImportSeat } = await import('./massas-import-policy.js');
     addSeat(db, 35937, 'VICTOR');
     const ownerUserId = resolveSeatOwnerUserId(db, 35937);
     assert.equal(canImportSeat({ ownerUserId, userId: 1, isAdmin: true }), true);
-    assert.equal(canImportSeat({ ownerUserId: null, userId: 1, isAdmin: true }), true);
+  });
+
+  it('lets nobody import a seat whose operator is not linked here', async () => {
+    const { canImportSeat } = await import('./massas-import-policy.js');
+    addSeat(db, 35947, 'JOAO H');
+    const ownerUserId = resolveSeatOwnerUserId(db, 35947);
+    assert.equal(ownerUserId, null);
+    assert.equal(canImportSeat({ ownerUserId, userId: 1, isAdmin: true }), false);
+    assert.equal(canImportSeat({ ownerUserId, userId: victorId, isAdmin: false }), false);
+  });
+
+  it('offers the operator creation to an administrator on a seat nobody answers to', async () => {
+    const { canCreateSeatOperator } = await import('./massas-import-policy.js');
+    assert.equal(canCreateSeatOperator({ ownerUserId: null, isAdmin: true }), true);
+    assert.equal(canCreateSeatOperator({ ownerUserId: null, isAdmin: false }), false);
+    assert.equal(canCreateSeatOperator({ ownerUserId: victorId, isAdmin: true }), false);
   });
 
   it('lets a worker import the seat the ERP attributes to them', async () => {

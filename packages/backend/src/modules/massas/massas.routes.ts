@@ -100,15 +100,17 @@ export async function massasRoutes(fastify: FastifyInstance) {
     // Every seat in the body is checked, not just the first: the array is the unit the API accepts, so one
     // authorized seat at the front must not carry somebody else's seats in behind it. No seat means no
     // import, and a manual launch is the asker's own work that the owner rule never touches.
+    // A seat with no proven owner is not a permission problem: it is a seat whose operator Trindade cannot
+    // name, and the service answers that with its own code so the screen can offer to create the operator.
+    // Only somebody else's seat -- an owner the mirror knows and the asker is not -- is refused here.
     const claimedSeats = seatItems.flatMap((item) => (item.ent_lan === null ? [] : [item.ent_lan]));
-    const refusedSeat = claimedSeats.find(
-      (seat) =>
-        !canImportSeat({
-          ownerUserId: resolveSeatOwnerUserId(fastify.db, seat),
-          userId: request.user!.sub,
-          isAdmin: request.user?.role === 'Administrador',
-        }),
-    );
+    const refusedSeat = claimedSeats.find((seat) => {
+      const ownerUserId = resolveSeatOwnerUserId(fastify.db, seat);
+      return (
+        ownerUserId !== null &&
+        !canImportSeat({ ownerUserId, userId: request.user!.sub, isAdmin: request.user?.role === 'Administrador' })
+      );
+    });
     if (refusedSeat !== undefined) {
       return reply
         .status(403)
@@ -140,6 +142,26 @@ export async function massasRoutes(fastify: FastifyInstance) {
         return reply
           .status(409)
           .send(apiError('Este lançamento do ERP já foi importado', MASSAS_ERROR_CODES.ALREADY_IMPORTED));
+      }
+      if (code === 'OPERATOR_NOT_LINKED') {
+        return reply
+          .status(409)
+          .send(
+            apiError(
+              'O operador deste lançamento do ERP não está vinculado no Trindade: cadastre o operário antes de importar',
+              MASSAS_ERROR_CODES.OPERATOR_NOT_LINKED,
+            ),
+          );
+      }
+      if (code === 'OPERATOR_INACTIVE') {
+        return reply
+          .status(409)
+          .send(
+            apiError(
+              'O operador deste lançamento do ERP está inativo no Trindade: reative o operário antes de importar',
+              MASSAS_ERROR_CODES.OPERATOR_INACTIVE,
+            ),
+          );
       }
       // The service's sentence is for the log, not for the operator: the payload carries the Portuguese
       // reason and the code, so a refusal never reaches the screen in English.

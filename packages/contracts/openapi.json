@@ -8841,7 +8841,7 @@
       },
       "post": {
         "summary": "Register massas launches for the authenticated user",
-        "description": "An import names the ERP seat it came from. A worker may import only the seats the ERP already attributes to them; an administrator may import anybody's. Ownership is read from the mirrored seat, never from the request body, so naming another operator cannot hand a worker somebody else's boxes. A manual launch without a seat belongs to whoever sends it.",
+        "description": "An import names the ERP seat it came from. A worker may import only the seats the ERP already attributes to them; an administrator may import anybody's. Ownership is read from the mirrored seat, never from the request body, so naming another operator cannot hand a worker somebody else's boxes. A seat whose operator is not linked to a Trindade account is refused: the owner has to be created first, and an inactive account has to be reactivated instead of duplicated. A manual launch without a seat belongs to whoever sends it.",
         "tags": [
           "massas"
         ],
@@ -8896,7 +8896,7 @@
             }
           },
           "409": {
-            "description": "This ERP seat was already imported",
+            "description": "The ERP seat was already imported, or its operator is not linked here, or the linked account is inactive",
             "content": {
               "application/json": {
                 "schema": {
@@ -8910,14 +8910,14 @@
     },
     "/api/massas-launch/report": {
       "get": {
-        "summary": "Read the plant day reconciled with the company ERP",
-        "description": "The day as the factory really produced it: the Trindade launches plus the seats the company tablet recorded, each box counted once, with the balance between what was registered and what was produced.",
+        "summary": "Read the day the company ERP recorded",
+        "description": "The day as the company has it: the `aero_movements` entries alone. The ten massas codes are the plant's production and every other entry is a supply receipt, so the two blocks split the day without overlapping. Trindade launches are not read here and no longer change the answer; the reconciliation between the two screens belongs to the launch view. The balance compares the day against itself.",
         "tags": [
           "massas"
         ],
         "responses": {
           "200": {
-            "description": "The reconciled day view",
+            "description": "The day as the ERP recorded it",
             "content": {
               "application/json": {
                 "schema": {

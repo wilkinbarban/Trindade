@@ -1519,13 +1519,15 @@ registerComponent(registry, 'StockHistory', StockHistorySchema);
   registry.registerPath({
     method: 'get',
     path: '/api/massas-launch/report',
-    summary: 'Read the plant day reconciled with the company ERP',
+    summary: 'Read the day the company ERP recorded',
     description:
-      'The day as the factory really produced it: the Trindade launches plus the seats the company tablet ' +
-      'recorded, each box counted once, with the balance between what was registered and what was produced.',
+      'The day as the company has it: the `aero_movements` entries alone. The ten massas codes are the ' +
+      "plant's production and every other entry is a supply receipt, so the two blocks split the day without " +
+      'overlapping. Trindade launches are not read here and no longer change the answer; the reconciliation ' +
+      'between the two screens belongs to the launch view. The balance compares the day against itself.',
     tags: ['massas'],
     responses: {
-      200: jsonResponse('The reconciled day view', MassasReportDayViewSchema),
+      200: jsonResponse('The day as the ERP recorded it', MassasReportDayViewSchema),
       400: massasErrorResponse('The date failed validation'),
       401: UNAUTHORIZED,
     },
@@ -1551,7 +1553,9 @@ registerComponent(registry, 'StockHistory', StockHistorySchema);
       'An import names the ERP seat it came from. A worker may import only the seats the ERP already ' +
       'attributes to them; an administrator may import anybody\'s. Ownership is read from the mirrored ' +
       'seat, never from the request body, so naming another operator cannot hand a worker somebody ' +
-      "else's boxes. A manual launch without a seat belongs to whoever sends it.",
+      "else's boxes. A seat whose operator is not linked to a Trindade account is refused: the owner has to " +
+      'be created first, and an inactive account has to be reactivated instead of duplicated. A manual ' +
+      'launch without a seat belongs to whoever sends it.',
     tags: ['massas'],
     request: jsonRequest(MassasLaunchCreateBodySchema),
     responses: {
@@ -1559,7 +1563,9 @@ registerComponent(registry, 'StockHistory', StockHistorySchema);
       400: massasErrorResponse('The request body failed validation, empty items, or future date'),
       401: UNAUTHORIZED,
       403: massasErrorResponse("The ERP seat belongs to another operator and the asker is not an administrator"),
-      409: massasErrorResponse('This ERP seat was already imported'),
+      409: massasErrorResponse(
+        'The ERP seat was already imported, or its operator is not linked here, or the linked account is inactive',
+      ),
     },
   });
 
