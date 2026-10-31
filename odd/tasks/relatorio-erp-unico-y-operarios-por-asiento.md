@@ -127,14 +127,14 @@ De una copia read-only de la base del contenedor (`/tmp/audit-trindade.db`, mtim
 
 | ID | Specs | Ruta | Riesgo | Commit |
 | --- | --- | --- | --- | --- |
-| T1 | S1, S2, S3 | `massas-report.service.ts` ERP-only; catálogo de masas vs insumos decidido en el servidor; tests del servicio con el día auditado | contrato (respuesta del endpoint) | |
-| T2 | S4, S8 | texto de WhatsApp nutrido del mismo snapshot ERP; tests del mensaje con Jonas/Viviane y sin Jaime | contrato (texto compartido) | |
+| T1 | S1, S2, S3 | `massas-report.service.ts` ERP-only; catálogo de masas vs insumos decidido en el servidor; tests del servicio con el día auditado | contrato (respuesta del endpoint) | `4f97dda` |
+| T2 | S4, S8 | texto de WhatsApp nutrido del mismo snapshot ERP; tests del mensaje con Jonas/Viviane y sin Jaime | contrato (texto compartido) | `4f97dda` |
 | T3 | S5, S6 | Web: una tarjeta `Movimentações do ERP (Massas e Recebimento)` + botón único de sync en `ReportsPage.tsx`/`ReceiptsSection.tsx`/`MassasReportSection.tsx` | 3 (contrato de UI existente) | |
 | T4 | S7 | Android: misma tarjeta y mismo botón en el detalle del reporte, strings `pt`/`es` | — | |
 | T5 | S9, S10, S11, S13 | Web: botón `+ Cadastrar Operário` y feedback verde; el alta deja de estar atada a los handlers | — | |
 | T6 | S12 | Web: WhatsApp/Copiar exigen el alta y no la reintentan | — | |
 | T7 | S9–S13 | Android: botón, feedback y las dos acciones sin alta implícita | — | |
-| T8 | S14, S15, S20 | backend sin fallback, `errorCode` nuevo para asiento sin dueño y para operario inactivo, OpenAPI y contrato Kotlin regenerados | 3 (changing a contract others consume) | |
+| T8 | S14, S15, S20 | backend sin fallback, `errorCode` nuevo para asiento sin dueño y para operario inactivo, OpenAPI y contrato Kotlin regenerados | 3 (changing a contract others consume) | `4ab41bf` |
 | T9 | S16, S17, S19 | Web: botón inline `+ Criar Operário: <NOMBRE>` para administrador y refresco de la tabla | — | |
 | T10 | S16–S19 | Android: mismo botón inline, mismo refresco, paridad de textos | — | |
 | T11 | S21, Q2 | script idempotente que crea `joaoh` y `jefferson` y reasigna los asientos `#35947` / `#35952`, con copia previa de `trindade.db` | 1 (reescribe datos) | |
@@ -142,6 +142,23 @@ De una copia read-only de la base del contenedor (`/tmp/audit-trindade.db`, mtim
 
 Ruta: todas inline salvo que, al implementar, T3/T5/T9 y T4/T7/T10 se confirmen como unidades independientes de varias
 minutos cada una; en ese caso van tres writers en background con superficies disjuntas (Web, Android, backend).
+
+## Contrato que las pantallas consumen (implementado en T8)
+
+`GET /api/massas-launch/report?date=YYYY-MM-DD` responde el día **sólo** desde `aero_movements`:
+`operators[]`, `products[]`, `totalBoxes`, `totalUnits` y un `balance` que compara el día contra sí mismo
+(`produced == registered`, `differenceUnits: 0`), por lo que la pantalla ya no dibuja la barra comparativa.
+
+`POST /api/massas-launch` (importación) responde dos rechazos nuevos, ambos 409 y sin escribir nada:
+
+| `code` | Cuándo | Sentencia que muestra la pantalla |
+| --- | --- | --- |
+| `MASSAS_OPERATOR_NOT_LINKED` | el operario del asiento no existe en Trindade | «O operador deste lançamento do ERP não está vinculado no Trindade: cadastre o operário antes de importar» |
+| `MASSAS_OPERATOR_INACTIVE` | el operario existe con `is_active = 0` | «O operador deste lançamento do ERP está inativo no Trindade: reative o operário antes de importar» |
+
+El alta del operario que destraba el asiento es `POST /api/admin/users` con
+`{ username, password, display_name, role_id: 2 }`: el login sale de `deriveUsername(<NOMBRE DEL ASIENTO>)` y la
+senha de `quickWorkerPassword(login)`, la misma pareja del Frente 2.
 
 ## Log
 
