@@ -21,11 +21,17 @@ import { ModuleHelpModal } from '../components/ui/ModuleHelpModal';
 import { MassasLaunchGrid } from './massas/MassasLaunchGrid';
 import { MassasCollectiveTable } from './massas/MassasCollectiveTable';
 import {
+  deriveDisplayName,
   loadAckedLaunchIds,
   massasUnifiedRows,
   toggleAckedLaunchId,
   type MassasUnifiedRow,
 } from '../lib/massas-unified';
+import {
+  deriveUsername,
+  quickWorkerPassword,
+  QUICK_WORKER_ROLE_ID,
+} from '../lib/share-app';
 import { MassasWhatsAppShare } from './massas/MassasWhatsAppShare';
 import { saoPauloToday } from '../lib/date';
 import { isClosedDay } from '../lib/massas-day';
@@ -148,6 +154,7 @@ export function MassasLaunchPage() {
     snapshot: AeroMovementSnapshot | null;
   }>({ loading: false, error: null, snapshot: null });
   const [importingEntLan, setImportingEntLan] = useState<number | null>(null);
+  const [creatingOperatorEntLan, setCreatingOperatorEntLan] = useState<number | null>(null);
   /** What this phone already carried to the tablet today; the mark is per device and dies with the day. */
   const [ackedLaunchIds, setAckedLaunchIds] = useState<number[]>(() => loadAckedLaunchIds(date));
   /** Lo que la consulta de movimientos tiene para decir cuando el teléfono vuelve. */
@@ -582,6 +589,43 @@ export function MassasLaunchPage() {
       });
     } finally {
       setImportingEntLan(null);
+    }
+  };
+
+  /**
+   * Creates a worker directly from an unlinked ERP seat (S16-S19).
+   */
+  const handleCreateOperator = async (row: MassasUnifiedRow) => {
+    const entLan = row.entLans[0];
+    setCreatingOperatorEntLan(entLan);
+    try {
+      const username = deriveUsername(row.operatorName);
+      const display_name = deriveDisplayName(row.operatorName);
+      const password = quickWorkerPassword(username);
+
+      await api.post('/admin/users', {
+        username,
+        display_name,
+        password,
+        role_id: QUICK_WORKER_ROLE_ID,
+      });
+
+      setNotice({
+        type: 'success',
+        message: t('massas.unified.operatorCreated', 'Operário cadastrado com sucesso!'),
+      });
+      // S18: Table refreshes instantly, recognizes the new operator and button transforms to Importar
+      await Promise.all([load(date), loadMirror(date)]);
+    } catch (err) {
+      const message =
+        err instanceof ApiClientError && (err.status === 409 || err.message.includes('userAlreadyExists'))
+          ? t('admin.workers.userAlreadyExists')
+          : err instanceof Error
+            ? err.message
+            : t('share.createServerError');
+      setNotice({ type: 'error', message });
+    } finally {
+      setCreatingOperatorEntLan(null);
     }
   };
 
@@ -1110,6 +1154,8 @@ export function MassasLaunchPage() {
           onSendToErp={handleSendPendingLaunch}
           onImport={(request) => void handleImportErpSeat(request)}
           importingEntLan={importingEntLan}
+          onCreateOperator={(row) => void handleCreateOperator(row)}
+          creatingOperatorEntLan={creatingOperatorEntLan}
           onToggleAck={handleToggleAck}
         />
       )}

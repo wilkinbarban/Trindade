@@ -178,7 +178,10 @@
     "massasError": "Não foi possível ler as massas do dia.",
     "massasEmpty": "Nenhuma massa lançada neste dia.",
     "massasErpOnly": "só ERP",
-    "massasSummary": "Resumo coletivo"
+    "massasSummary": "Resumo coletivo",
+    "erpMovementsTitle": "Movimentações do ERP (Massas e Recebimento)",
+    "erpMovementsSync": "Sincronizar com ERP",
+    "erpMovementsSubtitle": "Entradas registradas no ERP para massas e recebimento de insumos"
   },
   "loading": {
     "vehiclesError": "Não foi possível carregar os veículos.",
@@ -692,7 +695,10 @@
       "import": "Importar",
       "notWholeBoxes": "Não fecha caixas inteiras",
       "send": "Enviar ao ERP",
-      "settled": "Conciliado com o ERP, não editável"
+      "settled": "Conciliado com o ERP, não editável",
+      "createOperator": "+ Criar Operário: {{name}}",
+      "operatorCreated": "Operário cadastrado com sucesso!",
+      "operatorNotLinked": "Operador não vinculado"
     },
     "syncHeader": {
       "action": "Sincronizar com ERP",
@@ -711,7 +717,9 @@
       "notFound": "Lançamento não encontrado.",
       "createFailed": "Não foi possível registrar o lançamento.",
       "updateFailed": "Não foi possível atualizar o lançamento.",
-      "deleteFailed": "Não foi possível excluir o lançamento."
+      "deleteFailed": "Não foi possível excluir o lançamento.",
+      "operatorNotLinked": "O operador deste lançamento do ERP não está vinculado no Trindade: cadastre o operário antes de importar",
+      "operatorInactive": "O operador deste lançamento do ERP está inativo no Trindade: reative o operário antes de importar"
     },
     "balance": {
       "produced": "Produzido",
@@ -971,7 +979,13 @@
     "creatingWorker": "Criando operário...",
     "createNameRequired": "Informe o nome de exibição do novo operário.",
     "createUsernameRequired": "Informe o nome de usuário do novo operário.",
-    "createError": "Não foi possível criar o operário. Verifique se o usuário já existe."
+    "createError": "Não foi possível criar o operário. Verifique se o usuário já existe.",
+    "createWorkerAction": "+ Cadastrar Operário",
+    "createSuccess": "Operário cadastrado com sucesso! A conta está habilitada para uso.",
+    "createRequiredBeforeSend": "Cadastre o operário antes de compartilhar o acesso.",
+    "createUserAlreadyExists": "Este nome de usuário já está em uso. Escolha outro login.",
+    "createNetworkError": "Servidor inalcançável. Verifique sua conexão e tente novamente.",
+    "createServerError": "Não foi possível cadastrar o operário."
   },
   "aeroDevice": {
     "title": "Conexão com o Aero32 ERP indisponível no {{os}}",

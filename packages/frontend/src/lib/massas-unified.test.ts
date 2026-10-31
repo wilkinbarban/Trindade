@@ -2,6 +2,8 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   canImportRow,
+  canCreateOperatorRow,
+  deriveDisplayName,
   massasUnifiedRows,
   reconciledLaunchIds,
   type MassasUnifiedInput,
@@ -253,16 +255,29 @@ describe('who the table offers the import to', () => {
     assert.equal(canImportRow(row, { userId: 17, isAdmin: false }), false);
   });
 
-  it('offers every seat to an administrator', () => {
+  it('offers every seat to an administrator only when the operator is already linked', () => {
     assert.equal(canImportRow(workerSeat(), { userId: 1, isAdmin: true }), true);
   });
 
-  it('offers a seat with no owner to nobody but an administrator', () => {
+  it('refuses import on a seat with no owner and offers operator creation to an administrator instead', () => {
     const orphan = massasUnifiedRows(input({ movements: [seat({ entLan: 35939, operatorName: 'MARIA' })] })).find(
       (row) => row.state === 'erpOnly',
     )!;
+    // S14: backend removes fallback, an unlinked seat cannot be imported by anyone
     assert.equal(canImportRow(orphan, { userId: 17, isAdmin: false }), false);
-    assert.equal(canImportRow(orphan, { userId: 1, isAdmin: true }), true);
+    assert.equal(canImportRow(orphan, { userId: 1, isAdmin: true }), false);
+
+    // S16, S19: inline creation is offered to administrator, not to worker
+    assert.equal(canCreateOperatorRow(orphan, { isAdmin: true }), true);
+    assert.equal(canCreateOperatorRow(orphan, { isAdmin: false }), false);
+    // When already linked, creation is not offered
+    assert.equal(canCreateOperatorRow(workerSeat(), { isAdmin: true }), false);
+  });
+
+  it('derives display name in title case from uppercase ERP operator name', () => {
+    assert.equal(deriveDisplayName('JEFFERSON'), 'Jefferson');
+    assert.equal(deriveDisplayName('JOAO H'), 'Joao H');
+    assert.equal(deriveDisplayName('MARIA DA SILVA'), 'Maria Da Silva');
   });
 
   it('never offers a seat that does not fit whole boxes, whoever asks', () => {

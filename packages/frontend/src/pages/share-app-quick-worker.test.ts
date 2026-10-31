@@ -31,8 +31,21 @@ describe('share screen quick worker creation', () => {
     assert.ok(page.includes('deriveUsername'));
   });
 
-  it('creates the account before the message leaves the browser, once per login', () => {
-    assert.ok(page.includes('if (!(await ensureWorkerCreated())) return;'));
-    assert.ok(page.includes('if (createdUsername === username) return true;'));
+  it('provides an explicit + Cadastrar Operário button and green success feedback', () => {
+    assert.ok(page.includes('data-testid="share-create-worker-btn"'));
+    assert.ok(page.includes('data-testid="share-create-success"'));
+    assert.ok(page.includes('handleCreateWorker'));
+  });
+
+  it('prevents WhatsApp and Copy from creating accounts implicitly, requiring prior registration', () => {
+    // Sending and copying do not create accounts on their own anymore (S12).
+    assert.equal(page.includes('if (!(await ensureWorkerCreated())) return;'), false);
+    assert.ok(page.includes('share.createRequiredBeforeSend'));
+  });
+
+  it('handles login taken, network error and server rejection with distinct messages', () => {
+    assert.ok(page.includes('isNetworkError'));
+    assert.ok(page.includes('share.createUserAlreadyExists'));
+    assert.ok(page.includes('share.createNetworkError'));
   });
 });

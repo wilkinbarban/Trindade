@@ -23,6 +23,8 @@ const MASSAS_CODE_KEYS: Record<string, string> = {
   MASSAS_ALREADY_IMPORTED: 'massas.error.alreadyImported',
   MASSAS_UPDATE_FAILED: 'massas.error.updateFailed',
   MASSAS_DELETE_FAILED: 'massas.error.deleteFailed',
+  MASSAS_OPERATOR_NOT_LINKED: 'massas.error.operatorNotLinked',
+  MASSAS_OPERATOR_INACTIVE: 'massas.error.operatorInactive',
 };
 
 /**
@@ -57,6 +59,20 @@ export function resolveApiErrorKey(status: number, rawMessage: string, code?: st
 
   // The massas sentences, in the Portuguese the backend answers and in the English a cached client may
   // still hold. Matched before the generic branches so a 403 about a seat is not read as a plain denial.
+  if (
+    msg.includes('não está vinculado no Trindade') ||
+    msg.includes('cadastre o operário antes de importar') ||
+    msg.includes('Operator not linked to a Trindade account')
+  ) {
+    return 'massas.error.operatorNotLinked';
+  }
+  if (
+    msg.includes('está inativo no Trindade') ||
+    msg.includes('reative o operário antes de importar') ||
+    msg.includes('Operator is inactive in Trindade')
+  ) {
+    return 'massas.error.operatorInactive';
+  }
   if (
     msg.includes('histórico de massas é somente leitura') ||
     msg.includes('history of massas is read-only') ||

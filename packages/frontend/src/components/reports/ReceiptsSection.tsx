@@ -8,21 +8,22 @@ import { AeroResultDialog } from '../../pages/massas/AeroResultDialog';
 import type { AeroSyncFeedback } from '../../lib/aero-feedback';
 import { receiptsSyncFeedback } from '../../lib/aero-feedback';
 import {
-  aeroBridgeCallbackFor,
   aeroSettingsReady,
   buildAeroMovementsSnapshot,
-  buildAeroBridgeTriggerUrl,
   loadAeroSettings,
   parseAeroCallback,
   readAeroMovements,
 } from '../../lib/aero-integration';
-import { aeroMovementsEnvelope } from '../../lib/aero-mirror';
+import { triggerAeroMovementsSync } from '../../lib/aero-mirror';
 import { readReportReceiptsDay, type ReportReceiptsDay } from '../../lib/receipts';
 
 interface ReceiptsSectionProps {
   /** The report's day. The section answers that day, even if it is not today. */
   date: string;
   readOnly?: boolean;
+  hideHeader?: boolean;
+  refetchKey?: number;
+  onSynced?: () => void;
 }
 
 /**
@@ -36,7 +37,13 @@ interface ReceiptsSectionProps {
  * callback URL the shortcut is handed is this page's own route, so the operator never loses the report they
  * were filing. The snapshot is stored whole; what this screen counts is only its lens, the supplies.
  */
-export function ReceiptsSection({ date, readOnly = false }: ReceiptsSectionProps) {
+export function ReceiptsSection({
+  date,
+  readOnly = false,
+  hideHeader = false,
+  refetchKey,
+  onSynced,
+}: ReceiptsSectionProps) {
   const { t, i18n } = useTranslation();
   const location = useLocation();
   const [day, setDay] = useState<ReportReceiptsDay | null>(null);
@@ -75,7 +82,7 @@ export function ReceiptsSection({ date, readOnly = false }: ReceiptsSectionProps
 
   useEffect(() => {
     void load();
-  }, [load]);
+  }, [load, refetchKey]);
 
   /**
    * Closes the sync round trip: stores the snapshot the phone brought and counts this screen's lens.
@@ -100,6 +107,7 @@ export function ReceiptsSection({ date, readOnly = false }: ReceiptsSectionProps
           buildAeroMovementsSnapshot(date, read.movements),
         );
         await load();
+        onSynced?.();
         setSyncResult({
           feedback: receiptsSyncFeedback({ status: 'ok', count: stored?.insumos ?? 0 }),
           detail: null,
@@ -124,17 +132,8 @@ export function ReceiptsSection({ date, readOnly = false }: ReceiptsSectionProps
   }, [finishSync]);
 
   const handleSync = useCallback(() => {
-    if (!canSync) return;
-    const envelope = aeroMovementsEnvelope({
-      wsUrl: settings.wsUrl,
-      username: settings.username,
-      password: settings.password,
-      date,
-      userName: null,
-      callbackUrl: aeroBridgeCallbackFor('movimentos', location.pathname),
-    });
-    window.location.href = buildAeroBridgeTriggerUrl({ name: settings.shortcutName, envelope });
-  }, [canSync, date, location.pathname, settings]);
+    triggerAeroMovementsSync(settings, { date, callbackPath: location.pathname });
+  }, [date, location.pathname, settings]);
 
   const syncedAtLabel = useMemo(() => {
     if (!day?.syncedAt) return null;
@@ -147,41 +146,55 @@ export function ReceiptsSection({ date, readOnly = false }: ReceiptsSectionProps
 
   return (
     <div className="mb-6" data-testid="receipts-section">
-      <div className="mb-3 flex flex-col gap-2 border-b border-gray-200 pb-2 sm:flex-row sm:items-center sm:justify-between">
-        <h3 className="text-md font-semibold text-gray-800">{title}</h3>
-        <div className="flex flex-wrap items-center gap-2">
+      {hideHeader ? (
+        <div className="mb-3 flex items-center justify-between border-b border-gray-100 pb-2">
+          <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+            <Truck className="h-4 w-4" />
+            <span>{title}</span>
+          </h4>
           {syncedAtLabel && (
             <span className="text-[11px] text-gray-500" data-testid="receipts-synced-at">
               {t('reports.receiptsSyncedAt', { time: syncedAtLabel })}
             </span>
           )}
-          {!readOnly && (
-            <div className="flex w-full items-center gap-2 sm:w-auto">
-              <Button
-                type="button"
-                onClick={handleSync}
-                disabled={!canSync}
-                className="min-h-[44px] flex-1 gap-2 text-xs font-semibold sm:flex-none"
-                data-testid="receipts-sync"
-              >
-                <Smartphone className="h-4 w-4" />
-                {t('reports.receiptsSync')}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => void load()}
-                disabled={loading}
-                aria-label={t('reports.receiptsRefresh')}
-                className="min-h-[44px] w-11 shrink-0"
-                data-testid="receipts-refresh"
-              >
-                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              </Button>
-            </div>
-          )}
         </div>
-      </div>
+      ) : (
+        <div className="mb-3 flex flex-col gap-2 border-b border-gray-200 pb-2 sm:flex-row sm:items-center sm:justify-between">
+          <h3 className="text-md font-semibold text-gray-800">{title}</h3>
+          <div className="flex flex-wrap items-center gap-2">
+            {syncedAtLabel && (
+              <span className="text-[11px] text-gray-500" data-testid="receipts-synced-at">
+                {t('reports.receiptsSyncedAt', { time: syncedAtLabel })}
+              </span>
+            )}
+            {!readOnly && (
+              <div className="flex w-full items-center gap-2 sm:w-auto">
+                <Button
+                  type="button"
+                  onClick={handleSync}
+                  disabled={!canSync}
+                  className="min-h-[44px] flex-1 gap-2 text-xs font-semibold sm:flex-none"
+                  data-testid="receipts-sync"
+                >
+                  <Smartphone className="h-4 w-4" />
+                  {t('reports.receiptsSync')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => void load()}
+                  disabled={loading}
+                  aria-label={t('reports.receiptsRefresh')}
+                  className="min-h-[44px] w-11 shrink-0"
+                  data-testid="receipts-refresh"
+                >
+                  <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       <p className="mb-3 text-xs text-gray-500">{t('reports.receiptsSubtitle')}</p>
       {!readOnly && !canSync && (
         <p className="mb-3 text-[11px] text-amber-800" data-testid="receipts-sync-hint">

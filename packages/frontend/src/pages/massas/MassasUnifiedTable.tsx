@@ -1,7 +1,8 @@
 import { useTranslation } from 'react-i18next';
-import { CloudUpload, Loader2, Smartphone } from 'lucide-react';
+import { CloudUpload, Loader2, Smartphone, UserPlus } from 'lucide-react';
 import { MassasBalanceBar } from './MassasBalanceBar';
 import {
+  canCreateOperatorRow,
   canImportRow,
   massasBalance,
   type AeroImportRequest,
@@ -31,6 +32,8 @@ interface MassasUnifiedTableProps {
   onSendToErp?: (row: MassasUnifiedRow) => void;
   onImport?: (request: AeroImportRequest) => void;
   importingEntLan?: number | null;
+  onCreateOperator?: (row: MassasUnifiedRow) => void;
+  creatingOperatorEntLan?: number | null;
   onToggleAck?: (row: MassasUnifiedRow) => void;
 }
 
@@ -67,6 +70,8 @@ export function MassasUnifiedTable({
   onSendToErp,
   onImport,
   importingEntLan = null,
+  onCreateOperator,
+  creatingOperatorEntLan = null,
   onToggleAck,
 }: MassasUnifiedTableProps) {
   const { t } = useTranslation();
@@ -144,6 +149,29 @@ export function MassasUnifiedTable({
                           {t('massas.unified.import', 'Importar')}
                         </button>
                       )}
+                    {row.state === 'erpOnly' &&
+                      onCreateOperator &&
+                      canCreateOperatorRow(row, { isAdmin }) && (
+                        <button
+                          type="button"
+                          onClick={() => onCreateOperator(row)}
+                          disabled={creatingOperatorEntLan === row.entLans[0] || deviceLimited}
+                          className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                          data-testid={`massas-create-operator-${row.entLans[0]}`}
+                        >
+                          {creatingOperatorEntLan === row.entLans[0] ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <UserPlus className="h-4 w-4" />
+                          )}
+                          {t('massas.unified.createOperator', { name: row.operatorName })}
+                        </button>
+                      )}
+                    {row.state === 'erpOnly' && !isAdmin && row.ownerUserId === null && row.importable && (
+                      <span className="max-w-[9rem] text-right text-[11px] text-gray-500">
+                        {t('massas.unified.operatorNotLinked', 'Operador não vinculado')}
+                      </span>
+                    )}
                     {/* The seat itself says why it cannot come in, whoever is reading: the reason is the
                         ERP's boxes, not the viewer's role. */}
                     {row.state === 'erpOnly' && !row.importable && (

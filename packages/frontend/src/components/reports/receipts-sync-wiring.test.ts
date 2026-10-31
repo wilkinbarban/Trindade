@@ -10,11 +10,14 @@ import { describe, it } from 'node:test';
  * stores the whole snapshot, and it counts only the supplies.
  */
 const section = readFileSync(new URL('./ReceiptsSection.tsx', import.meta.url), 'utf8');
+const helper = readFileSync(new URL('../../lib/aero-mirror.ts', import.meta.url), 'utf8');
 
 describe('receipts sync wiring', () => {
   it('hands the shortcut this page as the return, so the reporter never leaves the report', () => {
-    assert.ok(section.includes("aeroBridgeCallbackFor('movimentos', location.pathname)"));
-    assert.ok(section.includes('aeroMovementsEnvelope('));
+    // One sync wiring for the report's single button and for this section: it lives in the mirror module.
+    assert.ok(section.includes('triggerAeroMovementsSync(settings, { date, callbackPath: location.pathname })'));
+    assert.ok(helper.includes("aeroBridgeCallbackFor('movimentos', options.callbackPath)"));
+    assert.ok(helper.includes('aeroMovementsEnvelope('));
   });
 
   it('reads the same callback the launch screen reads, and only for the movements action', () => {

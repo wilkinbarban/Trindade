@@ -52,6 +52,8 @@ interface MassasCollectiveTableProps {
   onSendToErp?: (row: MassasUnifiedRow) => void;
   onImport?: (request: AeroImportRequest) => void;
   importingEntLan?: number | null;
+  onCreateOperator?: (row: MassasUnifiedRow) => void;
+  creatingOperatorEntLan?: number | null;
   onToggleAck?: (row: MassasUnifiedRow) => void;
 }
 
@@ -77,6 +79,8 @@ export function MassasCollectiveTable({
   onSendToErp,
   onImport,
   importingEntLan = null,
+  onCreateOperator,
+  creatingOperatorEntLan = null,
   onToggleAck,
 }: MassasCollectiveTableProps) {
   const { t } = useTranslation();
@@ -141,6 +145,8 @@ export function MassasCollectiveTable({
               onSendToErp={onSendToErp}
               onImport={onImport}
               importingEntLan={importingEntLan}
+              onCreateOperator={onCreateOperator}
+              creatingOperatorEntLan={creatingOperatorEntLan}
               onToggleAck={onToggleAck}
             />
           </CardContent>

@@ -12,11 +12,15 @@ import {
   QrCode,
   KeyRound,
   Download,
+  UserPlus,
+  CheckCircle2,
 } from 'lucide-react';
-import { api } from '../api/client';
+import { api, ApiClientError } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import { waMeLink, shareOrCopy } from '../lib/whatsapp';
 import { ModuleHelpModal } from '../components/ui/ModuleHelpModal';
+import { isNetworkError } from '../lib/api-error-normalizer';
+import { LoadingSpinner } from '../components/ui/loading-spinner';
 import {
   formatPhoneMask,
   toWhatsAppNumber,
@@ -203,13 +207,11 @@ export function ShareAppPage() {
   }, [waLink, platform, release, reloadToken]);
 
   /**
-   * Creates the worker the message is about, once per login.
+   * Creates the worker explicitly when the administrator clicks "+ Cadastrar Operário".
    *
-   * Sharing the credentials of an account that does not exist yet would send the operator to a login screen
-   * that refuses them, so the account is created before anything leaves the browser. The role is fixed: this
-   * screen hands out workers, and a select here would be a quiet way to grant an admin.
+   * The role is fixed: this screen hands out workers, and a select here would be a quiet way to grant an admin.
    */
-  const ensureWorkerCreated = async (): Promise<boolean> => {
+  const handleCreateWorker = async (): Promise<boolean> => {
     if (!isAdmin || !includeCredentials || credentialMode !== 'create') return true;
     const display_name = quickName.trim();
     const username = quickLogin.trim().toLowerCase();
@@ -221,7 +223,6 @@ export function ShareAppPage() {
       setCreateError(t('share.createUsernameRequired', 'Informe o nome de usuário do novo operário.'));
       return false;
     }
-    if (createdUsername === username) return true;
     setCreating(true);
     setCreateError('');
     try {
@@ -234,24 +235,49 @@ export function ShareAppPage() {
       setCreatedUsername(username);
       return true;
     } catch (err) {
-      const detail = err instanceof Error && err.message ? ` ${err.message}` : '';
-      setCreateError(
-        t('share.createError', 'Não foi possível criar o operário. Verifique se o usuário já existe.') + detail,
-      );
+      if (isNetworkError(err)) {
+        setCreateError(t('share.createNetworkError', 'Servidor inalcançável. Verifique sua conexão e tente novamente.'));
+      } else if (
+        err instanceof ApiClientError &&
+        (err.status === 409 ||
+          err.status === 400 ||
+          err.message.includes('userAlreadyExists') ||
+          err.message.includes('UNIQUE') ||
+          err.message.toLowerCase().includes('already'))
+      ) {
+        setCreateError(t('share.createUserAlreadyExists', 'Este nome de usuário já está em uso. Escolha outro login.'));
+      } else {
+        const detail = err instanceof Error && err.message ? `: ${err.message}` : '';
+        setCreateError(t('share.createServerError', 'Não foi possível cadastrar o operário.') + detail);
+      }
       return false;
     } finally {
       setCreating(false);
     }
   };
 
+  /**
+   * Verifies that the worker account was explicitly created before sharing credentials (S12).
+   * WhatsApp, Copy, and Share APK do not create accounts on their own.
+   */
+  const checkWorkerCreatedBeforeAction = (): boolean => {
+    if (!isAdmin || !includeCredentials || credentialMode !== 'create') return true;
+    const username = quickLogin.trim().toLowerCase();
+    if (createdUsername !== username) {
+      setCreateError(t('share.createRequiredBeforeSend', 'Cadastre o operário antes de compartilhar o acesso.'));
+      return false;
+    }
+    return true;
+  };
+
   const handleOpenWhatsApp = async () => {
     if (!waLink) return;
-    if (!(await ensureWorkerCreated())) return;
+    if (!checkWorkerCreatedBeforeAction()) return;
     window.open(waLink, '_blank', 'noopener,noreferrer');
   };
 
   const handleCopy = async () => {
-    if (!(await ensureWorkerCreated())) return;
+    if (!checkWorkerCreatedBeforeAction()) return;
     const outcome = await shareOrCopy(message);
     if (outcome === 'copied' || outcome === 'shared') {
       setCopied(true);
@@ -260,7 +286,7 @@ export function ShareAppPage() {
   };
 
   const handleShareApk = async () => {
-    if (!(await ensureWorkerCreated())) return;
+    if (!checkWorkerCreatedBeforeAction()) return;
     setSharingApk(true);
     setDownloadedNotice(false);
     try {
@@ -513,6 +539,40 @@ export function ShareAppPage() {
                       <p className="text-[11px] text-gray-500">
                         {t('share.quickPasswordHint', 'A senha é gerada com o usuário e enviada junto com as instruções.')}
                       </p>
+
+                      <div className="pt-1">
+                        <Button
+                          type="button"
+                          onClick={() => void handleCreateWorker()}
+                          disabled={creating || (Boolean(createdUsername) && createdUsername === quickLogin.trim().toLowerCase())}
+                          className="w-full sm:w-auto min-h-[44px] bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+                          data-testid="share-create-worker-btn"
+                        >
+                          {creating ? (
+                            <>
+                              <LoadingSpinner className="h-4 w-4 mr-2" />
+                              {t('share.creatingWorker', 'Criando operário...')}
+                            </>
+                          ) : (
+                            <>
+                              <UserPlus className="h-4 w-4 mr-2" />
+                              {t('share.createWorkerAction', '+ Cadastrar Operário')}
+                            </>
+                          )}
+                        </Button>
+                      </div>
+
+                      {createdUsername === quickLogin.trim().toLowerCase() && (
+                        <div
+                          role="status"
+                          className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold text-emerald-800"
+                          data-testid="share-create-success"
+                        >
+                          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+                          <span>{t('share.createSuccess', 'Operário cadastrado com sucesso! A conta está habilitada para uso.')}</span>
+                        </div>
+                      )}
+
                       {createError && (
                         <p className="text-xs text-red-600" role="alert" data-testid="share-quick-error">
                           {createError}

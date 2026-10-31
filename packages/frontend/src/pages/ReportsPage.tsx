@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useState, useCallback, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { LucideImage, LucideTrash2, LucideUpload } from 'lucide-react';
+import { LucideImage, LucideTrash2, LucideUpload, RefreshCw } from 'lucide-react';
 import { api, ApiClientError } from '../api/client';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -17,6 +17,8 @@ import { hasTemperatureTasks } from '../lib/report-sections';
 import { MassasReportSection } from '../components/reports/MassasReportSection';
 import { ERP_RECEIPT_CATEGORY_ID, usesErpReceipts } from '../lib/receipts';
 import { saoPauloToday } from '../lib/date';
+import { aeroSettingsReady, loadAeroSettings } from '../lib/aero-integration';
+import { triggerAeroMovementsSync } from '../lib/aero-mirror';
 
 
 interface PendingPhoto {
@@ -32,6 +34,7 @@ const ALLOWED_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 export function ReportsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [categories, setCategories] = useState<CategoryType[]>([]);
   const [turno, setTurno] = useState<'tarde' | 'noite'>('tarde');
@@ -47,6 +50,12 @@ export function ReportsPage() {
   const [photoError, setPhotoError] = useState('');
   const [pendingPhotos, setPendingPhotos] = useState<PendingPhoto[]>([]);
   const [createdReportId, setCreatedReportId] = useState<number | null>(null);
+  const [movementsRefreshKey, setMovementsRefreshKey] = useState(0);
+  // Company access is a device setting, read once: without it the button refreshes the day it already read
+  // instead of promising a sync it cannot start.
+  const aeroSettings = useMemo(() => loadAeroSettings(), []);
+  const canSyncErp = aeroSettingsReady(aeroSettings);
+
   /**
    * The day the report is about, read once.
    *
@@ -54,6 +63,15 @@ export function ReportsPage() {
    * leave the massas of one day beside the receipts of another.
    */
   const reportDate = useMemo(() => saoPauloToday(), []);
+
+  const handleSyncErpMovements = useCallback(() => {
+    const fired = triggerAeroMovementsSync(aeroSettings, { date: reportDate, callbackPath: location.pathname });
+    if (!fired) setMovementsRefreshKey((key) => key + 1);
+  }, [aeroSettings, location.pathname, reportDate]);
+
+  const handleMovementsSynced = useCallback(() => {
+    setMovementsRefreshKey((k) => k + 1);
+  }, []);
 
   useEffect(() => {
     if (error) {
@@ -252,12 +270,36 @@ export function ReportsPage() {
   }
 
   // ---- Loading / Error states ----
-  // A produção do dia, dos dois lados que a registram. Uma definição só, porque ela aparece no mesmo lugar
-  // em dois caminhos: debaixo de Temperaturas quando o relatório tem essa categoria, e no topo quando não tem.
+  // S5, S6, S8: Movimentações do ERP (Massas e Recebimento) num só card com botão de sincronização único.
   const massasCard = (
     <Card className="mb-6" data-testid="report-massas-card">
-      <CardContent className="pt-6">
-        <MassasReportSection date={reportDate} />
+      <CardHeader className="flex flex-row items-center justify-between pb-3">
+        <CardTitle>{t('reports.erpMovementsTitle', 'Movimentações do ERP (Massas e Recebimento)')}</CardTitle>
+        <Button
+          type="button"
+          onClick={handleSyncErpMovements}
+          className="min-h-[44px] gap-2 text-xs font-semibold"
+          data-testid="erp-movements-sync"
+          aria-label={
+            canSyncErp ? t('massas.syncHeader.action', 'Sincronizar com ERP') : t('reports.receiptsRefresh', 'Atualizar')
+          }
+        >
+          <RefreshCw className="h-4 w-4" />
+          {canSyncErp ? t('massas.syncHeader.action', 'Sincronizar com ERP') : t('reports.receiptsRefresh', 'Atualizar')}
+        </Button>
+      </CardHeader>
+      <CardContent className="pt-2 space-y-6">
+        <MassasReportSection date={reportDate} hideRefresh refetchKey={movementsRefreshKey} />
+        {usesErpReceipts(reportDate) && (
+          <div className="border-t border-gray-100 pt-6">
+            <ReceiptsSection
+              date={reportDate}
+              hideHeader
+              refetchKey={movementsRefreshKey}
+              onSynced={handleMovementsSynced}
+            />
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -339,27 +381,23 @@ export function ReportsPage() {
         {!massasAfterCategories && massasCard}
 
         {categories.filter((cat) => !cat.parent_category_id).map((cat) => (
-          <Fragment key={cat.id}>
-            <Card className="mb-6">
-              <CardContent className="pt-6">
-                {cat.id === ERP_RECEIPT_CATEGORY_ID && usesErpReceipts(saoPauloToday()) ? (
-                  // Recebimento já não se marca: o ERP responde pelo dia. O relatório novo nunca é de um dia
-                  // anterior ao corte, porque o servidor carimba a data de hoje.
-                  <ReceiptsSection date={reportDate} />
-                ) : (
-                <CategorySection
-                  category={cat}
-                  children={categories.filter((child) => child.parent_category_id === cat.id)}
-                  form={form}
-                  onItemChange={handleItemChange}
-                  onTemperatureChange={handleTemperatureChange}
-                  onSelectedProductsChange={handleSelectedProductsChange}
-                />
-                )}
-              </CardContent>
-            </Card>
-            {hasTemperatureTasks(cat) && massasCard}
-          </Fragment>
+          cat.id === ERP_RECEIPT_CATEGORY_ID && usesErpReceipts(saoPauloToday()) ? null : (
+            <Fragment key={cat.id}>
+              <Card className="mb-6">
+                <CardContent className="pt-6">
+                  <CategorySection
+                    category={cat}
+                    children={categories.filter((child) => child.parent_category_id === cat.id)}
+                    form={form}
+                    onItemChange={handleItemChange}
+                    onTemperatureChange={handleTemperatureChange}
+                    onSelectedProductsChange={handleSelectedProductsChange}
+                  />
+                </CardContent>
+              </Card>
+              {hasTemperatureTasks(cat) && massasCard}
+            </Fragment>
+          )
         ))}
 
         {/* Notes */}

@@ -52,18 +52,44 @@ export function reconciledLaunchIds(rows: readonly MassasUnifiedRow[] | undefine
 /**
  * Whether this viewer may import this seat.
  *
- * The backend refuses a seat that belongs to somebody else, and this is the same rule asked one step
- * earlier, on the row: a button a worker can only fail with is worse than no button. `ownerUserId === null`
- * is an owner nobody here can prove, so it stays an administrator's -- not the viewer's by default.
+ * S14: If `row.ownerUserId === null`, nobody can import it yet (not even an administrator):
+ * the seat must have a linked Trindade operator first. If `row.ownerUserId !== null`, an administrator
+ * can import it or the worker who owns it can import it.
  */
 export function canImportRow(
   row: Pick<MassasUnifiedRow, 'state' | 'importable' | 'ownerUserId'>,
   viewer: { userId?: number | null; isAdmin?: boolean },
 ): boolean {
   if (row.state !== 'erpOnly' || !row.importable) return false;
+  if (row.ownerUserId === null) return false;
   if (viewer.isAdmin) return true;
-  if (row.ownerUserId === null || viewer.userId === null || viewer.userId === undefined) return false;
+  if (viewer.userId === null || viewer.userId === undefined) return false;
   return row.ownerUserId === viewer.userId;
+}
+
+/**
+ * Whether the viewer is offered the inline button to create the operator from the seat (S16, S19).
+ *
+ * Only an administrator, and only for an `erpOnly` seat whose operator is not linked yet (`ownerUserId === null`).
+ */
+export function canCreateOperatorRow(
+  row: Pick<MassasUnifiedRow, 'state' | 'ownerUserId'>,
+  viewer: { isAdmin?: boolean },
+): boolean {
+  return Boolean(viewer.isAdmin) && row.state === 'erpOnly' && row.ownerUserId === null;
+}
+
+/**
+ * Formats an uppercase operator name from ERP into a clean display name (e.g. "JEFFERSON" -> "Jefferson", "JOAO H" -> "Joao H").
+ */
+export function deriveDisplayName(operatorName: string): string {
+  const trimmed = String(operatorName ?? '').trim();
+  if (!trimmed) return 'Operário';
+  return trimmed
+    .toLowerCase()
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 }
 
 export interface MassasUnifiedInput {

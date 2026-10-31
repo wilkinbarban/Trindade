@@ -4,7 +4,6 @@ import { RefreshCw } from 'lucide-react';
 import { api } from '../../api/client';
 import { Button } from '../ui/button';
 import { LoadingSpinner } from '../ui/loading-spinner';
-import { MassasBalanceBar } from '../../pages/massas/MassasBalanceBar';
 
 /** One product's share of an operator's day, as the report counts it. */
 export interface MassasReportOperatorProduct {
@@ -56,6 +55,8 @@ export interface MassasReportDay {
 interface MassasReportSectionProps {
   /** The day the report describes; the card answers that day even when it is not today. */
   date: string;
+  hideRefresh?: boolean;
+  refetchKey?: number;
 }
 
 /**
@@ -67,7 +68,7 @@ interface MassasReportSectionProps {
  *
  * It is read-only in both screens: this is what the report will say, not a second place to type launches.
  */
-export function MassasReportSection({ date }: MassasReportSectionProps) {
+export function MassasReportSection({ date, hideRefresh = false, refetchKey }: MassasReportSectionProps) {
   const { t } = useTranslation();
   const [day, setDay] = useState<MassasReportDay | null>(null);
   const [loading, setLoading] = useState(true);
@@ -88,7 +89,7 @@ export function MassasReportSection({ date }: MassasReportSectionProps) {
 
   useEffect(() => {
     void load();
-  }, [load]);
+  }, [load, refetchKey]);
 
   const operators = day?.operators ?? [];
   const activeProducts = (day?.products ?? []).filter((product) => product.totalUnits > 0);
@@ -110,18 +111,20 @@ export function MassasReportSection({ date }: MassasReportSectionProps) {
             </p>
           )}
         </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => void load()}
-          disabled={loading}
-          aria-label={t('reports.massasRefresh', 'Atualizar massas')}
-          data-testid="massas-report-refresh"
-          className="min-h-[44px] min-w-[44px] shrink-0"
-        >
-          <RefreshCw className={loading ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />
-        </Button>
+        {!hideRefresh && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => void load()}
+            disabled={loading}
+            aria-label={t('reports.massasRefresh', 'Atualizar massas')}
+            data-testid="massas-report-refresh"
+            className="min-h-[44px] min-w-[44px] shrink-0"
+          >
+            <RefreshCw className={loading ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />
+          </Button>
+        )}
       </div>
 
       {loading && !day && (
@@ -134,17 +137,6 @@ export function MassasReportSection({ date }: MassasReportSectionProps) {
         <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {t('reports.massasError', 'Não foi possível ler as massas do dia.')}
         </p>
-      )}
-
-      {day && (
-        // The day's accounting, not the rows on screen: Produzido comes from the plant, No ERP from the seats
-        // the company recorded, and the difference is the figure the supervisor has to explain.
-        <MassasBalanceBar
-          produced={day.balance.producedUnits}
-          registered={day.balance.registeredUnits}
-          difference={day.balance.differenceUnits}
-          testId="massas-report-balance"
-        />
       )}
 
       {day && operators.length === 0 && (

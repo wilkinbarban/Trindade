@@ -28,14 +28,11 @@ describe('massas report section wiring', () => {
     assert.equal(reportsPage.includes('date={saoPauloToday()}'), false);
   });
 
-  it('shows the same balance bar the launch screen draws', () => {
-    // Produzido, No ERP and the difference with the sign's colour: the supervisor reads the same three numbers
-    // on the report and on Produção do dia, drawn by one component instead of two copies that drift.
-    assert.ok(section.includes('testId="massas-report-balance"'));
-    assert.ok(section.includes("from '../../pages/massas/MassasBalanceBar'"));
-    assert.ok(balanceBar.includes('massas.balance.produced'));
-    assert.ok(balanceBar.includes('massas.balance.registered'));
-    assert.ok(balanceBar.includes('massas.balance.difference'));
+  it('does not show the comparative balance bar on the report (Q1, S5)', () => {
+    // Q1: The balance bar is removed from the Relatório because it is 100% ERP data.
+    // The comparative bar belongs exclusively to Lançamento de Massas.
+    assert.equal(section.includes('testId="massas-report-balance"'), false);
+    assert.equal(section.includes('MassasBalanceBar'), false);
   });
 
   it("mounts on the report being read, with that report's own day", () => {

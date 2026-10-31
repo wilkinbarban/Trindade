@@ -1,8 +1,12 @@
 import {
+  aeroBridgeCallbackFor,
+  aeroSettingsReady,
   buildAeroBridgeEnvelope,
+  buildAeroBridgeTriggerUrl,
   buildMovimentoItemPayload,
   type AeroBridgeEnvelope,
   type AeroErpMovementItem,
+  type AeroSettings,
 } from './aero-integration';
 
 /**
@@ -27,6 +31,42 @@ export interface AeroMovementSnapshot {
  * factory's and any operator may have launched them. `ENTSAI: 'E'` because Trindade only records entries;
  * a stock exit is the company's business and has nothing here to reconcile against.
  */
+export interface AeroMovementsSyncOptions {
+  /** The day to ask for. */
+  date: string;
+  /** Where the shortcut comes back; the page the operator was on. */
+  callbackPath: string;
+  /** How the shortcut is launched. The page assigns `location.href`; a test records the URL instead. */
+  navigate?: (url: string) => void;
+}
+
+/**
+ * Asks the company for a day of movements, or says it cannot.
+ *
+ * The report has one sync button for both blocks, so the wiring lives here once: the button, the receipts
+ * section and the launch screen all fire the same envelope, and the caller learns whether anything was
+ * launched. A device without company access gets `false` and refreshes what it already read instead of
+ * showing a spinner for a request that never started.
+ */
+export function triggerAeroMovementsSync(settings: AeroSettings, options: AeroMovementsSyncOptions): boolean {
+  if (!aeroSettingsReady(settings)) return false;
+  const envelope = aeroMovementsEnvelope({
+    wsUrl: settings.wsUrl,
+    username: settings.username,
+    password: settings.password,
+    date: options.date,
+    userName: null,
+    callbackUrl: aeroBridgeCallbackFor('movimentos', options.callbackPath),
+  });
+  const url = buildAeroBridgeTriggerUrl({ name: settings.shortcutName, envelope });
+  if (options.navigate) {
+    options.navigate(url);
+  } else {
+    window.location.href = url;
+  }
+  return true;
+}
+
 export function aeroMovementsEnvelope(args: {
   wsUrl: string;
   username: string;

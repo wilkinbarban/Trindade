@@ -116,10 +116,25 @@ test('resolveApiErrorKey: every massas code has a translation, none falls throug
     'MASSAS_ALREADY_IMPORTED',
     'MASSAS_UPDATE_FAILED',
     'MASSAS_DELETE_FAILED',
+    'MASSAS_OPERATOR_NOT_LINKED',
+    'MASSAS_OPERATOR_INACTIVE',
   ];
   for (const code of codes) {
     assert.ok(resolveApiErrorKey(400, '', code), `${code} has no key`);
   }
+});
+
+test('resolveApiErrorKey: operator link and inactive operator refusals are translated', () => {
+  assert.equal(resolveApiErrorKey(409, '', 'MASSAS_OPERATOR_NOT_LINKED'), 'massas.error.operatorNotLinked');
+  assert.equal(resolveApiErrorKey(409, '', 'MASSAS_OPERATOR_INACTIVE'), 'massas.error.operatorInactive');
+  assert.equal(
+    resolveApiErrorKey(409, 'O operador deste lançamento do ERP não está vinculado no Trindade: cadastre o operário antes de importar'),
+    'massas.error.operatorNotLinked',
+  );
+  assert.equal(
+    resolveApiErrorKey(409, 'O operador deste lançamento do ERP está inativo no Trindade: reative o operário antes de importar'),
+    'massas.error.operatorInactive',
+  );
 });
 
 test('resolveApiErrorKey: the ERP mirror refusals on the same screen are translated too', () => {
