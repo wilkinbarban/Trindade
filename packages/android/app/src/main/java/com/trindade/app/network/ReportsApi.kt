@@ -129,6 +129,9 @@ interface ReportsApi {
     @GET("api/reports/{id}")
     suspend fun report(@Path("id") id: Int): Response<ReportResponse>
 
+    @GET("api/reports/receipts")
+    suspend fun receipts(@Query("date") date: String): Response<com.trindade.app.contract.models.ReportReceipts>
+
     @POST("api/reports")
     suspend fun createReport(@Body body: CreateReportRequest): Response<ReportResponse>
 

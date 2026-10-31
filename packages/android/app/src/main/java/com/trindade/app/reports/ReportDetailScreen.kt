@@ -66,6 +66,7 @@ fun ReportDetailScreen(
     onShareExport: () -> Unit,
     onEdit: () -> Unit,
     onBack: () -> Unit,
+    onSyncErp: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -154,9 +155,14 @@ fun ReportDetailScreen(
             }
         }
 
-        // Right under the temperatures, where the operator who just read them looks for the day's count.
+        // Right under the temperatures, the unified ERP movements card (massas and receipts).
         item {
-            MassasDayCard(day = state.massasDay)
+            ErpMovementsCard(
+                massasDay = state.massasDay,
+                receipts = state.receipts,
+                isSyncing = state.isSyncingErp,
+                onSync = onSyncErp,
+            )
         }
 
         item {
@@ -293,5 +299,6 @@ fun ReportDetailRoute(
         onShareExport = viewModel::shareExport,
         onEdit = onEdit,
         onBack = onBack,
+        onSyncErp = viewModel::syncErp,
     )
 }

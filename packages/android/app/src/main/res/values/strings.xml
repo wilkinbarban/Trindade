@@ -708,6 +708,9 @@
     <string name="share_create_duplicated">Já existe um usuário com esse login. Escolha outro.</string>
     <string name="share_create_refused">Não foi possível criar o operário.</string>
     <string name="share_create_unreachable">Sem conexão com o servidor. Tente novamente.</string>
+    <string name="share_create_button">+ Cadastrar Operário</string>
+    <string name="share_create_success">Operário cadastrado com sucesso!</string>
+    <string name="share_create_required">Cadastre o operário antes de compartilhar.</string>
     <string name="share_select_user">Selecionar usuário</string>
     <string name="share_select_user_placeholder">Selecione um usuário</string>
     <string name="share_initial_password">Senha inicial</string>
@@ -894,6 +897,15 @@
     <string name="report_massas_day_empty">Nenhum lançamento registrado.</string>
     <string name="report_massas_day_operators">Operadores: %1$d</string>
     <string name="report_massas_day_balance">Balanço: %1$s</string>
+    <!-- Reports: unified ERP movements card (massas and receipts). -->
+    <string name="report_erp_movements_title">Movimentações do ERP (Massas e Recebimento)</string>
+    <string name="report_erp_sync">Sincronizar com ERP</string>
+    <string name="report_receipts_title">Recebimento de Insumos</string>
+    <string name="report_receipts_empty">Nenhum insumo recebido no dia.</string>
+    <string name="report_receipts_units">%1$s un</string>
+    <string name="report_erp_sync_success">Movimentações do ERP sincronizadas.</string>
+    <string name="report_erp_sync_failed">Falha ao sincronizar com ERP: %1$s</string>
+    <string name="report_erp_not_configured">Configure a integração com o ERP em Administração antes de sincronizar.</string>
     <!-- Unified massas table: the three states one day can have. -->
     <string name="massas_empty_day">Nenhum lançamento neste dia.</string>
     <string name="massas_unified_title">Produção do dia</string>
@@ -903,6 +915,12 @@
     <string name="massas_action_send">Enviar</string>
     <string name="massas_action_on_tablet">Já na tablet</string>
     <string name="massas_action_import">Importar</string>
+    <string name="massas_action_create_operator">+ Criar Operário: %1$s</string>
+    <string name="massas_error_operator_not_linked">O operador deste lançamento do ERP não está vinculado no Trindade: cadastre o operário antes de importar</string>
+    <string name="massas_error_operator_inactive">O operador deste lançamento do ERP está inativo no Trindade: reative o operário antes de importar</string>
+    <string name="massas_operator_not_linked">Operador não vinculado</string>
+    <string name="massas_operator_inactive">Operador inativo</string>
+    <string name="massas_operator_created">Operário %1$s criado com sucesso.</string>
     <string name="massas_balance_missing">Faltam %1$d caixa(s) no ERP</string>
     <string name="massas_balance_extra">%1$d caixa(s) só no ERP</string>
     <string name="massas_balance_even">Tudo conciliado</string>

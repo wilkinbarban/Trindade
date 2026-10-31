@@ -2,6 +2,7 @@ package com.trindade.app.massas
 
 import androidx.lifecycle.viewModelScope
 import com.trindade.app.R
+import com.trindade.app.admin.UsersRepository
 import com.trindade.app.auth.AuthRepository
 import com.trindade.app.aero.AERO_DEFAULT_WS_URL
 import com.trindade.app.aero.AeroDispatcher
@@ -9,10 +10,15 @@ import com.trindade.app.aero.AeroSettings
 import com.trindade.app.aero.AeroTestResult
 import com.trindade.app.aero.AeroWriteResult
 import com.trindade.app.auth.TokenStore
+import com.trindade.app.contract.models.AdminUserResponse
+import com.trindade.app.contract.models.AdminUserResponseUser
+import com.trindade.app.contract.models.AdminUsersResponse
+import com.trindade.app.network.AdminApi
 import com.trindade.app.network.AuthApi
 import com.trindade.app.network.MassaIndividualLaunch
 import com.trindade.app.network.MassasApi
 import com.trindade.app.network.MassasLaunchDayView
+import kotlinx.serialization.json.JsonObject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
@@ -72,6 +78,14 @@ class MassasLaunchViewModelTest {
         }
     }
 
+    /**
+     * Every view model the test built, in the order it was built.
+     *
+     * A test may build more than one (`testVm`, a second one for a refusal), and each starts its own scope and
+     * its own poll. Cancelling only the field left the others running into the next test's dispatcher reset.
+     */
+    private val createdViewModels = mutableListOf<MassasLaunchViewModel>()
+
     @OptIn(ExperimentalCoroutinesApi::class)
     @Before
     fun setUp() {
@@ -99,13 +113,14 @@ class MassasLaunchViewModelTest {
     @OptIn(ExperimentalCoroutinesApi::class)
     @After
     fun tearDown() {
-        // The view model polls on its own scope from the moment it is constructed, and nothing clears it
-        // here. A poll that is still in flight when the test ends resumes on `Dispatchers.Main` while the
-        // next test's tearDown resets it, and kotlinx-coroutines-test answers that overlap with
-        // `IllegalStateException: Dispatchers.Main is used concurrently with setting it` -- the failure
-        // this class produced in CI while passing on a slower machine. Cancelling the scope first stops the
+        // The view models poll on their own scopes from the moment they are constructed, and nothing clears
+        // them here. A poll still in flight when the test ends resumes on `Dispatchers.Main` while the next
+        // test's tearDown resets it, and kotlinx-coroutines-test answers that overlap with
+        // `IllegalStateException: Dispatchers.Main is used concurrently with setting it` -- the failure this
+        // class produced in CI while passing on a slower machine. Cancelling every scope first stops the
         // polling before the server it talks to goes away, so both the shutdown and the reset run alone.
-        viewModel.viewModelScope.cancel()
+        createdViewModels.forEach { it.viewModelScope.cancel() }
+        createdViewModels.clear()
         server.shutdown()
         Dispatchers.resetMain()
     }
@@ -180,13 +195,17 @@ class MassasLaunchViewModelTest {
         assertEquals(listOf("1045"), sent.items.map { it.productCode })
     }
 
-    private fun newViewModel(repository: MassasRepository) = MassasLaunchViewModel(
+    private fun newViewModel(
+        repository: MassasRepository,
+        usersRepository: UsersRepository? = null,
+    ) = MassasLaunchViewModel(
         repository = repository,
         authRepository = authRepository,
         aeroSettingsStore = settingsPort,
         aeroDispatcher = AeroDispatcher(erpPort, mirrorPort),
         tabletAckStore = ackPort,
-    )
+        usersRepository = usersRepository,
+    ).also { createdViewModels += it }
 
     @Test
     fun saopauloToday_matchesDateFormat() {
@@ -589,6 +608,7 @@ class MassasLaunchViewModelTest {
     ) : MassasRepository(api) {
         var created: List<MassaIndividualLaunch> = emptyList()
         var lastCreate: com.trindade.app.network.CreateMassasLaunchRequest? = null
+        var createResult: MassasWriteResult? = null
 
         override suspend fun day(date: String): MassasLaunchDayView? = view
 
@@ -607,7 +627,7 @@ class MassasLaunchViewModelTest {
             operatorName = operatorName,
             items = items,
         ).also { lastCreate = it }.let { sent ->
-            MassasWriteResult.Saved(
+            createResult ?: MassasWriteResult.Saved(
                 view = view ?: MassasLaunchDayView(date = date),
                 created = created,
             )
@@ -795,5 +815,89 @@ class MassasLaunchViewModelTest {
         assertEquals(1, mirrorPort.snapshots.size)
         assertNull(testVm.state.value.errorMessage)
         assertNotNull(settingsPort.syncedAt(testVm.state.value.date))
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun createOperatorFromSeat_createsUserWithRole2AndRefreshesMirror() = runTest {
+        val repo = DayRepository(massasApi, dayWith())
+        val createdUsers = mutableListOf<JsonObject>()
+        val adminApi = object : com.trindade.app.admin.FakeAdminApi() {
+            override suspend fun createUser(body: JsonObject): retrofit2.Response<AdminUserResponse> {
+                createdUsers.add(body)
+                val user = AdminUserResponseUser(
+                    id = 42,
+                    username = body["username"].toString().trim('"'),
+                    displayName = body["display_name"].toString().trim('"'),
+                    roleId = 2,
+                    roleName = "Trabalhador",
+                    isActive = 1,
+                    createdAt = "now",
+                )
+                return retrofit2.Response.success(AdminUserResponse(user))
+            }
+        }
+        val usersRepo = UsersRepository(adminApi)
+        val testVm = newViewModel(repo, usersRepository = usersRepo)
+        testScheduler.runCurrent()
+
+        val unlinkedRow = MassasUnifiedRow(
+            key = "seat-35952",
+            state = MassasRowState.ERP_ONLY,
+            operatorName = "JEFFERSON",
+            operatorKey = "jefferson",
+            productCode = "1192",
+            productName = "MASSA DE PASTEL 500G",
+            boxes = 1,
+            units = 12,
+            launchIds = emptyList(),
+            entLans = listOf(35952),
+            importable = true,
+            tabletAcked = false,
+            ownerUserId = null,
+        )
+
+        testVm.createOperatorFromSeat(unlinkedRow)
+        testScheduler.runCurrent()
+
+        assertEquals(1, createdUsers.size)
+        val created = createdUsers.first()
+        assertEquals("jefferson", created["username"]?.toString()?.trim('"'))
+        assertEquals("Jefferson", created["display_name"]?.toString()?.trim('"'))
+        assertEquals("jefferson123456", created["password"]?.toString()?.trim('"'))
+        assertEquals("2", created["role_id"]?.toString())
+        assertEquals(R.string.massas_operator_created, testVm.state.value.noticeMessage?.resId)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun importErpSeat_whenRefusedInactive_recordsInactiveOperatorAndShowsMessage() = runTest {
+        val stored = com.trindade.app.network.AeroMovementsStoredDay(
+            date = MassasLaunchViewModel.saopauloToday(),
+            movements = listOf(
+                com.trindade.app.network.AeroStoredMovement(
+                    entLan = 35953,
+                    productCode = "1045",
+                    productDesc = "MASSA CASEIRA",
+                    quantity = 20.0,
+                    entryDate = MassasLaunchViewModel.saopauloToday(),
+                    operatorName = "INATIVO",
+                    movementType = "E",
+                ),
+            ),
+        )
+        val repo = DayRepository(massasApi, dayWith(), stored)
+        repo.createResult = MassasWriteResult.Refused(409, "MASSAS_OPERATOR_INACTIVE", "Operador inativo")
+        val testVm = newViewModel(repo)
+        testVm.refresh()
+        advanceUntilIdle()
+
+        val row = testVm.state.value.unifiedRows.first { it.operatorName == "INATIVO" }
+
+        testVm.importErpSeat(row)
+        advanceUntilIdle()
+
+        assertTrue(testVm.state.value.inactiveOperators.contains("INATIVO"))
+        assertEquals(R.string.massas_error_operator_inactive, testVm.state.value.errorMessage?.resId)
     }
 }

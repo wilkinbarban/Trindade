@@ -49,6 +49,7 @@ val BrandOnErrorContainer = Color(0xFF410002)
 // rest of the palette, and not as a literal inside a component, so the whole app keeps one rule: a hex
 // colour exists in this file and nowhere else.
 val HelpAmber = Color(0xFFD97706)
+val SuccessGreen = Color(0xFF2E7D32)
 
 val BrandSurfaceContainer = Color(0xFFFBEBE8)
 val BrandSurfaceContainerHigh = Color(0xFFF5E5E2)

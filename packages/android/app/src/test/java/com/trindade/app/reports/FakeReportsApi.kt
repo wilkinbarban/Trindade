@@ -83,6 +83,7 @@ class FakeReportsApi(
     private val photosToReturn: List<PhotosResponsePhotosInner> = emptyList(),
     private val exportToReturn: String = "CRONOGRAMA DE CARREGAMENTO",
     private val attachResponse: Response<PhotoResponse> = Response.success(PhotoResponse(photo = aPhoto())),
+    var receiptsToReturn: com.trindade.app.contract.models.ReportReceipts? = null,
     /**
      * What a deactivation answers. 200 with a body in practice; the fake never reads the body either.
      */
@@ -154,6 +155,10 @@ class FakeReportsApi(
 
     override suspend fun report(id: Int): Response<ReportResponse> =
         reportToReturn?.let { Response.success(ReportResponse(report = it)) }
+            ?: Response.error(404, EMPTY_BODY)
+
+    override suspend fun receipts(date: String): Response<com.trindade.app.contract.models.ReportReceipts> =
+        receiptsToReturn?.let { Response.success(it) }
             ?: Response.error(404, EMPTY_BODY)
 
     override suspend fun history(

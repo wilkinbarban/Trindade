@@ -18,6 +18,8 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.trindade.app.R
 import com.trindade.app.contract.models.MassasReportDayView
+import com.trindade.app.contract.models.ReportReceipts
+import com.trindade.app.contract.models.ReportReceiptsReceiptsInner
 import com.trindade.app.contract.models.ReportResponseReport
 import com.trindade.app.ui.theme.TrindadeTheme
 import java.math.BigDecimal
@@ -113,6 +115,7 @@ class ReportDetailScreenTest {
     private fun state(
         report: ReportResponseReport,
         massasDay: MassasReportDayView? = null,
+        receipts: ReportReceipts? = null,
     ) = ReportDetailViewModel.UiState(
         reportId = report.id,
         loading = false,
@@ -123,6 +126,7 @@ class ReportDetailScreenTest {
         loadingExport = false,
         message = null,
         massasDay = massasDay,
+        receipts = receipts,
     )
 
     /**
@@ -237,8 +241,10 @@ class ReportDetailScreenTest {
 
         // The card is permanent and by date, so a day with nothing recorded still says so rather than
         // leaving a blank space where the operator expects the production of that day.
+        composeRule.onNodeWithText(copy(R.string.report_erp_movements_title)).assertIsDisplayed()
         composeRule.onNodeWithText(copy(R.string.report_massas_day_title)).assertIsDisplayed()
         composeRule.onNodeWithText(copy(R.string.report_massas_day_empty)).assertIsDisplayed()
+        composeRule.onNodeWithText(copy(R.string.report_receipts_title)).assertIsDisplayed()
     }
 
     /**

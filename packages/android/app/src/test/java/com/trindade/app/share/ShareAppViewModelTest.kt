@@ -167,7 +167,7 @@ class ShareAppViewModelTest {
         assertTrue(link!!.startsWith("https://api.whatsapp.com/send?phone=5511988887777&text="))
     }
     @Test
-    fun `a new worker is created with the derived login, the generated password and the worker role`() {
+    fun `a new worker is explicitly created with the derived login, generated password, worker role, and success feedback`() {
         val adminApi = FakeAdminApi(fixtureUsers)
         val authRepo = AuthRepository(FakeAuthApi(role = "Administrador", userId = 1), FakeTokenStore("Administrador"), Json)
         val vm = ShareAppViewModel(authRepo, UsersRepository(adminApi))
@@ -185,7 +185,8 @@ class ShareAppViewModelTest {
         assertTrue(preview.contains("Usuário: *pedro*"))
         assertTrue(preview.contains("Senha: *pedro1234567890*"))
 
-        kotlinx.coroutines.runBlocking { vm.ensureWorkerCreated() }
+        // Explicit creation via button (S9, S11)
+        vm.createWorker()
 
         assertEquals(1, adminApi.created.size)
         val body = adminApi.created.first()
@@ -195,20 +196,58 @@ class ShareAppViewModelTest {
         // The role travels as a JSON number, which is what the backend schema refuses to read otherwise.
         assertEquals("2", body["role_id"]?.toString())
         assertEquals("pedro", vm.state.value.createdUsername)
+        assertTrue(vm.state.value.createSuccess)
+        assertTrue(vm.isWorkerRegistered())
     }
 
     @Test
-    fun `sharing twice does not create the same worker twice`() {
+    fun `a worker the company already has counts as registered and is not created again`() {
+        // The login the derivation produces for "Joao Silva" is joaosilva, and this plant already has it.
+        val known = AdminUserResponseUser(3, "joaosilva", "Joao Silva", 2, "Trabalhador", 1, "now")
+        val adminApi = FakeAdminApi(fixtureUsers + known)
+        val authRepo = AuthRepository(FakeAuthApi(role = "Administrador", userId = 1), FakeTokenStore("Administrador"), Json)
+        val vm = ShareAppViewModel(authRepo, UsersRepository(adminApi))
+
+        // Joao Silva already works here: the login exists, so the credentials in the message work too.
+        vm.onQuickNameChange("Joao Silva")
+
+        assertTrue(vm.isWorkerRegistered())
+        assertTrue(kotlinx.coroutines.runBlocking { vm.ensureWorkerCreated() })
+        assertEquals(0, adminApi.created.size)
+
+        vm.createWorker()
+
+        // Asking to register a login that exists answers with the green confirmation instead of a 409.
+        assertTrue(vm.state.value.createSuccess)
+        assertEquals("joaosilva", vm.state.value.createdUsername)
+        assertEquals(0, adminApi.created.size)
+    }
+
+    @Test
+    fun `sharing or copying without prior explicit creation is refused and asks for registration`() {
         val adminApi = FakeAdminApi(fixtureUsers)
         val authRepo = AuthRepository(FakeAuthApi(role = "Administrador", userId = 1), FakeTokenStore("Administrador"), Json)
         val vm = ShareAppViewModel(authRepo, UsersRepository(adminApi))
 
         vm.onQuickNameChange("Pedro")
-        kotlinx.coroutines.runBlocking {
-            vm.ensureWorkerCreated()
-            vm.ensureWorkerCreated()
-        }
+        // Did not call vm.createWorker() yet!
+        assertFalse(vm.isWorkerRegistered())
 
+        val canProceed = kotlinx.coroutines.runBlocking { vm.ensureWorkerCreated() }
+
+        assertFalse(canProceed)
+        assertEquals(ShareCreateError.CREATION_REQUIRED, vm.state.value.createError)
+        // No user was created on the server behind the admin's back (S12)
+        assertEquals(0, adminApi.created.size)
+
+        // Now register explicitly
+        vm.createWorker()
+        assertEquals(1, adminApi.created.size)
+        assertTrue(vm.isWorkerRegistered())
+
+        // Now sharing/copying succeeds without re-creating
+        val proceedAfter = kotlinx.coroutines.runBlocking { vm.ensureWorkerCreated() }
+        assertTrue(proceedAfter)
         assertEquals(1, adminApi.created.size)
     }
 
@@ -219,10 +258,10 @@ class ShareAppViewModelTest {
         val vm = ShareAppViewModel(authRepo, UsersRepository(adminApi))
 
         vm.onQuickNameChange("Ana Admin")
-        val created = kotlinx.coroutines.runBlocking { vm.ensureWorkerCreated() }
+        vm.createWorker()
 
-        assertFalse(created)
         assertEquals(ShareCreateError.DUPLICATED, vm.state.value.createError)
+        assertFalse(vm.state.value.createSuccess)
         assertNull(vm.state.value.createdUsername)
     }
 
@@ -232,10 +271,10 @@ class ShareAppViewModelTest {
         val authRepo = AuthRepository(FakeAuthApi(role = "Administrador", userId = 1), FakeTokenStore("Administrador"), Json)
         val vm = ShareAppViewModel(authRepo, UsersRepository(adminApi))
 
-        val created = kotlinx.coroutines.runBlocking { vm.ensureWorkerCreated() }
+        vm.createWorker()
 
-        assertFalse(created)
         assertEquals(ShareCreateError.NAME_REQUIRED, vm.state.value.createError)
+        assertFalse(vm.state.value.createSuccess)
         assertTrue(adminApi.created.isEmpty())
     }
 }

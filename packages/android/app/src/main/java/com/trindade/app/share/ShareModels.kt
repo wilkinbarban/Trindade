@@ -52,6 +52,7 @@ enum class ShareCreateError {
     DUPLICATED,
     REFUSED,
     UNREACHABLE,
+    CREATION_REQUIRED,
 }
 
 enum class SharePlatform {

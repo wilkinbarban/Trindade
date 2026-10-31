@@ -13,11 +13,16 @@ import com.trindade.app.aero.AeroSettingsPort
 import com.trindade.app.aero.AeroSyncOutcome
 import com.trindade.app.aero.TabletAckPort
 import com.trindade.app.aero.toLogic
+import com.trindade.app.admin.UsersRepository
+import com.trindade.app.admin.UserWriteResult
 import com.trindade.app.auth.AuthRepository
+import com.trindade.app.contract.models.CreateAdminUserRequest
 import com.trindade.app.contract.models.ProfileResponseUser
 import com.trindade.app.network.CreateMassasLaunchItem
 import com.trindade.app.network.MassaIndividualLaunch
 import com.trindade.app.network.MassasLaunchDayView
+import com.trindade.app.share.deriveUsername
+import com.trindade.app.share.quickWorkerPassword
 import com.trindade.app.ui.UiText
 import com.trindade.app.ui.filterPhoneDigits
 import com.trindade.app.ui.waMeLink
@@ -48,6 +53,7 @@ class MassasLaunchViewModel @Inject constructor(
     private val aeroSettingsStore: AeroSettingsPort,
     private val aeroDispatcher: AeroDispatcher,
     private val tabletAckStore: TabletAckPort,
+    private val usersRepository: UsersRepository? = null,
 ) : ViewModel() {
 
     companion object {
@@ -99,6 +105,8 @@ class MassasLaunchViewModel @Inject constructor(
         val unifiedQuery: String = "",
         /** Launch ids this device already marked as loaded on the company tablet. */
         val ackedLaunchIds: Set<Int> = emptySet(),
+        /** Operators whose seats were rejected because the account is inactive. */
+        val inactiveOperators: Set<String> = emptySet(),
     ) {
         /** True when a launch can be sent to the plant without asking the operator anything else. */
         val aeroReady: Boolean get() = aeroSettings.ready
@@ -276,6 +284,8 @@ class MassasLaunchViewModel @Inject constructor(
         "MASSAS_RECONCILED" -> UiText.of(R.string.massas_error_reconciled)
         "MASSAS_INVALID_BOXES" -> UiText.of(R.string.massas_error_invalid_boxes)
         "MASSAS_FUTURE_DATE" -> UiText.of(R.string.massas_error_future_date)
+        "MASSAS_OPERATOR_NOT_LINKED" -> UiText.of(R.string.massas_error_operator_not_linked)
+        "MASSAS_OPERATOR_INACTIVE" -> UiText.of(R.string.massas_error_operator_inactive)
         else -> result.message
             ?.takeIf { it.isNotBlank() }
             ?.let { UiText.literal(it) }
@@ -554,9 +564,11 @@ class MassasLaunchViewModel @Inject constructor(
                     )
                 }
                 is MassasWriteResult.Refused -> {
+                    val isInactive = result.errorCode == "MASSAS_OPERATOR_INACTIVE"
                     _state.value = _state.value.copy(
                         isSubmitting = false,
                         errorMessage = refusalMessage(result, R.string.massas_error_create_refused),
+                        inactiveOperators = if (isInactive) _state.value.inactiveOperators + row.operatorName else _state.value.inactiveOperators,
                     )
                 }
                 is MassasWriteResult.Unreachable -> {
@@ -570,12 +582,68 @@ class MassasLaunchViewModel @Inject constructor(
     }
 
     /** The import plan for a row, rebuilt from the seat it came from. */
-    private fun aeroImportPlanFor(row: MassasUnifiedRow): com.trindade.app.massas.AeroImportPlan? {
+    private fun aeroImportPlanFor(row: MassasUnifiedRow): AeroImportPlan? {
         val products = state.value.dayView?.products.orEmpty().map {
             AeroImportProduct(code = it.code, name = it.name, unitsPerBox = it.unitsPerBox)
         }
         val seat = state.value.aeroMirror.firstOrNull { it.entLan in row.entLans } ?: return null
         return aeroImportPlan(seat, products)
+    }
+
+    /**
+     * Creates an operator account from an unlinked ERP seat in 1 click (S16-S19).
+     *
+     * Derives login without dots, display name and deterministic password, assigns role 2 (Trabalhador),
+     * and refreshes the mirror immediately so the row transforms into [ Importar ].
+     */
+    fun createOperatorFromSeat(row: MassasUnifiedRow) {
+        val usersRepo = usersRepository ?: return
+        val rawName = row.operatorName
+        val username = deriveUsername(rawName)
+        val displayName = deriveDisplayName(rawName)
+        val password = quickWorkerPassword(username)
+
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isSubmitting = true, errorMessage = null, noticeMessage = null)
+            val result = usersRepo.create(
+                CreateAdminUserRequest(
+                    username = username,
+                    password = password,
+                    displayName = displayName,
+                    roleId = CreateAdminUserRequest.RoleId._2,
+                ),
+            )
+            when (result) {
+                is UserWriteResult.Saved -> {
+                    _state.value = _state.value.copy(
+                        isSubmitting = false,
+                        noticeMessage = UiText.of(R.string.massas_operator_created, displayName),
+                    )
+                    silentRefresh()
+                    refreshMirror(state.value.date)
+                }
+                is UserWriteResult.Refused -> {
+                    if (result.status == 409) {
+                        _state.value = _state.value.copy(
+                            isSubmitting = false,
+                            errorMessage = UiText.of(R.string.massas_error_operator_inactive),
+                            inactiveOperators = _state.value.inactiveOperators + rawName,
+                        )
+                    } else {
+                        _state.value = _state.value.copy(
+                            isSubmitting = false,
+                            errorMessage = UiText.of(R.string.share_create_refused),
+                        )
+                    }
+                }
+                UserWriteResult.Unreachable -> {
+                    _state.value = _state.value.copy(
+                        isSubmitting = false,
+                        errorMessage = UiText.of(R.string.massas_error_offline),
+                    )
+                }
+            }
+        }
     }
 
     /** The universal filter: an operator key, or empty for the whole plant. */

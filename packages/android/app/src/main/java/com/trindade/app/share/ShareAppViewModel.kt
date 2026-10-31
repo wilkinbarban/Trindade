@@ -45,6 +45,7 @@ class ShareAppViewModel @Inject constructor(
         /** The login whose account was already created in this visit, so sharing twice does not create twice. */
         val createdUsername: String? = null,
         val creating: Boolean = false,
+        val createSuccess: Boolean = false,
         val createError: ShareCreateError? = null,
         val phone: String = "",
         val isAdmin: Boolean = false,
@@ -102,7 +103,7 @@ class ShareAppViewModel @Inject constructor(
     }
 
     fun onCredentialModeSelect(mode: ShareCredentialMode) {
-        _state.update { it.copy(credentialMode = mode, createError = null) }
+        _state.update { it.copy(credentialMode = mode, createError = null, createSuccess = false) }
     }
 
     fun onQuickNameChange(value: String) {
@@ -110,6 +111,7 @@ class ShareAppViewModel @Inject constructor(
             state.copy(
                 quickName = value,
                 createError = null,
+                createSuccess = false,
                 quickUsername = if (state.usernameEdited) state.quickUsername else deriveUsername(value),
             )
         }
@@ -117,7 +119,14 @@ class ShareAppViewModel @Inject constructor(
 
     /** The admin's own login wins over the derivation from here on, even if the name changes again. */
     fun onQuickUsernameChange(value: String) {
-        _state.update { it.copy(quickUsername = deriveUsername(value), usernameEdited = true, createError = null) }
+        _state.update {
+            it.copy(
+                quickUsername = deriveUsername(value),
+                usernameEdited = true,
+                createError = null,
+                createSuccess = false,
+            )
+        }
     }
 
     /** The login the message and the account use: what the admin typed, or what the name suggests. */
@@ -126,56 +135,95 @@ class ShareAppViewModel @Inject constructor(
     fun quickPassword(): String = quickWorkerPassword(quickLogin())
 
     /**
-     * Creates the worker the message is about, once per login.
-     *
-     * Sharing credentials for an account that does not exist yet sends the operator to a login screen that
-     * refuses them, so the account is created before anything leaves the phone. The role is fixed: this screen
-     * hands out workers, and a picker here would be a quiet way to grant an admin.
+     * Creates the worker explicitly when the admin taps [ + Cadastrar Operário ] (S9-S11).
      */
-    suspend fun ensureWorkerCreated(): Boolean {
+    fun createWorker() {
         val s = _state.value
-        if (!s.isAdmin || !s.includeCredentials || s.credentialMode != ShareCredentialMode.CREATE) return true
         val displayName = s.quickName.trim()
         val username = quickLogin().trim().lowercase()
         if (displayName.isEmpty()) {
-            _state.update { it.copy(createError = ShareCreateError.NAME_REQUIRED) }
-            return false
+            _state.update { it.copy(createError = ShareCreateError.NAME_REQUIRED, createSuccess = false) }
+            return
         }
         if (username.isEmpty()) {
-            _state.update { it.copy(createError = ShareCreateError.USERNAME_REQUIRED) }
+            _state.update { it.copy(createError = ShareCreateError.USERNAME_REQUIRED, createSuccess = false) }
+            return
+        }
+        if (s.createdUsername == username || existingWorker(s, username)) {
+            // Already registered: the message is shareable as it stands, and asking the backend again would
+            // only earn a 409 for a login that already works.
+            _state.update { it.copy(createdUsername = username, createSuccess = true, createError = null) }
+            return
+        }
+
+        viewModelScope.launch {
+            _state.update { it.copy(creating = true, createError = null, createSuccess = false) }
+            val result = usersRepository.create(
+                CreateAdminUserRequest(
+                    username = username,
+                    password = quickWorkerPassword(username),
+                    displayName = displayName,
+                    roleId = CreateAdminUserRequest.RoleId._2,
+                ),
+            )
+            when (result) {
+                is UserWriteResult.Saved -> {
+                    _state.update {
+                        it.copy(
+                            creating = false,
+                            createdUsername = username,
+                            createSuccess = true,
+                            createError = null,
+                        )
+                    }
+                    loadUsers()
+                }
+                is UserWriteResult.Refused -> {
+                    _state.update {
+                        it.copy(
+                            creating = false,
+                            createSuccess = false,
+                            createError = if (result.status == 409) ShareCreateError.DUPLICATED else ShareCreateError.REFUSED,
+                        )
+                    }
+                }
+                UserWriteResult.Unreachable -> {
+                    _state.update { it.copy(creating = false, createSuccess = false, createError = ShareCreateError.UNREACHABLE) }
+                }
+            }
+        }
+    }
+
+    /**
+     * Whether the worker in creation mode is already registered (S12).
+     *
+     * Two things count: the account this visit just created, and one the company already had. The second
+     * matters because the plant's operators outlive the screen: a login that exists is a login that works,
+     * and refusing to share it would send the admin to create a duplicate the backend answers with 409.
+     */
+    fun isWorkerRegistered(): Boolean {
+        val s = _state.value
+        if (!s.isAdmin || !s.includeCredentials || s.credentialMode != ShareCredentialMode.CREATE) return true
+        val username = quickLogin().trim().lowercase()
+        if (username.isEmpty()) return false
+        return s.createdUsername == username || existingWorker(s, username)
+    }
+
+    private fun existingWorker(state: UiState, username: String): Boolean =
+        state.users.any { it.username.equals(username, ignoreCase = true) }
+
+    /**
+     * Checks that the worker is already registered before sharing (S12).
+     *
+     * WhatsApp and Copiar do not create the account; if it was not created yet, the action is refused
+     * and explicit creation is requested.
+     */
+    suspend fun ensureWorkerCreated(): Boolean {
+        if (!isWorkerRegistered()) {
+            _state.update { it.copy(createError = ShareCreateError.CREATION_REQUIRED) }
             return false
         }
-        if (s.createdUsername == username) return true
-
-        _state.update { it.copy(creating = true, createError = null) }
-        val result = usersRepository.create(
-            CreateAdminUserRequest(
-                username = username,
-                password = quickWorkerPassword(username),
-                displayName = displayName,
-                roleId = CreateAdminUserRequest.RoleId._2,
-            ),
-        )
-        return when (result) {
-            is UserWriteResult.Saved -> {
-                _state.update { it.copy(creating = false, createdUsername = username, createError = null) }
-                loadUsers()
-                true
-            }
-            is UserWriteResult.Refused -> {
-                _state.update {
-                    it.copy(
-                        creating = false,
-                        createError = if (result.status == 409) ShareCreateError.DUPLICATED else ShareCreateError.REFUSED,
-                    )
-                }
-                false
-            }
-            UserWriteResult.Unreachable -> {
-                _state.update { it.copy(creating = false, createError = ShareCreateError.UNREACHABLE) }
-                false
-            }
-        }
+        return true
     }
 
     fun onPhoneChange(raw: String) {

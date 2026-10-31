@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -42,6 +43,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.trindade.app.R
+import com.trindade.app.ui.theme.SuccessGreen
 import com.trindade.app.ui.BrazilianPhoneVisualTransformation
 import com.trindade.app.ui.components.HelpSection
 import com.trindade.app.ui.components.ModuleHelpButton
@@ -224,6 +226,32 @@ fun ShareAppScreen(
                                 modifier = Modifier.fillMaxWidth(),
                             )
 
+                            Button(
+                                onClick = { viewModel.createWorker() },
+                                enabled = !state.creating,
+                                modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp),
+                            ) {
+                                if (state.creating) {
+                                    androidx.compose.material3.CircularProgressIndicator(
+                                        modifier = Modifier.size(18.dp),
+                                        strokeWidth = 2.dp,
+                                    )
+                                } else {
+                                    Text(
+                                        text = stringResource(R.string.share_create_button),
+                                        style = MaterialTheme.typography.labelLarge,
+                                    )
+                                }
+                            }
+
+                            if (state.createSuccess) {
+                                Text(
+                                    text = stringResource(R.string.share_create_success),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = SuccessGreen,
+                                )
+                            }
+
                             state.createError?.let { error ->
                                 Text(
                                     text = when (error) {
@@ -232,6 +260,7 @@ fun ShareAppScreen(
                                         ShareCreateError.DUPLICATED -> stringResource(R.string.share_create_duplicated)
                                         ShareCreateError.REFUSED -> stringResource(R.string.share_create_refused)
                                         ShareCreateError.UNREACHABLE -> stringResource(R.string.share_create_unreachable)
+                                        ShareCreateError.CREATION_REQUIRED -> stringResource(R.string.share_create_required)
                                     },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.error,

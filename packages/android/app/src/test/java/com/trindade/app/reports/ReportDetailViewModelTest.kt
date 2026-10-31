@@ -1,7 +1,10 @@
 package com.trindade.app.reports
 
 import com.trindade.app.R
+import com.trindade.app.contract.models.MassasReportDayView
 import com.trindade.app.contract.models.PhotoResponse
+import com.trindade.app.contract.models.ReportReceipts
+import com.trindade.app.contract.models.ReportReceiptsReceiptsInner
 import com.trindade.app.contract.models.ReportResponse
 import com.trindade.app.contract.models.ReportResponseReport
 import com.trindade.app.export.ShareManager
@@ -224,6 +227,85 @@ class ReportDetailViewModelTest {
         assertEquals("depois da edição", model.state.value.report!!.notes)
     }
 
+    @Test
+    fun `loads day receipts alongside massas when report is loaded`() {
+        val fakeApi = FakeReportsApi()
+        val receipts = ReportReceipts(
+            date = "2026-10-30",
+            migrated = true,
+            syncedAt = "10:30",
+            receipts = listOf(
+                ReportReceiptsReceiptsInner(
+                    entLan = 35942,
+                    productCode = "001800",
+                    productDesc = "MASSA DE BROTINHO",
+                    quantity = java.math.BigDecimal("6940"),
+                    operatorName = "JONAS",
+                    entryDate = "2026-10-30",
+                ),
+            ),
+        )
+        fakeApi.receiptsToReturn = receipts
+        val model = ReportDetailViewModel(ReportsRepository(fakeApi), FakePhotoCompressor())
+        model.load(REPORT_ID)
+
+        assertEquals(1, model.state.value.receipts?.receipts?.size)
+        assertEquals("001800", model.state.value.receipts?.receipts?.first()?.productCode)
+        assertEquals("JONAS", model.state.value.receipts?.receipts?.first()?.operatorName)
+    }
+
+    @Test
+    fun `syncErp refreshes massas, receipts, and export text via aero dispatcher`() {
+        val fakeApi = FakeReportsApi()
+        fakeApi.receiptsToReturn = ReportReceipts(
+            date = "2026-10-30",
+            migrated = true,
+            syncedAt = "10:30",
+            receipts = emptyList(),
+        )
+        val erpPort = FakeReportErpPort()
+        val mirrorPort = RecordingReportMirrorPort()
+        val settingsPort = RecordingReportSettingsPort(
+            com.trindade.app.aero.AeroSettings(wsUrl = "http://plant.lan/ws", username = "trindade", password = "secret"),
+        )
+        val dispatcher = com.trindade.app.aero.AeroDispatcher(erp = erpPort, mirror = mirrorPort)
+
+        val massasDay = MassasReportDayView(
+            date = "2026-10-30",
+            operators = emptyList(),
+            products = emptyList(),
+            totalBoxes = java.math.BigDecimal.ZERO,
+            totalUnits = java.math.BigDecimal.ZERO,
+            balance = com.trindade.app.contract.models.MassasReportDayViewBalance(
+                producedBoxes = java.math.BigDecimal.ZERO,
+                producedUnits = java.math.BigDecimal.ZERO,
+                registeredBoxes = java.math.BigDecimal.ZERO,
+                registeredUnits = java.math.BigDecimal.ZERO,
+                differenceUnits = java.math.BigDecimal.ZERO,
+                reconciledSeats = java.math.BigDecimal.ZERO,
+                pendingSeats = java.math.BigDecimal.ZERO,
+            ),
+            reconciledEntLans = emptyList(),
+        )
+        val massasSource = object : com.trindade.app.massas.MassasDaySource {
+            override suspend fun reportDay(date: String): MassasReportDayView = massasDay
+        }
+
+        val model = ReportDetailViewModel(
+            repository = ReportsRepository(fakeApi),
+            compressor = FakePhotoCompressor(),
+            massasRepository = massasSource,
+            aeroDispatcher = dispatcher,
+            aeroSettingsStore = settingsPort,
+        )
+        model.load(REPORT_ID)
+        model.syncErp()
+
+        assertEquals(1, mirrorPort.snapshots.size)
+        assertEquals(R.string.report_erp_sync_success, model.state.value.message?.resId)
+        assertFalse(model.state.value.isSyncingErp)
+    }
+
     private companion object {
         const val REPORT_ID = 42
 
@@ -290,4 +372,29 @@ private class RecordingShareManager : ShareManager {
     override fun sharePdf(file: File, title: String?): Boolean = true
 
     override fun openLink(url: String): Boolean = true
+}
+
+private class FakeReportErpPort : com.trindade.app.aero.AeroErpPort {
+    override suspend fun postEntry(settings: com.trindade.app.aero.AeroSettings, payload: com.trindade.app.aero.AeroEntryPayload): com.trindade.app.aero.AeroWriteResult =
+        com.trindade.app.aero.AeroWriteResult.Ok(null)
+    override suspend fun readMovements(settings: com.trindade.app.aero.AeroSettings, date: String): com.trindade.app.aero.AeroMovementsResult =
+        com.trindade.app.aero.AeroMovementsResult.Ok(emptyList(), skipped = 0)
+}
+
+private class RecordingReportMirrorPort : com.trindade.app.aero.AeroMirrorPort {
+    val snapshots = mutableListOf<List<com.trindade.app.aero.AeroErpMovement>>()
+    override suspend fun saveMovements(date: String, movements: List<com.trindade.app.aero.AeroErpMovement>): com.trindade.app.network.AeroMovementsSaved =
+        com.trindade.app.network.AeroMovementsSaved(0, 0).also { snapshots.add(movements) }
+    override suspend fun log(request: com.trindade.app.network.AeroAuditLogRequest) = Unit
+}
+
+private class RecordingReportSettingsPort(
+    private var settings: com.trindade.app.aero.AeroSettings,
+) : com.trindade.app.aero.AeroSettingsPort {
+    private val syncMarks = mutableMapOf<String, String>()
+    override fun load(): com.trindade.app.aero.AeroSettings = settings
+    override fun save(settings: com.trindade.app.aero.AeroSettings) { this.settings = settings }
+    override fun isConfigured(): Boolean = settings.ready
+    override fun syncedAt(date: String): String? = syncMarks[date]
+    override fun markSynced(date: String, at: String) { syncMarks[date] = at }
 }

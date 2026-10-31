@@ -28,7 +28,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.ResponseBody.Companion.toResponseBody
 import retrofit2.Response
 
-class FakeAdminApi(
+open class FakeAdminApi(
     private var timeSlotsToReturn: List<String>? = defaultTimeSlots(),
     var updateTimeSlotsResponse: Response<TimeSlotsResponse>? = null,
 ) : AdminApi {

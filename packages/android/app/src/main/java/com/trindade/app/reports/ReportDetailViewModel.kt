@@ -3,8 +3,13 @@ package com.trindade.app.reports
 import com.trindade.app.R
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.trindade.app.aero.AeroDispatcher
+import com.trindade.app.aero.AeroSettingsPort
+import com.trindade.app.aero.AeroSyncOutcome
 import com.trindade.app.contract.models.MassasReportDayView
+import com.trindade.app.contract.models.ReportReceipts
 import com.trindade.app.massas.MassasDaySource
+import com.trindade.app.massas.MassasLaunchViewModel
 import com.trindade.app.contract.models.PhotosResponsePhotosInner
 import com.trindade.app.contract.models.ReportResponseReport
 import com.trindade.app.export.NoOpShareManager
@@ -39,6 +44,8 @@ class ReportDetailViewModel @Inject constructor(
     // Optional on purpose: without a source the card simply does not draw, which is what a test that is
     // only about the report's own answers asks for.
     private val massasRepository: MassasDaySource? = null,
+    private val aeroDispatcher: AeroDispatcher? = null,
+    private val aeroSettingsStore: AeroSettingsPort? = null,
 ) : ViewModel() {
 
     data class UiState(
@@ -52,6 +59,10 @@ class ReportDetailViewModel @Inject constructor(
         val message: UiText? = null,
         /** The day the massas card draws, read from the report's own endpoint. */
         val massasDay: MassasReportDayView? = null,
+        /** The incoming supplies registered in the ERP for this date. */
+        val receipts: ReportReceipts? = null,
+        /** Whether an ERP sync via bridge is currently in progress. */
+        val isSyncingErp: Boolean = false,
     ) {
         /** Five is the server's limit, and the add action is withheld rather than refused at the door. */
         val canAddPhoto: Boolean get() = !uploadingPhoto && photos.size < MAX_PHOTOS
@@ -91,6 +102,7 @@ class ReportDetailViewModel @Inject constructor(
             }
             refreshPhotos(reportId)
             refreshMassas(report)
+            refreshReceipts(report)
         }
     }
 
@@ -101,13 +113,75 @@ class ReportDetailViewModel @Inject constructor(
      * the two are related by the day, which is why the card is permanent and why a day with nothing recorded
      * still draws.
      */
-    private fun refreshMassas(report: com.trindade.app.contract.models.ReportResponseReport?) {
+    private fun refreshMassas(report: ReportResponseReport?) {
         // The source is optional, so the absence is checked here rather than at every call site.
         val source = massasRepository ?: return
         val date = report?.reportDate?.takeIf { it.isNotBlank() } ?: return
         viewModelScope.launch {
             val day = source.reportDay(date)
             _state.update { it.copy(massasDay = day) }
+        }
+    }
+
+    private fun refreshReceipts(report: ReportResponseReport?) {
+        val date = report?.reportDate?.takeIf { it.isNotBlank() } ?: return
+        viewModelScope.launch {
+            val receipts = repository.receipts(date)
+            _state.update { it.copy(receipts = receipts) }
+        }
+    }
+
+    /**
+     * Reads the plant's day from the ERP via bridge and updates both massas and receipts (S6, S7).
+     */
+    fun syncErp() {
+        val currentReport = state.value.report ?: return
+        val date = currentReport.reportDate.takeIf { it.isNotBlank() } ?: return
+        if (state.value.isSyncingErp) return
+        val dispatcher = aeroDispatcher
+        val store = aeroSettingsStore
+        if (dispatcher == null || store == null) {
+            _state.update { it.copy(message = UiText.of(R.string.report_erp_not_configured)) }
+            return
+        }
+
+        viewModelScope.launch {
+            val settings = store.load()
+            if (!settings.ready) {
+                _state.update { it.copy(message = UiText.of(R.string.report_erp_not_configured)) }
+                return@launch
+            }
+            _state.update { it.copy(isSyncingErp = true, message = null) }
+            when (val outcome = dispatcher.syncDay(settings, date)) {
+                is AeroSyncOutcome.Synced -> {
+                    store.markSynced(date, MassasLaunchViewModel.nowLabel())
+                    val massas = massasRepository?.reportDay(date)
+                    val recs = repository.receipts(date)
+                    val export = repository.exportText(currentReport.id)
+                    _state.update {
+                        it.copy(
+                            isSyncingErp = false,
+                            massasDay = massas,
+                            receipts = recs,
+                            exportText = export ?: it.exportText,
+                            message = UiText.of(R.string.report_erp_sync_success),
+                        )
+                    }
+                }
+                is AeroSyncOutcome.Unreachable -> {
+                    _state.update {
+                        it.copy(isSyncingErp = false, message = UiText.of(R.string.report_error_offline))
+                    }
+                }
+                is AeroSyncOutcome.Failed -> {
+                    _state.update {
+                        it.copy(
+                            isSyncingErp = false,
+                            message = UiText.of(R.string.report_erp_sync_failed, outcome.reason ?: "-"),
+                        )
+                    }
+                }
+            }
         }
     }
 

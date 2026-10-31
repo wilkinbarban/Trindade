@@ -315,6 +315,7 @@ fun MassasLaunchScreen(
             onSend = viewModel::sendPendingLaunch,
             onAcknowledge = viewModel::acknowledgeLaunch,
             onImport = viewModel::importErpSeat,
+            onCreateOperator = viewModel::createOperatorFromSeat,
         )
 
         if (!state.isReadOnly) {

@@ -85,23 +85,9 @@ fun MassasDayCard(
                     )
                 }
             }
-
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = stringResource(R.string.report_massas_day_balance, balanceLabel(day.balance.differenceUnits)),
-                style = MaterialTheme.typography.labelLarge,
-                color = if (day.balance.differenceUnits.signum() == 0) {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                } else {
-                    MaterialTheme.colorScheme.error
-                },
-            )
         }
     }
 }
 
 /** A whole number without the trailing zeros `BigDecimal` carries from the wire. */
 private fun BigDecimal.toPlain(): String = stripTrailingZeros().toPlainString()
-
-private fun balanceLabel(difference: BigDecimal): String =
-    if (difference.signum() == 0) "0 un" else "${if (difference.signum() > 0) "+" else ""}${difference.stripTrailingZeros().toPlainString()} un"

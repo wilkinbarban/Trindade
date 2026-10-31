@@ -135,6 +135,12 @@ class ReportsRepository @Inject constructor(
             ?.body()
             ?.report
 
+    /** The incoming supplies registered in the ERP for this date. */
+    suspend fun receipts(date: String): com.trindade.app.contract.models.ReportReceipts? =
+        runCatchingCancellable { api.receipts(date) }.getOrNull()
+            ?.takeIf { it.isSuccessful }
+            ?.body()
+
     suspend fun create(body: CreateReportRequest): ReportWriteResult = submit { api.createReport(body) }
 
     suspend fun update(id: Int, body: UpdateReportRequest): ReportWriteResult =

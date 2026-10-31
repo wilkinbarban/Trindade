@@ -295,7 +295,7 @@ class MassasUnifiedTest {
     }
 
     @Test
-    fun `a seat whose operator names nobody here stays an administrator's`() {
+    fun `a seat whose operator names nobody here cannot be imported by anyone, and offers operator creation to an administrator`() {
         val rows = massasUnifiedRows(
             MassasUnifiedInput(
                 launches = emptyList(),
@@ -305,8 +305,30 @@ class MassasUnifiedTest {
         )
         val row = rows.single()
         assertEquals(null, row.ownerUserId)
-        assertFalse(canImportRow(row, viewerId = 17, isAdmin = false))
-        assertTrue(canImportRow(row, viewerId = 1, isAdmin = true))
+        assertFalse("A non-admin cannot import a seat with no linked user", canImportRow(row, viewerId = 17, isAdmin = false))
+        assertFalse("An admin cannot import a seat with no linked user without creating the user first", canImportRow(row, viewerId = 1, isAdmin = true))
+        assertTrue("An admin is offered operator creation for an unlinked seat", canCreateOperatorRow(row, isAdmin = true))
+        assertFalse("A worker is never offered operator creation", canCreateOperatorRow(row, isAdmin = false))
+    }
+
+    @Test
+    fun `an inactive operator does not offer operator creation to an administrator`() {
+        val rows = massasUnifiedRows(
+            MassasUnifiedInput(
+                launches = emptyList(),
+                movements = listOf(seat(entLan = 35939, operatorName = "MARIA", ownerUserId = null)),
+                products = products,
+            ),
+        )
+        val row = rows.single()
+        assertFalse(canCreateOperatorRow(row, isAdmin = true, isInactive = true))
+    }
+
+    @Test
+    fun `deriveDisplayName formats uppercase ERP names into clean display names`() {
+        assertEquals("Jefferson", deriveDisplayName("JEFFERSON"))
+        assertEquals("Joao H", deriveDisplayName("JOAO H"))
+        assertEquals("Maria Silva", deriveDisplayName("MARIA SILVA"))
     }
 
     @Test

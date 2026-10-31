@@ -60,12 +60,39 @@ data class MassasUnifiedRow(
  *
  * The backend refuses a seat that belongs to somebody else, and this is the same rule asked one step
  * earlier, on the row: a button a worker can only fail with is worse than no button.
+ * A seat with no ownerUserId cannot be imported by anyone until the operator is linked.
  */
 fun canImportRow(row: MassasUnifiedRow, viewerId: Int?, isAdmin: Boolean): Boolean {
     if (row.state != MassasRowState.ERP_ONLY || !row.importable) return false
-    if (isAdmin) return true
     val owner = row.ownerUserId ?: return false
+    if (isAdmin) return true
     return owner == viewerId
+}
+
+/**
+ * Whether an administrator can create the operator directly from the unlinked ERP seat (S16, S19).
+ *
+ * An unlinked seat has `ownerUserId == null`. An inactive operator requires reactivation rather than creation.
+ */
+fun canCreateOperatorRow(
+    row: MassasUnifiedRow,
+    isAdmin: Boolean,
+    isInactive: Boolean = false,
+): Boolean {
+    return isAdmin && row.state == MassasRowState.ERP_ONLY && row.ownerUserId == null && !isInactive
+}
+
+/**
+ * Formats an uppercase operator name from ERP into a clean display name (e.g. "JEFFERSON" -> "Jefferson").
+ */
+fun deriveDisplayName(operatorName: String): String {
+    val trimmed = operatorName.trim()
+    if (trimmed.isEmpty()) return "Operador"
+    return trimmed
+        .lowercase()
+        .split(Regex("\\s+"))
+        .filter { it.isNotEmpty() }
+        .joinToString(" ") { word -> word.replaceFirstChar { it.uppercase() } }
 }
 
 /**
