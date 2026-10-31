@@ -314,7 +314,7 @@ describe('Export Service (Generador Inteligente)', () => {
     assert.ok(bordes.includes('A Câmara de Resfriamento tem uma temperatura de 10°C, recomenda-se limpar os ares-condicionados.'));
   });
 
-  it('always prints the massas section, with the production both screens recorded', () => {
+  it('prints the massas the ERP recorded, and nothing the plant typed alone', () => {
     db.exec(`
       INSERT INTO massa_launches (launch_date, product_code, boxes, user_id, created_at, updated_at)
       VALUES ('2026-06-12', '1045', 4, 10, '2026-06-12 10:00:00', '2026-06-12 10:00:00')
@@ -335,15 +335,14 @@ describe('Export Service (Generador Inteligente)', () => {
 
     assert.ok(text.includes('🍝 *LANÇAMENTO DE MASSAS*'));
     assert.ok(text.includes('Por Operário:'));
-    assert.ok(text.includes('👤 Test User:'));
-    assert.ok(text.includes('   - CASEIRA: 40 un'));
-    assert.ok(text.includes('   - ROLO 2KG: 12 un'));
-    // The operator who only exists in the ERP appears with the name they typed there.
+    // The six boxes the tablet recorded are the company's answer; the six boxes the plant typed here and
+    // never sent are not, so the local launch does not reach the group at all.
+    assert.ok(!text.includes('👤 Test User:'), 'a launch the ERP never saw stays out of the message');
+    assert.ok(!text.includes('CASEIRA'), 'and so does its product line');
     assert.ok(text.includes('👤 TIAGO:'));
     assert.ok(text.includes('   - ROLO 2KG: 6 un'));
     assert.ok(text.includes('Resumo Coletivo:'));
-    assert.ok(text.includes('📦 CASEIRA: 40 un'));
-    assert.ok(text.includes('📦 ROLO 2KG: 18 un'));
+    assert.ok(text.includes('📦 ROLO 2KG: 6 un'));
     assert.ok(!text.includes('MASSA '), 'no product line keeps the MASSA prefix');
     assert.ok(!text.includes('Total de Massas'));
     assert.ok(!text.includes('cx'));
@@ -354,7 +353,7 @@ describe('Export Service (Generador Inteligente)', () => {
     assert.ok(massasIndex < notesIndex, 'Massas section must precede Observações');
   });
 
-  it('counts a reconciled seat once in the message', () => {
+  it('counts a seat once, even when the plant also launched the same boxes', () => {
     // The day is shared with the test above, so the boxes it recorded are cleared first.
     db.exec('DELETE FROM massa_launches');
     db.exec('DELETE FROM aero_movements');
@@ -371,7 +370,7 @@ describe('Export Service (Generador Inteligente)', () => {
     const text = generateWhatsAppText(db, reportId)!;
 
     assert.equal(text.split('   - CASEIRA: 40 un').length - 1, 1, 'the same boxes are not listed twice');
-    assert.equal(text.split('👤 Test User:').length - 1, 1);
+    assert.equal(text.split('👤 Test User:').length - 1, 1, 'the seat names the operator, the launch does not');
   });
 
   it('strips only the leading MASSA prefix from a massas product name', () => {

@@ -110,7 +110,7 @@ describe('massas routes', () => {
     assert.equal(body.totalBoxes, 0);
   });
 
-  it('GET /report answers the reconciled day, with the tablet production on its operator', async () => {
+  it('GET /report answers the day the ERP recorded, on the operator it names', async () => {
     const launch = await app.inject({
       method: 'POST',
       url: '/api/massas-launch',
@@ -119,7 +119,7 @@ describe('massas routes', () => {
     });
     assert.equal(launch.statusCode, 201);
 
-    // Two seats: one the launch already describes, one that only ever existed on the tablet.
+    // Two seats, both from the ERP: the launch above is the plant's own copy of the first one.
     const insertSeat = (entLan: number, code: string, quantity: number, operator: string) => {
       db.prepare(
         `INSERT INTO aero_movements
@@ -143,9 +143,9 @@ describe('massas routes', () => {
       balance: { producedUnits: number; registeredUnits: number; differenceUnits: number };
       reconciledEntLans: number[];
     };
-    // 20 boxes units lançadas aqui + 30 que só a tablet registrou; o seat conciliado não conta duas vezes.
+    // The ERP's own numbers: 20 units on ALICE's seat plus 30 on TIAGO's. The local launch adds nothing.
     assert.equal(body.totalUnits, 50);
-    assert.deepEqual(body.reconciledEntLans, [7000]);
+    assert.deepEqual(body.reconciledEntLans, []);
     // Biggest share first, which is the order the screen prints.
     assert.deepEqual(
       body.operators.map((operator) => [operator.name, operator.units]),
@@ -154,6 +154,31 @@ describe('massas routes', () => {
     assert.equal(body.balance.producedUnits, 50);
     assert.equal(body.balance.registeredUnits, 50);
     assert.equal(body.balance.differenceUnits, 0);
+  });
+
+  it('GET /report leaves a launch the ERP never saw out of the day', async () => {
+    // The day is shared with the test above, so what it recorded is cleared first.
+    db.exec('DELETE FROM massa_launches');
+    db.exec('DELETE FROM aero_movements');
+    // The plant typed 280 boxes here and never sent them to the company.
+    const launch = await app.inject({
+      method: 'POST',
+      url: '/api/massas-launch',
+      headers: { authorization: `Bearer ${tokenAlice}` },
+      payload: { date: dateStr, product_code: '1047', boxes: 280 },
+    });
+    assert.equal(launch.statusCode, 201);
+
+    const res = await app.inject({
+      method: 'GET',
+      url: `/api/massas-launch/report?date=${dateStr}`,
+      headers: { authorization: `Bearer ${tokenAlice}` },
+    });
+
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body) as { totalUnits: number; operators: unknown[] };
+    assert.equal(body.totalUnits, 0);
+    assert.deepEqual(body.operators, []);
   });
 
   it('POST /api/massas-launch creates launches for authenticated user', async () => {

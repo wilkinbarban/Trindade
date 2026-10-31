@@ -110,6 +110,46 @@ describe('supplyReceipts', () => {
     );
   });
 
+  it('files every seat Jonas and Viviane launched as a supply, never as a massa', () => {
+    // The codes the ERP recorded that day: brotinho, pizza, canudo and flour. None of them is one of the ten
+    // massas the plant makes, so the unified card owes them to Recebimento.
+    const seats = [
+      movement({ ent_lan: 35947, product_code: '001800', product_desc: 'PIZZA BROTINHO 55G', quantity: 6940, operator_name: 'JONAS' }),
+      movement({ ent_lan: 35948, product_code: '001591', product_desc: 'PIZZA FAMILIA 200G', quantity: 9053, operator_name: 'VIVIANE' }),
+      movement({ ent_lan: 35949, product_code: '000138', product_desc: 'PIZZA CALABRESA', quantity: 300, operator_name: 'VIVIANE' }),
+      movement({ ent_lan: 35950, product_code: '000787', product_desc: 'CANUDO', quantity: 120, operator_name: 'JONAS' }),
+      movement({ ent_lan: 35951, product_code: '001040', product_desc: 'FARINHA', quantity: 40, operator_name: 'JONAS' }),
+    ];
+
+    assert.deepEqual(movementLenses(seats), { massas: 0, insumos: 5 });
+    assert.deepEqual(
+      supplyReceipts(seats).map((receipt) => [receipt.operatorName, receipt.quantity]),
+      [
+        ['JONAS', 6940],
+        ['VIVIANE', 9053],
+        ['VIVIANE', 300],
+        ['JONAS', 120],
+        ['JONAS', 40],
+      ],
+    );
+  });
+
+  it('splits the day between the two blocks without giving a seat to both', () => {
+    const seats = [
+      movement({ ent_lan: 35960, product_code: '001045', product_desc: 'MASSA CASEIRA', quantity: 40, operator_name: 'ALICE' }),
+      movement({ ent_lan: 35961, product_code: '001800', product_desc: 'PIZZA BROTINHO 55G', quantity: 100, operator_name: 'JONAS' }),
+      movement({ ent_lan: 35962, product_code: '000787', product_desc: 'CANUDO', quantity: 30, operator_name: 'JONAS' }),
+    ];
+
+    const lenses = movementLenses(seats);
+    const receipts = supplyReceipts(seats);
+
+    assert.equal(lenses.massas + lenses.insumos, seats.length, 'every seat lands in exactly one block');
+    assert.equal(lenses.massas, 1);
+    assert.equal(receipts.length, lenses.insumos);
+    assert.ok(!receipts.some((receipt) => receipt.productCode === '001045'), 'a massa is never a receipt');
+  });
+
   it('drops a stock exit: a baja is not a receipt', () => {
     assert.deepEqual(
       supplyReceipts([

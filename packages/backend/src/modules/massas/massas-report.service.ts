@@ -5,18 +5,20 @@ import {
   listAeroMovements,
   type AeroMovement,
 } from '../integration/aero.movements.service.js';
-import { massasLaunchDayView, type MassaProductTotal } from './massas.service.js';
-import { codeKey, operatorKey, reconcileMassasDay } from './massas-reconcile.js';
+import type { MassaProductTotal } from './massas.service.js';
+import { codeKey, operatorKey } from './massas-reconcile.js';
 
 /**
- * The day the plant really produced, read from both sides.
+ * The day the company recorded, read from one side only.
  *
- * Trindade records what an operator launched here; the Delphi tablet records what somebody loaded straight
- * into the company ERP. They describe the same boxes from different ends, so the report cannot add the two
- * tables: a reconciled seat is already in Trindade and counting it again would inflate the day.
+ * Trindade used to reconcile the launches recorded here against the Delphi seats and report the sum. The two
+ * tables describe the same boxes from different ends, so any launch the plant typed but never sent to the ERP
+ * still entered the report — a day showed boxes the company had never seen — and a seat the plant did send
+ * looked half counted.
  *
- * The rule is one box, one origin. A launch that reconciles with a seat is counted once, as Trindade's; a
- * seat that reconciles with nothing is counted as the plant operator who typed it on the tablet.
+ * The report now answers one question: what does the company have for the day? Its only source is
+ * `aero_movements` with `movement_type = 'E'`. The reconciliation between the plant and the ERP still exists,
+ * but it belongs to the launch screen, where both sides are in scope and a difference can be explained.
  */
 
 /** The whole catalogue counted per product, so the collective summary keeps its shape. */
@@ -28,7 +30,7 @@ export interface MassasReportOperatorProduct {
 }
 
 /**
- * One operator's share of the day, no matter which screen recorded it.
+ * One operator's share of the day, as the ERP recorded it.
  *
  * Every field has the shape both clients already read: the web names the operator `name`, the generated
  * Android contract names it `displayName`, and the same happens with `erpOnly`/`onlyErp`. Sending one of the
@@ -55,22 +57,22 @@ export interface MassasReportOperator {
 }
 
 /**
- * What the day produced against what the ERP recorded.
+ * The day against itself, kept so the clients that already read it keep working.
  *
- * The two numbers are not the same measurement: `produced` is the reconciled plant output and
- * `registered` is everything the company has for the day. A negative difference is production Delphi has
- * not seen; a positive one is something the ERP recorded that the plant never claimed here.
+ * The report has no local side any more, so `produced` and `registered` are the same measurement and the
+ * difference is always zero. The comparison bar moved to the launch screen; these numbers stay for the
+ * contract's sake and never invent a difference the report could not explain.
  */
 export interface MassasReportBalance {
   producedBoxes: number;
   producedUnits: number;
   registeredBoxes: number;
   registeredUnits: number;
-  /** `registeredUnits - producedUnits`, so zero means the day is fully reconciled. */
+  /** Always zero here: the ERP total compared against itself. */
   differenceUnits: number;
-  /** How many ERP seats the plant also recorded here. */
+  /** Always zero here: the report no longer reconciles against the plant. */
   reconciledSeats: number;
-  /** How many ERP seats the plant never claimed, which is what the report adds from the company side. */
+  /** Always zero here, for the same reason. */
   pendingSeats: number;
 }
 
@@ -81,7 +83,7 @@ export interface MassasReportDayView {
   totalBoxes: number;
   totalUnits: number;
   balance: MassasReportBalance;
-  /** `ENT_LAN` of the seats Trindade also has, so the page can show the day is paired. */
+  /** Always empty here: reconciliation is the launch screen's question, not the report's. */
   reconciledEntLans: number[];
 }
 
@@ -93,8 +95,8 @@ interface UserName {
 /**
  * Every name Trindade knows, keyed the way an ERP operator name has to be compared.
  *
- * A worker who only loaded boxes on the tablet has no launch that day, so the launch rows cannot answer
- * this: the association needs the user table, and it is read once per report.
+ * A worker who only loaded boxes on the tablet has no local account, so the user table is what tells the
+ * report whether a seat names an operator Trindade can show with their own display name.
  */
 function loadUserNames(db: Database.Database): Map<string, UserName> {
   const rows = db
@@ -127,7 +129,13 @@ function emptyProductTotals(): MassaProductTotal[] {
   }));
 }
 
-function addProduct(products: Map<string, MassasReportOperatorProduct>, code: string, name: string, boxes: number, units: number): void {
+function addProduct(
+  products: Map<string, MassasReportOperatorProduct>,
+  code: string,
+  name: string,
+  boxes: number,
+  units: number,
+): void {
   const existing = products.get(code);
   if (existing) {
     existing.boxes += boxes;
@@ -138,18 +146,13 @@ function addProduct(products: Map<string, MassasReportOperatorProduct>, code: st
 }
 
 /**
- * The day's production, once, whichever screen recorded it.
+ * The day the company recorded, credited to the operator the seat names.
  *
- * `produced` is this view's own total: every launch, plus only the seats that reconcile with nothing. The
- * balance then compares it against the ERP's raw entry total, which is a different question and is why the
- * difference can be negative without anything being wrong.
+ * A stock exit is the plant sending product out, so only an entry is production coming back. The catalogue
+ * decides what belongs to massas; every other entry is a supply receipt and belongs to the other block.
  */
 export function massasReportDayView(db: Database.Database, date: string): MassasReportDayView {
-  const dayView = massasLaunchDayView(db, date);
-  const launches = dayView.launches;
-  const seats = massasSeats(db, date);
-  const reconciliation = reconcileMassasDay(launches, seats);
-  const reconciled = new Set(reconciliation.reconciledEntLans);
+  const seats = massasSeats(db, date).filter((seat) => seat.movement_type === 'E');
   const knownNames = loadUserNames(db);
 
   const products = emptyProductTotals();
@@ -165,67 +168,29 @@ export function massasReportDayView(db: Database.Database, date: string): Massas
     }
   >();
 
-  const operatorBucket = (name: string, username: string | null, erpOnly: boolean) => {
-    const key = operatorKey(name);
-    const existing = operators.get(key);
-    if (existing) return existing;
-    const created = {
-      name,
-      username,
-      erpOnly,
-      products: new Map<string, MassasReportOperatorProduct>(),
-      entLans: [] as number[],
-    };
-    operators.set(key, created);
-    return created;
-  };
-
-  // An imported launch wears the account of whoever imported it, not of the person who produced the boxes.
-  // The seat is the only record that names the operator, so it decides whenever it is present.
-  const seatByEntLan = new Map<number, (typeof seats)[number]>();
   for (const seat of seats) {
-    if (seat.ent_lan != null) seatByEntLan.set(seat.ent_lan, seat);
-  }
-
-  for (const launch of launches) {
-    if (launch.boxes <= 0) continue;
-    const seat = launch.ent_lan != null ? seatByEntLan.get(launch.ent_lan) : undefined;
-    let name: string;
-    let username: string | null = launch.username;
-    let erpOnly = false;
-    if (seat) {
-      const known = knownNames.get(operatorKey(seat.operator_name));
-      name = (known ? known.displayName : seat.operator_name).trim();
-      username = known ? known.username : null;
-      // No local account means the report credits a person who exists only in the ERP.
-      erpOnly = !known;
-    } else {
-      name = (launch.display_name || launch.username || 'Operador').trim();
-    }
-    const bucket = operatorBucket(name, username, erpOnly);
-    if (launch.ent_lan != null && !bucket.entLans.includes(launch.ent_lan)) {
-      bucket.entLans.push(launch.ent_lan);
-    }
-    addProduct(bucket.products, launch.product_code, launch.product_name, launch.boxes, launch.units);
-    const product = productsByCode.get(launch.product_code);
-    if (product) {
-      product.totalBoxes += launch.boxes;
-      product.totalUnits += launch.units;
-    }
-  }
-
-  for (const seat of seats) {
-    // A stock exit is the plant sending product out; only an entry is production coming back.
-    if (seat.movement_type !== 'E') continue;
-    if (reconciled.has(seat.ent_lan)) continue;
-    const product = productsByCode.get(seat.product_code);
+    // The ERP pads its codes (`000084`); the catalogue does not. The key is the identity, not the string.
+    const product = productsByCode.get(codeKey(seat.product_code));
     // The catalogue already filtered the seat, so this only guards against a code the catalog changed
     // out from under the snapshot.
     if (!product) continue;
 
     const known = knownNames.get(operatorKey(seat.operator_name));
-    const name = known ? known.displayName : seat.operator_name.trim();
-    const bucket = operatorBucket(name, known ? known.username : null, !known);
+    const name = (known ? known.displayName : seat.operator_name).trim();
+    const key = operatorKey(name);
+    let bucket = operators.get(key);
+    if (!bucket) {
+      bucket = {
+        name,
+        username: known ? known.username : null,
+        // No local account means the report credits a person who exists only in the ERP.
+        erpOnly: !known,
+        products: new Map<string, MassasReportOperatorProduct>(),
+        entLans: [],
+      };
+      operators.set(key, bucket);
+    }
+
     const boxes = product.unitsPerBox > 0 ? seat.quantity / product.unitsPerBox : 0;
     if (!bucket.entLans.includes(seat.ent_lan)) bucket.entLans.push(seat.ent_lan);
     addProduct(bucket.products, product.code, product.name, boxes, seat.quantity);
@@ -254,19 +219,6 @@ export function massasReportDayView(db: Database.Database, date: string): Massas
   const totalUnits = products.reduce((sum, product) => sum + product.totalUnits, 0);
   const totalBoxes = products.reduce((sum, product) => sum + product.totalBoxes, 0);
 
-  // The balance compares the reconciled production against every massas entry the ERP recorded, including
-  // the seats that reconciled: they are the same boxes seen from the company side, and hiding them would
-  // make a fully reconciled day look like a partial one.
-  const registeredUnits = seats
-    .filter((seat) => seat.movement_type === 'E')
-    .reduce((sum, seat) => sum + seat.quantity, 0);
-  const registeredBoxes = seats
-    .filter((seat) => seat.movement_type === 'E')
-    .reduce((sum, seat) => {
-      const product = productsByCode.get(seat.product_code);
-      return sum + (product && product.unitsPerBox > 0 ? seat.quantity / product.unitsPerBox : 0);
-    }, 0);
-
   return {
     date,
     operators: operatorList,
@@ -276,13 +228,12 @@ export function massasReportDayView(db: Database.Database, date: string): Massas
     balance: {
       producedBoxes: totalBoxes,
       producedUnits: totalUnits,
-      registeredBoxes,
-      registeredUnits,
-      differenceUnits: registeredUnits - totalUnits,
-      reconciledSeats: reconciliation.reconciledEntLans.length,
-      pendingSeats: seats.filter((seat) => seat.movement_type === 'E' && !reconciled.has(seat.ent_lan)).length,
+      registeredBoxes: totalBoxes,
+      registeredUnits: totalUnits,
+      differenceUnits: 0,
+      reconciledSeats: 0,
+      pendingSeats: 0,
     },
-    reconciledEntLans: reconciliation.reconciledEntLans,
+    reconciledEntLans: [],
   };
 }
-

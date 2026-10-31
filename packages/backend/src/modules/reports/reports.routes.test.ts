@@ -649,11 +649,12 @@ describe('Reports Routes', () => {
     const reportId = report.id;
     const reportDate = report.report_date;
 
-    // Two cajas de CASEIRA lançadas em Trindade neste dia.
+    // Three boxes of CASEIRA the ERP recorded for this day.
     db.prepare(`
-      INSERT INTO massa_launches (launch_date, product_code, boxes, user_id, created_at, updated_at)
-      VALUES (?, '1045', 3, 1, '2026-10-21 10:00:00', '2026-10-21 10:00:00')
-    `).run(reportDate);
+      INSERT INTO aero_movements
+        (movement_date, ent_lan, product_code, product_desc, quantity, entry_date, operator_name, movement_type, synced_at)
+      VALUES (?, 9111, '001045', 'MASSA CASEIRA', 30, ?, 'WILKIN', 'E', '2026-10-21T12:00:00.000Z')
+    `).run(reportDate, reportDate);
 
     const res = await app.inject({
       method: 'GET',
