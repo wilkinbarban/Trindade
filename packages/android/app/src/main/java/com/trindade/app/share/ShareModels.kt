@@ -4,6 +4,59 @@ package com.trindade.app.share
  * Pure models and message builder for sharing the application via WhatsApp or other channels.
  */
 
+/** How the credentials in the message got an account: created here, or picked from the ones that exist. */
+enum class ShareCredentialMode {
+    CREATE,
+    EXISTING,
+}
+
+/** The role a worker created from this screen gets, and nothing else. */
+const val QUICK_WORKER_ROLE_ID = 2
+
+/** The digits a generated password is padded with, in order, as long as they are needed. */
+internal const val PASSWORD_SEQUENCE = "1234567890123456789012345678901234567890"
+
+/** The floor every generated password meets. */
+internal const val PASSWORD_MIN_LENGTH = 15
+
+/**
+ * The temporary password handed to a new operator: the login plus the running digit sequence.
+ *
+ * Written out rather than randomized so the same login always yields the same password, which is what lets the
+ * screen show the value before the account exists. It mirrors the web screen character for character.
+ */
+fun quickWorkerPassword(username: String): String {
+    val base = username.trim().lowercase().take(PASSWORD_MIN_LENGTH)
+    if (base.length >= PASSWORD_MIN_LENGTH) return base
+    return base + PASSWORD_SEQUENCE.take(PASSWORD_MIN_LENGTH - base.length)
+}
+
+/**
+ * The login a display name suggests: lower-case, no accents, words joined with dots.
+ *
+ * A suggestion, not a rule: the admin can type over it, so it strips whatever a login cannot carry instead of
+ * trying to transliterate it.
+ */
+fun deriveUsername(displayName: String): String {
+    val withoutAccents = java.text.Normalizer.normalize(displayName, java.text.Normalizer.Form.NFD)
+        .replace(Regex("\\p{Mn}+"), "")
+    return withoutAccents
+        .lowercase()
+        .trim()
+        .replace(Regex("[^a-z0-9._-]+"), ".")
+        .trim('.')
+        .replace(Regex("\\.{2,}"), ".")
+}
+
+/** Why the new worker could not be created; the screen turns each one into its own string. */
+enum class ShareCreateError {
+    NAME_REQUIRED,
+    USERNAME_REQUIRED,
+    DUPLICATED,
+    REFUSED,
+    UNREACHABLE,
+}
+
 enum class SharePlatform {
     ANDROID,
     IOS,

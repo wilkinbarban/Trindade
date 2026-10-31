@@ -144,7 +144,9 @@ class ReportDetailScreenTest {
           "totalUnits": 0,
           "balance": {
             "producedUnits": 0,
+            "producedBoxes": 0,
             "registeredUnits": 0,
+            "registeredBoxes": 0,
             "differenceUnits": 0,
             "reconciledSeats": 0,
             "pendingSeats": 0

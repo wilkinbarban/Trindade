@@ -5,7 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.trindade.app.admin.UsersRepository
 import com.trindade.app.auth.AuthRepository
 import com.trindade.app.auth.RolePolicy
+import com.trindade.app.admin.UserWriteResult
 import com.trindade.app.contract.models.AdminUserResponseUser
+import com.trindade.app.contract.models.CreateAdminUserRequest
 import com.trindade.app.ui.filterPhoneDigits
 import com.trindade.app.ui.toWhatsAppNumber
 import com.trindade.app.ui.waMeLink
@@ -33,6 +35,17 @@ class ShareAppViewModel @Inject constructor(
         val username: String = "",
         val password: String = "123456789",
         val includeCredentials: Boolean = true,
+        /** Creation is the default: the admin already knows the person's name, and leaving to the admin panel is
+         * where the sharing stops happening. */
+        val credentialMode: ShareCredentialMode = ShareCredentialMode.CREATE,
+        val quickName: String = "",
+        val quickUsername: String = "",
+        /** The login is derived from the name until the admin types over it, and never after. */
+        val usernameEdited: Boolean = false,
+        /** The login whose account was already created in this visit, so sharing twice does not create twice. */
+        val createdUsername: String? = null,
+        val creating: Boolean = false,
+        val createError: ShareCreateError? = null,
         val phone: String = "",
         val isAdmin: Boolean = false,
         val note: String = "",
@@ -88,6 +101,83 @@ class ShareAppViewModel @Inject constructor(
         _state.update { it.copy(includeCredentials = enabled) }
     }
 
+    fun onCredentialModeSelect(mode: ShareCredentialMode) {
+        _state.update { it.copy(credentialMode = mode, createError = null) }
+    }
+
+    fun onQuickNameChange(value: String) {
+        _state.update { state ->
+            state.copy(
+                quickName = value,
+                createError = null,
+                quickUsername = if (state.usernameEdited) state.quickUsername else deriveUsername(value),
+            )
+        }
+    }
+
+    /** The admin's own login wins over the derivation from here on, even if the name changes again. */
+    fun onQuickUsernameChange(value: String) {
+        _state.update { it.copy(quickUsername = deriveUsername(value), usernameEdited = true, createError = null) }
+    }
+
+    /** The login the message and the account use: what the admin typed, or what the name suggests. */
+    fun quickLogin(): String = _state.value.quickUsername.ifBlank { deriveUsername(_state.value.quickName) }
+
+    fun quickPassword(): String = quickWorkerPassword(quickLogin())
+
+    /**
+     * Creates the worker the message is about, once per login.
+     *
+     * Sharing credentials for an account that does not exist yet sends the operator to a login screen that
+     * refuses them, so the account is created before anything leaves the phone. The role is fixed: this screen
+     * hands out workers, and a picker here would be a quiet way to grant an admin.
+     */
+    suspend fun ensureWorkerCreated(): Boolean {
+        val s = _state.value
+        if (!s.isAdmin || !s.includeCredentials || s.credentialMode != ShareCredentialMode.CREATE) return true
+        val displayName = s.quickName.trim()
+        val username = quickLogin().trim().lowercase()
+        if (displayName.isEmpty()) {
+            _state.update { it.copy(createError = ShareCreateError.NAME_REQUIRED) }
+            return false
+        }
+        if (username.isEmpty()) {
+            _state.update { it.copy(createError = ShareCreateError.USERNAME_REQUIRED) }
+            return false
+        }
+        if (s.createdUsername == username) return true
+
+        _state.update { it.copy(creating = true, createError = null) }
+        val result = usersRepository.create(
+            CreateAdminUserRequest(
+                username = username,
+                password = quickWorkerPassword(username),
+                displayName = displayName,
+                roleId = CreateAdminUserRequest.RoleId._2,
+            ),
+        )
+        return when (result) {
+            is UserWriteResult.Saved -> {
+                _state.update { it.copy(creating = false, createdUsername = username, createError = null) }
+                loadUsers()
+                true
+            }
+            is UserWriteResult.Refused -> {
+                _state.update {
+                    it.copy(
+                        creating = false,
+                        createError = if (result.status == 409) ShareCreateError.DUPLICATED else ShareCreateError.REFUSED,
+                    )
+                }
+                false
+            }
+            UserWriteResult.Unreachable -> {
+                _state.update { it.copy(creating = false, createError = ShareCreateError.UNREACHABLE) }
+                false
+            }
+        }
+    }
+
     fun onPhoneChange(raw: String) {
         _state.update { it.copy(phone = filterPhoneDigits(raw)) }
     }
@@ -98,6 +188,23 @@ class ShareAppViewModel @Inject constructor(
 
     fun message(): String {
         val s = _state.value
+        if (s.isAdmin && s.includeCredentials && s.credentialMode == ShareCredentialMode.CREATE) {
+            val login = quickLogin()
+            val creds = if (login.isBlank()) null else ShareCredentials(
+                enabled = true,
+                displayName = s.quickName.ifBlank { null },
+                username = login,
+                password = quickWorkerPassword(login),
+            )
+            return buildShareMessage(
+                ShareMessageParams(
+                    platform = s.platform,
+                    release = s.release,
+                    credentials = creds,
+                    locale = Locale.getDefault().language,
+                ),
+            )
+        }
         val creds = if (s.isAdmin && s.includeCredentials && s.username.isNotBlank()) {
             ShareCredentials(
                 enabled = true,

@@ -27,6 +27,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,6 +47,7 @@ import com.trindade.app.ui.components.HelpSection
 import com.trindade.app.ui.components.ModuleHelpButton
 import com.trindade.app.ui.components.ModuleHelpDialog
 import com.trindade.app.ui.filterPhoneDigits
+import kotlinx.coroutines.launch
 
 @Composable
 fun ShareAppScreen(
@@ -56,6 +58,7 @@ fun ShareAppScreen(
     val clipboard = LocalClipboardManager.current
     var usersMenuExpanded by remember { mutableStateOf(false) }
     var showHelpDialog by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     val noteCopied = stringResource(R.string.share_note_copied)
     val noteInvalidPhone = stringResource(R.string.share_note_invalid_phone)
@@ -149,54 +152,141 @@ fun ShareAppScreen(
                     }
 
                     if (state.includeCredentials) {
-                        // User selection
-                        Text(stringResource(R.string.share_select_user), style = MaterialTheme.typography.bodySmall)
-                        Box(modifier = Modifier.fillMaxWidth()) {
-                            OutlinedButton(
-                                onClick = { usersMenuExpanded = true },
-                                modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp),
-                            ) {
-                                val label = if (state.displayName.isNotBlank()) {
-                                    state.displayName
-                                } else {
-                                    stringResource(R.string.share_select_user_placeholder)
-                                }
-                                Text(label)
-                            }
-                            DropdownMenu(
-                                expanded = usersMenuExpanded,
-                                onDismissRequest = { usersMenuExpanded = false },
-                            ) {
-                                state.users.forEach { user ->
-                                    DropdownMenuItem(
-                                        text = { Text("${user.displayName} (${user.username})") },
-                                        onClick = {
-                                            viewModel.onUserSelect(user.id)
-                                            usersMenuExpanded = false
-                                        },
-                                    )
-                                }
-                            }
+                        // Two ways to hand over an account, never both: a new worker, or one that already exists.
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            FilterChip(
+                                selected = state.credentialMode == ShareCredentialMode.CREATE,
+                                onClick = { viewModel.onCredentialModeSelect(ShareCredentialMode.CREATE) },
+                                label = { Text(stringResource(R.string.share_mode_create)) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                ),
+                                modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp),
+                            )
+                            FilterChip(
+                                selected = state.credentialMode == ShareCredentialMode.EXISTING,
+                                onClick = { viewModel.onCredentialModeSelect(ShareCredentialMode.EXISTING) },
+                                label = { Text(stringResource(R.string.share_mode_existing)) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                ),
+                                modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp),
+                            )
                         }
 
-                        // Read-only username
-                        OutlinedTextField(
-                            value = state.username,
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text(stringResource(R.string.profile_username)) },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
+                        if (state.credentialMode == ShareCredentialMode.CREATE) {
+                            OutlinedTextField(
+                                value = state.quickName,
+                                onValueChange = { viewModel.onQuickNameChange(it) },
+                                label = { Text(stringResource(R.string.share_display_name)) },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
 
-                        // Editable password with initial value 123456789
-                        OutlinedTextField(
-                            value = state.password,
-                            onValueChange = { viewModel.onPasswordChange(it) },
-                            label = { Text(stringResource(R.string.share_initial_password)) },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
+                            OutlinedTextField(
+                                value = state.quickUsername,
+                                onValueChange = { viewModel.onQuickUsernameChange(it) },
+                                label = { Text(stringResource(R.string.profile_username)) },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            Text(
+                                stringResource(R.string.share_quick_username_hint),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+
+                            // Read-only on purpose: this screen creates workers, and a control here would be a
+                            // quiet way to hand out an admin account.
+                            OutlinedTextField(
+                                value = stringResource(R.string.share_role_worker),
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text(stringResource(R.string.share_role)) },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+
+                            OutlinedTextField(
+                                value = viewModel.quickPassword(),
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text(stringResource(R.string.share_initial_password)) },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+
+                            state.createError?.let { error ->
+                                Text(
+                                    text = when (error) {
+                                        ShareCreateError.NAME_REQUIRED -> stringResource(R.string.share_create_name_required)
+                                        ShareCreateError.USERNAME_REQUIRED -> stringResource(R.string.share_create_username_required)
+                                        ShareCreateError.DUPLICATED -> stringResource(R.string.share_create_duplicated)
+                                        ShareCreateError.REFUSED -> stringResource(R.string.share_create_refused)
+                                        ShareCreateError.UNREACHABLE -> stringResource(R.string.share_create_unreachable)
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                            }
+                        } else {
+                            // User selection
+                            Text(stringResource(R.string.share_select_user), style = MaterialTheme.typography.bodySmall)
+                            Box(modifier = Modifier.fillMaxWidth()) {
+                                OutlinedButton(
+                                    onClick = { usersMenuExpanded = true },
+                                    modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp),
+                                ) {
+                                    val label = if (state.displayName.isNotBlank()) {
+                                        state.displayName
+                                    } else {
+                                        stringResource(R.string.share_select_user_placeholder)
+                                    }
+                                    Text(label)
+                                }
+                                DropdownMenu(
+                                    expanded = usersMenuExpanded,
+                                    onDismissRequest = { usersMenuExpanded = false },
+                                ) {
+                                    state.users.forEach { user ->
+                                        DropdownMenuItem(
+                                            text = { Text("${user.displayName} (${user.username})") },
+                                            onClick = {
+                                                viewModel.onUserSelect(user.id)
+                                                usersMenuExpanded = false
+                                            },
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Read-only username
+                            OutlinedTextField(
+                                value = state.username,
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text(stringResource(R.string.profile_username)) },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+
+                            // Editable password with initial value 123456789
+                            OutlinedTextField(
+                                value = state.password,
+                                onValueChange = { viewModel.onPasswordChange(it) },
+                                label = { Text(stringResource(R.string.share_initial_password)) },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
                     }
                 }
             }
@@ -233,9 +323,14 @@ fun ShareAppScreen(
         ) {
             OutlinedButton(
                 onClick = {
-                    clipboard.setText(AnnotatedString(viewModel.message()))
-                    viewModel.onNote(noteCopied)
+                    // The account has to exist before its credentials leave the phone.
+                    scope.launch {
+                        if (!viewModel.ensureWorkerCreated()) return@launch
+                        clipboard.setText(AnnotatedString(viewModel.message()))
+                        viewModel.onNote(noteCopied)
+                    }
                 },
+                enabled = !state.creating,
                 modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp),
             ) {
                 Text(
@@ -246,15 +341,18 @@ fun ShareAppScreen(
 
             Button(
                 onClick = {
-                    val link = viewModel.whatsappLink()
-                    if (link == null) {
-                        viewModel.onNote(noteInvalidPhone)
-                    } else {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(link)))
-                        viewModel.onNote(noteOpeningWhatsapp)
+                    scope.launch {
+                        if (!viewModel.ensureWorkerCreated()) return@launch
+                        val link = viewModel.whatsappLink()
+                        if (link == null) {
+                            viewModel.onNote(noteInvalidPhone)
+                        } else {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(link)))
+                            viewModel.onNote(noteOpeningWhatsapp)
+                        }
                     }
                 },
-                enabled = viewModel.whatsappLink() != null,
+                enabled = viewModel.whatsappLink() != null && !state.creating,
                 modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp),
             ) {
                 Text(

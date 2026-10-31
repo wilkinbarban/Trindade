@@ -51,6 +51,8 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.ResponseBody.Companion.create
 import retrofit2.Response
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -82,7 +84,9 @@ class ShareAppViewModelTest {
         assertTrue(vm.state.value.isAdmin)
         assertEquals(2, vm.state.value.users.size)
 
-        // Select user
+        // Picking an account that already exists is the other mode; creating a worker is what the screen
+        // offers first, so the test has to choose this one.
+        vm.onCredentialModeSelect(ShareCredentialMode.EXISTING)
         vm.onUserSelect(2)
         assertEquals(2, vm.state.value.selectedUserId)
         assertEquals("João Silva", vm.state.value.displayName)
@@ -162,11 +166,100 @@ class ShareAppViewModelTest {
         assertNotNull(link)
         assertTrue(link!!.startsWith("https://api.whatsapp.com/send?phone=5511988887777&text="))
     }
+    @Test
+    fun `a new worker is created with the derived login, the generated password and the worker role`() {
+        val adminApi = FakeAdminApi(fixtureUsers)
+        val authRepo = AuthRepository(FakeAuthApi(role = "Administrador", userId = 1), FakeTokenStore("Administrador"), Json)
+        val vm = ShareAppViewModel(authRepo, UsersRepository(adminApi))
+
+        // Creation is what the screen offers first.
+        assertEquals(ShareCredentialMode.CREATE, vm.state.value.credentialMode)
+
+        vm.onQuickNameChange("Pedro")
+        assertEquals("pedro", vm.quickLogin())
+        assertEquals("pedro1234567890", vm.quickPassword())
+
+        // The message already carries the credentials that will exist once the account is created.
+        val preview = vm.message()
+        assertTrue(preview.contains("Olá, *Pedro*!"))
+        assertTrue(preview.contains("Usuário: *pedro*"))
+        assertTrue(preview.contains("Senha: *pedro1234567890*"))
+
+        kotlinx.coroutines.runBlocking { vm.ensureWorkerCreated() }
+
+        assertEquals(1, adminApi.created.size)
+        val body = adminApi.created.first()
+        assertEquals("pedro", body["username"]?.toString()?.trim('"'))
+        assertEquals("Pedro", body["display_name"]?.toString()?.trim('"'))
+        assertEquals("pedro1234567890", body["password"]?.toString()?.trim('"'))
+        // The role travels as a JSON number, which is what the backend schema refuses to read otherwise.
+        assertEquals("2", body["role_id"]?.toString())
+        assertEquals("pedro", vm.state.value.createdUsername)
+    }
+
+    @Test
+    fun `sharing twice does not create the same worker twice`() {
+        val adminApi = FakeAdminApi(fixtureUsers)
+        val authRepo = AuthRepository(FakeAuthApi(role = "Administrador", userId = 1), FakeTokenStore("Administrador"), Json)
+        val vm = ShareAppViewModel(authRepo, UsersRepository(adminApi))
+
+        vm.onQuickNameChange("Pedro")
+        kotlinx.coroutines.runBlocking {
+            vm.ensureWorkerCreated()
+            vm.ensureWorkerCreated()
+        }
+
+        assertEquals(1, adminApi.created.size)
+    }
+
+    @Test
+    fun `a taken login keeps the account out and says why`() {
+        val adminApi = FakeAdminApi(fixtureUsers, createStatus = 409)
+        val authRepo = AuthRepository(FakeAuthApi(role = "Administrador", userId = 1), FakeTokenStore("Administrador"), Json)
+        val vm = ShareAppViewModel(authRepo, UsersRepository(adminApi))
+
+        vm.onQuickNameChange("Ana Admin")
+        val created = kotlinx.coroutines.runBlocking { vm.ensureWorkerCreated() }
+
+        assertFalse(created)
+        assertEquals(ShareCreateError.DUPLICATED, vm.state.value.createError)
+        assertNull(vm.state.value.createdUsername)
+    }
+
+    @Test
+    fun `a name without letters asks for a login instead of creating an empty one`() {
+        val adminApi = FakeAdminApi(fixtureUsers)
+        val authRepo = AuthRepository(FakeAuthApi(role = "Administrador", userId = 1), FakeTokenStore("Administrador"), Json)
+        val vm = ShareAppViewModel(authRepo, UsersRepository(adminApi))
+
+        val created = kotlinx.coroutines.runBlocking { vm.ensureWorkerCreated() }
+
+        assertFalse(created)
+        assertEquals(ShareCreateError.NAME_REQUIRED, vm.state.value.createError)
+        assertTrue(adminApi.created.isEmpty())
+    }
 }
 
-private class FakeAdminApi(private val rows: List<AdminUserResponseUser>) : AdminApi {
+private class FakeAdminApi(
+    private val rows: List<AdminUserResponseUser>,
+    /** What `POST /api/admin/users` gets, so the test can read the role and password that were sent. */
+    val created: MutableList<JsonObject> = mutableListOf(),
+    private val createStatus: Int = 201,
+) : AdminApi {
     override suspend fun users(): Response<AdminUsersResponse> = Response.success(AdminUsersResponse(rows))
-    override suspend fun createUser(body: JsonObject): Response<AdminUserResponse> = error("unused")
+    override suspend fun createUser(body: JsonObject): Response<AdminUserResponse> {
+        if (createStatus == 409) {
+            return Response.error(
+                409,
+                okhttp3.ResponseBody.Companion.create(
+                    "application/json".toMediaTypeOrNull(),
+                    "{\"error\":\"USERNAME_TAKEN\"}",
+                ),
+            )
+        }
+        created.add(body)
+        return Response.success(AdminUserResponse(rows.first()))
+    }
     override suspend fun updateUser(id: Int, body: JsonObject): Response<AdminUserResponse> = error("unused")
     override suspend fun deleteUser(id: Int): Response<Unit> = error("unused")
     override suspend fun categories(): Response<AdminCategoriesResponse> = error("unused")

@@ -696,6 +696,17 @@
     <string name="share_platform_iphone">iPhone</string>
     <string name="share_platform_both">Ambos</string>
     <string name="share_credentials_title">Credenciales de Acceso</string>
+    <string name="share_mode_create">Crear nuevo operario</string>
+    <string name="share_mode_existing">Seleccionar existente</string>
+    <string name="share_display_name">Nombre de exibición</string>
+    <string name="share_quick_username_hint">Sugerido a partir del nombre; puedes corregirlo.</string>
+    <string name="share_role">Función</string>
+    <string name="share_role_worker">Trabajador</string>
+    <string name="share_create_name_required">Informá el nombre de exibición del nuevo operario.</string>
+    <string name="share_create_username_required">Informá el usuario del nuevo operario.</string>
+    <string name="share_create_duplicated">Ya existe un usuario con ese login. Elegí otro.</string>
+    <string name="share_create_refused">No se pudo crear el operario.</string>
+    <string name="share_create_unreachable">Sin conexión con el servidor. Intentá de nuevo.</string>
     <string name="share_select_user">Seleccionar usuario</string>
     <string name="share_select_user_placeholder">Seleccione un usuario</string>
     <string name="share_initial_password">Contraseña inicial</string>
