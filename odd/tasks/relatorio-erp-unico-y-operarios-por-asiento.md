@@ -137,7 +137,7 @@ De una copia read-only de la base del contenedor (`/tmp/audit-trindade.db`, mtim
 | T8 | S14, S15, S20 | backend sin fallback, `errorCode` nuevo para asiento sin dueño y para operario inactivo, OpenAPI y contrato Kotlin regenerados | 3 (changing a contract others consume) | `4ab41bf` |
 | T9 | S16, S17, S19 | Web: botón inline `+ Criar Operário: <NOMBRE>` para administrador y refresco de la tabla | — | |
 | T10 | S16–S19 | Android: mismo botón inline, mismo refresco, paridad de textos | — | |
-| T11 | S21, Q2 | script idempotente que crea `joaoh` y `jefferson` y reasigna los asientos `#35947` / `#35952`, con copia previa de `trindade.db` | 1 (reescribe datos) | `COMMIT_T11` |
+| T11 | S21, Q2 | script idempotente que crea `joaoh` y `jefferson` y reasigna los asientos `#35947` / `#35952`, con copia previa de `trindade.db` | 1 (reescribe datos) | `dbea09d` |
 | T12 | S5–S8 | suites completas, verificación independiente de los frentes con riesgo, Docker y APK | 5 (delivery) | |
 
 Ruta: todas inline salvo que, al implementar, T3/T5/T9 y T4/T7/T10 se confirmen como unidades independientes de varias
@@ -159,6 +159,18 @@ minutos cada una; en ese caso van tres writers en background con superficies dis
 El alta del operario que destraba el asiento es `POST /api/admin/users` con
 `{ username, password, display_name, role_id: 2 }`: el login sale de `deriveUsername(<NOMBRE DEL ASIENTO>)` y la
 senha de `quickWorkerPassword(login)`, la misma pareja del Frente 2.
+
+### T11: qué encontró la corrección en la base real
+
+La copia de `trindade.db` de producción (31/10) no tiene ningún lanzamiento importado: los 74 registros de
+`massa_launches` son manuales y ninguno lleva `ent_lan`. El espejo sincronizó sólo el 29 y el 30 de octubre
+(asientos `35907`–`35939`), así que los asientos `#35947` y `#35952` todavía no llegaron: `JEFFERSON` sí
+aparece en seis asientos del 29/10 y `JOAO H` no aparece. No hay nada que reasignar hoy.
+
+El script (`packages/backend/scripts/adopt-erp-seats.ts`) queda listo y probado: en cuanto la sincronización
+traiga esos asientos y alguien los importe, se corrige con `--ent-lan 35947,35952` previa copia automática. Con
+el flujo nuevo, esos asientos ni siquiera se pueden importar mal: la tabla unificada ofrece `+ Criar Operário`
+en la fila del asiento sin dueño, y el alta real de `jefferson` sale de ahí.
 
 ## Log
 
