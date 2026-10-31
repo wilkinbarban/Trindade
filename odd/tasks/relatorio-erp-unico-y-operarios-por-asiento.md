@@ -137,7 +137,7 @@ De una copia read-only de la base del contenedor (`/tmp/audit-trindade.db`, mtim
 | T8 | S14, S15, S20 | backend sin fallback, `errorCode` nuevo para asiento sin dueño y para operario inactivo, OpenAPI y contrato Kotlin regenerados | 3 (changing a contract others consume) | `4ab41bf` |
 | T9 | S16, S17, S19 | Web: botón inline `+ Criar Operário: <NOMBRE>` para administrador y refresco de la tabla | — | |
 | T10 | S16–S19 | Android: mismo botón inline, mismo refresco, paridad de textos | — | |
-| T11 | S21, Q2 | script idempotente que crea `joaoh` y `jefferson` y reasigna los asientos `#35947` / `#35952`, con copia previa de `trindade.db` | 1 (reescribe datos) | |
+| T11 | S21, Q2 | script idempotente que crea `joaoh` y `jefferson` y reasigna los asientos `#35947` / `#35952`, con copia previa de `trindade.db` | 1 (reescribe datos) | `COMMIT_T11` |
 | T12 | S5–S8 | suites completas, verificación independiente de los frentes con riesgo, Docker y APK | 5 (delivery) | |
 
 Ruta: todas inline salvo que, al implementar, T3/T5/T9 y T4/T7/T10 se confirmen como unidades independientes de varias
