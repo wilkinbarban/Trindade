@@ -77,7 +77,7 @@ class AeroErpClient @Inject constructor(
     enum class ProbeFailure { TIMEOUT, NO_ROUTE, REFUSED, UNKNOWN }
 
     /**
-     * `POST /usuarios/` with the operator's credentials.
+     * `POST /usuarios` with the operator's credentials.
      *
      * The probe deliberately does not throw: every outcome is an answer the screen shows, because the
      * operator's next move depends on which one it is.
@@ -87,7 +87,11 @@ class AeroErpClient @Inject constructor(
         username: String,
         password: String,
     ): Probe {
-        val url = aeroEndpoint(wsUrl, "usuarios/")
+        // No trailing slash, and this is load-bearing rather than cosmetic: Laravel answers `/usuarios/`
+        // with a 301 to `/usuarios`, OkHttp follows that redirect, and a POST that arrives after it arrives
+        // as a GET -- which the route refuses with 405. The web has always called it without the slash, so
+        // the two clients were asking two different URLs and only one of them worked.
+        val url = aeroEndpoint(wsUrl, "usuarios")
         return runCatching {
             api.postLogin(url, basicAuthHeader(username, password))
         }.fold(

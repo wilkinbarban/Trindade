@@ -299,7 +299,7 @@ sealed interface AeroMovementsResult {
     data class Failed(val message: String?) : AeroMovementsResult
 }
 
-/** The `/usuarios/` authentication answer, as the integration test needs it. */
+/** The `/usuarios` authentication answer, as the integration test needs it. */
 sealed interface AeroTestResult {
     data class Ok(val userCode: Int, val userName: String) : AeroTestResult
 

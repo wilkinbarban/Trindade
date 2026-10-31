@@ -19,7 +19,7 @@ import retrofit2.http.Url
  */
 interface AeroErpApi {
 
-    /** `POST /usuarios/`: proves the credentials and, in the same answer, the ERP's operator code. */
+    /** `POST /usuarios`: proves the credentials and, in the same answer, the ERP's operator code. */
     @POST
     suspend fun postLogin(
         @Url url: String,

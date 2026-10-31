@@ -116,7 +116,9 @@ class AeroErpClientTest {
 
         assertEquals(AeroErpClient.Probe.Answered(AeroTestResult.Ok(7, "WILKIN")), probe)
         val recorded = server.takeRequest()
-        assertEquals("/api/usuarios/", recorded.path)
+        // Without the trailing slash: with it, Laravel answers 301 to `/api/usuarios`, OkHttp follows the
+        // redirect, and the POST arrives at the route as a GET -- which is the 405 the operator saw.
+        assertEquals("/api/usuarios", recorded.path)
         assertEquals("Basic d2lsa2luOnNlY3JldA==", recorded.getHeader("Authorization"))
     }
 
